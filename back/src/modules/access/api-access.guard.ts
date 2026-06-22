@@ -1,6 +1,8 @@
 import type { CanActivate, ExecutionContext } from '@nestjs/common';
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
+import { COMPANY_ROLES_KEY } from 'src/decorators/require-role.decorator';
 import { PrismaService } from 'src/database/prisma/prisma.service';
 import type { ICompanyContext } from 'src/interfaces/ICompanyContext';
 import { ApiKeyService } from 'src/modules/api-key/api-key.service';
@@ -18,7 +20,8 @@ export class ApiAccessGuard implements CanActivate {
   constructor(
     private readonly apiKeyService: ApiKeyService,
     private readonly jwt: JwtService,
-    private readonly prisma: PrismaService
+    private readonly prisma: PrismaService,
+    private readonly reflector: Reflector
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -38,7 +41,7 @@ export class ApiAccessGuard implements CanActivate {
         viaApiKeyId: apiKey.id,
         scopes: (apiKey.scopes as string[] | null) ?? null
       };
-      return true;
+      return this.enforceRoles(context, req);
     }
 
     // Sem API key → exige Bearer token (humano)
@@ -69,6 +72,22 @@ export class ApiAccessGuard implements CanActivate {
         viaApiKeyId: null,
         scopes: null
       };
+    }
+    return this.enforceRoles(context, req);
+  }
+
+  // Aplica @RequireRole: a permissão efetiva é o papel da membership.
+  private enforceRoles(context: ExecutionContext, req: RequestWithContext): boolean {
+    const roles = this.reflector.getAllAndOverride<string[]>(COMPANY_ROLES_KEY, [
+      context.getHandler(),
+      context.getClass()
+    ]);
+    if (!roles || roles.length === 0) return true;
+    if (!req.companyContext) {
+      throw new ForbiddenException('Contexto de empresa necessário para esta ação');
+    }
+    if (!roles.includes(req.companyContext.role)) {
+      throw new ForbiddenException('Permissão insuficiente para esta ação');
     }
     return true;
   }

@@ -1,8 +1,11 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  Headers,
   Param,
+  ParseIntPipe,
   Post,
   Query,
   UseGuards
@@ -13,13 +16,15 @@ import { unprotected } from 'src/decorators/unprotected.decorator';
 import type { ICompanyContext } from 'src/interfaces/ICompanyContext';
 import { ApiAccessGuard } from 'src/modules/access/api-access.guard';
 
+import { AddDependencyDto } from './dto/add-dependency.dto';
 import { CreateTaskDto } from './dto/create-task.dto';
+import { CreateTasksBulkDto } from './dto/create-tasks-bulk.dto';
 import { MoveTaskDto } from './dto/move-task.dto';
 import { TasksService } from './tasks.service';
 
-// O coração do slice: agente cria e move tarefas via API key.
+// Acessível por agente (x-api-key) ou humano (JWT + X-Company-Id).
 @ApiTags('tasks')
-@unprotected() // ignora o AtGuard global; o ApiAccessGuard cuida da auth
+@unprotected()
 @UseGuards(ApiAccessGuard)
 @Controller('tasks')
 export class TasksController {
@@ -30,12 +35,44 @@ export class TasksController {
     return this.tasks.create(ctx, dto);
   }
 
+  // Decompose em massa (com Idempotency-Key opcional).
+  @Post('bulk')
+  bulk(
+    @CompanyContext() ctx: ICompanyContext,
+    @Body() dto: CreateTasksBulkDto,
+    @Headers('idempotency-key') idempotencyKey?: string
+  ) {
+    return this.tasks.bulk(ctx, dto, idempotencyKey);
+  }
+
   @Get()
   list(
     @CompanyContext() ctx: ICompanyContext,
-    @Query('projectId') projectId?: string
+    @Query('projectId') projectId?: string,
+    @Query('status') status?: string,
+    @Query('assigneeId') assigneeId?: string,
+    @Query('priority') priority?: string,
+    @Query('labelId') labelId?: string,
+    @Query('search') search?: string
   ) {
-    return this.tasks.list(ctx, projectId ? Number(projectId) : undefined);
+    return this.tasks.list(ctx, {
+      projectId: projectId ? Number(projectId) : undefined,
+      status,
+      assigneeId: assigneeId ? Number(assigneeId) : undefined,
+      priority,
+      labelId: labelId ? Number(labelId) : undefined,
+      search
+    });
+  }
+
+  // Fluxo da tarefa (objetivo -> subtarefas -> aceite). ?format=mermaid p/ export.
+  @Get(':idOrCode/flow')
+  flow(
+    @CompanyContext() ctx: ICompanyContext,
+    @Param('idOrCode') idOrCode: string,
+    @Query('format') format?: string
+  ) {
+    return this.tasks.getFlow(ctx, idOrCode, format);
   }
 
   @Get(':idOrCode')
@@ -50,5 +87,22 @@ export class TasksController {
     @Body() dto: MoveTaskDto
   ) {
     return this.tasks.move(ctx, idOrCode, dto);
+  }
+
+  @Post(':idOrCode/dependencies')
+  addDependency(
+    @CompanyContext() ctx: ICompanyContext,
+    @Param('idOrCode') idOrCode: string,
+    @Body() dto: AddDependencyDto
+  ) {
+    return this.tasks.addDependency(ctx, idOrCode, dto.blockerCode);
+  }
+
+  @Delete(':idOrCode/dependencies/:depId')
+  removeDependency(
+    @CompanyContext() ctx: ICompanyContext,
+    @Param('depId', ParseIntPipe) depId: number
+  ) {
+    return this.tasks.removeDependency(ctx, depId);
   }
 }

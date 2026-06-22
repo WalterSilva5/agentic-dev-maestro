@@ -25,8 +25,9 @@ model User {
   creditAccount CreditAccount?
 
   // Agentic Dev Maestro — domínio
-  memberships   Membership[]
-  assignedTasks Task[]         @relation("TaskAssignee")
+  memberships    Membership[]
+  assignedTasks  Task[]        @relation("TaskAssignee")
+  authoredComments Comment[]   @relation("CommentAuthor")
 
   @@map("USERS")
 }
@@ -115,10 +116,16 @@ model Company {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime?    @updatedAt
   deletedAt   DateTime?
-  memberships Membership[]
-  apiKeys     ApiKey[]
-  projects    Project[]
-  tasks       Task[]
+  memberships  Membership[]
+  apiKeys      ApiKey[]
+  projects     Project[]
+  tasks        Task[]
+  labels       Label[]
+  documents    Document[]
+  comments     Comment[]
+  dependencies TaskDependency[]
+  activityLogs ActivityLog[]
+  webhooks     Webhook[]
 
   @@map("TB_COMPANY")
 }
@@ -170,6 +177,7 @@ model Project {
   company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   boards      Board[]
   tasks       Task[]
+  documents   Document[]
 
   @@unique([companyId, key])
   @@map("TB_PROJECT")
@@ -225,6 +233,11 @@ model Task {
   parent      Task?        @relation("Subtasks", fields: [parentId], references: [id])
   subtasks    Task[]       @relation("Subtasks")
   assignee    User?        @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  labels      Label[]      @relation("TaskLabels")
+  comments    Comment[]
+  documents   Document[]
+  blocking    TaskDependency[] @relation("Blocker")
+  blockedBy   TaskDependency[] @relation("Blocked")
 
   @@unique([projectId, number])
   @@index([companyId])
@@ -245,4 +258,123 @@ enum TaskPriority {
   MEDIUM
   HIGH
   URGENT
+}
+
+enum DocType {
+  SPEC
+  PLAN
+  NOTES
+  ADR
+  OTHER
+}
+
+model Label {
+  id        Int      @id @default(autoincrement())
+  companyId Int
+  name      String   @db.VarChar(60)
+  color     String?  @db.VarChar(20)
+  createdAt DateTime @default(now())
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  tasks     Task[]   @relation("TaskLabels")
+
+  @@unique([companyId, name])
+  @@index([companyId])
+  @@map("TB_LABEL")
+}
+
+model Document {
+  id        Int       @id @default(autoincrement())
+  companyId Int
+  title     String    @db.VarChar(200)
+  body      String    @db.LongText // markdown
+  type      DocType   @default(SPEC)
+  version   Int       @default(1)
+  projectId Int?
+  taskId    Int?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
+  company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  project   Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  task      Task?     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([projectId])
+  @@index([taskId])
+  @@map("TB_DOCUMENT")
+}
+
+model Comment {
+  id          Int      @id @default(autoincrement())
+  companyId   Int
+  taskId      Int
+  authorId    Int
+  body        String   @db.Text
+  viaApiKeyId Int? // marca quando veio de um agente
+  createdAt   DateTime @default(now())
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  author      User     @relation("CommentAuthor", fields: [authorId], references: [id])
+
+  @@index([companyId])
+  @@index([taskId])
+  @@map("TB_COMMENT")
+}
+
+// Aresta de precedência do fluxo: blocker precisa concluir antes de blocked.
+model TaskDependency {
+  id        Int      @id @default(autoincrement())
+  companyId Int
+  blockerId Int
+  blockedId Int
+  createdAt DateTime @default(now())
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  blocker   Task     @relation("Blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked   Task     @relation("Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([companyId])
+  @@map("TB_TASK_DEPENDENCY")
+}
+
+model ActivityLog {
+  id          Int      @id @default(autoincrement())
+  companyId   Int
+  actorUserId Int
+  viaApiKeyId Int?
+  entityType  String   @db.VarChar(40)
+  entityId    Int
+  action      String   @db.VarChar(60)
+  changes     Json?
+  createdAt   DateTime @default(now())
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([entityType, entityId])
+  @@map("TB_ACTIVITY_LOG")
+}
+
+model Webhook {
+  id        Int      @id @default(autoincrement())
+  companyId Int
+  url       String   @db.VarChar(500)
+  secret    String?  @db.VarChar(120)
+  events    Json? // ex.: ["task.created","task.moved"]
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@map("TB_WEBHOOK")
+}
+
+// Idempotência de criações (ex.: POST /tasks/bulk com Idempotency-Key).
+model IdempotencyKey {
+  id        Int      @id @default(autoincrement())
+  companyId Int
+  key       String   @db.VarChar(120)
+  response  Json?
+  createdAt DateTime @default(now())
+
+  @@unique([companyId, key])
+  @@map("TB_IDEMPOTENCY_KEY")
 }

@@ -16,10 +16,18 @@ import { CreditTransactionModule } from './modules/credit-transaction/credit-tra
 import { HealthModule } from './modules/health/health.module';
 import { UserModule } from './modules/user/user.module';
 // Agentic Dev Maestro — domínio
+import { AccessModule } from './modules/access/access.module';
+import { ActivityLogModule } from './modules/activity-log/activity-log.module';
 import { ApiKeyModule } from './modules/api-key/api-key.module';
+import { CommentsModule } from './modules/comments/comments.module';
 import { CompaniesModule } from './modules/companies/companies.module';
+import { DocumentsModule } from './modules/documents/documents.module';
+import { IdempotencyModule } from './modules/idempotency/idempotency.module';
+import { LabelsModule } from './modules/labels/labels.module';
+import { MembersModule } from './modules/members/members.module';
 import { ProjectsModule } from './modules/projects/projects.module';
 import { TasksModule } from './modules/tasks/tasks.module';
+import { WebhooksModule } from './modules/webhooks/webhooks.module';
 
 @Module({
   controllers: [],
@@ -62,10 +70,18 @@ import { TasksModule } from './modules/tasks/tasks.module';
     CreditTransactionModule,
     HealthModule,
     // Agentic Dev Maestro
+    ActivityLogModule,
+    IdempotencyModule,
+    AccessModule,
     CompaniesModule,
     ApiKeyModule,
+    MembersModule,
     ProjectsModule,
     TasksModule,
+    LabelsModule,
+    DocumentsModule,
+    CommentsModule,
+    WebhooksModule,
   ]
 })
 export class AppModule implements NestModule {
