@@ -1,0 +1,15 @@
+{
+  "apiUrl": "/api",
+  "production": false,
+  "app": {
+    "name": "Fullstack Template",
+    "version": "1.0.0",
+    "versionCode": 1,
+    "deepLinkHost": "app.example.com",
+    "theme": {
+      "primaryColor": "#1DB954",
+      "darkBackground": "#181818",
+      "statusBarColor": "#181818"
+    }
+  }
+}

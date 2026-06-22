@@ -73,6 +73,13 @@ services:
     restart: unless-stopped
     depends_on:
       - api
+    environment:
+      # Config de runtime do front (gerada no start — ver front/docker-config-entrypoint.sh).
+      # apiUrl relativo usa o proxy do nginx -> serviço api; troque por URL absoluta
+      # se a API estiver em outro host/domínio.
+      API_URL: ${FRONT_API_URL:-/api}
+      PRODUCTION: ${FRONT_PRODUCTION:-true}
+      APP_NAME: ${APP_NAME:-Agentic Dev Maestro}
     ports:
       - "${FRONT_PORT:-4200}:80"
     networks:
