@@ -12,3 +12,9 @@ docs/diagramas/.plantuml.jar
 # Sistema
 .DS_Store
 Thumbs.db
+
+# Config local do Claude
+.claude/
+
+# Cache de build TS
+*.tsbuildinfo

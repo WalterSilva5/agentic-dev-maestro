@@ -5,6 +5,7 @@ import {
   NotFoundException
 } from '@nestjs/common';
 import { PrismaService } from 'src/database/prisma/prisma.service';
+import { EmailService } from 'src/modules/email/email.service';
 import { MembershipRole } from '@prisma/client';
 
 import type { AddMemberDto } from './dto/add-member.dto';
@@ -12,7 +13,10 @@ import type { UpdateMemberRoleDto } from './dto/update-member-role.dto';
 
 @Injectable()
 export class MembersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private email: EmailService
+  ) {}
 
   // Lista os membros da empresa com dados básicos do usuário.
   list(companyId: number) {
@@ -41,7 +45,7 @@ export class MembersService {
     });
     if (existing) throw new ConflictException('Usuário já é membro desta empresa');
 
-    return this.prisma.membership.create({
+    const membership = await this.prisma.membership.create({
       data: {
         companyId,
         userId: user.id,
@@ -55,6 +59,22 @@ export class MembersService {
         }
       }
     });
+
+    // Notificação por e-mail (fire-and-forget; inerte se o SMTP não estiver configurado).
+    const company = await this.prisma.company.findUnique({
+      where: { id: companyId },
+      select: { name: true }
+    });
+    void this.email
+      .sendEmail(
+        membership.user.email,
+        `Você foi adicionado à empresa ${company?.name ?? ''} no Agentic Dev Maestro`,
+        `<p>Olá ${membership.user.firstName},</p>
+         <p>Você agora é membro de <b>${company?.name ?? ''}</b> com o papel <b>${membership.role}</b>.</p>`
+      )
+      .catch(() => undefined);
+
+    return membership;
   }
 
   // Altera o papel de um membro desta empresa.

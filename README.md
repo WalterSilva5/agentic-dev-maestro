@@ -75,20 +75,24 @@ empresas, membros, projetos, quadros, tarefas, docs, API keys e a API para agent
 
 ## Status
 
-🚧 **Base + vertical slice de backend implementados** (sobre o template
-`fullstack-nestjs-angular`: NestJS + Prisma/MySQL + Angular). O domínio multi-tenant
-mínimo já existe e foi **validado de ponta a ponta**:
+🟢 **Implementado e verificado** (sobre o template `fullstack-nestjs-angular`):
+backend (Gates 0–4), app Angular completo e servidor MCP. Estrutura: `back/`
+(NestJS + Prisma/MySQL), `front/` (Angular 20), `mcp/` (servidor MCP), `docs/`.
 
-- Modelos: `Company`, `Membership` (papéis), `ApiKey`, `Project`, `Board`,
-  `BoardColumn`, `Task` (com `objective`/`acceptance`).
-- Autenticação por **API key** (`x-api-key`) e por JWT + `X-Company-Id`, com
-  isolamento por empresa em toda query.
-- Endpoints: criar empresa, gerar/revogar API key, criar projeto (com quadro +
-  colunas padrão), criar/listar/mover tarefas.
-- ✅ Provado: um agente, **só com a API key**, cria uma tarefa e move o status no quadro
-  (e requisição sem chave retorna 401).
+- **Backend:** Company, Membership (papéis), ApiKey, Project, Board, BoardColumn, Task
+  (objetivo/aceite), Label, Document, Comment, **TaskDependency** (fluxo/DAG), ActivityLog,
+  Webhook, IdempotencyKey. Auth por **API key** ou **JWT + X-Company-Id**, RBAC `@RequireRole`,
+  isolamento por empresa. Endpoints de empresas, membros, API keys, projetos, **tarefas**
+  (criar/filtrar/mover/`bulk`+Idempotency-Key/`flow`+mermaid/dependências), labels, documentos,
+  comentários, atividade e webhooks.
+- **Frontend (Angular):** seleção de empresa (multi-tenant via `X-Company-Id`), projetos,
+  **quadro kanban** (drag-and-drop), **detalhe da tarefa com fluxograma** (objetivo→subtarefas→aceite),
+  documentos, comentários, atividade, membros, API keys e dashboard.
+- **MCP:** pacote `mcp/` com 11 tools que envolvem a API (autenticação por `x-api-key`).
+- ✅ **Verificado:** e2e de API via API key (bulk, fluxo, ciclo→400, idempotência, auditoria) e
+  **click-through no browser** (login → empresas → projetos → quadro → fluxo da tarefa).
 
-Próximos passos no [roadmap](docs/05-roadmap.md) e nas [tarefas](docs/tarefas/).
+Estado detalhado e pendências no [CHECKLIST](docs/CHECKLIST.md).
 
 ### Como rodar (dev)
 
