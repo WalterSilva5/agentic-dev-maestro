@@ -1,0 +1,117 @@
+// TODO: Utilitários de responsividade globais para uso em toda a aplicação
+// Mixin para media queries padronizadas
+
+// Breakpoints padrão (Bootstrap-like)
+$breakpoint-xs: 0;
+$breakpoint-sm: 576px;
+$breakpoint-md: 768px;
+$breakpoint-lg: 992px;
+$breakpoint-xl: 1200px;
+$breakpoint-xxl: 1400px;
+
+// Mixins de media queries
+@mixin media-xs {
+  @media (max-width: #{$breakpoint-sm - 1px}) {
+    @content;
+  }
+}
+
+@mixin media-sm {
+  @media (min-width: $breakpoint-sm) {
+    @content;
+  }
+}
+
+@mixin media-md {
+  @media (min-width: $breakpoint-md) {
+    @content;
+  }
+}
+
+@mixin media-lg {
+  @media (min-width: $breakpoint-lg) {
+    @content;
+  }
+}
+
+@mixin media-xl {
+  @media (min-width: $breakpoint-xl) {
+    @content;
+  }
+}
+
+@mixin media-xxl {
+  @media (min-width: $breakpoint-xxl) {
+    @content;
+  }
+}
+
+// Mixin para touch targets (acessibilidade mobile)
+@mixin touch-target {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0.5rem 1rem;
+}
+
+// Mixin para prevenir overflow horizontal
+@mixin no-overflow-x {
+  overflow-x: hidden;
+  max-width: 100vw;
+  width: 100%;
+}
+
+// Mixin para texto responsivo com clamp
+@mixin fluid-type($min-size, $max-size, $min-vw: 320px, $max-vw: 1200px) {
+  font-size: clamp(#{$min-size}, calc(#{$min-size} + (#{strip-unit($max-size)} - #{strip-unit($min-size)}) * ((100vw - #{$min-vw}) / (#{strip-unit($max-vw)} - #{strip-unit($min-vw)}))), #{$max-size});
+}
+
+// Helper function para remover unidades
+@function strip-unit($number) {
+  @if type-of($number) == 'number' and not unitless($number) {
+    @return $number / ($number * 0 + 1);
+  }
+  @return $number;
+}
+
+// Utility classes para espaçamento responsivo
+.p-responsive {
+  padding: 0.75rem;
+
+  @include media-md {
+    padding: 1.5rem;
+  }
+
+  @include media-lg {
+    padding: 2rem;
+  }
+}
+
+.px-responsive {
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+
+  @include media-md {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+
+  @include media-lg {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+
+.py-responsive {
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+
+  @include media-md {
+    padding-top: 1.5rem;
+    padding-bottom: 1.5rem;
+  }
+
+  @include media-lg {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+  }
+}

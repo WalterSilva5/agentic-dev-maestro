@@ -1,0 +1,248 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           Int       @id @default(autoincrement())
+  firstName    String    @db.VarChar(50)
+  lastName     String    @db.VarChar(50)
+  password     String    @db.VarChar(255)
+  email        String    @unique @db.VarChar(255)
+  username     String?   @unique @db.VarChar(50)
+  sessionToken String?   @db.VarChar(255)
+  role         Role      @default(USER)
+  birthDate    DateTime?
+  gender       Gender?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime? @default(now()) @updatedAt
+  deletedAt    DateTime?
+
+  creditAccount CreditAccount?
+
+  // Agentic Dev Maestro — domínio
+  memberships   Membership[]
+  assignedTasks Task[]         @relation("TaskAssignee")
+
+  @@map("USERS")
+}
+
+model CreditAccount {
+  id              Int                 @id @default(autoincrement())
+  userId          Int                 @unique
+  balance         Float               @default(0)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime?           @updatedAt
+  deletedAt       DateTime?
+  lastDailyCredit DateTime?
+  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions    CreditTransaction[]
+
+  @@map("TB_CREDIT_ACCOUNT")
+}
+
+model CreditTransaction {
+  id          Int             @id @default(autoincrement())
+  accountId   Int
+  type        TransactionType
+  amount      Float
+  description String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime?       @updatedAt
+  deletedAt   DateTime?
+  account     CreditAccount   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId], map: "TB_CREDIT_TRANSACTION_accountId_fkey")
+  @@map("TB_CREDIT_TRANSACTION")
+}
+
+model PasswordResetToken {
+  id        Int       @id @default(autoincrement())
+  email     String    @db.VarChar(255)
+  token     String    @unique @db.VarChar(100)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([email])
+  @@index([expiresAt])
+  @@map("TB_PASSWORD_RESET_TOKENS")
+}
+
+model AppConfig {
+  id          Int       @id @default(autoincrement())
+  key         String    @unique(map: "key") @db.VarChar(100)
+  value       String    @db.Text
+  description String?   @db.VarChar(255)
+  type        String?   @default("string") @db.VarChar(20)
+  createdAt   DateTime? @default(now()) @db.DateTime(0)
+  updatedAt   DateTime? @updatedAt @db.DateTime(0)
+
+  @@map("TB_APP_CONFIG")
+}
+
+enum Role {
+  USER
+  ADMIN
+  MANAGER
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum TransactionType {
+  PURCHASE
+  USAGE
+  REFUND
+}
+
+// ===================================================================
+// Agentic Dev Maestro — domínio (empresas, membros, API keys,
+// projetos, quadros e tarefas). Ver docs/02-modelo-de-dados.md
+// ===================================================================
+
+model Company {
+  id          Int          @id @default(autoincrement())
+  name        String       @db.VarChar(120)
+  slug        String       @unique @db.VarChar(120)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime?    @updatedAt
+  deletedAt   DateTime?
+  memberships Membership[]
+  apiKeys     ApiKey[]
+  projects    Project[]
+  tasks       Task[]
+
+  @@map("TB_COMPANY")
+}
+
+model Membership {
+  id        Int            @id @default(autoincrement())
+  userId    Int
+  companyId Int
+  role      MembershipRole @default(DEV)
+  createdAt DateTime       @default(now())
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company   Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  apiKeys   ApiKey[]
+
+  @@unique([userId, companyId])
+  @@index([companyId])
+  @@map("TB_MEMBERSHIP")
+}
+
+model ApiKey {
+  id           Int        @id @default(autoincrement())
+  label        String     @db.VarChar(120)
+  hashedKey    String     @unique @db.VarChar(64) // sha256 hex do segredo
+  prefix       String     @db.VarChar(16) // primeiros chars p/ exibir na UI
+  scopes       Json?
+  membershipId Int
+  companyId    Int
+  lastUsedAt   DateTime?
+  expiresAt    DateTime?
+  revokedAt    DateTime?
+  createdAt    DateTime   @default(now())
+  membership   Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  company      Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@map("TB_API_KEY")
+}
+
+model Project {
+  id          Int       @id @default(autoincrement())
+  companyId   Int
+  name        String    @db.VarChar(120)
+  key         String    @db.VarChar(20) // prefixo do código (ex.: "GAV")
+  description String?   @db.Text
+  taskSeq     Int       @default(0) // contador p/ numerar tarefas (GAV-1..n)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime? @updatedAt
+  deletedAt   DateTime?
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  boards      Board[]
+  tasks       Task[]
+
+  @@unique([companyId, key])
+  @@map("TB_PROJECT")
+}
+
+model Board {
+  id        Int           @id @default(autoincrement())
+  projectId Int
+  name      String        @default("Principal") @db.VarChar(120)
+  createdAt DateTime      @default(now())
+  project   Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  columns   BoardColumn[]
+
+  @@index([projectId])
+  @@map("TB_BOARD")
+}
+
+model BoardColumn {
+  id       Int     @id @default(autoincrement())
+  boardId  Int
+  name     String  @db.VarChar(120)
+  order    Int
+  wipLimit Int?
+  isDone   Boolean @default(false) // marca a coluna terminal (conclusão)
+  board    Board   @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  tasks    Task[]
+
+  @@index([boardId])
+  @@map("TB_BOARD_COLUMN")
+}
+
+model Task {
+  id          Int          @id @default(autoincrement())
+  companyId   Int
+  projectId   Int
+  columnId    Int
+  number      Int // sequencial por projeto -> "GAV-42"
+  title       String       @db.VarChar(255)
+  description String?      @db.Text
+  objective   String?      @db.Text // objetivo (entrada do fluxo)
+  acceptance  String?      @db.Text // critério de aceite (ponto de aceitação)
+  parentId    Int?
+  assigneeId  Int?
+  priority    TaskPriority @default(MEDIUM)
+  estimateMd  Float? // estimativa em homem-dia
+  rank        String       @db.VarChar(64) // ordenação lexicográfica no kanban
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime?    @updatedAt
+  deletedAt   DateTime?
+  company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  column      BoardColumn  @relation(fields: [columnId], references: [id])
+  parent      Task?        @relation("Subtasks", fields: [parentId], references: [id])
+  subtasks    Task[]       @relation("Subtasks")
+  assignee    User?        @relation("TaskAssignee", fields: [assigneeId], references: [id])
+
+  @@unique([projectId, number])
+  @@index([companyId])
+  @@index([columnId])
+  @@map("TB_TASK")
+}
+
+enum MembershipRole {
+  OWNER
+  MANAGER
+  TECH_LEAD
+  DEV
+  VIEWER
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}

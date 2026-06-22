@@ -1,0 +1,34 @@
+# Local development: spins up only MySQL + Redis so you can run the
+# NestJS API on the host with `npm run start:dev`.
+# Usage: docker compose -f docker-compose-dev.yml up -d
+version: '3.8'
+
+services:
+  mysql:
+    container_name: "app_mysql_dev"
+    image: mysql:8.0
+    command: --default-authentication-plugin=mysql_native_password
+    restart: "no"
+    env_file:
+      - .env
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    networks:
+      - app_dev
+
+  redis:
+    container_name: "app_redis_dev"
+    image: redis:alpine
+    restart: "no"
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    networks:
+      - app_dev
+
+networks:
+  app_dev:

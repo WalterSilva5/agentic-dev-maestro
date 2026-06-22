@@ -1,0 +1,16 @@
+import { PrismaService } from 'src/database/prisma/prisma.service';
+import { BaseService } from 'src/modules/base/base.service';
+import { Module_pcRepository } from './module_lc.repository';
+import { Module_pcDto } from './dto/module_lc.dto';
+import { Injectable } from '@nestjs/common';
+import { Module_pc } from '@prisma/client';
+
+@Injectable()
+export class Module_pcService extends BaseService<Module_pcDto, Module_pc> {
+  constructor(
+    protected readonly repository: Module_pcRepository,
+    protected readonly prisma: PrismaService
+  ) {
+    super(repository);
+  }
+}

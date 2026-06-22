@@ -1,0 +1,85 @@
+-- CreateTable
+CREATE TABLE `USERS` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `firstName` VARCHAR(50) NOT NULL,
+    `lastName` VARCHAR(50) NOT NULL,
+    `password` VARCHAR(255) NOT NULL,
+    `email` VARCHAR(255) NOT NULL,
+    `username` VARCHAR(50) NULL,
+    `sessionToken` VARCHAR(255) NULL,
+    `role` ENUM('USER', 'ADMIN', 'MANAGER') NOT NULL DEFAULT 'USER',
+    `birthDate` DATETIME(3) NULL,
+    `gender` ENUM('MALE', 'FEMALE', 'OTHER') NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `deletedAt` DATETIME(3) NULL,
+
+    UNIQUE INDEX `USERS_email_key`(`email`),
+    UNIQUE INDEX `USERS_username_key`(`username`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `TB_CREDIT_ACCOUNT` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `userId` INTEGER NOT NULL,
+    `balance` DOUBLE NOT NULL DEFAULT 0,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NULL,
+    `deletedAt` DATETIME(3) NULL,
+    `lastDailyCredit` DATETIME(3) NULL,
+
+    UNIQUE INDEX `TB_CREDIT_ACCOUNT_userId_key`(`userId`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `TB_CREDIT_TRANSACTION` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `accountId` INTEGER NOT NULL,
+    `type` ENUM('PURCHASE', 'USAGE', 'REFUND') NOT NULL,
+    `amount` DOUBLE NOT NULL,
+    `description` VARCHAR(191) NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NULL,
+    `deletedAt` DATETIME(3) NULL,
+
+    INDEX `TB_CREDIT_TRANSACTION_accountId_fkey`(`accountId`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `TB_PASSWORD_RESET_TOKENS` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `email` VARCHAR(255) NOT NULL,
+    `token` VARCHAR(100) NOT NULL,
+    `expiresAt` DATETIME(3) NOT NULL,
+    `usedAt` DATETIME(3) NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    UNIQUE INDEX `TB_PASSWORD_RESET_TOKENS_token_key`(`token`),
+    INDEX `TB_PASSWORD_RESET_TOKENS_email_idx`(`email`),
+    INDEX `TB_PASSWORD_RESET_TOKENS_expiresAt_idx`(`expiresAt`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `TB_APP_CONFIG` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `key` VARCHAR(100) NOT NULL,
+    `value` TEXT NOT NULL,
+    `description` VARCHAR(255) NULL,
+    `type` VARCHAR(20) NULL DEFAULT 'string',
+    `createdAt` DATETIME(0) NULL DEFAULT CURRENT_TIMESTAMP(0),
+    `updatedAt` DATETIME(0) NULL,
+
+    UNIQUE INDEX `key`(`key`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- AddForeignKey
+ALTER TABLE `TB_CREDIT_ACCOUNT` ADD CONSTRAINT `TB_CREDIT_ACCOUNT_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `USERS`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `TB_CREDIT_TRANSACTION` ADD CONSTRAINT `TB_CREDIT_TRANSACTION_accountId_fkey` FOREIGN KEY (`accountId`) REFERENCES `TB_CREDIT_ACCOUNT`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+

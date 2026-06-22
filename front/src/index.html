@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <title>Fullstack Template</title>
+  <base href="/">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="Template fullstack NestJS + Angular">
+  <meta name="theme-color" content="#1DB954">
+
+  <!-- PWA Meta Tags -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Fullstack Template">
+
+  <!-- Favicon e Icons -->
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <link rel="manifest" href="/manifest.json">
+
+  <!-- Apple Touch Icons -->
+  <link rel="apple-touch-icon" href="/icons/pwa-icon.svg">
+
+  <!-- Microsoft Tiles -->
+  <meta name="msapplication-TileColor" content="#1DB954">
+  <meta name="msapplication-TileImage" content="/icons/pwa-icon.svg">
+</head>
+<body class="p-0 m-0 ">
+  <app-root></app-root>
+
+  <!-- Service Worker Registration -->
+  <script>
+    const isCapacitor = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
+    if ('serviceWorker' in navigator && !isCapacitor) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then((registration) => {
+            console.log('✅ Service Worker registrado com sucesso:', registration.scope);
+
+            // Verificar atualizações imediatamente
+            registration.update();
+
+            // Verificar atualizações periodicamente (a cada 60 segundos)
+            setInterval(() => {
+              registration.update();
+            }, 60000);
+
+            // Verificar atualizações
+            registration.addEventListener('updatefound', () => {
+              const newWorker = registration.installing;
+              console.log('🔄 Nova versão do SW encontrada, instalando...');
+
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed') {
+                  if (navigator.serviceWorker.controller) {
+                    // Nova versão disponível - forçar atualização
+                    console.log('🔄 Nova versão instalada! Atualizando...');
+                    newWorker.postMessage({ type: 'SKIP_WAITING' });
+                  } else {
+                    // Primeira instalação
+                    console.log('✅ Service Worker instalado pela primeira vez');
+                  }
+                }
+              });
+            });
+          })
+          .catch((error) => {
+            console.error('❌ Erro ao registrar Service Worker:', error);
+          });
+      });
+
+      // Controlar recarregamento quando novo SW estiver pronto
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!refreshing) {
+          refreshing = true;
+          console.log('🔄 Recarregando página com nova versão...');
+          window.location.reload();
+        }
+      });
+
+      // Escutar mensagens do SW
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'SW_UPDATED') {
+          console.log('✅ App atualizado para versão:', event.data.version);
+
+          // Limpar flags de PWA dismissal para permitir nova instalação
+          localStorage.removeItem('pwa-install-dismissed');
+          localStorage.removeItem('pwa-install-dismissed-time');
+          console.log('🔄 Flags de PWA resetados');
+        }
+      });
+    }
+
+    // Detectar evento de instalação do PWA
+    let deferredPrompt;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      console.log('💾 PWA pode ser instalado!');
+    });
+
+    window.addEventListener('appinstalled', () => {
+      console.log('✅ PWA foi instalado com sucesso!');
+      deferredPrompt = null;
+      localStorage.setItem('pwa-installed', 'true');
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,194 @@
+<!-- Desktop/Tablet Navbar (Top Bar) -->
+<nav
+  class="navbar-top fixed inset-x-0 top-0 z-[1000] hidden md:block"
+  ngSkipHydration
+  [hidden]="currentRouteIsAuth"
+  aria-label="Primary navigation"
+>
+  <div class="navbar-container">
+    <!-- Logo -->
+    <a class="navbar-logo" routerLink="/home" (click)="onNavigate()">
+      <span class="logo-gradient">Template</span>
+    </a>
+
+    <!-- Navigation Items (Center) -->
+    <div class="navbar-nav">
+      <a
+        routerLink="/home"
+        routerLinkActive="active"
+        [routerLinkActiveOptions]="{ exact: true }"
+        class="nav-link"
+        (click)="onNavigate()"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+          <polyline points="9 22 9 12 15 12 15 22"></polyline>
+        </svg>
+        <span>Home</span>
+      </a>
+    </div>
+
+    <!-- Right Section -->
+    <div class="navbar-right">
+      <ng-container *ngIf="auth$ | async as auth">
+        <!-- Credit Balance (only when logged in) -->
+        <div
+          *ngIf="auth.isAuthenticated"
+          class="credit-badge"
+          [ngClass]="{
+            'credit-low': (balanceLevel$ | async) === 'low',
+            'credit-medium': (balanceLevel$ | async) === 'medium',
+            'credit-high': (balanceLevel$ | async) === 'high'
+          }"
+          title="Créditos"
+        >
+          <span class="credit-icon">⚡</span>
+          <span class="credit-value">{{ userBalance$ | async }}</span>
+        </div>
+
+        <!-- User Button (only when logged in) -->
+        <button
+          *ngIf="auth.isAuthenticated"
+          class="user-button"
+          (click)="goToProfile()"
+          title="Meu Perfil"
+        >
+          <div class="user-avatar">
+            {{ userName ? userName.charAt(0).toUpperCase() : 'U' }}
+          </div>
+          <span class="user-name">{{ truncateName() }}</span>
+        </button>
+
+        <!-- Login Button (when not logged in) -->
+        <a
+          *ngIf="!auth.isAuthenticated"
+          routerLink="/auth/login"
+          class="btn-login-nav"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+            <polyline points="10 17 15 12 10 7"></polyline>
+            <line x1="15" y1="12" x2="3" y2="12"></line>
+          </svg>
+          <span>Entrar</span>
+        </a>
+
+        <!-- Menu Toggle (only when logged in) -->
+        <button
+          *ngIf="auth.isAuthenticated"
+          class="menu-toggle"
+          (click)="toggleMobileMenu()"
+          [attr.aria-expanded]="isMobileMenuOpen"
+          title="Menu"
+        >
+          <div class="hamburger" [class.open]="isMobileMenuOpen">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+        </button>
+      </ng-container>
+    </div>
+  </div>
+</nav>
+
+<!-- Overlay -->
+<div
+  *ngIf="isMobileMenuOpen"
+  class="menu-overlay fixed inset-0 bg-black/60 z-[998] hidden md:block"
+  (click)="closeMobileMenu()"
+></div>
+
+<!-- Slide-in Menu Drawer (Desktop) -->
+<div
+  *ngIf="!currentRouteIsAuth"
+  class="menu-drawer fixed right-0 top-0 bottom-0 w-80 z-[1001] hidden md:block transition-transform duration-300 ease-out"
+  [class.translate-x-0]="isMobileMenuOpen"
+>
+  <div class="drawer-content h-full flex flex-col">
+    <!-- Header with User Info -->
+    <div class="drawer-header">
+      <ng-container *ngIf="auth$ | async as auth">
+        <div class="drawer-user-info">
+          <div class="drawer-avatar">
+            {{ auth.user && auth.user.firstName ? auth.user.firstName.charAt(0).toUpperCase() : 'U' }}
+          </div>
+          <div class="drawer-user-text">
+            <p class="drawer-user-name">{{ auth.user?.firstName }} {{ auth.user?.lastName }}</p>
+            <p class="drawer-user-email">{{ auth.user?.email }}</p>
+          </div>
+        </div>
+
+        <!-- Credits Display -->
+        <div class="drawer-credits">
+          <span class="credits-label">Créditos disponíveis</span>
+          <span
+            class="credits-value"
+            [ngClass]="{
+              'text-red-400': (balanceLevel$ | async) === 'low',
+              'text-yellow-400': (balanceLevel$ | async) === 'medium',
+              'text-green-400': (balanceLevel$ | async) === 'high'
+            }"
+          >⚡ {{ userBalance$ | async }}</span>
+        </div>
+      </ng-container>
+    </div>
+
+    <!-- Menu Items -->
+    <div class="drawer-body">
+      <!-- Main Menu -->
+      <div class="menu-section">
+        <a routerLink="/home" class="menu-item" (click)="onNavigate()">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+          </svg>
+          <span>Home</span>
+        </a>
+
+        <a routerLink="/user/profile" class="menu-item" (click)="onNavigate()">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+          <span>Meu Perfil</span>
+        </a>
+      </div>
+
+      <!-- Admin Section -->
+      <div *ngIf="canAccessUser$ | async" class="menu-section admin-section">
+        <p class="section-title">Administrativo</p>
+
+        <a routerLink="/user" class="menu-item" (click)="onNavigate()">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
+          <span>Usuários</span>
+        </a>
+
+        <a *ngIf="canAccessSettings$ | async" routerLink="/settings" class="menu-item" (click)="onNavigate()">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+          <span>Configurações</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Footer with Logout -->
+    <div class="drawer-footer">
+      <button class="logout-button" (click)="handleLogout()">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+          <polyline points="16 17 21 12 16 7"></polyline>
+          <line x1="21" y1="12" x2="9" y2="12"></line>
+        </svg>
+        <span>Sair</span>
+      </button>
+    </div>
+  </div>
+</div>

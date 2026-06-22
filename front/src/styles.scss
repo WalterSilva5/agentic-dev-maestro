@@ -1,0 +1,528 @@
+@use 'assets/styles/colors' as *;
+
+// Tailwind CSS
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.text-white {
+  color: white;
+}
+
+@layer base {
+  * {
+    @apply box-border;
+  }
+
+  body {
+    @apply bg-dark-bg text-dark-text min-h-screen m-0 p-0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    min-width: 320px;
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    scroll-behavior: smooth;
+  }
+}
+
+/* Global variable for navbar height so a fixed navbar won't overlap content */
+:root {
+  --navbar-height: 56px;
+}
+@media (min-width: 768px) {
+  :root { --navbar-height: 64px; }
+}
+@media (min-width: 992px) {
+  :root { --navbar-height: 72px; }
+}
+
+@layer components {
+  /* Container Tailwind (substitui Bootstrap container) */
+  .container {
+    @apply w-full mx-auto px-4 md:px-6;
+  }
+
+  /* Container com largura fixa */
+  .container--fixed {
+    @apply w-full max-w-screen-xl mx-auto px-4 md:px-6;
+  }
+
+  /* Container fluido (substitui Bootstrap container-fluid) */
+  .container-fluid {
+    @apply w-full px-3 sm:px-4 md:px-6;
+  }
+
+  /* Fallbacks for migrated Bootstrap form controls */
+  .form-control,
+  .form-select,
+  .form-input {
+    @apply w-full px-3 py-2 rounded-md border border-gray-700 bg-transparent text-white;
+    &:focus {
+      @apply outline-none ring-2 ring-primary/30 border-primary;
+    }
+  }
+
+  /* Fix select dropdown options visibility */
+  .form-select {
+    option {
+      @apply bg-gray-800 text-white;
+    }
+  }
+}
+
+@layer components {
+  /* Botões customizados migrados para Tailwind */
+  .btn-l_blue_1 {
+    color: white;
+    background-color: rgb(59 130 246);
+    border-color: rgb(59 130 246);
+  }
+
+  .btn-l_blue_2 {
+    color: white;
+    background-color: rgb(37 99 235);
+    border-color: rgb(37 99 235);
+  }
+
+  .btn-l_blue_3 {
+    color: white;
+    background-color: rgb(29 78 216);
+    border-color: rgb(29 78 216);
+  }
+
+  .btn-l_blue_4 {
+    color: white;
+    background-color: rgb(30 64 175);
+    border-color: rgb(30 64 175);
+  }
+
+  .btn-d_blue_1 {
+    color: white;
+    background-color: rgb(30 58 138);
+    border-color: rgb(30 58 138);
+  }
+
+  .btn-d_blue_2 {
+    color: white;
+    background-color: rgb(49 46 129);
+    border-color: rgb(49 46 129);
+  }
+
+  .btn-d_blue_3 {
+    color: white;
+    background-color: rgb(30 27 75);
+    border-color: rgb(30 27 75);
+  }
+
+  .btn-d_blue_4 {
+    color: white;
+    background-color: rgb(15 23 42);
+    border-color: rgb(15 23 42);
+  }
+
+  .btn-green_1 {
+    color: white;
+    background-color: #1DB954;
+    border-color: #1DB954;
+    transition: background-color 150ms;
+
+    &:hover {
+      background-color: #17a347;
+      opacity: 0.8;
+    }
+  }
+
+  .btn-dark-green {
+    color: #FFFFFF;
+    background-color: rgb(21 128 61);
+    border-color: rgb(21 128 61);
+  }
+
+  .btn-dark-purple {
+    color: #FFFFFF;
+    background-color: rgb(126 34 206);
+    border-color: rgb(126 34 206);
+  }
+}
+
+// Material Dialog styles (mantidos para compatibilidade)
+.image-zoom-dialog {
+  .mat-mdc-dialog-container {
+    @apply bg-transparent shadow-none p-0 !important;
+  }
+}
+
+.zoom-backdrop {
+  @apply bg-black bg-opacity-95 !important;
+}
+
+html, body, app-root {
+  background-color: var(--dark-bg) !important;
+  color: white !important;
+}
+
+/* Only apply top padding when the app root has a navbar on desktop; mobile uses bottom nav instead */
+app-root.with-navbar {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+@media (min-width: 768px) {
+  app-root.with-navbar {
+    padding-top: calc(var(--navbar-height) + env(safe-area-inset-top, 0px));
+  }
+}
+
+/* ============================================
+   NAVBAR GLOBAL STYLES - Desktop
+   ============================================ */
+app-navbar {
+  display: block;
+
+  .navbar-top {
+    background: #121212 !important;
+    border-bottom: 1px solid #2A2A2A;
+  }
+
+  .navbar-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    padding: 0.75rem 1.5rem;
+    gap: 1.5rem;
+    min-height: var(--navbar-height, 64px);
+  }
+
+  .navbar-logo {
+    display: block;
+    flex-shrink: 0;
+
+    .logo-gradient {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: #1DB954;
+    }
+  }
+
+  .navbar-nav {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 0.5rem;
+  }
+
+  .nav-link {
+    display: inline-flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 0.5rem;
+    padding: 0.625rem 1rem;
+    border-radius: 10px;
+    color: #9ca3af !important;
+    text-decoration: none !important;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+
+    svg {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+      stroke: #9ca3af !important;
+    }
+
+    &:hover {
+      color: white !important;
+      background: rgba(29, 185, 84, 0.1);
+
+      svg {
+        stroke: white !important;
+      }
+    }
+
+    &.active {
+      color: #1DB954 !important;
+      background: rgba(29, 185, 84, 0.15);
+
+      svg {
+        stroke: #1DB954 !important;
+      }
+    }
+  }
+
+  .navbar-right {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 0.75rem;
+    flex-shrink: 0;
+  }
+
+  .credit-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+
+    &.credit-low {
+      background: rgba(239, 68, 68, 0.2);
+      color: #f87171 !important;
+    }
+
+    &.credit-medium {
+      background: rgba(234, 179, 8, 0.2);
+      color: #fbbf24 !important;
+    }
+
+    &.credit-high {
+      background: rgba(29, 185, 84, 0.2);
+      color: #1DB954 !important;
+    }
+  }
+
+  .user-button {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.08);
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .user-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #1DB954;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: white !important;
+    }
+
+    .user-name {
+      color: white !important;
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+  }
+
+  .menu-toggle {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+
+    &:hover {
+      background: rgba(29, 185, 84, 0.1);
+    }
+
+    .hamburger {
+      width: 20px;
+      height: 14px;
+      display: flex !important;
+      flex-direction: column !important;
+      justify-content: space-between !important;
+
+      span {
+        display: block !important;
+        width: 100%;
+        height: 2px;
+        background: #9ca3af !important;
+        border-radius: 1px;
+        transition: all 0.3s ease;
+      }
+
+      &.open span {
+        background: #1DB954 !important;
+      }
+
+      &.open span:nth-child(1) {
+        transform: translateY(6px) rotate(45deg);
+      }
+
+      &.open span:nth-child(2) {
+        opacity: 0;
+        transform: scaleX(0);
+      }
+
+      &.open span:nth-child(3) {
+        transform: translateY(-6px) rotate(-45deg);
+      }
+    }
+  }
+
+  /* Menu Drawer */
+  .menu-drawer {
+    background: #1E1E1E !important;
+    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.5);
+    transform: translateX(100%); /* Fechado por padrão */
+
+    &.translate-x-0 {
+      transform: translateX(0) !important;
+    }
+  }
+
+  .drawer-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid #1f2937;
+  }
+
+  .drawer-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: #1DB954;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: white !important;
+  }
+
+  .drawer-user-name {
+    color: white !important;
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0;
+  }
+
+  .drawer-user-email {
+    color: #9ca3af !important;
+    font-size: 0.85rem;
+    margin: 0.25rem 0 0;
+  }
+
+  .drawer-credits {
+    margin-top: 1rem;
+    padding: 0.875rem;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    .credits-label {
+      color: #9ca3af !important;
+    }
+  }
+
+  .menu-section {
+    padding: 0.5rem 0;
+
+    &.admin-section {
+      margin-top: 0.5rem;
+      padding-top: 1rem;
+      border-top: 1px solid #1f2937;
+    }
+  }
+
+  .section-title {
+    color: #9ca3af !important;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0.5rem 1.5rem;
+    margin: 0;
+  }
+
+  .menu-item {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    padding: 0.875rem 1.5rem;
+    color: rgba(255, 255, 255, 0.85) !important;
+    text-decoration: none;
+    font-size: 0.95rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+
+    svg {
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0;
+      stroke: rgba(255, 255, 255, 0.7) !important;
+    }
+
+    &:hover {
+      background: rgba(29, 185, 84, 0.1);
+      color: white !important;
+
+      svg {
+        stroke: white !important;
+      }
+    }
+  }
+
+  .drawer-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid #1f2937;
+  }
+
+  .logout-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.625rem;
+    width: 100%;
+    padding: 0.875rem;
+    background: rgba(239, 68, 68, 0.15);
+    border: none;
+    border-radius: 10px;
+    color: #f87171 !important;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+
+    svg {
+      width: 20px;
+      height: 20px;
+      stroke: #f87171 !important;
+    }
+
+    &:hover {
+      background: rgba(239, 68, 68, 0.25);
+    }
+  }
+}
+
+/* Capacitor / Native Android adjustments */
+body.keyboard-open {
+  .pb-mobile-nav {
+    padding-bottom: 0 !important;
+  }
+
+  app-mobile-bottom-nav {
+    display: none !important;
+  }
+}
+
+/* Safe area padding for Capacitor native */
+html.plt-capacitor {
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+
+  body {
+    padding-top: var(--safe-area-top);
+  }
+}

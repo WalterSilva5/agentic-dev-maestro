@@ -1,0 +1,161 @@
+<!-- Bottom Navigation Bar (Mobile Only) -->
+<nav
+  *ngIf="isAuthenticated$ | async"
+  class="mobile-bottom-nav fixed bottom-0 left-0 right-0 z-[1000] md:hidden"
+>
+  <!-- Main Navigation Items -->
+  <div
+    class="nav-container flex items-center justify-around px-2 py-1"
+    style="padding-bottom: env(safe-area-inset-bottom)"
+  >
+    <!-- Home -->
+    <button
+      *ngFor="let item of navItems"
+      (click)="navigate(item.route)"
+      class="nav-item flex flex-col items-center justify-center py-2 px-4 rounded-lg transition-all duration-200"
+      [class.active]="isActive(item.route, item.exactMatch)"
+    >
+      <div class="icon-container w-6 h-6 mb-1">
+        <img
+          [src]="isActive(item.route, item.exactMatch) ? item.activeIcon : item.icon"
+          [alt]="item.label"
+          class="w-full h-full object-contain"
+          [class.filter-primary]="isActive(item.route, item.exactMatch)"
+          [class.filter-dark]="!isActive(item.route, item.exactMatch)"
+        />
+      </div>
+      <span
+        class="text-xs font-medium"
+        [class.text-primary]="isActive(item.route, item.exactMatch)"
+        [class.text-gray-700]="!isActive(item.route, item.exactMatch)"
+      >
+        {{ item.label }}
+      </span>
+    </button>
+
+    <!-- Menu Button -->
+    <button
+      (click)="toggleMenu()"
+      class="menu-toggle-btn nav-item flex flex-col items-center justify-center py-2 px-4 rounded-lg transition-all duration-200"
+      [class.active]="isMenuOpen"
+    >
+      <div class="icon-container w-6 h-6 mb-1 relative">
+        <!-- Hamburger Icon -->
+        <div class="hamburger-icon" [class.open]="isMenuOpen">
+          <span class="line line-1"></span>
+          <span class="line line-2"></span>
+          <span class="line line-3"></span>
+        </div>
+      </div>
+      <span
+        class="text-xs font-medium"
+        [class.text-primary]="isMenuOpen"
+        [class.text-gray-700]="!isMenuOpen"
+      >
+        Menu
+      </span>
+    </button>
+  </div>
+</nav>
+
+<!-- Overlay -->
+<div
+  *ngIf="isMenuOpen"
+  class="menu-overlay fixed inset-0 bg-black/60 z-[999] md:hidden"
+  (click)="closeMenu()"
+></div>
+
+<!-- Slide-in Menu Drawer -->
+<div
+  *ngIf="isAuthenticated$ | async"
+  class="mobile-menu-drawer fixed right-0 top-0 bottom-0 w-72 bg-white z-[1001] md:hidden transform transition-transform duration-300 ease-out"
+  [class.translate-x-0]="isMenuOpen"
+  [class.translate-x-full]="!isMenuOpen"
+>
+  <div class="drawer-content h-full flex flex-col">
+    <!-- Header with User Info -->
+    <div
+      class="drawer-header p-4 border-b border-gray-200"
+      style="padding-top: calc(env(safe-area-inset-top) + 1rem)"
+    >
+      <ng-container *ngIf="auth$ | async as auth">
+        <div class="user-info-section" (click)="navigate('/user/profile')">
+          <div class="flex items-center gap-3">
+            <div
+              class="avatar w-12 h-12 rounded-full bg-[#1DB954] flex items-center justify-center"
+            >
+              <span class="text-white text-lg font-bold">
+                {{ auth.user?.firstName?.charAt(0)?.toUpperCase() || 'U' }}
+              </span>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-gray-900 font-semibold truncate">{{ auth.user?.firstName }} {{ auth.user?.lastName }}</p>
+              <p class="text-gray-500 text-sm truncate">{{ auth.user?.email }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Credits Display -->
+        <div class="mt-4 p-3 bg-gray-100 rounded-lg">
+          <div class="flex items-center justify-between">
+            <span class="text-gray-600 text-sm">Creditos disponiveis</span>
+            <span
+              class="font-bold"
+              [class.text-red-400]="(auth.user?.creditAccount?.balance || 0) <= 2"
+              [class.text-yellow-400]="(auth.user?.creditAccount?.balance || 0) > 2 && (auth.user?.creditAccount?.balance || 0) <= 5"
+              [class.text-primary]="(auth.user?.creditAccount?.balance || 0) > 5"
+            >⚡ {{ auth.user?.creditAccount?.balance || 0 }}</span>
+          </div>
+        </div>
+      </ng-container>
+    </div>
+
+    <!-- Menu Items -->
+    <div class="drawer-body flex-1 overflow-y-auto py-2">
+      <!-- Main Menu Items -->
+      <div class="menu-section">
+        <button
+          *ngFor="let item of menuItems"
+          (click)="navigate(item.route)"
+          class="menu-item w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors"
+          [class.bg-gray-100]="isActive(item.route)"
+        >
+          <img [src]="item.icon" [alt]="item.label" class="w-5 h-5 filter-gray" />
+          <span class="text-gray-700">{{ item.label }}</span>
+        </button>
+      </div>
+
+      <!-- Admin Section -->
+      <ng-container *ngIf="auth$ | async as auth">
+        <div *ngIf="isAdmin(auth)" class="menu-section mt-4 pt-4 border-t border-gray-200">
+          <p class="px-4 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            Administrativo
+          </p>
+          <button
+            *ngFor="let item of adminMenuItems"
+            (click)="navigate(item.route)"
+            class="menu-item w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 transition-colors"
+            [class.bg-gray-100]="isActive(item.route)"
+          >
+            <img [src]="item.icon" [alt]="item.label" class="w-5 h-5 filter-gray" />
+            <span class="text-gray-700">{{ item.label }}</span>
+          </button>
+        </div>
+      </ng-container>
+    </div>
+
+    <!-- Footer with Logout -->
+    <div
+      class="drawer-footer p-4 border-t border-gray-200"
+      style="padding-bottom: calc(env(safe-area-inset-bottom) + 1rem)"
+    >
+      <button
+        (click)="logout()"
+        class="w-full flex items-center justify-center gap-2 py-3 px-4 bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded-lg transition-colors"
+      >
+        <img src="/icons/icon_exit.svg" alt="Sair" class="w-5 h-5 filter-red" />
+        <span class="font-medium">Sair</span>
+      </button>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,67 @@
+import { BaseController } from 'src/modules/base/base.controller';
+import { ApiBearerAuth, ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Put, Query, Res } from '@nestjs/common';
+import { AuthenticatedUser } from 'src/decorators/authenticated-user.decorator';
+import { DefaultFilter } from 'src/filters/DefaultFilter';
+import { Paginated } from 'src/interfaces/IPaginated';
+import { Module_pcService } from './module_lc.service';
+import { Module_pcDto } from './dto/module_lc.dto';
+import type { User } from '@prisma/client';
+import { Response } from 'express';
+
+@Controller('module_lc')
+@ApiTags('module_lc')
+@ApiBearerAuth()
+export class Module_pcController extends BaseController<Module_pcDto> {
+  constructor(protected service: Module_pcService) {
+    super(service);
+  }
+
+  @Get()
+  @ApiOkResponse({ type: Paginated<Module_pcDto> })
+  protected async getFilteredAsync(
+    @AuthenticatedUser() user: User,
+    @Query() filter: DefaultFilter
+  ): Promise<any> {
+    return this.service.findFilteredAsync(filter, user);
+  }
+
+  @Get('/:id')
+  @ApiOkResponse({ type: Module_pcDto })
+  protected async findByIdAsync(
+    @AuthenticatedUser() user: User,
+    @Param('id', ParseIntPipe) id: number
+  ): Promise<any> {
+    return this.service.findByIdAsync(id, user);
+  }
+
+  @Post()
+  @ApiCreatedResponse({ type: Module_pcDto })
+  protected async createAsync(
+    @AuthenticatedUser() user: User,
+    @Body() dto: Module_pcDto
+  ): Promise<any> {
+    return this.service.createAsync(dto, user);
+  }
+
+  @Put('/:id')
+  @ApiOkResponse({ type: Module_pcDto })
+  protected async updateAsync(
+    @AuthenticatedUser() user: User,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: Module_pcDto
+  ): Promise<any> {
+    return this.service.updateAsync(id, dto, user);
+  }
+
+  @Delete('/:id')
+  @ApiNoContentResponse({ type: undefined })
+  protected async deleteAsync(
+    @Res({ passthrough: true }) response: Response,
+    @AuthenticatedUser() user: User,
+    @Param('id', ParseIntPipe) id: number
+  ): Promise<void> {
+    response.status(204);
+    return this.service.deleteAsync(id, user);
+  }
+}

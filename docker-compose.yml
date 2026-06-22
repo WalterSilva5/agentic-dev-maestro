@@ -1,0 +1,87 @@
+services:
+  # ==================== DATABASE ====================
+  mysql:
+    image: mysql:8.0
+    container_name: maestro_mysql
+    command: --default-authentication-plugin=mysql_native_password
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-mydbpassword}
+      MYSQL_DATABASE: ${DB_DATABASE:-mydatabase}
+      MYSQL_USER: ${DB_USERNAME:-appuser}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-mydbpassword}
+    ports:
+      - "${DB_PORT:-3309}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - app_net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${DB_PASSWORD:-mydbpassword}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==================== REDIS ====================
+  redis:
+    image: redis:alpine
+    container_name: maestro_redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    networks:
+      - app_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==================== API (NestJS) ====================
+  # Migrations (prisma migrate deploy) and seeding run automatically on
+  # startup via the container entrypoint — see back/docker-entrypoint.sh.
+  api:
+    build:
+      context: ./back
+      dockerfile: Dockerfile
+    container_name: maestro_api
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - ./back/.env
+    environment:
+      # Override to point at the internal service containers
+      DATABASE_URL: mysql://root:${DB_PASSWORD:-mydbpassword}@mysql:3306/${DB_DATABASE:-mydatabase}
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      NODE_ENV: production
+    ports:
+      - "5000:5000"
+    networks:
+      - app_net
+
+  # ==================== FRONTEND (Angular + Nginx) ====================
+  front:
+    build:
+      context: ./front
+      dockerfile: Dockerfile
+    container_name: maestro_front
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "4200:80"
+    networks:
+      - app_net
+
+volumes:
+  mysql_data:
+    driver: local
+
+networks:
+  app_net:
+    driver: bridge

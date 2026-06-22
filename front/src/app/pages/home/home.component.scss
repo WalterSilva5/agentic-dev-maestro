@@ -1,0 +1,66 @@
+:host { display: block; width: 100%; }
+
+.home {
+  min-height: calc(100vh - 64px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.hero {
+  width: 100%;
+  max-width: 520px;
+  text-align: center;
+
+  h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .subtitle {
+    color: #9ca3af;
+    margin-bottom: 24px;
+  }
+
+  .welcome {
+    font-size: 1.1rem;
+    margin-bottom: 16px;
+  }
+}
+
+.balance-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 16px 24px;
+  border-radius: 12px;
+  background: #1e1e28;
+  margin: 0 auto 24px;
+  width: fit-content;
+
+  .balance-label { font-size: 0.85rem; color: #9ca3af; }
+  .balance-value { font-size: 1.8rem; font-weight: 700; color: #3b82f6; }
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.btn {
+  display: inline-block;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  border: none;
+
+  &.btn-primary { background: #3b82f6; color: #fff; }
+  &.btn-secondary { background: #374151; color: #e5e7eb; }
+}

@@ -1,0 +1,232 @@
+<div class="login-page">
+  <!-- Background decoration (hidden for flat design) -->
+  <div class="bg-decoration" style="display: none;">
+    <div class="gradient-orb orb-1"></div>
+    <div class="gradient-orb orb-2"></div>
+    <div class="gradient-orb orb-3"></div>
+  </div>
+
+  <div class="login-container register-container">
+    <!-- Left side - Info Section -->
+    <div class="info-section">
+      <div class="info-content">
+        <div class="logo-section">
+          <div class="logo-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6.5 6.5h11"></path>
+              <path d="M6.5 17.5h11"></path>
+              <path d="M4 10v4"></path>
+              <path d="M7 8v8"></path>
+              <path d="M17 8v8"></path>
+              <path d="M20 10v4"></path>
+            </svg>
+          </div>
+          <h1 class="brand-name">Template</h1>
+        </div>
+
+        <p class="tagline">Crie sua conta para começar</p>
+
+        <div class="features-list">
+          <div class="feature-item">
+            <div class="feature-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
+              </svg>
+            </div>
+            <div class="feature-text">
+              <h3>Autenticação Pronta</h3>
+              <p>Login com JWT, refresh tokens e Google OAuth já integrados</p>
+            </div>
+          </div>
+
+          <div class="feature-item">
+            <div class="feature-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+            </div>
+            <div class="feature-text">
+              <h3>Gestão de Usuários e Créditos</h3>
+              <p>CRUD de usuários, papéis e um sistema de créditos como exemplo</p>
+            </div>
+          </div>
+
+          <div class="feature-item">
+            <div class="feature-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path>
+              </svg>
+            </div>
+            <div class="feature-text">
+              <h3>Filas e PWA</h3>
+              <p>Processamento assíncrono com Bull/Redis e suporte a PWA/mobile</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right side - Register Form -->
+    <div class="form-section">
+      <form [formGroup]="form" (ngSubmit)="onSubmit()" class="login-form register-form" autocomplete="off">
+        <div class="form-header">
+          <h2>Crie sua conta</h2>
+          <p>Preencha os dados abaixo para começar</p>
+        </div>
+
+        <!-- Full Name Input -->
+        <div class="form-group">
+          <label for="fullName">Nome Completo</label>
+          <div class="input-wrapper" [class.has-error]="form.get('fullName')?.invalid && form.get('fullName')?.touched">
+            <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+            <input
+              type="text"
+              id="fullName"
+              formControlName="fullName"
+              placeholder="Digite seu nome completo"
+              aria-label="Nome Completo"
+            />
+          </div>
+          <div *ngIf="form.get('fullName')?.invalid && form.get('fullName')?.touched" class="error-message">
+            <span *ngIf="form.get('fullName')?.errors?.['required']">Nome completo é obrigatório</span>
+            <span *ngIf="form.get('fullName')?.errors?.['minlength']">Mínimo 5 caracteres</span>
+          </div>
+        </div>
+
+        <!-- Email Input -->
+        <div class="form-group">
+          <label for="email">Email</label>
+          <div class="input-wrapper" [class.has-error]="form.get('email')?.invalid && form.get('email')?.touched">
+            <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+              <polyline points="22,6 12,13 2,6"></polyline>
+            </svg>
+            <input
+              type="email"
+              id="email"
+              formControlName="email"
+              placeholder="seu@email.com"
+              aria-label="Email"
+            />
+          </div>
+          <div *ngIf="form.get('email')?.invalid && form.get('email')?.touched" class="error-message">
+            <span *ngIf="form.get('email')?.errors?.['required']">Email é obrigatório</span>
+            <span *ngIf="form.get('email')?.errors?.['email']">Email inválido</span>
+          </div>
+        </div>
+
+        <!-- Password Input -->
+        <div class="form-group">
+          <label for="password">Senha</label>
+          <div class="input-wrapper" [class.has-error]="form.get('password')?.invalid && form.get('password')?.touched">
+            <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0110 0v4"></path>
+            </svg>
+            <input
+              [type]="passwordFieldType"
+              id="password"
+              formControlName="password"
+              placeholder="Mínimo 6 caracteres"
+              aria-label="Senha"
+            />
+            <button
+              type="button"
+              class="toggle-password"
+              (click)="togglePasswordVisibility()"
+              [attr.aria-label]="passwordFieldType === 'password' ? 'Mostrar senha' : 'Ocultar senha'"
+            >
+              <svg *ngIf="passwordFieldType === 'password'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+              <svg *ngIf="passwordFieldType !== 'password'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"></path>
+                <line x1="1" y1="1" x2="23" y2="23"></line>
+              </svg>
+            </button>
+          </div>
+          <div *ngIf="form.get('password')?.invalid && form.get('password')?.touched" class="error-message">
+            <span *ngIf="form.get('password')?.errors?.['required']">Senha é obrigatória</span>
+            <span *ngIf="form.get('password')?.errors?.['minlength']">Mínimo 6 caracteres</span>
+          </div>
+        </div>
+
+        <!-- Confirm Password Input -->
+        <div class="form-group">
+          <label for="confirmPassword">Confirmar Senha</label>
+          <div class="input-wrapper" [class.has-error]="form.get('confirmPassword')?.invalid && form.get('confirmPassword')?.touched">
+            <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0110 0v4"></path>
+              <circle cx="12" cy="16" r="1"></circle>
+            </svg>
+            <input
+              [type]="confirmPasswordFieldType"
+              id="confirmPassword"
+              formControlName="confirmPassword"
+              placeholder="Repita a senha"
+              aria-label="Confirmar Senha"
+            />
+            <button
+              type="button"
+              class="toggle-password"
+              (click)="toggleConfirmPasswordVisibility()"
+              [attr.aria-label]="confirmPasswordFieldType === 'password' ? 'Mostrar senha' : 'Ocultar senha'"
+            >
+              <svg *ngIf="confirmPasswordFieldType === 'password'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+              <svg *ngIf="confirmPasswordFieldType !== 'password'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"></path>
+                <line x1="1" y1="1" x2="23" y2="23"></line>
+              </svg>
+            </button>
+          </div>
+          <div *ngIf="form.get('confirmPassword')?.invalid && form.get('confirmPassword')?.touched" class="error-message">
+            <span *ngIf="form.get('confirmPassword')?.errors?.['required']">Confirmação é obrigatória</span>
+            <span *ngIf="form.get('confirmPassword')?.errors?.['passwordMismatch']">As senhas não correspondem</span>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <button
+          type="submit"
+          class="btn-submit btn-primary"
+          [disabled]="form.invalid || isLoading"
+        >
+          <svg *ngIf="!isLoading" class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="8.5" cy="7" r="4"></circle>
+            <line x1="20" y1="8" x2="20" y2="14"></line>
+            <line x1="23" y1="11" x2="17" y2="11"></line>
+          </svg>
+          <span *ngIf="!isLoading">Criar Conta</span>
+          <span *ngIf="isLoading" class="loading-spinner"></span>
+        </button>
+
+        <!-- Login Link -->
+        <div class="auth-switch">
+          <span class="auth-switch-text">Já tem uma conta?</span>
+          <button
+            type="button"
+            class="btn-secondary"
+            routerLink="/auth/login"
+          >
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+              <polyline points="10 17 15 12 10 7"></polyline>
+              <line x1="15" y1="12" x2="3" y2="12"></line>
+            </svg>
+            Fazer Login
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

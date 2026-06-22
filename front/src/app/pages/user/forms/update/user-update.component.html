@@ -1,0 +1,143 @@
+<div class="container border border-secondary p-4 mt-5 shadow rounded">
+  <h3 class="text-center mb-4">Atualizar Usuário para id: {{id}}</h3>
+  <form [formGroup]="userForm" (ngSubmit)="onSubmit()">
+    <div class="mb-2">
+      <label class="form-label" for="firstName">Nome</label>
+      <input
+        id="firstName"
+        formControlName="firstName"
+        type="text"
+        class="form-input"
+      />
+    </div>
+    <div class="mb-2">
+      <label class="form-label" for="lastName">Sobrenome</label>
+      <input
+        id="lastName"
+        formControlName="lastName"
+        type="text"
+        class="form-input"
+      />
+    </div>
+    <div class="mb-2">
+      <label class="form-label" for="email">Email</label>
+      <input
+        id="email"
+        formControlName="email"
+        type="email"
+        class="form-input"
+      />
+    </div>
+    <div class="mb-2">
+      <label class="form-label" for="role">Perfil</label>
+      <select id="role" formControlName="role" class="form-select">
+        <option value="USER">USER</option>
+        <option value="MANAGER">MANAGER</option>
+        <option value="ADMIN">ADMIN</option>
+      </select>
+    </div>
+    <div class="flex justify-between items-center mt-4">
+      <button class="styled-button btn btn-l_blue_1 text-lg px-4 py-3" type="submit">Atualizar</button>
+      <div class="flex gap-2">
+        <button class="styled-button btn bg-red-600 text-white text-lg px-4 py-3" routerLink="/user">Cancelar</button>
+      </div>
+    </div>
+  </form>
+
+  <div class="mt-5">
+    <h4 class="mb-3">Gerenciar Créditos</h4>
+    <div class="mb-3">
+      <strong>Créditos Atuais: {{ currentCredits }}</strong>
+    </div>
+    <form [formGroup]="creditForm" (ngSubmit)="addCredit()">
+      <div class="mb-2">
+        <label for="amount" class="form-label">Quantidade</label>
+        <input id="amount" formControlName="amount" type="number" class="form-control" />
+      </div>
+      <div class="flex gap-2 mt-3">
+        <button class="styled-button btn btn-green_1 px-3 py-1" type="button" (click)="addCredit()">Adicionar Créditos</button>
+        <button class="styled-button btn bg-yellow-500 px-3 py-1" type="button" (click)="subtractCredit()">Remover Créditos</button>
+      </div>
+    </form>
+
+    <div *ngIf="creditResult" class="mt-3">
+      <h5>Resultado</h5>
+      <pre>{{ creditResult | json }}</pre>
+    </div>
+  </div>
+
+  <!-- Seção de Transações -->
+  <div class="mt-5">
+    <h4 class="mb-3">Histórico de Transações</h4>
+
+    <div *ngIf="transactions && transactions.data.length > 0; else noTransactions">
+      <div class="table-responsive">
+        <table class="table table-striped">
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Tipo</th>
+              <th>Valor</th>
+              <th>Descrição</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let transaction of transactions.data">
+              <td>{{ transaction.createdAt | date:'dd/MM/yyyy HH:mm' }}</td>
+              <td>
+                <span class="badge"
+                      [ngClass]="{
+                        'bg-success': transaction.type === 'PURCHASE',
+                        'bg-danger': transaction.type === 'USAGE',
+                        'bg-info': transaction.type === 'REFUND'
+                      }">
+                  {{ transaction.type === 'PURCHASE' ? 'Compra' :
+                     transaction.type === 'USAGE' ? 'Uso' : 'Reembolso' }}
+                </span>
+              </td>
+              <td [class]="transaction.amount >= 0 ? 'text-success' : 'text-danger'">
+                {{ transaction.amount >= 0 ? '+' : '' }}{{ transaction.amount }}
+              </td>
+              <td>{{ transaction.description || '-' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Paginação -->
+      <div class="flex justify-between items-center mt-3" *ngIf="transactions.meta">
+        <div>
+          <small class="text-gray-500">
+            Mostrando {{ (transactions.meta.currentPage - 1) * transactions.meta.perPage + 1 }}
+            até {{ getMinValue(transactions.meta.currentPage * transactions.meta.perPage, transactions.meta.total) }}
+            de {{ transactions.meta.total }} transações
+          </small>
+        </div>
+        <nav *ngIf="transactions.meta.lastPage > 1">
+          <ul class="pagination pagination-sm mb-0">
+            <li class="page-item" [class.disabled]="transactions.meta.currentPage <= 1">
+              <button class="page-link" (click)="changePage(transactions.meta.currentPage - 1)" [disabled]="transactions.meta.currentPage <= 1">
+                Anterior
+              </button>
+            </li>
+            <li class="page-item" *ngFor="let page of getPageNumbers()" [class.active]="page === transactions.meta.currentPage">
+              <button class="page-link" (click)="changePage(page)">{{ page }}</button>
+            </li>
+            <li class="page-item" [class.disabled]="transactions.meta.currentPage >= transactions.meta.lastPage">
+              <button class="page-link" (click)="changePage(transactions.meta.currentPage + 1)" [disabled]="transactions.meta.currentPage >= transactions.meta.lastPage">
+                Próximo
+              </button>
+            </li>
+          </ul>
+        </nav>
+      </div>
+    </div>
+
+    <ng-template #noTransactions>
+      <div class="rounded p-3 bg-sky-500 text-white">
+        <i class="fas fa-info-circle mr-2"></i>
+        Nenhuma transação encontrada para este usuário.
+      </div>
+    </ng-template>
+  </div>
+</div>

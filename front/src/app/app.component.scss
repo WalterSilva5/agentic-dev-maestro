@@ -1,0 +1,37 @@
+// TODO: Migrado de Bootstrap para Tailwind CSS
+:host {
+  @apply block w-full;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.min-body-height {
+  @apply w-full;
+  overflow-x: hidden;
+  min-height: 80vh;
+
+  .content {
+    @apply w-full max-w-full;
+    overflow-x: hidden;
+    overflow-y: visible;
+  }
+
+  // Responsividade
+  @media (max-width: 768px) {
+    min-height: 70vh;
+  }
+
+  @media (max-width: 576px) {
+    min-height: 60vh;
+  }
+}
+
+// Padding para conteúdo não ficar escondido atrás da bottom nav no mobile
+.pb-mobile-nav {
+  @media (max-width: 767px) {
+    padding-bottom: calc(70px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+// Padding para navbar já é tratado em styles.scss via app-root.with-navbar
+// Não adicionar padding-top aqui para evitar duplicação

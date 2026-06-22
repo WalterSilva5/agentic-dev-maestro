@@ -1,0 +1,230 @@
+/*colors*/
+$primary: #1DB954; // verde principal
+$secondary: #6A0DAD; // roxo secundário
+$success: #28a745;
+$danger: #dc3545;
+$warning: #ffc107;
+$info: #17a2b8;
+$light: #f8f9fa;
+$dark: #343a40;
+$l_blue_1: #3FE4C7;
+$l_blue_2: #4CBDD4;
+$l_blue_3: #22A7C2;
+$l_blue_4: #168CA4;
+$d_blue_1: #4A4AFC;
+$d_blue_2: #2D2D8C;
+$d_blue_3: #213F5B;
+$d_blue_4: #102941;
+$d_blue_5: #0D2337;
+$green_1: #1DB954; // verde escuro Spotify
+$green_2: #33D258;
+$white_1: #FFFFFF;
+$grayscale_1: #232323; // cinza escuro para backgrounds
+$grayscale_2: #181818; // cinza ainda mais escuro
+$grayscale_3: #121212; // quase preto
+$grayscale_4: #B9C1C9;
+$grayscale_5: #6A7682;
+$grayscale_6: #7E8B98;
+$grayscale_7: #333333;
+$black_1: #000000;
+$yellow_1: #FFA318;
+$orange_1: #FF4500;
+$orange_2: #a14805;
+$red_1: #E64F40;
+$dark-bg: #000000; // fundo preto
+$dark-green: #1DB954; // verde destaque
+$dark-purple: #6A0DAD; // roxo destaque
+$dark-text: #E0E0E0; // texto claro
+
+:root {
+  --primary: #{$primary};
+  --secondary: #{$secondary};
+  --success: #{$success};
+  --danger: #{$danger};
+  --warning: #{$warning};
+  --info: #{$info};
+  --light: #{$light};
+  --dark: #{$dark};
+  --l_blue_1: #{$l_blue_1};
+  --l_blue_2: #{$l_blue_2};
+  --l_blue_3: #{$l_blue_3};
+  --l_blue_4: #{$l_blue_4};
+  --d_blue_1: #{$d_blue_1};
+  --d_blue_2: #{$d_blue_2};
+  --d_blue_3: #{$d_blue_3};
+  --d_blue_4: #{$d_blue_4};
+  --d_blue_5: #{$d_blue_5};
+  --green_1: #{$green_1};
+  --green_2: #{$green_2};
+  --white_1: #{$white_1};
+  --grayscale_1: #{$grayscale_1};
+  --grayscale_2: #{$grayscale_2};
+  --grayscale_3: #{$grayscale_3};
+  --grayscale_4: #{$grayscale_4};
+  --grayscale_5: #{$grayscale_5};
+  --grayscale_6: #{$grayscale_6};
+  --grayscale_7: #{$grayscale_7};
+  --black_1: #{$black_1};
+  --yellow_1: #{$yellow_1};
+  --orange_1: #{$orange_1};
+  --orange_2: #{$orange_2};
+  --red_1: #{$red_1};
+  --dark-bg: #{$dark-bg};
+  --dark-green: #{$dark-green};
+  --dark-purple: #{$dark-purple};
+  --dark-text: #{$dark-text};
+}
+
+/*primary*/
+.primary {
+  color: $primary;
+}
+.bg-primary {
+  background-color: $primary;
+}
+.border-primary {
+  border-color: $primary;
+}
+
+/*secondary*/
+.secondary {
+  color: $secondary;
+}
+.bg-secondary {
+  background-color: $secondary;
+}
+.border-secondary {
+  border-color: $secondary;
+}
+
+/*success*/
+.success {
+  color: $success;
+}
+.bg-success {
+  background-color: $success;
+}
+.border-success {
+  border-color: $success;
+}
+
+/*danger*/
+.danger {
+  color: $danger;
+}
+.bg-danger {
+  background-color: $danger;
+}
+.border-danger {
+  border-color: $danger;
+}
+
+/*warning*/
+.warning {
+  color: $warning;
+}
+.bg-warning {
+  background-color: $warning;
+}
+.border-warning {
+  border-color: $warning;
+}
+
+/*info*/
+.info {
+  color: $info;
+}
+.bg-info {
+  background-color: $info;
+}
+.border-info {
+  border-color: $info;
+}
+
+/*light*/
+.light {
+  color: $light;
+}
+.bg-light {
+  background-color: $light;
+}
+.border-light {
+  border-color: $light;
+}
+
+/*dark*/
+.dark {
+  color: $dark;
+}
+.bg-dark {
+  background-color: $dark;
+}
+.border-dark {
+  border-color: $dark;
+}
+
+/*l_blue_1*/
+.l_blue_1 {
+  color: $l_blue_1;
+}
+.bg-l_blue_1 {
+  background-color: $l_blue_1;
+}
+.border-l_blue_1 {
+  border-color: $l_blue_1;
+}
+
+/*l_blue_2*/
+.l_blue_2 {
+  color: $l_blue_2;
+}
+.bg-l_blue_2 {
+  background-color: $l_blue_2;
+}
+.border-l_blue_2 {
+  border-color: $l_blue_2;
+}
+
+/*l_blue_3*/
+.l_blue_3 {
+  color: $l_blue_3;
+}
+.bg-l_blue_3 {
+  background-color: $l_blue_3;
+}
+.border-l_blue_3 {
+  border-color: $l_blue_3;
+}
+
+/*l_blue_4*/
+.l_blue_4 {
+  color: $l_blue_4;
+}
+.bg-l_blue_4 {
+  background-color: $l_blue_4;
+}
+.border-l_blue_4 {
+  border-color: $l_blue_4;
+}
+
+/*d_blue_1*/
+.d_blue_1 {
+  color: $d_blue_1;
+}
+.bg-d_blue_1 {
+  background-color: $d_blue_1;
+}
+.border-d_blue_1 {
+  border-color: $d_blue_1;
+}
+
+/*d_blue_2*/
+.d_blue_2 {
+  color: $d_blue_2;
+}
+.bg-d_blue_2 {
+  background-color: $d_blue_2;
+}
+.border-d_blue_2 {
+  border-color: $d_blue_2;
+}

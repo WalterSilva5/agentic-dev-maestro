@@ -1,0 +1,25 @@
+<div class="home">
+  <section class="hero">
+    <h1>Fullstack Template</h1>
+    <p class="subtitle">NestJS + Angular starter — auth, usuários e créditos prontos para usar.</p>
+
+    <ng-container *ngIf="isLoggedIn; else guest">
+      <p class="welcome">Bem-vindo, {{ (userName$ | async) || 'usuário' }}!</p>
+      <div class="balance-card">
+        <span class="balance-label">Saldo de créditos</span>
+        <span class="balance-value">{{ userBalance$ | async }}</span>
+      </div>
+      <div class="actions">
+        <a routerLink="/user/profile" class="btn btn-primary">Meu perfil</a>
+        <a routerLink="/settings" class="btn btn-secondary">Configurações</a>
+      </div>
+    </ng-container>
+
+    <ng-template #guest>
+      <div class="actions">
+        <button type="button" class="btn btn-primary" (click)="goToLogin()">Entrar</button>
+        <a routerLink="/auth/register" class="btn btn-secondary">Criar conta</a>
+      </div>
+    </ng-template>
+  </section>
+</div>

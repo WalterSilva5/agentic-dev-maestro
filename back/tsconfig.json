@@ -1,0 +1,41 @@
+{
+  "compilerOptions": {
+		"module": "commonjs",
+		"declaration": true,
+		"removeComments": true,
+		"emitDecoratorMetadata": true,
+		"experimentalDecorators": true,
+		"allowSyntheticDefaultImports": true,
+		// Diretório raiz de fontes para compilação
+		"rootDir": "src",
+		"target": "es2017",
+		"sourceMap": true,
+		"outDir": "./dist",
+		"baseUrl": "./",
+		"incremental": true,
+		"skipLibCheck": true,
+		// "strictNullChecks": true,
+		// "noImplicitAny": true,
+		"strictNullChecks": false,
+		"noImplicitAny": false,
+		"strictBindCallApply": false,
+		"forceConsistentCasingInFileNames": false,
+		"noFallthroughCasesInSwitch": false,
+		"allowJs": false,
+		"resolveJsonModule": true,
+				"typeRoots": ["./node_modules/@types"],
+				"paths": {
+					"src/*": ["src/*"]
+				}
+		},
+		// Inclui somente fontes TypeScript
+		"include": ["src/**/*.ts"],
+		// Exclui JS gerados e pastas de build/deps
+		"exclude": [
+			"src/**/*.js",
+			"node_modules",
+			"dist"
+		],
+		// Desativa compilação automática no editor
+		"compileOnSave": false
+}

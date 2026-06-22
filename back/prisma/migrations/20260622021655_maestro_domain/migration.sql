@@ -1,0 +1,146 @@
+-- CreateTable
+CREATE TABLE `TB_COMPANY` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `name` VARCHAR(120) NOT NULL,
+    `slug` VARCHAR(120) NOT NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NULL,
+    `deletedAt` DATETIME(3) NULL,
+
+    UNIQUE INDEX `TB_COMPANY_slug_key`(`slug`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `TB_MEMBERSHIP` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `userId` INTEGER NOT NULL,
+    `companyId` INTEGER NOT NULL,
+    `role` ENUM('OWNER', 'MANAGER', 'TECH_LEAD', 'DEV', 'VIEWER') NOT NULL DEFAULT 'DEV',
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    INDEX `TB_MEMBERSHIP_companyId_idx`(`companyId`),
+    UNIQUE INDEX `TB_MEMBERSHIP_userId_companyId_key`(`userId`, `companyId`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `TB_API_KEY` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `label` VARCHAR(120) NOT NULL,
+    `hashedKey` VARCHAR(64) NOT NULL,
+    `prefix` VARCHAR(16) NOT NULL,
+    `scopes` JSON NULL,
+    `membershipId` INTEGER NOT NULL,
+    `companyId` INTEGER NOT NULL,
+    `lastUsedAt` DATETIME(3) NULL,
+    `expiresAt` DATETIME(3) NULL,
+    `revokedAt` DATETIME(3) NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    UNIQUE INDEX `TB_API_KEY_hashedKey_key`(`hashedKey`),
+    INDEX `TB_API_KEY_companyId_idx`(`companyId`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `TB_PROJECT` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `companyId` INTEGER NOT NULL,
+    `name` VARCHAR(120) NOT NULL,
+    `key` VARCHAR(20) NOT NULL,
+    `description` TEXT NULL,
+    `taskSeq` INTEGER NOT NULL DEFAULT 0,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NULL,
+    `deletedAt` DATETIME(3) NULL,
+
+    UNIQUE INDEX `TB_PROJECT_companyId_key_key`(`companyId`, `key`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `TB_BOARD` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `projectId` INTEGER NOT NULL,
+    `name` VARCHAR(120) NOT NULL DEFAULT 'Principal',
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    INDEX `TB_BOARD_projectId_idx`(`projectId`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `TB_BOARD_COLUMN` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `boardId` INTEGER NOT NULL,
+    `name` VARCHAR(120) NOT NULL,
+    `order` INTEGER NOT NULL,
+    `wipLimit` INTEGER NULL,
+    `isDone` BOOLEAN NOT NULL DEFAULT false,
+
+    INDEX `TB_BOARD_COLUMN_boardId_idx`(`boardId`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `TB_TASK` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `companyId` INTEGER NOT NULL,
+    `projectId` INTEGER NOT NULL,
+    `columnId` INTEGER NOT NULL,
+    `number` INTEGER NOT NULL,
+    `title` VARCHAR(255) NOT NULL,
+    `description` TEXT NULL,
+    `objective` TEXT NULL,
+    `acceptance` TEXT NULL,
+    `parentId` INTEGER NULL,
+    `assigneeId` INTEGER NULL,
+    `priority` ENUM('LOW', 'MEDIUM', 'HIGH', 'URGENT') NOT NULL DEFAULT 'MEDIUM',
+    `estimateMd` DOUBLE NULL,
+    `rank` VARCHAR(64) NOT NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NULL,
+    `deletedAt` DATETIME(3) NULL,
+
+    INDEX `TB_TASK_companyId_idx`(`companyId`),
+    INDEX `TB_TASK_columnId_idx`(`columnId`),
+    UNIQUE INDEX `TB_TASK_projectId_number_key`(`projectId`, `number`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- AddForeignKey
+ALTER TABLE `TB_MEMBERSHIP` ADD CONSTRAINT `TB_MEMBERSHIP_userId_fkey` FOREIGN KEY (`userId`) REFERENCES `USERS`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `TB_MEMBERSHIP` ADD CONSTRAINT `TB_MEMBERSHIP_companyId_fkey` FOREIGN KEY (`companyId`) REFERENCES `TB_COMPANY`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `TB_API_KEY` ADD CONSTRAINT `TB_API_KEY_membershipId_fkey` FOREIGN KEY (`membershipId`) REFERENCES `TB_MEMBERSHIP`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `TB_API_KEY` ADD CONSTRAINT `TB_API_KEY_companyId_fkey` FOREIGN KEY (`companyId`) REFERENCES `TB_COMPANY`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `TB_PROJECT` ADD CONSTRAINT `TB_PROJECT_companyId_fkey` FOREIGN KEY (`companyId`) REFERENCES `TB_COMPANY`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `TB_BOARD` ADD CONSTRAINT `TB_BOARD_projectId_fkey` FOREIGN KEY (`projectId`) REFERENCES `TB_PROJECT`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `TB_BOARD_COLUMN` ADD CONSTRAINT `TB_BOARD_COLUMN_boardId_fkey` FOREIGN KEY (`boardId`) REFERENCES `TB_BOARD`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `TB_TASK` ADD CONSTRAINT `TB_TASK_companyId_fkey` FOREIGN KEY (`companyId`) REFERENCES `TB_COMPANY`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `TB_TASK` ADD CONSTRAINT `TB_TASK_projectId_fkey` FOREIGN KEY (`projectId`) REFERENCES `TB_PROJECT`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `TB_TASK` ADD CONSTRAINT `TB_TASK_columnId_fkey` FOREIGN KEY (`columnId`) REFERENCES `TB_BOARD_COLUMN`(`id`) ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `TB_TASK` ADD CONSTRAINT `TB_TASK_parentId_fkey` FOREIGN KEY (`parentId`) REFERENCES `TB_TASK`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `TB_TASK` ADD CONSTRAINT `TB_TASK_assigneeId_fkey` FOREIGN KEY (`assigneeId`) REFERENCES `USERS`(`id`) ON DELETE SET NULL ON UPDATE CASCADE;

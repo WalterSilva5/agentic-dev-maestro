@@ -1,0 +1,30 @@
+<div class="container px-4" style="max-width: 1600px; margin-left: auto; margin-right: auto;">
+  <div class="mt-3 w-full" >
+    <h1 class="text-center h1 my-3 text-white">Usuarios</h1>
+    <div class="text-center mb-4">
+      <button
+        class="styled-button btn btn-l_blue_2 text-white px-4 py-1 text-sm"
+        (click)="router.navigate(['user', 'create'])"
+      >
+        adicionar
+      </button>
+    </div>
+    <div class="w-full flex justify-center">
+      <app-wsi-table
+      [data]="data.data"
+      [meta]="meta"
+      [columns]="columns"
+      [showPagination]="true"
+      [showFilter]="true"
+      [showActions]="true"
+      [activeActions]="['edit', 'delete']"
+      (rowClick)="handleRowClick($event)"
+      (filterChange)="handleFilterChange($event)"
+      (editClick)="handleEditClick($event)"
+      (deleteClick)="handleDeleteClick($event)"
+      (pageChange)="handlePageChange($event)"
+      />
+    </div>
+  </div>
+</div>
+

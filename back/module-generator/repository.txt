@@ -1,0 +1,57 @@
+import { PrismaService } from 'src/database/prisma/prisma.service';
+import { BaseRepository } from 'src/modules/base/base.repository';
+import { DefaultFilter } from 'src/filters/DefaultFilter';
+import type { User } from '@prisma/client';
+import { Paginated } from 'src/interfaces/IPaginated';
+import { Module_pcDto } from './dto/module_lc.dto';
+import { Paginator } from 'src/utils/paginator';
+import { Injectable } from '@nestjs/common';
+import { Module_pc } from '@prisma/client';
+
+@Injectable()
+export class Module_pcRepository extends BaseRepository<Module_pcDto, Module_pc> {
+  constructor(private prisma: PrismaService) {
+    super();
+  }
+
+  async createAsync(
+    dto: Module_pcDto,
+    user?: User
+  ): Promise<Module_pc> {
+    return await this.prisma.module_lc.create({
+      data: {}
+    });
+  }
+
+  async updateAsync(id: number, dto: Module_pcDto, user?: User): Promise<Module_pc> {
+    return await this.prisma.module_lc.update({
+      where: { id },
+      data: {}
+    });
+  }
+
+  async deleteAsync(id: number, user?: User): Promise<void> {
+    await this.prisma.module_lc.delete({
+      where: { id: id }
+    });
+  }
+
+  async findByIdAsync(id: number, user?: User): Promise<Module_pc> {
+    return await this.prisma.module_lc.findFirst({
+      where: { id }
+    });
+  }
+
+  async findFilteredAsync(
+    filter: DefaultFilter,
+    user?: User
+  ): Promise<Paginated<Module_pc>> {
+    return await Paginator.applyPagination(this.prisma.module_lc, {
+      ...filter,
+      where: {
+        idUser: user.id,
+        deletedAt: null
+      }
+    });
+  }
+}

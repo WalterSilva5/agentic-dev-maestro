@@ -1,0 +1,85 @@
+<div class="w-full px-3 md:px-4 py-4 md:py-5">
+  <div class="settings-container border border-secondary p-4 md:p-6 shadow rounded mx-auto text-white" style="max-width: 800px;">
+    <h2 class="text-2xl font-bold mb-6 text-center">Configurações da Aplicação</h2>
+
+    <div *ngIf="loading" class="flex justify-center items-center py-10">
+      <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500"></div>
+    </div>
+
+    <div *ngIf="!loading">
+      <!-- Seção: Configurações de Exemplo -->
+      <div class="mb-8">
+        <h3 class="text-lg font-semibold mb-4 pb-2 border-b border-gray-600">
+          Configurações de Exemplo
+        </h3>
+
+        <!-- Toggle Funcionalidade Habilitada -->
+        <div class="mb-4 flex items-center justify-between p-4 bg-gray-800/50 rounded-lg">
+          <div>
+            <label class="font-medium">Funcionalidade de Exemplo</label>
+            <p class="text-sm text-gray-400">Habilita ou desabilita uma funcionalidade de exemplo da aplicação</p>
+          </div>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              [(ngModel)]="featureEnabled"
+              class="sr-only peer"
+            >
+            <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+          </label>
+        </div>
+
+        <!-- Limite Global Diário -->
+        <div class="mb-4 p-4 bg-gray-800/50 rounded-lg">
+          <label class="block font-medium mb-2">Limite Diário Global</label>
+          <p class="text-sm text-gray-400 mb-3">Quantidade máxima de requisições em toda a plataforma por dia</p>
+          <input
+            type="number"
+            [(ngModel)]="dailyGlobalLimit"
+            min="0"
+            max="100000"
+            class="form-input w-full md:w-32"
+          >
+        </div>
+
+        <!-- Limite Por Usuário -->
+        <div class="mb-4 p-4 bg-gray-800/50 rounded-lg">
+          <label class="block font-medium mb-2">Limite Diário por Usuário</label>
+          <p class="text-sm text-gray-400 mb-3">Quantidade máxima de requisições que cada usuário pode fazer por dia</p>
+          <input
+            type="number"
+            [(ngModel)]="dailyUserLimit"
+            min="0"
+            max="10000"
+            class="form-input w-full md:w-32"
+          >
+        </div>
+      </div>
+
+      <!-- Informações de Uso -->
+      <div class="mb-8">
+        <h3 class="text-lg font-semibold mb-4 pb-2 border-b border-gray-600">
+          Informações
+        </h3>
+        <div class="p-4 bg-blue-900/30 rounded-lg border border-blue-500/30">
+          <p class="text-sm text-gray-300">
+            <strong>Nota:</strong> Estas configurações são exemplos que demonstram o módulo de configuração dinâmica da aplicação,
+            persistido no backend e editável por administradores. Substitua-as pelas configurações reais do seu projeto.
+          </p>
+        </div>
+      </div>
+
+      <!-- Botão Salvar -->
+      <div class="flex justify-end">
+        <button
+          (click)="saveConfigs()"
+          [disabled]="saving"
+          class="btn bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+        >
+          <span *ngIf="saving" class="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+          {{ saving ? 'Salvando...' : 'Salvar Configurações' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

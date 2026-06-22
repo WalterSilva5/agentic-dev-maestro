@@ -1,0 +1,67 @@
+:host {
+  width: 100%;
+  height: 100%;
+}
+
+.container-fluid {
+  padding: 20px;
+  min-height: 80vh;
+  width: 100%;
+}
+
+.form-container {
+  width: 100%;
+  min-width: 320px;
+}
+
+/* Mobile - até 768px */
+@media (max-width: 768px) {
+  .form-container {
+    max-width: 95%;
+    padding: 20px !important;
+  }
+
+  .container-fluid {
+    padding: 10px;
+  }
+}
+
+/* Tablet - 769px até 1200px */
+@media (min-width: 769px) and (max-width: 1200px) {
+  .form-container {
+    max-width: 70%;
+    min-width: 500px;
+  }
+}
+
+/* Desktop - acima de 1200px */
+@media (min-width: 1201px) {
+  .form-container {
+    max-width: none;
+    width: 80%;
+    min-width: 800px;
+  }
+}
+
+.form-control, .form-select, .form-input {
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  transition: border-color 0.3s ease;
+
+  &:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+  }
+}
+
+.btn {
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+}

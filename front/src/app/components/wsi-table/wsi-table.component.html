@@ -1,0 +1,95 @@
+<!-- wsi-table.component.html -->
+<div class="wsi-table w-full px-2 md:px-3 my-3 md:my-4">
+  <div *ngIf="showFilter" class="filter-container mb-3">
+    <div class="w-full">
+      <div class="w-full md:w-2/3 lg:w-1/2">
+        <input
+          type="text"
+          placeholder="Filtrar"
+          [(ngModel)]="filterValue"
+          (ngModelChange)="onFilterChange()"
+          class="filter-input w-full px-3 py-2 rounded-lg border border-gray-700 bg-gray-800 text-white focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+        />
+      </div>
+    </div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="w-full table-auto min-w-full divide-y divide-gray-700">
+      <thead>
+        <tr>
+          <th *ngFor="let column of columns" [attr.colspan]="column.colSpan || 1" [class]="column.className">
+            {{ column.label }}
+          </th>
+          <th *ngIf="showActions" class="text-center">Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let row of displayedData" (click)="onRowClick(row)" class="hover:bg-gray-800/50 cursor-pointer transition-colors">
+          <td *ngFor="let column of columns" [attr.colspan]="column.colSpan || 1" [class]="column.className" class="px-3 py-2">
+            <ng-container [ngSwitch]="column.format">
+              <!-- Image thumbnail -->
+              <ng-container *ngSwitchCase="'img'">
+                <div class="flex flex-col items-center gap-1">
+                  <span>{{ formatValue(row[column.key], undefined) }}</span>
+                  <img
+                    class="wsi-thumb mt-1"
+                    [src]="row[column.key]"
+                    [alt]="column.label"
+                    (error)="onImgError($event)"
+                  />
+                </div>
+              </ng-container>
+              <!-- Default/text rendering with formatting -->
+              <ng-container *ngSwitchDefault>
+                {{ formatValue(row[column.key], column.format) }}
+              </ng-container>
+            </ng-container>
+          </td>
+          <td *ngIf="showActions" class="text-center px-3 py-2">
+            <div class="flex justify-center gap-2">
+              <button
+                *ngIf="activeActions.includes('edit')"
+                class="action-btn bg-gray-700 hover:bg-primary text-white px-2 py-1 rounded transition-colors"
+                (click)="onEditClick(row, $event)"
+                title="Editar"
+              >
+                <img [src]="editIcon" alt="Editar" class="w-4 h-4">
+              </button>
+              <button
+                *ngIf="activeActions.includes('delete')"
+                class="action-btn bg-gray-700 hover:bg-red-600 text-white px-2 py-1 rounded transition-colors"
+                (click)="onDeleteClick(row, $event)"
+                title="Deletar"
+              >
+                <img [src]="deleteIcon" alt="Deletar" class="w-4 h-4">
+              </button>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div *ngIf="showPagination" class="pagination-container mt-3 md:mt-4">
+    <div class="flex flex-col md:flex-row items-center justify-center gap-3 p-3 md:p-4">
+      <button
+        class="pagination-btn w-full md:w-auto"
+        (click)="previousPage()"
+        [disabled]="currentPage === 1"
+      >
+        Anterior
+      </button>
+      <span class="pagination-info text-center">
+        Página {{ currentPage }} de {{ totalPages }}
+      </span>
+      <button
+        class="pagination-btn w-full md:w-auto"
+        (click)="nextPage()"
+        [disabled]="currentPage === totalPages"
+      >
+        Próxima
+      </button>
+    </div>
+  </div>
+</div>

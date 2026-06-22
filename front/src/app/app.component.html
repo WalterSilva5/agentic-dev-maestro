@@ -1,0 +1,19 @@
+<div class="w-full p-0 m-0">
+    <!-- Offline connectivity banner -->
+    <app-offline-banner></app-offline-banner>
+
+    <!-- Render navbar directly (it's position:fixed) to avoid adding extra flow height -->
+    <app-navbar *ngIf="showNavbar"></app-navbar>
+
+    <div class="w-full m-0 p-0">
+        <div class="content m-0 ps-0 pb-mobile-nav">
+          <router-outlet></router-outlet>
+        </div>
+    </div>
+
+    <!-- Mobile Bottom Navigation -->
+    <app-mobile-bottom-nav *ngIf="showNavbar"></app-mobile-bottom-nav>
+
+    <!-- Botão de instalação PWA -->
+    <app-install-pwa></app-install-pwa>
+  </div>

@@ -75,9 +75,42 @@ empresas, membros, projetos, quadros, tarefas, docs, API keys e a API para agent
 
 ## Status
 
-🌱 **Brainstorming / planejamento.** Nada implementado ainda — esta pasta contém a
-documentação de concepção. Nome definido: **Agentic Dev Maestro** (repo `agentic-dev-maestro`),
-"Maestro" para o dia a dia.
+🚧 **Base + vertical slice de backend implementados** (sobre o template
+`fullstack-nestjs-angular`: NestJS + Prisma/MySQL + Angular). O domínio multi-tenant
+mínimo já existe e foi **validado de ponta a ponta**:
+
+- Modelos: `Company`, `Membership` (papéis), `ApiKey`, `Project`, `Board`,
+  `BoardColumn`, `Task` (com `objective`/`acceptance`).
+- Autenticação por **API key** (`x-api-key`) e por JWT + `X-Company-Id`, com
+  isolamento por empresa em toda query.
+- Endpoints: criar empresa, gerar/revogar API key, criar projeto (com quadro +
+  colunas padrão), criar/listar/mover tarefas.
+- ✅ Provado: um agente, **só com a API key**, cria uma tarefa e move o status no quadro
+  (e requisição sem chave retorna 401).
+
+Próximos passos no [roadmap](docs/05-roadmap.md) e nas [tarefas](docs/tarefas/).
+
+### Como rodar (dev)
+
+```bash
+cp back/.env.example back/.env          # ajuste segredos e portas
+docker compose up -d mysql redis        # banco e cache
+npm --prefix back install               # deps (1ª vez)
+npm --prefix back run prisma:migrate    # aplica as migrations
+npm --prefix back run prisma:seed       # cria empresa/projeto demo + imprime a API key
+npm --prefix back run start:dev         # API em http://localhost:5000/api (Swagger em /api/docs)
+```
+
+Com a API key impressa pelo seed, o fluxo do agente:
+
+```bash
+KEY=adm_...            # da saída do seed
+curl -X POST http://localhost:5000/api/tasks -H "x-api-key: $KEY" \
+  -H 'Content-Type: application/json' \
+  -d '{"projectId":1,"title":"Minha tarefa","objective":"...","acceptance":"..."}'
+curl -X POST http://localhost:5000/api/tasks/DEMO-1/move -H "x-api-key: $KEY" \
+  -H 'Content-Type: application/json' -d '{"columnId":3}'
+```
 
 ## Licença
 

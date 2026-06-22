@@ -1,0 +1,33 @@
+export enum WsiTheme {
+    primary = '#1DB954', // verde principal
+    secondary = '#6A0DAD', // roxo secundário
+    success = '#28a745',
+    danger = '#dc3545',
+    warning = '#ffc107',
+    info = '#17a2b8',
+    light = '#f8f9fa',
+    dark = '#343a40',
+    backgroundDark1 = '#181818', // cinza escuro
+    background = '#000000', // fundo preto
+    l_blue_1 = '#4CBDD4',
+    l_blue_2 = '#22A7C2',
+    l_blue_3 = '#168CA4',
+    l_blue_4 = '#3FE4C7',
+    d_blue_1 = '#4A4AFC',
+    d_blue_2 = '#2D2D8C',
+    d_blue_3 = '#213F5B',
+    d_blue_4 = '#102941',
+    d_blue_5 = '#0D2337',
+    green_1 = '#1DB954', // verde destaque
+    red_1 = '#E64F40',
+    grayscale_1 = '#232323', // cinza escuro
+    grayscale_2 = '#181818', // cinza ainda mais escuro
+    grayscale_3 = '#121212', // quase preto
+    grayscale_4 = '#B9C1C9',
+    grayscale_5 = '#F8F8F8',
+    black_1 = '#000000',
+    black_2 = '#333333',
+    yellow_1 = '#FFA318',
+    white_1 = '#FFFFFF',
+    orange_1 = '#FF4500',
+}
