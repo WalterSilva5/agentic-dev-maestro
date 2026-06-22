@@ -1,6 +1,6 @@
 // Service Worker do PWA
 // IMPORTANTE: Incrementar versão a cada deploy para forçar atualização
-const CACHE_VERSION = '1';
+const CACHE_VERSION = '2';
 const CACHE_NAME = `app-cache-v${CACHE_VERSION}`;
 const OFFLINE_URL = '/';
 
@@ -69,6 +69,9 @@ self.addEventListener('fetch', (event) => {
 
   // Ignorar requisições de API
   if (event.request.url.includes('/api/')) return;
+
+  // Nunca cachear a config de runtime (porta/URL da API por ambiente)
+  if (event.request.url.includes('/config.json')) return;
 
   event.respondWith(
     fetch(event.request, { cache: 'no-store' })

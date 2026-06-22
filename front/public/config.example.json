@@ -1,4 +1,5 @@
 {
-  "apiUrl": "https://api.example.com/api",
+  "_comment": "apiUrl relativo (/api) usa o proxy do nginx (prod) ou do ng serve (dev). Use uma URL absoluta só se a API estiver em outro host.",
+  "apiUrl": "/api",
   "production": true
 }

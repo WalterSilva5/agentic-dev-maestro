@@ -1,5 +1,5 @@
 {
-  "apiUrl": "http://localhost:5000/api",
+  "apiUrl": "/api",
   "production": false,
   "app": {
     "name": "Fullstack Template",
