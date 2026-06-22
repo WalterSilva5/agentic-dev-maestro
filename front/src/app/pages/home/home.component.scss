@@ -8,10 +8,14 @@
   padding: 24px;
 }
 
-.hero {
+.home-hero {
   width: 100%;
   max-width: 520px;
   text-align: center;
+  // display explícito p/ não herdar um '.hero { display: grid }' global do template
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 
   h1 {
     font-size: 2rem;
