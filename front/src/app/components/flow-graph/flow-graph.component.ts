@@ -22,13 +22,22 @@ interface VEdge {
   y2: number;
 }
 
+// Tema CLARO: chips com fundo claro tingido + borda colorida + texto escuro.
 const STATE_FILL: Record<string, string> = {
-  done: '#1f7a4d',
-  doing: '#b9770e',
-  blocked: '#9b2c2c',
-  todo: '#374151',
-  entry: '#2b3a55',
-  exit: '#3b2b55'
+  done: '#dcfce7',
+  doing: '#fef3c7',
+  blocked: '#fee2e2',
+  todo: '#f3f4f6',
+  entry: '#e0e7ff',
+  exit: '#ede9fe'
+};
+const STATE_STROKE: Record<string, string> = {
+  done: '#16a34a',
+  doing: '#d97706',
+  blocked: '#dc2626',
+  todo: '#9ca3af',
+  entry: '#6366f1',
+  exit: '#8b5cf6'
 };
 
 // Renderiza o fluxo da tarefa (objetivo -> subtarefas -> aceite) como SVG.
@@ -57,16 +66,16 @@ const STATE_FILL: Record<string, string> = {
             [attr.fill]="n.fill" [attr.stroke]="n.stroke" stroke-width="1.5"
           />
           <text [attr.x]="n.x + n.w / 2" [attr.y]="n.y + (n.line2 ? 21 : 28)" text-anchor="middle"
-                font-size="11" fill="#cbd5e1">{{ n.line1 }}</text>
+                font-size="11" fill="#6b7280">{{ n.line1 }}</text>
           <text *ngIf="n.line2" [attr.x]="n.x + n.w / 2" [attr.y]="n.y + 37" text-anchor="middle"
-                font-size="12" fill="#fff">{{ n.line2 }}</text>
+                font-size="12" fill="#111827">{{ n.line2 }}</text>
         </g>
       </svg>
       <div class="flow-legend">
-        <span><i style="background:#1f7a4d"></i> concluída</span>
-        <span><i style="background:#b9770e"></i> em andamento</span>
-        <span><i style="background:#9b2c2c"></i> bloqueada</span>
-        <span><i style="background:#374151"></i> a fazer</span>
+        <span><i style="background:#16a34a"></i> concluída</span>
+        <span><i style="background:#d97706"></i> em andamento</span>
+        <span><i style="background:#dc2626"></i> bloqueada</span>
+        <span><i style="background:#9ca3af"></i> a fazer</span>
       </div>
     </div>
     <ng-template #empty><p class="flow-empty">Sem fluxo para exibir.</p></ng-template>
@@ -74,9 +83,9 @@ const STATE_FILL: Record<string, string> = {
   styles: [
     `
       .flow-wrap { overflow-x: auto; }
-      .flow-legend { display: flex; gap: 1rem; flex-wrap: wrap; font-size: 12px; color: #9aa0a6; margin-top: .5rem; }
+      .flow-legend { display: flex; gap: 1rem; flex-wrap: wrap; font-size: 12px; color: #6b7280; margin-top: .5rem; }
       .flow-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; vertical-align: middle; margin-right: 4px; }
-      .flow-empty { color: #9aa0a6; font-size: 13px; }
+      .flow-empty { color: #6b7280; font-size: 13px; }
     `
   ]
 })
@@ -158,7 +167,9 @@ export class FlowGraphComponent implements OnChanges {
     for (const n of nodes) {
       const p = pos.get(n.id) as { x: number; y: number };
       const kind = n.kind;
-      const fill = kind ? STATE_FILL[kind] : STATE_FILL[n.state ?? 'todo'] ?? STATE_FILL['todo'];
+      const key = kind ?? n.state ?? 'todo';
+      const fill = STATE_FILL[key] ?? STATE_FILL['todo'];
+      const stroke = STATE_STROKE[key] ?? STATE_STROKE['todo'];
       this.vnodes.push({
         id: n.id,
         x: p.x,
@@ -166,7 +177,7 @@ export class FlowGraphComponent implements OnChanges {
         w: this.W,
         h: this.H,
         fill,
-        stroke: 'rgba(255,255,255,.18)',
+        stroke,
         pill: !!kind,
         line1: kind ? (kind === 'entry' ? 'objetivo' : 'aceite') : (n.code ?? ''),
         line2: this.trunc(kind ? (n.label ?? '') : (n.title ?? ''), 22)

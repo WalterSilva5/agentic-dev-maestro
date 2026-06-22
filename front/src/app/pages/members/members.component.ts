@@ -66,10 +66,10 @@ export class MembersComponent implements OnInit {
       showCancelButton: true,
       confirmButtonText: 'Confirmar',
       cancelButtonText: 'Cancelar',
-      background: '#1E1E1E',
-      color: '#FFFFFF',
+      background: '#FFFFFF',
+      color: '#111827',
       confirmButtonColor: '#1DB954',
-      cancelButtonColor: '#2A2A2A',
+      cancelButtonColor: '#6B7280',
     });
     if (!confirm.isConfirmed) {
       m.role = previous; // reverte o select
@@ -81,8 +81,8 @@ export class MembersComponent implements OnInit {
       Swal.fire({
         title: 'Papel atualizado',
         icon: 'success',
-        background: '#1E1E1E',
-        color: '#FFFFFF',
+        background: '#FFFFFF',
+        color: '#111827',
         confirmButtonColor: '#1DB954',
       });
     } catch (err: any) {
@@ -101,10 +101,10 @@ export class MembersComponent implements OnInit {
       showCancelButton: true,
       confirmButtonText: 'Remover',
       cancelButtonText: 'Cancelar',
-      background: '#1E1E1E',
-      color: '#FFFFFF',
+      background: '#FFFFFF',
+      color: '#111827',
       confirmButtonColor: '#F87272',
-      cancelButtonColor: '#2A2A2A',
+      cancelButtonColor: '#6B7280',
     });
     if (!confirm.isConfirmed) return;
     try {
@@ -113,8 +113,8 @@ export class MembersComponent implements OnInit {
       Swal.fire({
         title: 'Membro removido',
         icon: 'success',
-        background: '#1E1E1E',
-        color: '#FFFFFF',
+        background: '#FFFFFF',
+        color: '#111827',
         confirmButtonColor: '#1DB954',
       });
     } catch (err: any) {
@@ -130,8 +130,8 @@ export class MembersComponent implements OnInit {
       Swal.fire({
         title: 'Informe um e-mail',
         icon: 'warning',
-        background: '#1E1E1E',
-        color: '#FFFFFF',
+        background: '#FFFFFF',
+        color: '#111827',
         confirmButtonColor: '#1DB954',
       });
       return;
@@ -145,8 +145,8 @@ export class MembersComponent implements OnInit {
       Swal.fire({
         title: 'Membro adicionado',
         icon: 'success',
-        background: '#1E1E1E',
-        color: '#FFFFFF',
+        background: '#FFFFFF',
+        color: '#111827',
         confirmButtonColor: '#1DB954',
       });
     } catch (err: any) {
@@ -162,8 +162,8 @@ export class MembersComponent implements OnInit {
       title: 'Erro',
       text: Array.isArray(msg) ? msg.join(', ') : String(msg),
       icon: 'error',
-      background: '#1E1E1E',
-      color: '#FFFFFF',
+      background: '#FFFFFF',
+      color: '#111827',
       confirmButtonColor: '#F87272',
     });
   }

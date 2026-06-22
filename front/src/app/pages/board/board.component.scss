@@ -18,20 +18,20 @@
   &--over {
     border-color: #1db954; // primary
     box-shadow: 0 0 0 1px #1db954 inset;
-    background-color: #232323;
+    background-color: rgba(29, 185, 84, 0.08); // leve tinta da brand (tema claro)
   }
 }
 
 .column__body {
-  // Scrollbar discreta no tema escuro.
+  // Scrollbar discreta no tema claro.
   scrollbar-width: thin;
-  scrollbar-color: #2a2a2a transparent;
+  scrollbar-color: #cbd5e1 transparent;
 
   &::-webkit-scrollbar {
     width: 6px;
   }
   &::-webkit-scrollbar-thumb {
-    background: #2a2a2a;
+    background: #cbd5e1;
     border-radius: 9999px;
   }
 }

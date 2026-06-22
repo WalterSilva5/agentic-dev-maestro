@@ -7,7 +7,7 @@
   width: 100%;
   height: 8px;
   border-radius: 9999px;
-  background-color: #2a2a2a; // dark-border
+  background-color: #e5e7eb; // line (tema claro)
   overflow: hidden;
 }
 
@@ -26,8 +26,8 @@
   font-size: 0.75rem;
   line-height: 1rem;
   border-radius: 9999px;
-  background-color: #2a2a2a; // dark-border
-  color: #d0d0d0; // grayscale-5
+  background-color: #f3f4f6; // superfície clara
+  color: #374151; // texto escuro
 }
 
 .chip-done {

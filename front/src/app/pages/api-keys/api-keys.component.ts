@@ -71,8 +71,8 @@ export class ApiKeysComponent implements OnInit {
       Swal.fire({
         title: 'Informe um rótulo',
         icon: 'warning',
-        background: '#1E1E1E',
-        color: '#FFFFFF',
+        background: '#FFFFFF',
+        color: '#111827',
         confirmButtonColor: '#1DB954',
       });
       return;
@@ -93,8 +93,8 @@ export class ApiKeysComponent implements OnInit {
         Swal.fire({
           title: 'Chave criada',
           icon: 'success',
-          background: '#1E1E1E',
-          color: '#FFFFFF',
+          background: '#FFFFFF',
+          color: '#111827',
           confirmButtonColor: '#1DB954',
         });
       }
@@ -113,12 +113,12 @@ export class ApiKeysComponent implements OnInit {
       title: 'Chave criada',
       icon: 'success',
       width: 600,
-      background: '#1E1E1E',
-      color: '#FFFFFF',
+      background: '#FFFFFF',
+      color: '#111827',
       confirmButtonText: 'Copiar e fechar',
       confirmButtonColor: '#1DB954',
       html: `
-        <p style="margin:0 0 .75rem; color:#D0D0D0; text-align:left;">
+        <p style="margin:0 0 .75rem; color:#6B7280; text-align:left;">
           Rótulo: <strong>${esc(key.label)}</strong>
         </p>
         <div style="background:#FBBD23; color:#121212; padding:.5rem .75rem; border-radius:8px;
@@ -126,7 +126,7 @@ export class ApiKeysComponent implements OnInit {
           Copie agora, não será exibido novamente.
         </div>
         <textarea readonly id="maestro-secret"
-          style="width:100%; min-height:72px; background:#121212; color:#1DB954; border:1px solid #2A2A2A;
+          style="width:100%; min-height:72px; background:#F3F4F6; color:#111827; border:1px solid #E5E7EB;
                  border-radius:8px; padding:.6rem; font-family:monospace; font-size:.85rem; resize:none;"
           onclick="this.select()">${esc(secret)}</textarea>
       `,
@@ -154,10 +154,10 @@ export class ApiKeysComponent implements OnInit {
       showCancelButton: true,
       confirmButtonText: 'Revogar',
       cancelButtonText: 'Cancelar',
-      background: '#1E1E1E',
-      color: '#FFFFFF',
+      background: '#FFFFFF',
+      color: '#111827',
       confirmButtonColor: '#F87272',
-      cancelButtonColor: '#2A2A2A',
+      cancelButtonColor: '#6B7280',
     });
     if (!confirm.isConfirmed) return;
     try {
@@ -166,8 +166,8 @@ export class ApiKeysComponent implements OnInit {
       Swal.fire({
         title: 'Chave revogada',
         icon: 'success',
-        background: '#1E1E1E',
-        color: '#FFFFFF',
+        background: '#FFFFFF',
+        color: '#111827',
         confirmButtonColor: '#1DB954',
       });
     } catch (err: any) {
@@ -181,8 +181,8 @@ export class ApiKeysComponent implements OnInit {
       title: 'Erro',
       text: Array.isArray(msg) ? msg.join(', ') : String(msg),
       icon: 'error',
-      background: '#1E1E1E',
-      color: '#FFFFFF',
+      background: '#FFFFFF',
+      color: '#111827',
       confirmButtonColor: '#F87272',
     });
   }
