@@ -20,27 +20,36 @@ module.exports = {
     },
 
     extend: {
-      // TODO: Migrar cores do colors.scss
+      // Paleta do design system (tema CLARO).
+      // Os nomes `dark.*` foram mantidos por compatibilidade com classes
+      // existentes (bg-dark-bg, text-dark-text, bg-dark-surface, ...).
       colors: {
         primary: '#1DB954',
         secondary: '#6A0DAD',
         dark: {
-          bg: '#121212',
-          text: '#FFFFFF',
-          surface: '#1E1E1E',
-          border: '#2A2A2A',
-          hover: '#333333',
+          bg: '#F4F5F7',      // fundo de página (claro)
+          text: '#111827',    // texto primário (escuro)
+          surface: '#FFFFFF', // cards / superfícies
+          border: '#E5E7EB',  // bordas
+          hover: '#F3F4F6',   // hover
         },
         grayscale: {
-          1: '#121212',
-          2: '#1E1E1E',
-          3: '#2A2A2A',
-          4: '#A0A0A0',
-          5: '#D0D0D0',
+          1: '#F4F5F7',
+          2: '#FFFFFF',
+          3: '#E5E7EB',
+          4: '#6B7280',
+          5: '#9CA3AF',
         },
         white: {
           1: '#FFFFFF',
         },
+        // Tokens semânticos (uso recomendado em código novo)
+        surface: '#FFFFFF',
+        canvas: '#F4F5F7',
+        ink: '#111827',
+        'ink-2': '#6B7280',
+        'ink-3': '#9CA3AF',
+        line: '#E5E7EB',
         green: {
           1: '#1DB954',
           2: '#17a347',
@@ -109,7 +118,7 @@ module.exports = {
     require('daisyui'),
   ],
 
-  // DaisyUI configuration (optional)
+  // DaisyUI configuration — tema "brand" claro
   daisyui: {
     themes: [
       {
@@ -117,16 +126,17 @@ module.exports = {
           primary: '#1DB954',
           secondary: '#6A0DAD',
           accent: '#17a347',
-          neutral: '#1E1E1E',
-          'base-100': '#121212',
+          neutral: '#F3F4F6',
+          'base-100': '#FFFFFF',
+          'base-200': '#F4F5F7',
+          'base-content': '#111827',
           info: '#3ABFF8',
           success: '#1DB954',
           warning: '#FBBD23',
           error: '#F87272'
         }
-      },
-      'dark'
+      }
     ],
-    darkTheme: 'dark'
+    darkTheme: 'brand'
   }
 }

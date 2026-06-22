@@ -18,23 +18,27 @@ $d_blue_4: #102941;
 $d_blue_5: #0D2337;
 $green_1: #1DB954; // verde escuro Spotify
 $green_2: #33D258;
-$white_1: #FFFFFF;
-$grayscale_1: #232323; // cinza escuro para backgrounds
-$grayscale_2: #181818; // cinza ainda mais escuro
-$grayscale_3: #121212; // quase preto
-$grayscale_4: #B9C1C9;
-$grayscale_5: #6A7682;
-$grayscale_6: #7E8B98;
-$grayscale_7: #333333;
+// ===== TEMA CLARO (design system) =====
+// $white_1 historicamente foi usado como COR DE TEXTO (primária) -> mapeia
+// para o texto escuro do tema claro. Use $pure_white quando precisar do branco real.
+$white_1: #111827; // texto primário (escuro) sobre fundo claro
+$pure_white: #FFFFFF; // branco real para superfícies
+$grayscale_1: #F3F4F6; // superfície sutil
+$grayscale_2: #FFFFFF; // cards / superfícies
+$grayscale_3: #F4F5F7; // fundo de página
+$grayscale_4: #6B7280; // texto secundário
+$grayscale_5: #6B7280; // texto secundário
+$grayscale_6: #9CA3AF; // texto terciário / placeholder
+$grayscale_7: #E5E7EB; // bordas
 $black_1: #000000;
-$yellow_1: #FFA318;
+$yellow_1: #F59E0B;
 $orange_1: #FF4500;
 $orange_2: #a14805;
 $red_1: #E64F40;
-$dark-bg: #000000; // fundo preto
+$dark-bg: #F4F5F7; // fundo de página (claro)
 $dark-green: #1DB954; // verde destaque
 $dark-purple: #6A0DAD; // roxo destaque
-$dark-text: #E0E0E0; // texto claro
+$dark-text: #111827; // texto primário (escuro)
 
 :root {
   --primary: #{$primary};
