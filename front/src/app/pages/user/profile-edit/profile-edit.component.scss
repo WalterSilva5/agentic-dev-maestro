@@ -8,13 +8,13 @@
   h1 {
     font-size: 1.5rem;
     margin-bottom: 1.5rem;
-    color: white;
+    color: #111827;
   }
 
   // Form Sections
   .form-section {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(0, 0, 0, 0.03);
+    border: 1px solid rgba(0, 0, 0, 0.08);
     border-radius: 12px;
     padding: 1.25rem;
     margin-bottom: 1.25rem;
@@ -62,7 +62,7 @@
     select {
       padding: 0.6rem 0.85rem;
       border-radius: 8px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(0, 0, 0, 0.1);
       background: $grayscale_2;
       color: $white_1 !important;
       caret-color: $white_1;
@@ -90,8 +90,8 @@
       padding-right: 2rem;
 
       option {
-        background: #1a1a1a;
-        color: white;
+        background: #F3F4F6;
+        color: #111827;
         padding: 0.5rem;
       }
     }
@@ -135,7 +135,7 @@
   // Buttons
   .btn-danger {
     background: #dc2626;
-    color: white;
+    color: #ffffff;
     padding: 0.6rem 1.25rem;
     border: none;
     border-radius: 8px;
@@ -157,7 +157,7 @@
 
   .btn-save {
     background: #1DB954;
-    color: white;
+    color: #ffffff;
     padding: 0.6rem 1.5rem;
     border: none;
     border-radius: 8px;
@@ -178,18 +178,18 @@
   }
 
   .btn-cancel {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.1);
     color: #d1d5db;
     padding: 0.6rem 1.25rem;
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(0, 0, 0, 0.15);
     border-radius: 8px;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s ease;
 
     &:hover {
-      background: rgba(255, 255, 255, 0.15);
-      color: white;
+      background: rgba(0, 0, 0, 0.15);
+      color: #111827;
     }
 
     &:disabled {
@@ -223,7 +223,7 @@
       line-height: 1.5;
 
       strong {
-        color: white;
+        color: #111827;
       }
     }
   }
@@ -294,7 +294,7 @@
 }
 
 .modal-content {
-  background: #1E1E1E;
+  background: #FFFFFF;
   border: 1px solid rgba(75, 85, 99, 0.5);
   border-radius: 16px;
   width: 100%;
@@ -310,7 +310,7 @@
   border-bottom: 1px solid rgba(75, 85, 99, 0.3);
 
   h3 {
-    color: white;
+    color: #111827;
     font-size: 1.25rem;
     font-weight: 600;
     margin: 0;
@@ -325,7 +325,7 @@
     transition: color 0.2s;
 
     &:hover {
-      color: white;
+      color: #111827;
     }
   }
 }
@@ -354,7 +354,7 @@
       background: rgba(55, 65, 81, 0.5);
       border: 1px solid rgba(75, 85, 99, 0.5);
       border-radius: 8px;
-      color: white;
+      color: #111827;
       font-size: 0.95rem;
       transition: border-color 0.2s, box-shadow 0.2s;
 
@@ -365,7 +365,7 @@
       }
 
       &::placeholder {
-        color: rgba(255, 255, 255, 0.3);
+        color: rgba(0, 0, 0, 0.3);
       }
     }
   }
@@ -379,18 +379,18 @@
   border-top: 1px solid rgba(75, 85, 99, 0.3);
 
   .btn-cancel {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.1);
     color: #d1d5db;
     padding: 0.6rem 1.25rem;
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(0, 0, 0, 0.15);
     border-radius: 8px;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s ease;
 
     &:hover:not(:disabled) {
-      background: rgba(255, 255, 255, 0.15);
-      color: white;
+      background: rgba(0, 0, 0, 0.15);
+      color: #111827;
     }
 
     &:disabled {
@@ -401,7 +401,7 @@
 
   .btn-save {
     background: #1DB954;
-    color: white;
+    color: #ffffff;
     padding: 0.6rem 1.5rem;
     border: none;
     border-radius: 8px;

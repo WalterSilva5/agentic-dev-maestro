@@ -1,11 +1,11 @@
 $primary: #1DB954;
 $secondary: #6a0dad;
-$dark-bg: #0a0a0a;
-$card-bg: #121212;
-$input-bg: #1a1a1a;
-$border-color: rgba(255, 255, 255, 0.1);
-$text-primary: #ffffff;
-$text-secondary: #9ca3af;
+$dark-bg: #F4F5F7;
+$card-bg: #FFFFFF;
+$input-bg: #FFFFFF;
+$border-color: #E5E7EB;
+$text-primary: #111827;
+$text-secondary: #6B7280;
 $error-color: #ef4444;
 
 // Main container
@@ -65,7 +65,7 @@ $error-color: #ef4444;
   display: flex;
   width: 100%;
   max-width: 1000px;
-  background: #1E1E1E;
+  background: #F9FAFB;
   border-radius: 24px;
   overflow: hidden;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
@@ -101,7 +101,7 @@ $error-color: #ef4444;
 // Info Section (Left side)
 .info-section {
   flex: 1;
-  background: #121212;
+  background: #FFFFFF;
   padding: 3rem 2.5rem;
   display: flex;
   flex-direction: column;

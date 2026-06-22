@@ -1,13 +1,13 @@
 .settings-container {
-  background: #121212;
+  background: #F4F5F7;
 }
 
 .form-input {
-  background-color: rgba(55, 65, 81, 0.5);
-  border: 1px solid rgba(75, 85, 99, 0.5);
+  background-color: #FFFFFF;
+  border: 1px solid #E5E7EB;
   border-radius: 0.5rem;
   padding: 0.5rem 0.75rem;
-  color: white;
+  color: #111827;
   transition: border-color 0.2s, box-shadow 0.2s;
 
   &:focus {
