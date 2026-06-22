@@ -1,0 +1,111 @@
+<div class="projects-page p-6 max-w-5xl mx-auto text-dark-text">
+  <!-- Sem empresa ativa -->
+  <ng-container *ngIf="!hasCompany; else withCompany">
+    <div class="card bg-dark-surface shadow-card max-w-lg mx-auto mt-10">
+      <div class="card-body items-center text-center">
+        <h2 class="card-title">Selecione uma empresa primeiro</h2>
+        <p class="text-grayscale-4">
+          Você precisa escolher uma empresa ativa antes de ver os projetos.
+        </p>
+        <div class="card-actions mt-2">
+          <a routerLink="/companies" class="btn btn-primary">Ir para Empresas</a>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+
+  <ng-template #withCompany>
+    <header class="mb-6">
+      <h1 class="text-2xl font-semibold">Projetos</h1>
+      <p class="text-grayscale-4">
+        Empresa ativa:
+        <span class="text-grayscale-5 font-medium">{{ tenant.active()?.name }}</span>
+      </p>
+    </header>
+
+    <!-- Formulário de criação -->
+    <section class="card bg-dark-surface shadow-card mb-8">
+      <div class="card-body">
+        <h2 class="card-title text-base">Novo projeto</h2>
+        <form (ngSubmit)="createProject()" class="grid gap-4 md:grid-cols-2">
+          <label class="form-control">
+            <span class="label-text mb-1 block text-grayscale-5">Nome *</span>
+            <input
+              type="text"
+              name="name"
+              class="input input-bordered w-full bg-dark-bg"
+              placeholder="Ex.: Plataforma Maestro"
+              [(ngModel)]="newName"
+              [disabled]="saving"
+            />
+          </label>
+
+          <label class="form-control">
+            <span class="label-text mb-1 block text-grayscale-5">Key * (2-20, A-Z 0-9)</span>
+            <input
+              type="text"
+              name="key"
+              class="input input-bordered w-full bg-dark-bg uppercase"
+              placeholder="MAESTRO"
+              maxlength="20"
+              [ngModel]="newKey"
+              (ngModelChange)="onKeyInput($event)"
+              [disabled]="saving"
+            />
+          </label>
+
+          <label class="form-control md:col-span-2">
+            <span class="label-text mb-1 block text-grayscale-5">Descrição (opcional)</span>
+            <textarea
+              name="description"
+              class="textarea textarea-bordered w-full bg-dark-bg"
+              rows="2"
+              placeholder="Breve descrição do projeto"
+              [(ngModel)]="newDescription"
+              [disabled]="saving"
+            ></textarea>
+          </label>
+
+          <div class="md:col-span-2 flex justify-end">
+            <button type="submit" class="btn btn-primary" [disabled]="saving">
+              <span *ngIf="saving" class="loading loading-spinner loading-sm"></span>
+              {{ saving ? 'Criando...' : 'Criar projeto' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- Lista -->
+    <section>
+      <div *ngIf="loading" class="flex items-center gap-2 text-grayscale-4">
+        <span class="loading loading-spinner loading-sm"></span> Carregando projetos...
+      </div>
+
+      <div *ngIf="!loading && projects.length === 0" class="text-grayscale-4">
+        Nenhum projeto encontrado. Crie o primeiro acima.
+      </div>
+
+      <div *ngIf="!loading && projects.length > 0" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div *ngFor="let p of projects" class="card bg-dark-surface shadow-card border border-dark-border">
+          <div class="card-body">
+            <div class="flex items-start justify-between gap-2">
+              <h3 class="card-title text-base">{{ p.name }}</h3>
+              <span class="badge badge-outline badge-sm whitespace-nowrap">{{ p.key }}</span>
+            </div>
+
+            <p class="text-sm text-grayscale-4 min-h-[1.5rem]">
+              {{ p.description || 'Sem descrição.' }}
+            </p>
+
+            <div class="card-actions justify-end mt-2">
+              <a [routerLink]="['/projects', p.id, 'board']" class="btn btn-sm btn-primary">
+                Abrir quadro
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </ng-template>
+</div>

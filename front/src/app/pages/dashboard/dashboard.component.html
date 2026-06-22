@@ -1,0 +1,142 @@
+<div class="dashboard-page p-6 max-w-6xl mx-auto text-dark-text">
+  <!-- Sem empresa ativa -->
+  <ng-container *ngIf="!hasCompany; else withCompany">
+    <div class="card bg-dark-surface shadow-card max-w-lg mx-auto mt-10">
+      <div class="card-body items-center text-center">
+        <h2 class="card-title">Selecione uma empresa primeiro</h2>
+        <p class="text-grayscale-4">
+          Você precisa escolher uma empresa ativa antes de ver o dashboard.
+        </p>
+        <div class="card-actions mt-2">
+          <a routerLink="/companies" class="btn btn-primary">Ir para Empresas</a>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+
+  <ng-template #withCompany>
+    <header class="mb-6">
+      <h1 class="text-2xl font-semibold">Dashboard</h1>
+      <p class="text-grayscale-4">
+        Empresa ativa:
+        <span class="text-grayscale-5 font-medium">{{ tenant.active()?.name }}</span>
+      </p>
+    </header>
+
+    <!-- Carregando -->
+    <div *ngIf="loading" class="flex items-center gap-3 text-grayscale-4 py-10">
+      <span class="loading loading-spinner text-primary"></span>
+      <span>Carregando dados...</span>
+    </div>
+
+    <ng-container *ngIf="!loading">
+      <!-- Faixa de estatísticas -->
+      <section class="grid gap-4 sm:grid-cols-3 mb-8">
+        <div class="card bg-dark-surface shadow-card">
+          <div class="card-body py-4">
+            <span class="text-grayscale-4 text-sm">Total de projetos</span>
+            <span class="text-3xl font-semibold">{{ totalProjects }}</span>
+          </div>
+        </div>
+        <div class="card bg-dark-surface shadow-card">
+          <div class="card-body py-4">
+            <span class="text-grayscale-4 text-sm">Total de tarefas</span>
+            <span class="text-3xl font-semibold">{{ totalTasks }}</span>
+          </div>
+        </div>
+        <div class="card bg-dark-surface shadow-card">
+          <div class="card-body py-4">
+            <span class="text-grayscale-4 text-sm">% concluído (agregado)</span>
+            <span class="text-3xl font-semibold text-primary">{{ aggregatePercent }}%</span>
+          </div>
+        </div>
+      </section>
+
+      <div class="grid gap-6 lg:grid-cols-3">
+        <!-- Progresso por projeto -->
+        <section class="lg:col-span-2">
+          <h2 class="text-lg font-semibold mb-3">Progresso por projeto</h2>
+
+          <div *ngIf="progress.length === 0" class="text-grayscale-4 py-6">
+            Nenhum projeto encontrado para esta empresa.
+          </div>
+
+          <div class="grid gap-4">
+            <article
+              *ngFor="let p of progress"
+              class="card bg-dark-surface shadow-card"
+            >
+              <div class="card-body">
+                <div class="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 class="card-title text-base">{{ p.name }}</h3>
+                    <span class="badge badge-outline badge-sm">{{ p.key }}</span>
+                  </div>
+                  <a
+                    [routerLink]="['/projects', p.id, 'board']"
+                    class="btn btn-primary btn-sm"
+                  >
+                    Abrir quadro
+                  </a>
+                </div>
+
+                <!-- Barra de progresso -->
+                <div class="mt-3">
+                  <div class="flex justify-between text-sm text-grayscale-4 mb-1">
+                    <span>{{ p.done }} / {{ p.total }} concluídas</span>
+                    <span>{{ p.percent }}%</span>
+                  </div>
+                  <div class="progress-track">
+                    <div class="progress-fill" [style.width.%]="p.percent"></div>
+                  </div>
+                </div>
+
+                <!-- Chips por coluna -->
+                <div class="flex flex-wrap gap-2 mt-3">
+                  <span
+                    *ngFor="let c of p.columns"
+                    class="chip"
+                    [class.chip-done]="c.isDone"
+                  >
+                    {{ c.name }}: {{ c.count }}
+                  </span>
+                </div>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <!-- Atividade recente -->
+        <section>
+          <h2 class="text-lg font-semibold mb-3">Atividade recente</h2>
+          <div class="card bg-dark-surface shadow-card">
+            <div class="card-body p-0">
+              <div *ngIf="activity.length === 0" class="text-grayscale-4 p-4">
+                Sem atividade recente.
+              </div>
+
+              <ul class="divide-y divide-dark-border">
+                <li *ngFor="let a of activity" class="p-4">
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="font-medium">{{ a.action }}</span>
+                    <span
+                      *ngIf="a.viaApiKeyId"
+                      class="badge badge-secondary badge-sm"
+                    >
+                      via agente
+                    </span>
+                  </div>
+                  <div class="text-sm text-grayscale-4 mt-1">
+                    {{ a.entityType }}
+                    <span class="text-grayscale-3">·</span>
+                    {{ a.createdAt | date: 'short' }}
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </section>
+      </div>
+    </ng-container>
+  </ng-template>
+</div>

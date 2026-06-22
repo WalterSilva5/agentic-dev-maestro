@@ -1,0 +1,94 @@
+<div class="api-keys-page p-4 md:p-6">
+  <h1 class="text-xl font-semibold text-dark-text mb-4">API Keys</h1>
+
+  <!-- Sem empresa ativa -->
+  <div *ngIf="cid == null" class="alert bg-dark-surface border border-dark-border text-dark-text">
+    <span>Selecione uma empresa primeiro</span>
+    <a routerLink="/companies" class="btn btn-sm btn-primary">Ir para empresas</a>
+  </div>
+
+  <ng-container *ngIf="cid != null">
+    <!-- Formulário de criação -->
+    <div class="card bg-dark-surface border border-dark-border mb-6">
+      <div class="card-body p-4">
+        <h2 class="card-title text-base text-dark-text">Criar chave</h2>
+        <form (ngSubmit)="create()" class="flex flex-col gap-4">
+          <div class="form-control">
+            <label class="label py-1"><span class="label-text text-grayscale-5">Rótulo</span></label>
+            <input
+              type="text"
+              name="newLabel"
+              [(ngModel)]="newLabel"
+              placeholder="Ex.: CI/CD, integração N8N…"
+              class="input input-bordered bg-dark-bg text-dark-text w-full"
+              autocomplete="off"
+            />
+          </div>
+
+          <div class="form-control">
+            <label class="label py-1"><span class="label-text text-grayscale-5">Escopos</span></label>
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+              <label
+                *ngFor="let s of allScopes"
+                class="label cursor-pointer justify-start gap-2 rounded-button border border-dark-border bg-dark-bg px-3 py-2"
+              >
+                <input
+                  type="checkbox"
+                  class="checkbox checkbox-sm checkbox-primary"
+                  [name]="'scope-' + s"
+                  [(ngModel)]="selectedScopes[s]"
+                />
+                <span class="label-text font-mono text-xs text-dark-text">{{ s }}</span>
+              </label>
+            </div>
+          </div>
+
+          <div>
+            <button type="submit" class="btn btn-primary" [disabled]="creating">
+              <span *ngIf="creating" class="loading loading-spinner loading-sm"></span>
+              Criar chave
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Tabela -->
+    <div class="overflow-x-auto rounded-card border border-dark-border bg-dark-surface">
+      <table class="table">
+        <thead>
+          <tr class="text-grayscale-5">
+            <th>Rótulo</th>
+            <th>Prefixo</th>
+            <th>Criada</th>
+            <th>Último uso</th>
+            <th>Expira</th>
+            <th class="text-right">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngIf="loading">
+            <td colspan="6" class="text-center text-grayscale-4 py-6">
+              <span class="loading loading-spinner loading-md"></span>
+            </td>
+          </tr>
+
+          <tr *ngIf="!loading && keys.length === 0">
+            <td colspan="6" class="text-center text-grayscale-4 py-6">Nenhuma chave cadastrada.</td>
+          </tr>
+
+          <tr *ngFor="let k of keys" class="hover:bg-dark-hover">
+            <td class="text-dark-text">{{ k.label }}</td>
+            <td><code class="font-mono text-xs text-green-1">{{ k.prefix }}…</code></td>
+            <td class="text-grayscale-5">{{ k.createdAt ? (k.createdAt | date: 'short') : '-' }}</td>
+            <td class="text-grayscale-5">{{ k.lastUsedAt ? (k.lastUsedAt | date: 'short') : 'nunca' }}</td>
+            <td class="text-grayscale-5">{{ k.expiresAt ? (k.expiresAt | date: 'short') : 'sem expiração' }}</td>
+            <td class="text-right">
+              <button type="button" class="btn btn-sm btn-error btn-outline" (click)="revoke(k)">Revogar</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </ng-container>
+</div>

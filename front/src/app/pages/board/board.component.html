@@ -1,0 +1,99 @@
+<div class="board-page min-h-screen bg-dark-bg text-dark-text p-4">
+  <!-- Sem empresa selecionada -->
+  <div
+    *ngIf="!hasCompany"
+    class="card bg-dark-surface border border-dark-border max-w-md mx-auto mt-16"
+  >
+    <div class="card-body items-center text-center">
+      <h2 class="card-title text-dark-text">Selecione uma empresa</h2>
+      <p class="text-grayscale-4">Escolha uma empresa para visualizar o board do projeto.</p>
+    </div>
+  </div>
+
+  <ng-container *ngIf="hasCompany">
+    <header class="flex items-center justify-between mb-4">
+      <h1 class="text-xl font-semibold">
+        {{ board?.name || 'Board' }}
+      </h1>
+      <span *ngIf="loading" class="loading loading-spinner loading-sm text-primary"></span>
+    </header>
+
+    <!-- Trilho horizontal de colunas -->
+    <div class="columns-rail flex gap-4 overflow-x-auto pb-4">
+      <section
+        *ngFor="let column of board?.columns; trackBy: trackByColumn"
+        class="column card bg-dark-surface border border-dark-border shrink-0 w-72 flex flex-col"
+        [class.column--over]="dragOverColumnId === column.id"
+        (dragover)="$event.preventDefault()"
+        (dragenter)="onDragEnter(column)"
+        (dragleave)="onDragLeave(column)"
+        (drop)="onDrop(column)"
+      >
+        <!-- Cabeçalho da coluna -->
+        <div class="column__header flex items-center justify-between px-3 py-2 border-b border-dark-border">
+          <span class="font-medium truncate" [class.text-primary]="column.isDone">
+            {{ column.name }}
+          </span>
+          <span class="badge badge-sm bg-grayscale-3 border-none text-grayscale-5">
+            {{ column.tasks.length }}
+          </span>
+        </div>
+
+        <!-- Lista de cards -->
+        <div class="column__body flex-1 overflow-y-auto p-2 space-y-2">
+          <article
+            *ngFor="let task of column.tasks; trackBy: trackByTask"
+            class="task-card card bg-grayscale-2 border border-dark-border p-3 cursor-grab hover:border-primary hover:shadow-card-hover transition"
+            draggable="true"
+            (dragstart)="onDragStart(task)"
+            (dragend)="onDragEnd()"
+          >
+            <div class="flex items-center justify-between gap-2 mb-1">
+              <a
+                [routerLink]="['/tasks', task.code]"
+                class="text-xs font-mono text-primary hover:underline"
+                draggable="false"
+              >
+                {{ task.code }}
+              </a>
+              <span class="badge badge-xs" [ngClass]="priorityClass(task.priority)">
+                {{ task.priority }}
+              </span>
+            </div>
+            <p class="text-sm text-dark-text leading-snug">{{ task.title }}</p>
+            <div
+              *ngIf="task.estimateMd"
+              class="mt-2 text-xs text-grayscale-4"
+            >
+              {{ task.estimateMd }} md
+            </div>
+          </article>
+
+          <p
+            *ngIf="column.tasks.length === 0"
+            class="text-center text-xs text-grayscale-4 py-6 select-none"
+          >
+            Sem tarefas
+          </p>
+        </div>
+
+        <!-- Rodapé: adicionar tarefa -->
+        <form
+          class="column__footer flex gap-2 p-2 border-t border-dark-border"
+          (ngSubmit)="addTask(column)"
+        >
+          <input
+            type="text"
+            class="input input-sm input-bordered bg-grayscale-2 text-dark-text flex-1"
+            placeholder="Nova tarefa..."
+            [(ngModel)]="newTaskTitle[column.id]"
+            [ngModelOptions]="{ standalone: true }"
+          />
+          <button type="submit" class="btn btn-sm btn-primary" aria-label="Adicionar tarefa">
+            +
+          </button>
+        </form>
+      </section>
+    </div>
+  </ng-container>
+</div>

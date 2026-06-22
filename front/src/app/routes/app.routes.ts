@@ -12,6 +12,14 @@ import { ForgotPasswordComponent } from '../pages/auth/forgot-password/forgot-pa
 import { ResetPasswordComponent } from '../pages/auth/reset-password/reset-password.component';
 import { SettingsComponent } from '../pages/settings/settings.component';
 import { NotFoundComponent } from '../pages/not-found/not-found.component';
+// Agentic Dev Maestro
+import { DashboardComponent } from '../pages/dashboard/dashboard.component';
+import { CompaniesComponent } from '../pages/companies/companies.component';
+import { ProjectsComponent } from '../pages/projects/projects.component';
+import { BoardComponent } from '../pages/board/board.component';
+import { TaskDetailComponent } from '../pages/task-detail/task-detail.component';
+import { MembersComponent } from '../pages/members/members.component';
+import { ApiKeysComponent } from '../pages/api-keys/api-keys.component';
 
 export const routes: Routes = [
   { path: RoutesEnum.HOME, component: HomeComponent },
@@ -26,5 +34,13 @@ export const routes: Routes = [
   { path: 'auth/reset-password', component: ResetPasswordComponent },
   { path: RoutesEnum.GOOGLE_CALLBACK, component: GoogleCallbackComponent },
   { path: RoutesEnum.SETTINGS, component: SettingsComponent },
+  // Agentic Dev Maestro
+  { path: RoutesEnum.DASHBOARD, component: DashboardComponent },
+  { path: RoutesEnum.COMPANIES, component: CompaniesComponent },
+  { path: RoutesEnum.PROJECTS, component: ProjectsComponent },
+  { path: RoutesEnum.BOARD, component: BoardComponent },
+  { path: RoutesEnum.TASK_DETAIL, component: TaskDetailComponent },
+  { path: RoutesEnum.MEMBERS, component: MembersComponent },
+  { path: RoutesEnum.API_KEYS, component: ApiKeysComponent },
   { path: '**', component: NotFoundComponent }
 ];

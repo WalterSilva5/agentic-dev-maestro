@@ -1,0 +1,8 @@
+:host {
+  display: block;
+}
+
+.task-detail-page {
+  // Garante espaçamento legível em telas estreitas.
+  word-break: break-word;
+}

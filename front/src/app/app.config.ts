@@ -8,6 +8,7 @@ import { provideStoreDevtools } from '@ngrx/store-devtools';
 import { provideRouterStore } from '@ngrx/router-store';
 import { authReducer } from './state/auth/auth.reducer';
 import { authInterceptor } from './modules/interceptors/auth.interceptor';
+import { tenantInterceptor } from './modules/interceptors/tenant.interceptor';
 import { CONFIG_INITIALIZER_PROVIDER } from './config/config.initializer';
 
 
@@ -20,7 +21,7 @@ export const appConfig: ApplicationConfig = {
     provideRouter(routes, withComponentInputBinding(), withInMemoryScrolling({
       scrollPositionRestoration: 'enabled'
     })),
-    provideHttpClient(withFetch(), withInterceptors([authInterceptor])),
+    provideHttpClient(withFetch(), withInterceptors([authInterceptor, tenantInterceptor])),
     provideStore({ auth: authReducer }),
     provideEffects(),
     provideStoreDevtools({ maxAge: 25, logOnly: isDev }),

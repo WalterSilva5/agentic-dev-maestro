@@ -1,0 +1,302 @@
+<div class="task-detail-page p-6 max-w-5xl mx-auto text-dark-text">
+  <!-- Estado de carregamento -->
+  <div *ngIf="loading && !task" class="flex items-center gap-3 text-grayscale-4">
+    <span class="loading loading-spinner loading-md text-primary"></span>
+    Carregando tarefa...
+  </div>
+
+  <!-- Tarefa não encontrada -->
+  <div
+    *ngIf="!loading && !task"
+    class="card bg-dark-surface shadow-card max-w-lg mx-auto mt-10"
+  >
+    <div class="card-body items-center text-center">
+      <h2 class="card-title">Tarefa não encontrada</h2>
+      <p class="text-grayscale-4">Não foi possível localizar esta tarefa.</p>
+      <div class="card-actions mt-2">
+        <a routerLink="/projects" class="btn btn-primary">Ir para Projetos</a>
+      </div>
+    </div>
+  </div>
+
+  <ng-container *ngIf="task as t">
+    <!-- Cabeçalho -->
+    <header class="mb-6">
+      <a
+        routerLink="/projects"
+        class="text-sm text-grayscale-4 hover:text-primary inline-flex items-center gap-1 mb-3"
+      >
+        ← Voltar
+      </a>
+
+      <div class="flex flex-wrap items-center gap-3">
+        <span class="font-mono text-sm text-grayscale-4">{{ t.code }}</span>
+        <h1 class="text-2xl font-semibold flex-1 min-w-0 break-words">
+          {{ t.title }}
+        </h1>
+      </div>
+
+      <div class="mt-3 flex flex-wrap items-center gap-2">
+        <span class="badge badge-outline">{{ t.status }}</span>
+        <span class="badge" [ngClass]="priorityClass(t.priority)">
+          {{ t.priority }}
+        </span>
+        <span
+          *ngIf="t.estimateMd != null"
+          class="badge badge-ghost"
+          title="Estimativa em homem-dia"
+        >
+          {{ t.estimateMd }} homem-dia
+        </span>
+      </div>
+
+      <p
+        *ngIf="t.description"
+        class="mt-3 text-grayscale-5 whitespace-pre-line"
+      >
+        {{ t.description }}
+      </p>
+    </header>
+
+    <!-- Cards de informação -->
+    <div class="grid gap-4 md:grid-cols-2 mb-8">
+      <section class="card bg-dark-surface shadow-card">
+        <div class="card-body">
+          <h2 class="card-title text-base">Objetivo</h2>
+          <p class="text-grayscale-5 whitespace-pre-line" *ngIf="t.objective; else noObjective">
+            {{ t.objective }}
+          </p>
+          <ng-template #noObjective>
+            <p class="text-grayscale-4 italic">Nenhum objetivo definido.</p>
+          </ng-template>
+        </div>
+      </section>
+
+      <section class="card bg-dark-surface shadow-card">
+        <div class="card-body">
+          <h2 class="card-title text-base">Critério de aceite</h2>
+          <p class="text-grayscale-5 whitespace-pre-line" *ngIf="t.acceptance; else noAcceptance">
+            {{ t.acceptance }}
+          </p>
+          <ng-template #noAcceptance>
+            <p class="text-grayscale-4 italic">Nenhum critério de aceite definido.</p>
+          </ng-template>
+        </div>
+      </section>
+    </div>
+
+    <!-- Abas -->
+    <div role="tablist" class="tabs tabs-boxed bg-dark-surface mb-4">
+      <button
+        type="button"
+        role="tab"
+        class="tab"
+        [class.tab-active]="tab === 'fluxo'"
+        (click)="setTab('fluxo')"
+      >
+        Fluxo
+      </button>
+      <button
+        type="button"
+        role="tab"
+        class="tab"
+        [class.tab-active]="tab === 'comentarios'"
+        (click)="setTab('comentarios')"
+      >
+        Comentários
+        <span class="badge badge-sm badge-ghost ml-2">{{ comments.length }}</span>
+      </button>
+      <button
+        type="button"
+        role="tab"
+        class="tab"
+        [class.tab-active]="tab === 'documentos'"
+        (click)="setTab('documentos')"
+      >
+        Documentos
+        <span class="badge badge-sm badge-ghost ml-2">{{ docs.length }}</span>
+      </button>
+      <button
+        type="button"
+        role="tab"
+        class="tab"
+        [class.tab-active]="tab === 'atividade'"
+        (click)="setTab('atividade')"
+      >
+        Atividade
+      </button>
+    </div>
+
+    <!-- Fluxo -->
+    <section *ngIf="tab === 'fluxo'" class="card bg-dark-surface shadow-card">
+      <div class="card-body">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <h2 class="card-title text-base">Fluxo</h2>
+          <span *ngIf="flow?.progress as p" class="text-sm text-grayscale-4">
+            {{ p.done }}/{{ p.total }} concluídas
+          </span>
+        </div>
+        <app-flow-graph [flow]="flow"></app-flow-graph>
+      </div>
+    </section>
+
+    <!-- Comentários -->
+    <section *ngIf="tab === 'comentarios'" class="card bg-dark-surface shadow-card">
+      <div class="card-body">
+        <h2 class="card-title text-base">Comentários</h2>
+
+        <ul class="flex flex-col gap-3 mt-2">
+          <li
+            *ngFor="let c of comments; trackBy: trackByComment"
+            class="rounded-card bg-dark-bg p-3"
+          >
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-medium text-grayscale-5">{{ authorName(c) }}</span>
+              <span *ngIf="c.viaApiKeyId" class="badge badge-sm badge-secondary">
+                via agente
+              </span>
+              <span class="text-xs text-grayscale-4 ml-auto">
+                {{ shortDate(c.createdAt) }}
+              </span>
+            </div>
+            <p class="text-grayscale-5 whitespace-pre-line text-sm">{{ c.body }}</p>
+          </li>
+          <li *ngIf="!comments.length" class="text-grayscale-4 italic text-sm">
+            Nenhum comentário ainda.
+          </li>
+        </ul>
+
+        <form (ngSubmit)="addComment()" class="mt-4">
+          <textarea
+            name="commentText"
+            class="textarea textarea-bordered w-full bg-dark-bg"
+            rows="3"
+            placeholder="Escreva um comentário..."
+            [(ngModel)]="commentText"
+            [disabled]="postingComment"
+          ></textarea>
+          <div class="mt-2 flex justify-end">
+            <button
+              type="submit"
+              class="btn btn-primary"
+              [disabled]="postingComment || !commentText.trim()"
+            >
+              <span
+                *ngIf="postingComment"
+                class="loading loading-spinner loading-xs"
+              ></span>
+              Comentar
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- Documentos -->
+    <section *ngIf="tab === 'documentos'" class="card bg-dark-surface shadow-card">
+      <div class="card-body">
+        <h2 class="card-title text-base">Documentos</h2>
+
+        <ul class="flex flex-col gap-2 mt-2">
+          <li
+            *ngFor="let d of docs; trackBy: trackByDoc"
+            class="flex items-center gap-3 rounded-card bg-dark-bg p-3"
+          >
+            <div class="min-w-0 flex-1">
+              <p class="font-medium text-grayscale-5 truncate">{{ d.title }}</p>
+              <div class="flex items-center gap-2 text-xs text-grayscale-4">
+                <span class="badge badge-sm badge-ghost">{{ d.type }}</span>
+                <span>v{{ d.version }}</span>
+              </div>
+            </div>
+            <a
+              [href]="exportUrl(d.id)"
+              target="_blank"
+              rel="noopener"
+              class="btn btn-sm btn-outline btn-primary"
+            >
+              Exportar
+            </a>
+          </li>
+          <li *ngIf="!docs.length" class="text-grayscale-4 italic text-sm">
+            Nenhum documento ainda.
+          </li>
+        </ul>
+
+        <form (ngSubmit)="addDocument()" class="mt-4 grid gap-3">
+          <div class="grid gap-3 md:grid-cols-2">
+            <label class="form-control">
+              <span class="label-text mb-1 block text-grayscale-5">Título *</span>
+              <input
+                type="text"
+                name="newDocTitle"
+                class="input input-bordered w-full bg-dark-bg"
+                placeholder="Ex.: Especificação técnica"
+                [(ngModel)]="newDocTitle"
+                [disabled]="savingDoc"
+              />
+            </label>
+            <label class="form-control">
+              <span class="label-text mb-1 block text-grayscale-5">Tipo</span>
+              <select
+                name="newDocType"
+                class="select select-bordered w-full bg-dark-bg"
+                [(ngModel)]="newDocType"
+                [disabled]="savingDoc"
+              >
+                <option *ngFor="let dt of docTypes" [value]="dt">{{ dt }}</option>
+              </select>
+            </label>
+          </div>
+          <label class="form-control">
+            <span class="label-text mb-1 block text-grayscale-5">Conteúdo</span>
+            <textarea
+              name="newDocBody"
+              class="textarea textarea-bordered w-full bg-dark-bg"
+              rows="4"
+              placeholder="Conteúdo do documento..."
+              [(ngModel)]="newDocBody"
+              [disabled]="savingDoc"
+            ></textarea>
+          </label>
+          <div class="flex justify-end">
+            <button
+              type="submit"
+              class="btn btn-primary"
+              [disabled]="savingDoc || !newDocTitle.trim()"
+            >
+              <span *ngIf="savingDoc" class="loading loading-spinner loading-xs"></span>
+              Adicionar documento
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- Atividade -->
+    <section *ngIf="tab === 'atividade'" class="card bg-dark-surface shadow-card">
+      <div class="card-body">
+        <h2 class="card-title text-base">Atividade</h2>
+
+        <ul class="flex flex-col gap-2 mt-2">
+          <li
+            *ngFor="let a of activity; trackBy: trackByActivity"
+            class="flex items-center gap-2 rounded-card bg-dark-bg p-3 text-sm"
+          >
+            <span class="font-medium text-grayscale-5">{{ a.action }}</span>
+            <span class="text-grayscale-4">{{ a.entityType }}</span>
+            <span *ngIf="a.viaApiKeyId" class="badge badge-sm badge-secondary">
+              via agente
+            </span>
+            <span class="text-xs text-grayscale-4 ml-auto">
+              {{ shortDate(a.createdAt) }}
+            </span>
+          </li>
+          <li *ngIf="!activity.length" class="text-grayscale-4 italic text-sm">
+            Nenhuma atividade registrada.
+          </li>
+        </ul>
+      </div>
+    </section>
+  </ng-container>
+</div>

@@ -1,0 +1,91 @@
+<div class="companies-page p-6 max-w-5xl mx-auto text-dark-text">
+  <header class="mb-6">
+    <h1 class="text-2xl font-semibold">Empresas</h1>
+    <p class="text-grayscale-4">Selecione a empresa ativa ou crie uma nova.</p>
+  </header>
+
+  <!-- Formulário de criação -->
+  <section class="card bg-dark-surface shadow-card mb-8">
+    <div class="card-body">
+      <h2 class="card-title text-base">Nova empresa</h2>
+      <form (ngSubmit)="createCompany()" class="grid gap-4 md:grid-cols-3 items-end">
+        <label class="form-control md:col-span-1">
+          <span class="label-text mb-1 block text-grayscale-5">Nome *</span>
+          <input
+            type="text"
+            name="name"
+            class="input input-bordered w-full bg-dark-bg"
+            placeholder="Ex.: Minha Empresa"
+            [(ngModel)]="newName"
+            [disabled]="saving"
+          />
+        </label>
+
+        <label class="form-control md:col-span-1">
+          <span class="label-text mb-1 block text-grayscale-5">Slug (opcional)</span>
+          <input
+            type="text"
+            name="slug"
+            class="input input-bordered w-full bg-dark-bg"
+            placeholder="minha-empresa"
+            [(ngModel)]="newSlug"
+            [disabled]="saving"
+          />
+        </label>
+
+        <div class="md:col-span-1">
+          <button type="submit" class="btn btn-primary w-full" [disabled]="saving">
+            <span *ngIf="saving" class="loading loading-spinner loading-sm"></span>
+            {{ saving ? 'Criando...' : 'Criar empresa' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <!-- Lista -->
+  <section>
+    <div *ngIf="loading" class="flex items-center gap-2 text-grayscale-4">
+      <span class="loading loading-spinner loading-sm"></span> Carregando empresas...
+    </div>
+
+    <div *ngIf="!loading && companies.length === 0" class="text-grayscale-4">
+      Nenhuma empresa encontrada. Crie a primeira acima.
+    </div>
+
+    <div *ngIf="!loading && companies.length > 0" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div
+        *ngFor="let c of companies"
+        class="card bg-dark-surface shadow-card border"
+        [class.border-primary]="isActive(c)"
+        [class.border-dark-border]="!isActive(c)"
+      >
+        <div class="card-body">
+          <div class="flex items-start justify-between gap-2">
+            <h3 class="card-title text-base">{{ c.name }}</h3>
+            <span
+              *ngIf="isActive(c)"
+              class="badge badge-primary badge-sm whitespace-nowrap"
+            >Ativa</span>
+          </div>
+
+          <p class="text-sm text-grayscale-4">
+            Seu perfil: <span class="text-grayscale-5 font-medium">{{ roleOf(c) }}</span>
+          </p>
+
+          <div class="card-actions justify-end mt-2">
+            <button
+              class="btn btn-sm"
+              [class.btn-primary]="!isActive(c)"
+              [class.btn-disabled]="isActive(c)"
+              [disabled]="isActive(c)"
+              (click)="select(c)"
+            >
+              {{ isActive(c) ? 'Selecionada' : 'Selecionar' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>

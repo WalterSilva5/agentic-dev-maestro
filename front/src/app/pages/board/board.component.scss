@@ -1,0 +1,45 @@
+:host {
+  display: block;
+}
+
+// Trilho de colunas: rolagem horizontal suave.
+.columns-rail {
+  scroll-snap-type: x proximity;
+  // Altura útil descontando o padding/header da página.
+  min-height: calc(100vh - 8rem);
+}
+
+.column {
+  scroll-snap-align: start;
+  max-height: calc(100vh - 8rem);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+
+  // Destaque visual durante o dragover.
+  &--over {
+    border-color: #1db954; // primary
+    box-shadow: 0 0 0 1px #1db954 inset;
+    background-color: #232323;
+  }
+}
+
+.column__body {
+  // Scrollbar discreta no tema escuro.
+  scrollbar-width: thin;
+  scrollbar-color: #2a2a2a transparent;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: #2a2a2a;
+    border-radius: 9999px;
+  }
+}
+
+.task-card {
+  user-select: none;
+
+  &:active {
+    cursor: grabbing;
+  }
+}

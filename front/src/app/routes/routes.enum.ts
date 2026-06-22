@@ -9,4 +9,12 @@ export enum RoutesEnum {
   LOGIN = 'auth/login',
   GOOGLE_CALLBACK = 'auth/google/callback',
   NOT_FOUND = '404',
+  // Agentic Dev Maestro
+  DASHBOARD = 'dashboard',
+  COMPANIES = 'companies',
+  PROJECTS = 'projects',
+  BOARD = 'projects/:id/board',
+  TASK_DETAIL = 'tasks/:code',
+  MEMBERS = 'members',
+  API_KEYS = 'api-keys',
 }
