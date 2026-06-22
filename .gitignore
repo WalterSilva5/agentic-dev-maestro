@@ -1,0 +1,14 @@
+# Dependências
+node_modules/
+# Build
+dist/
+build/
+# Ambiente
+.env
+.env.local
+*.local
+# Ferramenta de diagramas (baixada pelo gerar.sh)
+docs/diagramas/.plantuml.jar
+# Sistema
+.DS_Store
+Thumbs.db

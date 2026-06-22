@@ -1,0 +1,19 @@
+@startuml maestro-loop
+title Maestro Loop — do briefing à entrega
+skinparam backgroundColor transparent
+skinparam shadowing false
+skinparam defaultFontName sans-serif
+
+start
+repeat
+  :1. Briefing — descrição crua da tarefa/projeto;
+  :2. Refino — agente gera a doc estruturada (spec);
+  note right: objetivo, escopo, contexto,\ncritérios de aceite, riscos, dicas
+  :3. Decompose — agente cria tarefas + subtarefas;
+  note right: estimativa em homem-dia,\ndependências e tags
+  :4. Quadro — tarefas entram no kanban;
+  :5. Execução — agente/dev move o status;
+  :6. Visão — time acompanha e revisa;
+repeat while (chegou novo trabalho?) is (sim) not (não)
+stop
+@enduml

@@ -1,0 +1,111 @@
+@startuml modelo-dados
+title Maestro — Modelo de dados (entidades e relacionamentos)
+skinparam backgroundColor transparent
+skinparam shadowing false
+skinparam defaultFontName sans-serif
+hide circle
+skinparam linetype ortho
+
+entity User {
+  * id
+  --
+  email
+  name
+}
+entity Company {
+  * id
+  --
+  name
+  slug
+}
+entity Membership {
+  * id
+  --
+  role : Role
+}
+entity ApiKey {
+  * id
+  --
+  label
+  hashedKey
+  scopes
+  expiresAt
+  revokedAt
+}
+entity Project {
+  * id
+  --
+  name
+  key
+}
+entity Board {
+  * id
+  --
+  name
+}
+entity Column {
+  * id
+  --
+  name
+  order
+  wipLimit
+}
+entity Task {
+  * id
+  --
+  number
+  title
+  objective
+  acceptance
+  priority
+  estimateMd
+  rank
+}
+entity TaskDependency {
+  * id
+  --
+  blockerId
+  blockedId
+}
+entity Document {
+  * id
+  --
+  title
+  body
+  type
+  version
+}
+entity Comment {
+  * id
+  --
+  body
+}
+entity Label {
+  * id
+  --
+  name
+}
+entity ActivityLog {
+  * id
+  --
+  action
+  changes
+}
+
+User     ||--o{ Membership
+Company  ||--o{ Membership
+Membership ||--o{ ApiKey
+Company  ||--o{ Project
+Project  ||--o{ Board
+Board    ||--o{ Column
+Column   ||--o{ Task
+Task     ||--o{ Task : subtarefas
+Task     ||--o{ TaskDependency : blocker
+Task     ||--o{ TaskDependency : blocked
+Project  ||--o{ Document
+Task     ||--o{ Document
+Task     ||--o{ Comment
+Company  ||--o{ Label
+Task     }o--o{ Label
+Company  ||--o{ ActivityLog
+@enduml

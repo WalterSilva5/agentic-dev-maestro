@@ -1,0 +1,30 @@
+@startuml fluxo-agente
+title Fluxo do agente — briefing vira tarefas no quadro
+skinparam backgroundColor transparent
+skinparam shadowing false
+skinparam defaultFontName sans-serif
+
+actor "Agente de IA" as Ag
+participant "API Maestro" as API
+database "MySQL" as DB
+
+== Refino: gera a doc ==
+Ag -> API : POST /projects/:id/documents\n(type=SPEC, body markdown)\nx-api-key
+API -> DB : grava Document
+API --> Ag : 201 doc criada
+
+== Decompose: cria as tarefas ==
+Ag -> API : POST /tasks/bulk\n(tarefas + subtarefas aninhadas)\nIdempotency-Key
+API -> DB : cria tarefas/subtarefas (transação)
+API -> DB : grava ActivityLog (via agente)
+API --> Ag : 201 tarefas criadas (GAV-1..n)
+
+== Execução: move no quadro ==
+Ag -> API : GET /tasks?status=A fazer&assignee=me
+API --> Ag : lista de tarefas
+Ag -> API : POST /tasks/GAV-1/move {coluna: Fazendo}
+API -> DB : atualiza coluna + ActivityLog
+API --> Ag : 200 ok
+Ag -> API : POST /tasks/GAV-1/comments\n{body: "PR aberto: <link>"}
+API --> Ag : 201 comentário
+@enduml

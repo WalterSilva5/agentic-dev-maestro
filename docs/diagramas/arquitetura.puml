@@ -1,0 +1,42 @@
+@startuml arquitetura
+title Maestro — Arquitetura (visão de componentes)
+skinparam backgroundColor transparent
+skinparam shadowing false
+skinparam defaultFontName sans-serif
+skinparam componentStyle rectangle
+left to right direction
+
+actor "Dev / Tech Lead / Manager" as Humano
+actor "Agente de IA" as Agente
+
+package "Frontend" {
+  [App Angular\n(SPA + PWA)] as Front
+}
+
+package "Backend — NestJS" {
+  [API REST + Swagger] as API
+  [Auth\nJWT + API key guard] as Auth
+  [Guard de contexto\n(multi-tenant)] as Ctx
+  [Módulos de domínio\nempresas, projetos,\nquadros, tarefas, docs] as Dominio
+  [Filas (Bull)] as Bull
+}
+
+[Servidor MCP] as MCP
+
+database "MySQL" as DB
+queue "Redis" as Redis
+
+Humano --> Front : navegador (HTTPS)
+Front --> API : REST + JWT
+Agente --> MCP : protocolo MCP
+Agente --> API : REST + x-api-key
+MCP --> API : REST + x-api-key
+
+API --> Auth
+Auth --> Ctx
+Ctx --> Dominio : companyId no contexto
+Dominio --> DB : Prisma
+Dominio --> Bull
+Bull --> Redis
+Bull ..> Dominio : jobs (webhooks, e-mail)
+@enduml

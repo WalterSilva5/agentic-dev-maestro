@@ -1,0 +1,34 @@
+@startuml fluxo-tarefa-exemplo
+title Exemplo — fluxo de uma tarefa (objetivo -> subtarefas -> aceite)
+skinparam backgroundColor transparent
+skinparam shadowing false
+skinparam defaultFontName sans-serif
+
+start
+:**Objetivo**\nLogin com refresh token;
+
+note right
+  A tarefa é a ENTRADA do fluxo.
+  As subtarefas são os passos
+  (com dependências) até o ACEITE.
+end note
+
+fork
+  :A. Modelar sessões / refresh\n(concluída);<<#C0F0C0>>
+fork again
+  :B. Endpoint de login\n(concluída);<<#C0F0C0>>
+end fork
+:C. Endpoint de refresh\n(fazendo)  <- depende de A e B;<<#FFE08A>>
+:D. Testes e2e\n(a fazer)  <- depende de C;<<#FFFFFF>>
+
+:**Ponto de aceite**\nloga + renova sessão + testes verdes;<<#D8E6F8>>
+stop
+
+legend right
+  | cor | status |
+  | <#C0F0C0> | concluída |
+  | <#FFE08A> | em andamento |
+  | <#FFFFFF> | a fazer |
+  | <#D8E6F8> | aceite (libera quando tudo conclui) |
+endlegend
+@enduml

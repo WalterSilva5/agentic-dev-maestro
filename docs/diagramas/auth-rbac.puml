@@ -1,0 +1,30 @@
+@startuml auth-rbac
+title Autenticação e permissão por requisição
+skinparam backgroundColor transparent
+skinparam shadowing false
+skinparam defaultFontName sans-serif
+
+participant Cliente
+participant "Guard de contexto" as Guard
+participant "Serviço de domínio" as Svc
+database "MySQL" as DB
+
+alt Humano (JWT)
+  Cliente -> Guard : Authorization: Bearer <jwt>\n+ X-Company-Id
+  Guard -> DB : carrega Membership (user + company)
+else Agente (API key)
+  Cliente -> Guard : x-api-key: mst_live_...
+  Guard -> DB : busca ApiKey por hash\n-> Membership + scopes
+end
+
+Guard -> Guard : permissão efetiva =\npapel da Membership ∩ scopes da chave
+
+alt permitido
+  Guard -> Svc : segue (companyId no contexto)
+  Svc -> DB : query SEMPRE filtrada por companyId
+  Svc -> DB : grava ActivityLog\n(ator + viaApiKey?)
+  Svc --> Cliente : 2xx
+else negado
+  Guard --> Cliente : 403 — papel/escopo insuficiente
+end
+@enduml

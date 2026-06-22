@@ -1,0 +1,25 @@
+@startuml kanban-estados
+title Estados de uma tarefa no quadro (colunas configuráveis)
+skinparam backgroundColor transparent
+skinparam shadowing false
+skinparam defaultFontName sans-serif
+
+state "Backlog" as B
+state "A fazer" as TODO
+state "Fazendo" as DOING
+state "Revisão" as REV
+state "Concluído" as DONE
+
+[*] --> B
+B --> TODO : priorizada
+TODO --> DOING : agente/dev assume
+DOING --> REV : PR aberto / pronto p/ revisar
+REV --> DOING : ajustes pedidos
+REV --> DONE : aprovado
+DONE --> [*]
+
+note bottom of DONE
+  As colunas são configuráveis por quadro;
+  este é o fluxo padrão sugerido.
+end note
+@enduml
