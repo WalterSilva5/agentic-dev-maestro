@@ -1,13 +1,13 @@
 <div class="companies-page p-6 max-w-5xl mx-auto text-dark-text">
   <header class="mb-6">
-    <h1 class="text-2xl font-semibold">Empresas</h1>
-    <p class="text-grayscale-4">Selecione a empresa ativa ou crie uma nova.</p>
+    <h1 class="text-2xl font-semibold">Workspaces</h1>
+    <p class="text-grayscale-4">Selecione o workspace ativo ou crie um novo.</p>
   </header>
 
   <!-- Formulário de criação -->
   <section class="card bg-dark-surface shadow-card mb-8">
     <div class="card-body">
-      <h2 class="card-title text-base">Nova empresa</h2>
+      <h2 class="card-title text-base">Novo workspace</h2>
       <form (ngSubmit)="createCompany()" class="grid gap-4 md:grid-cols-3 items-end">
         <label class="form-control md:col-span-1">
           <span class="label-text mb-1 block text-grayscale-5">Nome *</span>
@@ -15,7 +15,7 @@
             type="text"
             name="name"
             class="input input-bordered w-full bg-dark-bg"
-            placeholder="Ex.: Minha Empresa"
+            placeholder="Ex.: Meu Workspace"
             [(ngModel)]="newName"
             [disabled]="saving"
           />
@@ -27,7 +27,7 @@
             type="text"
             name="slug"
             class="input input-bordered w-full bg-dark-bg"
-            placeholder="minha-empresa"
+            placeholder="meu-workspace"
             [(ngModel)]="newSlug"
             [disabled]="saving"
           />
@@ -36,7 +36,7 @@
         <div class="md:col-span-1">
           <button type="submit" class="btn btn-primary w-full" [disabled]="saving">
             <span *ngIf="saving" class="loading loading-spinner loading-sm"></span>
-            {{ saving ? 'Criando...' : 'Criar empresa' }}
+            {{ saving ? 'Criando...' : 'Criar workspace' }}
           </button>
         </div>
       </form>
@@ -46,11 +46,11 @@
   <!-- Lista -->
   <section>
     <div *ngIf="loading" class="flex items-center gap-2 text-grayscale-4">
-      <span class="loading loading-spinner loading-sm"></span> Carregando empresas...
+      <span class="loading loading-spinner loading-sm"></span> Carregando workspaces...
     </div>
 
     <div *ngIf="!loading && companies.length === 0" class="text-grayscale-4">
-      Nenhuma empresa encontrada. Crie a primeira acima.
+      Nenhum workspace encontrado. Crie o primeiro acima.
     </div>
 
     <div *ngIf="!loading && companies.length > 0" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -66,7 +66,7 @@
             <span
               *ngIf="isActive(c)"
               class="badge badge-primary badge-sm whitespace-nowrap"
-            >Ativa</span>
+            >Ativo</span>
           </div>
 
           <p class="text-sm text-grayscale-4">
@@ -81,7 +81,7 @@
               [disabled]="isActive(c)"
               (click)="select(c)"
             >
-              {{ isActive(c) ? 'Selecionada' : 'Selecionar' }}
+              {{ isActive(c) ? 'Selecionado' : 'Selecionar' }}
             </button>
           </div>
         </div>

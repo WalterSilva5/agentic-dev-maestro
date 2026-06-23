@@ -6,6 +6,7 @@ import {
   Headers,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   Query,
   UseGuards
@@ -20,6 +21,7 @@ import { AddDependencyDto } from './dto/add-dependency.dto';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { CreateTasksBulkDto } from './dto/create-tasks-bulk.dto';
 import { MoveTaskDto } from './dto/move-task.dto';
+import { UpdateTaskDto } from './dto/update-task.dto';
 import { TasksService } from './tasks.service';
 
 // Acessível por agente (x-api-key) ou humano (JWT + X-Company-Id).
@@ -78,6 +80,20 @@ export class TasksController {
   @Get(':idOrCode')
   get(@CompanyContext() ctx: ICompanyContext, @Param('idOrCode') idOrCode: string) {
     return this.tasks.get(ctx, idOrCode);
+  }
+
+  @Patch(':idOrCode')
+  update(
+    @CompanyContext() ctx: ICompanyContext,
+    @Param('idOrCode') idOrCode: string,
+    @Body() dto: UpdateTaskDto
+  ) {
+    return this.tasks.update(ctx, idOrCode, dto);
+  }
+
+  @Delete(':idOrCode')
+  remove(@CompanyContext() ctx: ICompanyContext, @Param('idOrCode') idOrCode: string) {
+    return this.tasks.remove(ctx, idOrCode);
   }
 
   @Post(':idOrCode/move')

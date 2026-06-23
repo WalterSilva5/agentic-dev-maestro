@@ -1,0 +1,94 @@
+<div class="labels-page p-4 md:p-6 max-w-4xl mx-auto text-dark-text">
+  <header class="mb-6">
+    <h1 class="text-2xl font-semibold">Labels</h1>
+    <p class="text-grayscale-4">Organize tarefas com etiquetas coloridas.</p>
+  </header>
+
+  <!-- Sem workspace -->
+  <div *ngIf="!hasCompany" class="alert bg-dark-surface border border-dark-border">
+    <span>Selecione um workspace primeiro.</span>
+    <a routerLink="/companies" class="btn btn-sm btn-primary">Ir para workspaces</a>
+  </div>
+
+  <ng-container *ngIf="hasCompany">
+    <!-- Criar label -->
+    <div class="card bg-dark-surface border border-dark-border mb-6">
+      <div class="card-body p-4">
+        <h2 class="card-title text-base">Nova label</h2>
+        <form (ngSubmit)="create()" class="mt-3">
+          <div class="flex flex-col md:flex-row gap-3 md:items-end">
+            <div class="form-control flex-1">
+              <label class="label py-1"><span class="label-text text-grayscale-5">Nome</span></label>
+              <input
+                type="text"
+                name="newName"
+                [(ngModel)]="newName"
+                placeholder="Ex.: bug, feature, urgente..."
+                class="input input-bordered bg-dark-bg text-dark-text w-full"
+                autocomplete="off"
+                [disabled]="saving"
+              />
+            </div>
+            <button type="submit" class="btn btn-primary" [disabled]="saving">
+              <span *ngIf="saving" class="loading loading-spinner loading-sm"></span>
+              Criar label
+            </button>
+          </div>
+
+          <!-- Paleta de cores -->
+          <div class="mt-3">
+            <span class="label-text text-grayscale-5 text-sm">Cor</span>
+            <div class="flex flex-wrap gap-2 mt-1">
+              <button
+                *ngFor="let c of palette"
+                type="button"
+                class="color-swatch"
+                [style.background-color]="c.value"
+                [class.selected]="newColor === c.value"
+                [title]="c.name"
+                (click)="selectColor(c.value)"
+              ></button>
+            </div>
+          </div>
+
+          <!-- Preview -->
+          <div class="mt-3" *ngIf="newName.trim()">
+            <span class="label-text text-grayscale-5 text-sm">Preview</span>
+            <div class="mt-1">
+              <span class="label-chip" [style.background-color]="newColor">{{ newName.trim() }}</span>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Lista de labels -->
+    <div class="card bg-dark-surface border border-dark-border">
+      <div class="card-body p-4">
+        <h2 class="card-title text-base mb-3">Labels do workspace</h2>
+
+        <div *ngIf="loading" class="flex items-center gap-2 text-grayscale-4 py-4">
+          <span class="loading loading-spinner loading-sm"></span> Carregando...
+        </div>
+
+        <div *ngIf="!loading && labels.length === 0" class="text-grayscale-4 py-4">
+          Nenhuma label criada. Crie a primeira acima.
+        </div>
+
+        <div *ngIf="!loading && labels.length > 0" class="flex flex-col gap-2">
+          <div
+            *ngFor="let l of labels"
+            class="flex items-center justify-between p-3 rounded-lg bg-dark-bg border border-dark-border hover:border-grayscale-3 transition"
+          >
+            <div class="flex items-center gap-3">
+              <span class="label-chip" [style.background-color]="l.color || '#6B7280'">{{ l.name }}</span>
+            </div>
+            <button type="button" class="btn btn-sm btn-error btn-outline" (click)="remove(l)">
+              Excluir
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </ng-container>
+</div>

@@ -1,10 +1,10 @@
 <div class="api-keys-page p-4 md:p-6">
   <h1 class="text-xl font-semibold text-dark-text mb-4">API Keys</h1>
 
-  <!-- Sem empresa ativa -->
+  <!-- Sem workspace ativo -->
   <div *ngIf="cid == null" class="alert bg-dark-surface border border-dark-border text-dark-text">
-    <span>Selecione uma empresa primeiro</span>
-    <a routerLink="/companies" class="btn btn-sm btn-primary">Ir para empresas</a>
+    <span>Selecione um workspace primeiro</span>
+    <a routerLink="/companies" class="btn btn-sm btn-primary">Ir para workspaces</a>
   </div>
 
   <ng-container *ngIf="cid != null">

@@ -15,6 +15,8 @@ import { AuthState } from '../../../state/auth/auth.models';
 import { AuthApiHandler } from '../data-handler/auth-api.handler';
 import { ConfigService } from '../../../services/config.service';
 import { PlatformService } from '../../../services/platform.service';
+import { WorkspaceService } from '../../../services/workspace.service';
+import { TenantService } from '../../../services/tenant.service';
 import { Browser } from '@capacitor/browser';
 
 @Component({
@@ -42,6 +44,8 @@ export class LoginComponent implements OnInit {
     private router: Router,
     private configService: ConfigService,
     private platformService: PlatformService,
+    private workspaces: WorkspaceService,
+    private tenant: TenantService,
   ) {
     this.auth$ = this.store.select(selectAuth);
     this.apiUrl = this.configService.apiUrl;
@@ -61,6 +65,7 @@ export class LoginComponent implements OnInit {
     }
 
     this.store.dispatch(AuthActions.logout());
+    this.tenant.clear();
 
     this.form = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
@@ -84,6 +89,13 @@ export class LoginComponent implements OnInit {
             Swal.showLoading();
           },
         });
+
+        // Carrega os workspaces do usuário e auto-seleciona um ativo.
+        try {
+          await this.workspaces.refresh();
+        } catch (e) {
+          console.warn('Não foi possível carregar os workspaces após o login', e);
+        }
 
         // Check for returnUrl to redirect after login
         const returnUrl = typeof window !== 'undefined' ? sessionStorage.getItem('returnUrl') : null;

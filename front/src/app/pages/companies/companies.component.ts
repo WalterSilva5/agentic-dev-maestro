@@ -6,6 +6,7 @@ import Swal from 'sweetalert2';
 
 import { MaestroApiService } from '../../services/maestro-api.service';
 import { TenantService } from '../../services/tenant.service';
+import { WorkspaceService } from '../../services/workspace.service';
 import { Company } from '../../models/maestro.models';
 
 @Component({
@@ -26,7 +27,8 @@ export class CompaniesComponent implements OnInit {
 
   constructor(
     private api: MaestroApiService,
-    protected tenant: TenantService
+    protected tenant: TenantService,
+    private workspaces: WorkspaceService
   ) {}
 
   async ngOnInit(): Promise<void> {
@@ -38,11 +40,11 @@ export class CompaniesComponent implements OnInit {
     try {
       this.companies = await this.api.listCompanies();
     } catch (err) {
-      console.error('Erro ao listar empresas: ', err);
+      console.error('Erro ao listar workspaces: ', err);
       Swal.fire({
         icon: 'error',
-        title: 'Erro ao carregar empresas',
-        text: 'Não foi possível carregar a lista de empresas.',
+        title: 'Erro ao carregar workspaces',
+        text: 'Não foi possível carregar a lista de workspaces.',
       });
     } finally {
       this.loading = false;
@@ -67,7 +69,7 @@ export class CompaniesComponent implements OnInit {
       toast: true,
       position: 'top-end',
       icon: 'success',
-      title: `Empresa "${c.name}" selecionada`,
+      title: `Workspace "${c.name}" selecionado`,
       showConfirmButton: false,
       timer: 2500,
       timerProgressBar: true,
@@ -80,7 +82,7 @@ export class CompaniesComponent implements OnInit {
       Swal.fire({
         icon: 'warning',
         title: 'Nome obrigatório',
-        text: 'Informe o nome da empresa.',
+        text: 'Informe o nome do workspace.',
       });
       return;
     }
@@ -88,21 +90,26 @@ export class CompaniesComponent implements OnInit {
     this.saving = true;
     try {
       const slug = this.newSlug.trim();
-      await this.api.createCompany(slug ? { name, slug } : { name });
+      const created = await this.api.createCompany(slug ? { name, slug } : { name });
       this.newName = '';
       this.newSlug = '';
       await this.loadCompanies();
+      // Atualiza o seletor da navbar e já ativa o novo workspace.
+      await this.workspaces.refresh();
+      if (created?.id) {
+        this.tenant.setActive({ id: created.id, name: created.name, role: 'OWNER' });
+      }
       Swal.fire({
         icon: 'success',
-        title: 'Empresa criada!',
-        text: 'A empresa foi criada com sucesso.',
+        title: 'Workspace criado!',
+        text: 'O workspace foi criado com sucesso.',
       });
     } catch (err) {
-      console.error('Erro ao criar empresa: ', err);
+      console.error('Erro ao criar workspace: ', err);
       Swal.fire({
         icon: 'error',
-        title: 'Erro ao criar empresa',
-        text: 'Ocorreu um erro ao criar a empresa. Tente novamente.',
+        title: 'Erro ao criar workspace',
+        text: 'Ocorreu um erro ao criar o workspace. Tente novamente.',
       });
     } finally {
       this.saving = false;

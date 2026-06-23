@@ -1,0 +1,21 @@
+-- CreateTable
+CREATE TABLE `TB_INVITATION` (
+    `id` INTEGER NOT NULL AUTO_INCREMENT,
+    `companyId` INTEGER NOT NULL,
+    `email` VARCHAR(255) NOT NULL,
+    `role` ENUM('OWNER', 'MANAGER', 'TECH_LEAD', 'DEV', 'VIEWER') NOT NULL DEFAULT 'DEV',
+    `token` VARCHAR(64) NOT NULL,
+    `invitedByMembershipId` INTEGER NOT NULL,
+    `expiresAt` DATETIME(3) NOT NULL,
+    `acceptedAt` DATETIME(3) NULL,
+    `revokedAt` DATETIME(3) NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    UNIQUE INDEX `TB_INVITATION_token_key`(`token`),
+    INDEX `TB_INVITATION_companyId_idx`(`companyId`),
+    INDEX `TB_INVITATION_email_idx`(`email`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- AddForeignKey
+ALTER TABLE `TB_INVITATION` ADD CONSTRAINT `TB_INVITATION_companyId_fkey` FOREIGN KEY (`companyId`) REFERENCES `TB_COMPANY`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;

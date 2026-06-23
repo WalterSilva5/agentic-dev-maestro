@@ -1,12 +1,12 @@
 <div class="board-page min-h-screen bg-dark-bg text-dark-text p-4">
-  <!-- Sem empresa selecionada -->
+  <!-- Sem workspace selecionada -->
   <div
     *ngIf="!hasCompany"
     class="card bg-dark-surface border border-dark-border max-w-md mx-auto mt-16"
   >
     <div class="card-body items-center text-center">
-      <h2 class="card-title text-dark-text">Selecione uma empresa</h2>
-      <p class="text-grayscale-4">Escolha uma empresa para visualizar o board do projeto.</p>
+      <h2 class="card-title text-dark-text">Selecione um workspace</h2>
+      <p class="text-grayscale-4">Escolha um workspace para visualizar o board do projeto.</p>
     </div>
   </div>
 
@@ -61,11 +61,25 @@
               </span>
             </div>
             <p class="text-sm text-dark-text leading-snug">{{ task.title }}</p>
-            <div
-              *ngIf="task.estimateMd"
-              class="mt-2 text-xs text-grayscale-4"
-            >
-              {{ task.estimateMd }} md
+            <!-- Labels -->
+            <div *ngIf="task.labels?.length" class="flex flex-wrap gap-1 mt-1">
+              <span
+                *ngFor="let lbl of task.labels"
+                class="inline-block px-2 py-0.5 rounded-full text-white text-[10px] font-semibold leading-tight"
+                [style.background-color]="lbl.color || '#6B7280'"
+              >{{ lbl.name }}</span>
+            </div>
+            <div class="mt-2 flex items-center justify-between">
+              <span *ngIf="task.estimateMd" class="text-xs text-grayscale-4">
+                {{ task.estimateMd }} md
+              </span>
+              <span *ngIf="!task.estimateMd"></span>
+              <!-- Assignee -->
+              <span
+                *ngIf="task.assignee"
+                class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary text-white text-[10px] font-bold shrink-0"
+                [title]="task.assignee.firstName + ' ' + task.assignee.lastName"
+              >{{ task.assignee.firstName?.charAt(0)?.toUpperCase() }}{{ task.assignee.lastName?.charAt(0)?.toUpperCase() }}</span>
             </div>
           </article>
 

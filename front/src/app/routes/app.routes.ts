@@ -21,6 +21,11 @@ import { TaskDetailComponent } from '../pages/task-detail/task-detail.component'
 import { MembersComponent } from '../pages/members/members.component';
 import { ApiKeysComponent } from '../pages/api-keys/api-keys.component';
 import { DownloadsComponent } from '../pages/downloads/downloads.component';
+import { LabelsComponent } from '../pages/labels/labels.component';
+import { AccessComponent } from '../pages/access/access.component';
+import { InviteComponent } from '../pages/invite/invite.component';
+import { AuthGuard } from '../permissions/auth.guard';
+import { workspaceGuard } from '../permissions/workspace.guard';
 
 export const routes: Routes = [
   { path: RoutesEnum.HOME, component: HomeComponent },
@@ -34,15 +39,18 @@ export const routes: Routes = [
   { path: 'auth/forgot-password', component: ForgotPasswordComponent },
   { path: 'auth/reset-password', component: ResetPasswordComponent },
   { path: RoutesEnum.GOOGLE_CALLBACK, component: GoogleCallbackComponent },
-  { path: RoutesEnum.SETTINGS, component: SettingsComponent },
+  { path: 'invite/:token', component: InviteComponent },
+  { path: RoutesEnum.SETTINGS, component: SettingsComponent, canActivate: [AuthGuard] },
   // Agentic Dev Maestro
-  { path: RoutesEnum.DASHBOARD, component: DashboardComponent },
-  { path: RoutesEnum.COMPANIES, component: CompaniesComponent },
-  { path: RoutesEnum.PROJECTS, component: ProjectsComponent },
-  { path: RoutesEnum.BOARD, component: BoardComponent },
-  { path: RoutesEnum.TASK_DETAIL, component: TaskDetailComponent },
-  { path: RoutesEnum.MEMBERS, component: MembersComponent },
-  { path: RoutesEnum.API_KEYS, component: ApiKeysComponent },
-  { path: RoutesEnum.DOWNLOADS, component: DownloadsComponent },
+  { path: RoutesEnum.DASHBOARD, component: DashboardComponent, canActivate: [AuthGuard, workspaceGuard] },
+  { path: RoutesEnum.COMPANIES, component: CompaniesComponent, canActivate: [AuthGuard] },
+  { path: RoutesEnum.PROJECTS, component: ProjectsComponent, canActivate: [AuthGuard, workspaceGuard] },
+  { path: RoutesEnum.BOARD, component: BoardComponent, canActivate: [AuthGuard, workspaceGuard] },
+  { path: RoutesEnum.TASK_DETAIL, component: TaskDetailComponent, canActivate: [AuthGuard, workspaceGuard] },
+  { path: RoutesEnum.MEMBERS, component: MembersComponent, canActivate: [AuthGuard, workspaceGuard] },
+  { path: RoutesEnum.API_KEYS, component: ApiKeysComponent, canActivate: [AuthGuard, workspaceGuard] },
+  { path: RoutesEnum.LABELS, component: LabelsComponent, canActivate: [AuthGuard, workspaceGuard] },
+  { path: RoutesEnum.ACCESS, component: AccessComponent, canActivate: [AuthGuard, workspaceGuard] },
+  { path: RoutesEnum.DOWNLOADS, component: DownloadsComponent, canActivate: [AuthGuard] },
   { path: '**', component: NotFoundComponent }
 ];

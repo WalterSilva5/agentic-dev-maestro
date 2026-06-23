@@ -126,8 +126,30 @@ model Company {
   dependencies TaskDependency[]
   activityLogs ActivityLog[]
   webhooks     Webhook[]
+  invitations  Invitation[]
 
   @@map("TB_COMPANY")
+}
+
+// Convite para entrar num workspace. Cobre quem ainda não tem conta:
+// gera um token, a pessoa acessa o link, cria conta (ou faz login) e aceita,
+// virando Membership. invitedByMembershipId é só para auditoria/exibição.
+model Invitation {
+  id                    Int            @id @default(autoincrement())
+  companyId             Int
+  email                 String         @db.VarChar(255)
+  role                  MembershipRole @default(DEV)
+  token                 String         @unique @db.VarChar(64) // sha-free: random hex
+  invitedByMembershipId Int
+  expiresAt             DateTime
+  acceptedAt            DateTime?
+  revokedAt             DateTime?
+  createdAt             DateTime       @default(now())
+  company               Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([email])
+  @@map("TB_INVITATION")
 }
 
 model Membership {

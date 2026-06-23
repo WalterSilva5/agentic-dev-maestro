@@ -1,14 +1,14 @@
 <div class="projects-page p-6 max-w-5xl mx-auto text-dark-text">
-  <!-- Sem empresa ativa -->
+  <!-- Sem workspace ativo -->
   <ng-container *ngIf="!hasCompany; else withCompany">
     <div class="card bg-dark-surface shadow-card max-w-lg mx-auto mt-10">
       <div class="card-body items-center text-center">
-        <h2 class="card-title">Selecione uma empresa primeiro</h2>
+        <h2 class="card-title">Selecione um workspace primeiro</h2>
         <p class="text-grayscale-4">
-          Você precisa escolher uma empresa ativa antes de ver os projetos.
+          Você precisa escolher um workspace ativo antes de ver os projetos.
         </p>
         <div class="card-actions mt-2">
-          <a routerLink="/companies" class="btn btn-primary">Ir para Empresas</a>
+          <a routerLink="/companies" class="btn btn-primary">Ir para Workspaces</a>
         </div>
       </div>
     </div>
@@ -18,7 +18,7 @@
     <header class="mb-6">
       <h1 class="text-2xl font-semibold">Projetos</h1>
       <p class="text-grayscale-4">
-        Empresa ativa:
+        Workspace ativo:
         <span class="text-grayscale-5 font-medium">{{ tenant.active()?.name }}</span>
       </p>
     </header>

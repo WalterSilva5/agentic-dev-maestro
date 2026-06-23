@@ -1,25 +1,28 @@
 <div class="members-page p-4 md:p-6">
   <h1 class="text-xl font-semibold text-dark-text mb-4">Membros</h1>
 
-  <!-- Sem empresa ativa -->
+  <!-- Sem workspace ativo -->
   <div *ngIf="cid == null" class="alert bg-dark-surface border border-dark-border text-dark-text">
-    <span>Selecione uma empresa primeiro</span>
-    <a routerLink="/companies" class="btn btn-sm btn-primary">Ir para empresas</a>
+    <span>Selecione um workspace primeiro</span>
+    <a routerLink="/companies" class="btn btn-sm btn-primary">Ir para workspaces</a>
   </div>
 
   <ng-container *ngIf="cid != null">
     <!-- Formulário de adição -->
     <div class="card bg-dark-surface border border-dark-border mb-6">
       <div class="card-body p-4">
-        <h2 class="card-title text-base text-dark-text">Adicionar membro</h2>
-        <form (ngSubmit)="add()" class="flex flex-col md:flex-row gap-3 md:items-end">
+        <h2 class="card-title text-base text-dark-text">Convidar membro</h2>
+        <p class="text-sm text-grayscale-4 mb-2">
+          Se a pessoa já tiver conta, entra direto no workspace. Caso contrário, enviamos um link de convite por e-mail.
+        </p>
+        <form (ngSubmit)="invite()" class="flex flex-col md:flex-row gap-3 md:items-end">
           <div class="form-control flex-1">
             <label class="label py-1"><span class="label-text text-grayscale-5">E-mail</span></label>
             <input
               type="email"
               name="newEmail"
               [(ngModel)]="newEmail"
-              placeholder="usuario@empresa.com"
+              placeholder="usuario@workspace.com"
               class="input input-bordered bg-dark-bg text-dark-text w-full"
               autocomplete="off"
             />
@@ -32,7 +35,7 @@
           </div>
           <button type="submit" class="btn btn-primary" [disabled]="adding">
             <span *ngIf="adding" class="loading loading-spinner loading-sm"></span>
-            Adicionar
+            Convidar
           </button>
         </form>
       </div>
@@ -79,6 +82,35 @@
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <!-- Convites pendentes -->
+    <div *ngIf="invitations.length > 0" class="mt-6">
+      <h2 class="text-base font-semibold text-dark-text mb-2">Convites pendentes</h2>
+      <div class="overflow-x-auto rounded-card border border-dark-border bg-dark-surface">
+        <table class="table">
+          <thead>
+            <tr class="text-grayscale-5">
+              <th>E-mail</th>
+              <th>Papel</th>
+              <th>Expira em</th>
+              <th class="text-right">Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let inv of invitations" class="hover:bg-dark-hover">
+              <td class="text-dark-text">{{ inv.email }}</td>
+              <td class="text-grayscale-5">{{ inv.role }}</td>
+              <td class="text-grayscale-5">{{ inv.expiresAt | date: 'dd/MM/yyyy' }}</td>
+              <td class="text-right">
+                <button type="button" class="btn btn-sm btn-error btn-outline" (click)="revokeInvite(inv)">
+                  Revogar
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </ng-container>
 </div>

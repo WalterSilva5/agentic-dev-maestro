@@ -6,7 +6,7 @@ import Swal from 'sweetalert2';
 
 import { MaestroApiService } from '../../services/maestro-api.service';
 import { TenantService } from '../../services/tenant.service';
-import { Member } from '../../models/maestro.models';
+import { Member, Invitation } from '../../models/maestro.models';
 
 const ROLES = ['OWNER', 'MANAGER', 'TECH_LEAD', 'DEV', 'VIEWER'] as const;
 
@@ -21,9 +21,10 @@ export class MembersComponent implements OnInit {
   readonly roles = ROLES;
 
   members: Member[] = [];
+  invitations: Invitation[] = [];
   loading = false;
 
-  // form de adição
+  // form de convite
   newEmail = '';
   newRole = 'DEV';
   adding = false;
@@ -43,7 +44,12 @@ export class MembersComponent implements OnInit {
     if (cid == null) return;
     this.loading = true;
     try {
-      this.members = await this.api.listMembers(cid);
+      const [members, invitations] = await Promise.all([
+        this.api.listMembers(cid),
+        this.api.listInvitations(cid).catch(() => [] as Invitation[]),
+      ]);
+      this.members = members;
+      this.invitations = invitations;
     } catch (err: any) {
       this.fail(err, 'Falha ao carregar membros');
     } finally {
@@ -96,7 +102,7 @@ export class MembersComponent implements OnInit {
     if (cid == null) return;
     const confirm = await Swal.fire({
       title: 'Remover membro?',
-      text: `${this.fullName(m)} (${m.user?.email}) perderá o acesso à empresa.`,
+      text: `${this.fullName(m)} (${m.user?.email}) perderá o acesso ao workspace.`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonText: 'Remover',
@@ -122,7 +128,7 @@ export class MembersComponent implements OnInit {
     }
   }
 
-  async add(): Promise<void> {
+  async invite(): Promise<void> {
     const cid = this.cid;
     if (cid == null) return;
     const email = this.newEmail.trim();
@@ -138,21 +144,49 @@ export class MembersComponent implements OnInit {
     }
     this.adding = true;
     try {
-      await this.api.addMember(cid, { email, role: this.newRole });
+      const res = await this.api.inviteMember(cid, { email, role: this.newRole });
       this.newEmail = '';
       this.newRole = 'DEV';
       await this.reload();
       Swal.fire({
-        title: 'Membro adicionado',
+        title: res.mode === 'added' ? 'Membro adicionado' : 'Convite enviado',
+        text:
+          res.mode === 'added'
+            ? 'O usuário já tinha conta e agora faz parte do workspace.'
+            : 'Enviamos um link de convite por e-mail. Ele aparece em "Convites pendentes".',
         icon: 'success',
         background: '#FFFFFF',
         color: '#111827',
         confirmButtonColor: '#1DB954',
       });
     } catch (err: any) {
-      this.fail(err, 'Falha ao adicionar membro');
+      this.fail(err, 'Falha ao convidar');
     } finally {
       this.adding = false;
+    }
+  }
+
+  async revokeInvite(inv: Invitation): Promise<void> {
+    const cid = this.cid;
+    if (cid == null) return;
+    const confirm = await Swal.fire({
+      title: 'Revogar convite?',
+      text: `O convite para ${inv.email} deixará de ser válido.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Revogar',
+      cancelButtonText: 'Cancelar',
+      background: '#FFFFFF',
+      color: '#111827',
+      confirmButtonColor: '#F87272',
+      cancelButtonColor: '#6B7280',
+    });
+    if (!confirm.isConfirmed) return;
+    try {
+      await this.api.revokeInvitation(cid, inv.id);
+      await this.reload();
+    } catch (err: any) {
+      this.fail(err, 'Falha ao revogar convite');
     }
   }
 

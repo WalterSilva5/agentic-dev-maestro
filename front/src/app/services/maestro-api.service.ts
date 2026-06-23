@@ -50,6 +50,13 @@ export class MaestroApiService {
   updateMemberRole(cid: number, mid: number, role: string) { return this.patch<M.Member>(`/companies/${cid}/members/${mid}`, { role }); }
   removeMember(cid: number, mid: number) { return this.del<unknown>(`/companies/${cid}/members/${mid}`); }
 
+  // ---- convites ----
+  inviteMember(cid: number, b: { email: string; role?: string }) { return this.post<M.InviteResult>(`/companies/${cid}/invitations`, b); }
+  listInvitations(cid: number) { return this.get<M.Invitation[]>(`/companies/${cid}/invitations`); }
+  revokeInvitation(cid: number, id: number) { return this.del<unknown>(`/companies/${cid}/invitations/${id}`); }
+  getInvitation(token: string) { return this.get<M.InvitationDetails>(`/invitations/${token}`); }
+  acceptInvitation(token: string) { return this.post<M.AcceptResult>(`/invitations/${token}/accept`); }
+
   // ---- API keys ----
   listApiKeys(cid: number) { return this.get<M.ApiKeyInfo[]>(`/companies/${cid}/api-keys`); }
   createApiKey(cid: number, b: { label: string; scopes?: string[]; expiresAt?: string }) { return this.post<M.ApiKeyInfo>(`/companies/${cid}/api-keys`, b); }
@@ -65,6 +72,8 @@ export class MaestroApiService {
   getTask(code: string) { return this.get<M.Task>(`/tasks/${code}`); }
   createTask(b: Partial<M.Task> & { projectId: number; title: string }) { return this.post<M.Task>('/tasks', b); }
   moveTask(code: string, columnId: number) { return this.post<M.Task>(`/tasks/${code}/move`, { columnId }); }
+  updateTask(code: string, b: Partial<Pick<M.Task, 'title' | 'description' | 'objective' | 'acceptance' | 'priority' | 'estimateMd'>>) { return this.patch<M.Task>(`/tasks/${code}`, b); }
+  deleteTask(code: string) { return this.del<{ deleted: boolean }>(`/tasks/${code}`); }
   bulkTasks(b: unknown, idempotencyKey?: string) { return this.post<M.Task[]>('/tasks/bulk', b, idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined); }
   getFlow(code: string) { return this.get<M.TaskFlow>(`/tasks/${code}/flow`); }
   addDependency(code: string, blockerCode: string) { return this.post<unknown>(`/tasks/${code}/dependencies`, { blockerCode }); }
@@ -73,6 +82,7 @@ export class MaestroApiService {
   // ---- labels ----
   listLabels() { return this.get<M.Label[]>('/labels'); }
   createLabel(b: { name: string; color?: string }) { return this.post<M.Label>('/labels', b); }
+  deleteLabel(id: number) { return this.del<unknown>(`/labels/${id}`); }
   applyLabel(labelId: number, taskId: number) { return this.post<unknown>(`/labels/${labelId}/tasks/${taskId}`); }
   removeLabel(labelId: number, taskId: number) { return this.del<unknown>(`/labels/${labelId}/tasks/${taskId}`); }
 

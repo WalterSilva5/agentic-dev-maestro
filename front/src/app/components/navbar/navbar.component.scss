@@ -598,3 +598,131 @@ $gray-400: #9ca3af;
     }
   }
 }
+
+/* ===== Seletor de workspace ===== */
+.ws-switcher {
+  position: relative;
+
+  .ws-current {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    max-width: 200px;
+    padding: 0.4rem 0.7rem;
+    border-radius: 10px;
+    border: 1px solid var(--line, #e5e7eb);
+    background: var(--surface, #fff);
+    color: var(--text, #111827);
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+
+    .ws-name {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 130px;
+    }
+
+    &:hover {
+      background: var(--surface-2, #f3f4f6);
+    }
+  }
+
+  .ws-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    min-width: 240px;
+    background: var(--surface, #fff);
+    border: 1px solid var(--line, #e5e7eb);
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+    padding: 0.4rem;
+    z-index: 1200;
+
+    .ws-menu-title {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted, #6b7280);
+      padding: 0.3rem 0.5rem;
+      margin: 0;
+    }
+  }
+
+  .ws-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.5rem 0.6rem;
+    border: none;
+    background: transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--text, #111827);
+    font-size: 0.88rem;
+    text-align: left;
+
+    &:hover {
+      background: var(--surface-2, #f3f4f6);
+    }
+    &.active {
+      background: rgba(29, 185, 84, 0.12);
+      font-weight: 700;
+    }
+    &.ws-manage {
+      color: var(--brand-primary, #1db954);
+      font-weight: 600;
+      border-top: 1px solid var(--line, #e5e7eb);
+      margin-top: 0.25rem;
+    }
+  }
+}
+
+.ws-role {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  color: var(--text-muted, #6b7280);
+  background: var(--surface-2, #f3f4f6);
+  padding: 0.1rem 0.4rem;
+  border-radius: 6px;
+}
+
+/* Workspace no drawer (mobile) */
+.drawer-workspace {
+  margin-top: 0.75rem;
+
+  .drawer-ws-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-top: 0.4rem;
+  }
+
+  .drawer-ws-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.5rem 0.6rem;
+    border: 1px solid var(--line, #e5e7eb);
+    background: var(--surface, #fff);
+    color: var(--text, #111827);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    text-align: left;
+
+    &.active {
+      background: rgba(29, 185, 84, 0.12);
+      font-weight: 700;
+    }
+    &.ws-manage {
+      color: var(--brand-primary, #1db954);
+      border-style: dashed;
+    }
+  }
+}

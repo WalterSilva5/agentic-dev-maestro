@@ -1,0 +1,36 @@
+<div class="invite-wrap">
+  <div class="invite-card">
+    <h1 class="invite-title">Convite de workspace</h1>
+
+    <ng-container *ngIf="loading()">
+      <p class="invite-muted">Carregando convite…</p>
+    </ng-container>
+
+    <ng-container *ngIf="!loading() && error()">
+      <p class="invite-error">{{ error() }}</p>
+      <a routerLink="/home" class="btn btn-secondary">Voltar ao início</a>
+    </ng-container>
+
+    <ng-container *ngIf="!loading() && !error() && details() as d">
+      <p class="invite-lead">
+        Você foi convidado para o workspace
+        <b>{{ d.company }}</b> com o papel <b>{{ d.role }}</b>.
+      </p>
+      <p class="invite-muted">Convite para: {{ d.email }}</p>
+
+      <div class="invite-actions" *ngIf="isAuthenticated; else guest">
+        <button class="btn btn-primary" (click)="accept()" [disabled]="accepting()">
+          {{ accepting() ? 'Aceitando…' : 'Aceitar convite' }}
+        </button>
+      </div>
+
+      <ng-template #guest>
+        <p class="invite-muted">Entre ou crie sua conta com o e-mail acima para aceitar.</p>
+        <div class="invite-actions">
+          <button class="btn btn-primary" (click)="goLogin()">Entrar</button>
+          <button class="btn btn-secondary" (click)="goRegister()">Criar conta</button>
+        </div>
+      </ng-template>
+    </ng-container>
+  </div>
+</div>

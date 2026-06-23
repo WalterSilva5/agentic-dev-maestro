@@ -54,6 +54,35 @@
     <!-- Right Section -->
     <div class="navbar-right">
       <ng-container *ngIf="auth$ | async as auth">
+        <!-- Workspace switcher (only when logged in) -->
+        <div *ngIf="auth.isAuthenticated" class="ws-switcher">
+          <button type="button" class="ws-current" (click)="toggleWorkspaceMenu()" title="Trocar de workspace">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+              <path d="M3 21h18"></path><path d="M5 21V7l8-4v18"></path><path d="M19 21V11l-6-4"></path>
+            </svg>
+            <span class="ws-name">{{ tenant.active()?.name || 'Selecionar workspace' }}</span>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </button>
+          <div class="ws-menu" *ngIf="isWorkspaceMenuOpen">
+            <p class="ws-menu-title">Workspaces</p>
+            <button
+              *ngFor="let w of tenant.workspaces()"
+              type="button"
+              class="ws-item"
+              [class.active]="w.id === tenant.companyId"
+              (click)="switchWorkspace(w)"
+            >
+              <span class="ws-item-name">{{ w.name }}</span>
+              <span class="ws-role">{{ w.role }}</span>
+            </button>
+            <button type="button" class="ws-item ws-manage" (click)="goToWorkspaces()">
+              Gerenciar workspaces…
+            </button>
+          </div>
+        </div>
+
         <!-- Credit Balance (only when logged in) -->
         <div
           *ngIf="auth.isAuthenticated"
@@ -154,6 +183,26 @@
             }"
           >⚡ {{ userBalance$ | async }}</span>
         </div>
+
+        <!-- Workspace ativo + troca rápida -->
+        <div class="drawer-workspace">
+          <span class="credits-label">Workspace</span>
+          <div class="drawer-ws-list">
+            <button
+              *ngFor="let w of tenant.workspaces()"
+              type="button"
+              class="drawer-ws-item"
+              [class.active]="w.id === tenant.companyId"
+              (click)="switchWorkspace(w)"
+            >
+              <span>{{ w.name }}</span>
+              <span class="ws-role">{{ w.role }}</span>
+            </button>
+            <button type="button" class="drawer-ws-item ws-manage" (click)="goToWorkspaces()">
+              Gerenciar workspaces…
+            </button>
+          </div>
+        </div>
       </ng-container>
     </div>
 
@@ -192,7 +241,7 @@
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
             <path d="M3 21h18"></path><path d="M5 21V7l8-4v18"></path><path d="M19 21V11l-6-4"></path>
           </svg>
-          <span>Empresas</span>
+          <span>Workspaces</span>
         </a>
         <a routerLink="/projects" class="menu-item" (click)="onNavigate()">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
@@ -206,6 +255,19 @@
             <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
           </svg>
           <span>Membros</span>
+        </a>
+        <a routerLink="/labels" class="menu-item" (click)="onNavigate()">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+            <line x1="7" y1="7" x2="7.01" y2="7"></line>
+          </svg>
+          <span>Labels</span>
+        </a>
+        <a routerLink="/access" class="menu-item" (click)="onNavigate()">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+          </svg>
+          <span>Acesso</span>
         </a>
         <a routerLink="/api-keys" class="menu-item" (click)="onNavigate()">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">

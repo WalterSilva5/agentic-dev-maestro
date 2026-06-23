@@ -17,5 +17,7 @@ export enum RoutesEnum {
   TASK_DETAIL = 'tasks/:code',
   MEMBERS = 'members',
   API_KEYS = 'api-keys',
+  LABELS = 'labels',
+  ACCESS = 'access',
   DOWNLOADS = 'downloads',
 }

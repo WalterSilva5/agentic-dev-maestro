@@ -53,7 +53,9 @@ export class ProjectsService {
               orderBy: { rank: 'asc' },
               include: {
                 project: { select: { key: true } },
-                column: { select: { name: true } }
+                column: { select: { name: true } },
+                labels: { select: { id: true, name: true, color: true } },
+                assignee: { select: { id: true, firstName: true, lastName: true } }
               }
             }
           }

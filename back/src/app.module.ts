@@ -25,6 +25,7 @@ import { DocumentsModule } from './modules/documents/documents.module';
 import { IdempotencyModule } from './modules/idempotency/idempotency.module';
 import { LabelsModule } from './modules/labels/labels.module';
 import { MembersModule } from './modules/members/members.module';
+import { InvitationsModule } from './modules/invitations/invitations.module';
 import { ProjectsModule } from './modules/projects/projects.module';
 import { TasksModule } from './modules/tasks/tasks.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
@@ -76,6 +77,7 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
     CompaniesModule,
     ApiKeyModule,
     MembersModule,
+    InvitationsModule,
     ProjectsModule,
     TasksModule,
     LabelsModule,

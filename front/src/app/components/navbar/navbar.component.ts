@@ -14,6 +14,8 @@ import { PermissionService } from '../../permissions/permissions.service';
 import { RoutesEnum } from '../../routes/routes.enum';
 import { Roles } from '../../state/roles/roles.enum';
 import { AuthApiHandler } from '../../pages/auth/data-handler/auth-api.handler';
+import { TenantService, ActiveCompany } from '../../services/tenant.service';
+import { WorkspaceService } from '../../services/workspace.service';
 
 @Component({
   selector: 'app-navbar',
@@ -36,6 +38,7 @@ export class NavbarComponent implements OnInit, OnDestroy {
   canAccessSettings$!: Observable<boolean>;
 
   isMobileMenuOpen = false;
+  isWorkspaceMenuOpen = false;
 
   isAdminDropdownOpen = false;
   private destroy$ = new Subject<void>();
@@ -48,7 +51,9 @@ export class NavbarComponent implements OnInit, OnDestroy {
     private store: Store<{ counter: number }>,
     private permissionService: PermissionService,
     private creditsSync: CreditsSyncService,
-    private authApi: AuthApiHandler
+    private authApi: AuthApiHandler,
+    public tenant: TenantService,
+    private workspaces: WorkspaceService
     , private elementRef: ElementRef
   ) {
     this.auth$ = this.store.select(selectAuth);
@@ -125,6 +130,10 @@ export class NavbarComponent implements OnInit, OnDestroy {
         const firstName = auth?.user?.firstName || '';
         const lastName = auth?.user?.lastName || '';
         this.userNameValue = `${firstName} ${lastName}`.trim();
+        // Popula o seletor de workspaces quando autenticado.
+        if (auth?.isAuthenticated) {
+          this.workspaces.refresh().catch(() => undefined);
+        }
       });
   }
 
@@ -191,7 +200,28 @@ export class NavbarComponent implements OnInit, OnDestroy {
 
   async handleLogout(): Promise<void> {
     this.logout();
+    this.tenant.clear();
     this.router.navigate([RoutesEnum.LOGIN]);
+  }
+
+  // ---- Seletor de workspace ----
+  toggleWorkspaceMenu(): void {
+    this.isWorkspaceMenuOpen = !this.isWorkspaceMenuOpen;
+  }
+
+  switchWorkspace(ws: ActiveCompany): void {
+    this.isWorkspaceMenuOpen = false;
+    this.closeMobileMenu();
+    if (this.tenant.companyId === ws.id) return;
+    this.tenant.setActive(ws);
+    // Recarrega a visão no contexto do novo workspace.
+    this.router.navigate([RoutesEnum.PROJECTS]);
+  }
+
+  goToWorkspaces(): void {
+    this.isWorkspaceMenuOpen = false;
+    this.closeMobileMenu();
+    this.router.navigate([RoutesEnum.COMPANIES]);
   }
 
   toggleMobileMenu(): void {

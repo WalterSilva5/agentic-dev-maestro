@@ -14,6 +14,7 @@ import { WebhookDispatchService } from 'src/modules/webhooks/webhook-dispatch.se
 import type { CreateTaskDto } from './dto/create-task.dto';
 import type { CreateTasksBulkDto } from './dto/create-tasks-bulk.dto';
 import type { MoveTaskDto } from './dto/move-task.dto';
+import type { UpdateTaskDto } from './dto/update-task.dto';
 
 type TaskWithProject = Prisma.TaskGetPayload<{
   include: { project: { select: { key: true } }; column: { select: { name: true } } };
@@ -21,7 +22,9 @@ type TaskWithProject = Prisma.TaskGetPayload<{
 
 const VIEW_INCLUDE = {
   project: { select: { key: true } },
-  column: { select: { name: true } }
+  column: { select: { name: true } },
+  labels: { select: { id: true, name: true, color: true } },
+  assignee: { select: { id: true, firstName: true, lastName: true } }
 } as const;
 
 export interface TaskListFilter {
@@ -102,6 +105,41 @@ export class TasksService {
 
   async get(ctx: ICompanyContext, idOrCode: string) {
     return this.toView(await this.resolveTask(ctx, idOrCode));
+  }
+
+  async update(ctx: ICompanyContext, idOrCode: string, dto: UpdateTaskDto) {
+    const task = await this.resolveTask(ctx, idOrCode);
+    const updated = await this.prisma.task.update({
+      where: { id: task.id },
+      data: {
+        ...(dto.title !== undefined ? { title: dto.title } : {}),
+        ...(dto.description !== undefined ? { description: dto.description } : {}),
+        ...(dto.objective !== undefined ? { objective: dto.objective } : {}),
+        ...(dto.acceptance !== undefined ? { acceptance: dto.acceptance } : {}),
+        ...(dto.priority !== undefined ? { priority: dto.priority } : {}),
+        ...(dto.estimateMd !== undefined ? { estimateMd: dto.estimateMd } : {}),
+        ...(dto.assigneeId !== undefined ? { assigneeId: dto.assigneeId } : {})
+      },
+      include: VIEW_INCLUDE
+    });
+    const view = this.toView(updated);
+    this.activity.log(ctx, 'Task', task.id, 'updated');
+    void this.webhooks.dispatch(ctx.companyId, 'task.updated', view);
+    return view;
+  }
+
+  async remove(ctx: ICompanyContext, idOrCode: string) {
+    const task = await this.resolveTask(ctx, idOrCode);
+    await this.prisma.task.update({
+      where: { id: task.id },
+      data: { deletedAt: new Date() }
+    });
+    this.activity.log(ctx, 'Task', task.id, 'deleted');
+    void this.webhooks.dispatch(ctx.companyId, 'task.deleted', {
+      id: task.id,
+      code: `${task.project.key}-${task.number}`
+    });
+    return { deleted: true };
   }
 
   async move(ctx: ICompanyContext, idOrCode: string, dto: MoveTaskDto) {

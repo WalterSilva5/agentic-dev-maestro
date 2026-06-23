@@ -14,6 +14,12 @@ export interface Project {
   description?: string;
 }
 
+export interface TaskAssignee {
+  id: number;
+  firstName: string;
+  lastName: string;
+}
+
 export interface Task {
   id: number;
   number: number;
@@ -28,6 +34,8 @@ export interface Task {
   columnId: number;
   projectId: number;
   assigneeId?: number;
+  assignee?: TaskAssignee | null;
+  labels?: Label[];
 }
 
 export interface BoardColumn {
@@ -96,6 +104,35 @@ export interface Member {
   id: number;
   role: string;
   user: { id: number; firstName: string; lastName: string; email: string };
+}
+
+export interface Invitation {
+  id: number;
+  email: string;
+  role: string;
+  expiresAt: string;
+  createdAt: string;
+}
+
+// Resultado de convidar: 'added' (já tinha conta → virou membro) ou 'invited' (link enviado).
+export interface InviteResult {
+  mode: 'added' | 'invited';
+  membership?: Member;
+  invitation?: Invitation;
+  link?: string;
+}
+
+export interface InvitationDetails {
+  email: string;
+  role: string;
+  company: string;
+  expiresAt: string;
+}
+
+export interface AcceptResult {
+  companyId: number;
+  role: string;
+  alreadyMember: boolean;
 }
 
 export interface ApiKeyInfo {

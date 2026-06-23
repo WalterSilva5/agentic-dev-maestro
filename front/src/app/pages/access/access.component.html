@@ -1,0 +1,88 @@
+<div class="access-page p-4 md:p-6 max-w-6xl mx-auto text-dark-text">
+  <header class="mb-6">
+    <h1 class="text-2xl font-semibold">Acesso &amp; Permissões</h1>
+    <p class="text-grayscale-4">Veja o que cada papel pode fazer e gerencie o acesso dos membros.</p>
+  </header>
+
+  <!-- Sem workspace -->
+  <div *ngIf="!hasCompany" class="alert bg-dark-surface border border-dark-border">
+    <span>Selecione um workspace primeiro.</span>
+    <a routerLink="/companies" class="btn btn-sm btn-primary">Ir para workspaces</a>
+  </div>
+
+  <ng-container *ngIf="hasCompany">
+    <!-- Matriz de permissões -->
+    <section class="card bg-dark-surface border border-dark-border mb-6">
+      <div class="card-body p-4">
+        <h2 class="card-title text-base mb-3">Matriz de permissões por papel</h2>
+        <div class="overflow-x-auto">
+          <table class="table table-sm">
+            <thead>
+              <tr class="text-grayscale-5">
+                <th class="min-w-[200px]">Ação</th>
+                <th *ngFor="let r of roles" class="text-center min-w-[90px]">
+                  <span class="text-xs font-semibold">{{ roleLabels[r] || r }}</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let row of matrix" class="hover:bg-dark-hover">
+                <td>
+                  <div class="font-medium text-sm">{{ row.action }}</div>
+                  <div class="text-xs text-grayscale-4">{{ row.description }}</div>
+                </td>
+                <td *ngFor="let r of roles" class="text-center">
+                  <span *ngIf="hasPermission(row, r)" class="perm-check">&#10003;</span>
+                  <span *ngIf="!hasPermission(row, r)" class="perm-dash">&mdash;</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Membros e seus papéis -->
+    <section class="card bg-dark-surface border border-dark-border">
+      <div class="card-body p-4">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="card-title text-base">Membros do workspace</h2>
+          <a routerLink="/members" class="btn btn-sm btn-outline btn-primary">Convidar</a>
+        </div>
+
+        <div *ngIf="loading" class="flex items-center gap-2 text-grayscale-4 py-4">
+          <span class="loading loading-spinner loading-sm"></span> Carregando...
+        </div>
+
+        <div *ngIf="!loading && members.length === 0" class="text-grayscale-4 py-4">
+          Nenhum membro encontrado.
+        </div>
+
+        <div *ngIf="!loading && members.length > 0" class="flex flex-col gap-2">
+          <div
+            *ngFor="let m of members"
+            class="flex items-center justify-between p-3 rounded-lg bg-dark-bg border border-dark-border"
+          >
+            <div class="flex items-center gap-3 min-w-0">
+              <div class="member-avatar">
+                {{ m.user?.firstName?.charAt(0)?.toUpperCase() || 'U' }}
+              </div>
+              <div class="min-w-0">
+                <p class="font-medium text-sm truncate">{{ fullName(m) }}</p>
+                <p class="text-xs text-grayscale-4 truncate">{{ m.user?.email }}</p>
+              </div>
+            </div>
+            <select
+              class="select select-bordered select-sm bg-dark-bg text-dark-text min-w-[130px]"
+              [ngModel]="m.role"
+              (ngModelChange)="onRoleChange(m, $event)"
+              [name]="'role-' + m.id"
+            >
+              <option *ngFor="let r of roles" [value]="r">{{ roleLabels[r] || r }}</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </section>
+  </ng-container>
+</div>
