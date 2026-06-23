@@ -48,12 +48,28 @@ export class ProjectsService {
         columns: {
           orderBy: { order: 'asc' },
           include: {
-            tasks: { where: { deletedAt: null }, orderBy: { rank: 'asc' } }
+            tasks: {
+              where: { deletedAt: null },
+              orderBy: { rank: 'asc' },
+              include: {
+                project: { select: { key: true } },
+                column: { select: { name: true } }
+              }
+            }
           }
         }
       }
     });
     if (!board) throw new NotFoundException('Quadro não encontrado');
+
+    // Adiciona campos computados code e status (mesmo pattern de TasksService.toView).
+    for (const col of board.columns) {
+      for (const task of col.tasks) {
+        (task as Record<string, unknown>).code = `${(task as any).project.key}-${task.number}`;
+        (task as Record<string, unknown>).status = (task as any).column.name;
+      }
+    }
+
     return board;
   }
 }

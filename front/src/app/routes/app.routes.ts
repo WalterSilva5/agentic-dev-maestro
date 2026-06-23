@@ -20,6 +20,7 @@ import { BoardComponent } from '../pages/board/board.component';
 import { TaskDetailComponent } from '../pages/task-detail/task-detail.component';
 import { MembersComponent } from '../pages/members/members.component';
 import { ApiKeysComponent } from '../pages/api-keys/api-keys.component';
+import { DownloadsComponent } from '../pages/downloads/downloads.component';
 
 export const routes: Routes = [
   { path: RoutesEnum.HOME, component: HomeComponent },
@@ -42,5 +43,6 @@ export const routes: Routes = [
   { path: RoutesEnum.TASK_DETAIL, component: TaskDetailComponent },
   { path: RoutesEnum.MEMBERS, component: MembersComponent },
   { path: RoutesEnum.API_KEYS, component: ApiKeysComponent },
+  { path: RoutesEnum.DOWNLOADS, component: DownloadsComponent },
   { path: '**', component: NotFoundComponent }
 ];

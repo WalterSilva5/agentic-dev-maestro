@@ -38,6 +38,17 @@
         </svg>
         <span>Dashboard</span>
       </a>
+      <a
+        routerLink="/projects"
+        routerLinkActive="active"
+        class="nav-link"
+        (click)="onNavigate()"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+        </svg>
+        <span>Projetos</span>
+      </a>
     </div>
 
     <!-- Right Section -->
@@ -201,6 +212,14 @@
             <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3"></path>
           </svg>
           <span>API keys</span>
+        </a>
+        <a routerLink="/downloads" class="menu-item" (click)="onNavigate()">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span>Downloads</span>
         </a>
       </div>
 

@@ -45,6 +45,12 @@ export class MobileBottomNavComponent implements OnInit, OnDestroy {
       exactMatch: true
     },
     {
+      icon: '/icons/icon-project.svg',
+      activeIcon: '/icons/icon-project.svg',
+      label: 'Projetos',
+      route: '/projects'
+    },
+    {
       icon: '/icons/General/User.svg',
       activeIcon: '/icons/General/User.svg',
       label: 'Perfil',
@@ -54,6 +60,8 @@ export class MobileBottomNavComponent implements OnInit, OnDestroy {
 
   menuItems = [
     { icon: '/icons/General/User.svg', label: 'Meu Perfil', route: '/user/profile' },
+    { icon: '/icons/icon-project.svg', label: 'Projetos', route: '/projects' },
+    { icon: '/icons/icon-project.svg', label: 'Downloads', route: '/downloads' },
   ];
 
   adminMenuItems = [
