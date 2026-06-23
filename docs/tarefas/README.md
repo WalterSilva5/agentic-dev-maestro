@@ -1,5 +1,9 @@
 # Tarefas e checklists
 
+> **Estado (2026-06-22):** estas listas são o **plano de execução** (com esforço em hd).
+> A implementação das Fases 0–2 está concluída e a 3–4 com ressalvas — o **estado real
+> e as pendências** estão no [CHECKLIST mestre](../CHECKLIST.md), fonte única de verdade.
+
 Listas acionáveis por área, mais granulares que o [roadmap](../05-roadmap.md). Cada
 item é uma tarefa com **esforço em homem-dia (hd)** e uma checklist de subtarefas.
 **Sem alocação de pessoas nem cronograma** — isso é decisão da liderança.
@@ -7,7 +11,7 @@ item é uma tarefa com **esforço em homem-dia (hd)** e uma checklist de subtare
 | Área | Arquivo | Cobre |
 |---|---|---|
 | Backend | [backend.md](backend.md) | NestJS, Prisma, multi-tenant, API keys, domínio, RBAC, bulk |
-| Frontend | [frontend.md](frontend.md) | Angular: auth, contexto, kanban (CDK), docs, settings |
+| Frontend | [frontend.md](frontend.md) | Angular: auth, contexto, kanban (DnD nativo HTML5), docs, settings |
 | Infra / DevOps | [devops-infra.md](devops-infra.md) | Docker, env, migrations/seed, CI, deploy |
 | MCP / Agentes | [mcp-agentes.md](mcp-agentes.md) | servidor MCP, tools, guia de uso por agente |
 

@@ -13,11 +13,11 @@ alt Humano (JWT)
   Cliente -> Guard : Authorization: Bearer <jwt>\n+ X-Company-Id
   Guard -> DB : carrega Membership (user + company)
 else Agente (API key)
-  Cliente -> Guard : x-api-key: mst_live_...
-  Guard -> DB : busca ApiKey por hash\n-> Membership + scopes
+  Cliente -> Guard : x-api-key: adm_...
+  Guard -> DB : busca ApiKey por hash\n-> Membership (+ scopes p/ uso futuro)
 end
 
-Guard -> Guard : permissão efetiva =\npapel da Membership ∩ scopes da chave
+Guard -> Guard : permissão efetiva = papel da Membership\n(scopes da chave: refinamento planejado)
 
 alt permitido
   Guard -> Svc : segue (companyId no contexto)

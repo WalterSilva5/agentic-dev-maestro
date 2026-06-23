@@ -1,5 +1,10 @@
 # 05 — Roadmap
 
+> **Estado (2026-06-22):** as Fases **0–2 (MVP)** estão implementadas e verificadas, e
+> as Fases **3–4** implementadas com ressalvas. Os checkboxes `[ ]` abaixo são o
+> **plano original** (para dimensionamento); o **estado real e as pendências** vivem
+> no [CHECKLIST.md](CHECKLIST.md) — fonte única de verdade de status.
+
 Esforço em **homem-dia (hd)**, em faixas. **Não há alocação de pessoas nem
 cronograma** — quem distribui o trabalho e define prazos é a liderança. As faixas
 servem só para dimensionar o tamanho de cada bloco.

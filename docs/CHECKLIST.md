@@ -69,7 +69,7 @@ Visão única do que precisa estar pronto. As listas detalhadas por área ficam 
 
 **Documentação**
 - [x] Swagger completo (`/api/docs`)
-- [~] Diagramas (`docs/diagramas/`) — conceito ok; pequenas divergências do schema final (ex.: `BoardColumn`, `taskSeq`)
+- [x] Diagramas (`docs/diagramas/`) — SVGs regenerados (PlantUML 1.2026.6); `modelo-dados` alinhado ao schema (`BoardColumn`, `taskSeq`, `isDone`) e auth key corrigida (`adm_`)
 - [x] README e docs refletem o estado real
 
 ---
@@ -80,4 +80,3 @@ Visão única do que precisa estar pronto. As listas detalhadas por área ficam 
 2. Testes automatizados (RBAC, isolamento) + pipeline de CI.
 3. Convite por e-mail a usuário ainda não cadastrado.
 4. Validar o MCP conectado a um agente real (Claude Code).
-5. Regenerar diagramas com o schema final.

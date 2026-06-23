@@ -16,8 +16,8 @@
 Humano (JWT)   → token identifica o User → escolhe a empresa ativa
                  (header X-Company-Id ou rota /companies/:id/...) →
                  carrega a Membership → papel + permissões
-Agente (key)   → x-api-key → ApiKey → Membership → companyId + papel + scopes
-                 (permissão efetiva = papel ∩ scopes da chave)
+Agente (key)   → x-api-key → ApiKey → Membership → companyId + papel
+                 (papel define a permissão; scopes da chave: refinamento planejado)
 ```
 
 ## Papéis e matriz de permissões
@@ -49,6 +49,11 @@ Agente (key)   → x-api-key → ApiKey → Membership → companyId + papel + s
   visão (gera os mesmos relatórios markdown de hoje, sem poder editar).
 
 ## Agentes e permissões
+
+> **Estado atual:** a autorização efetiva de uma API key é dada pelo **papel da
+> Membership** (`@RequireRole` no guard). Os `scopes` já são **armazenados** na chave
+> e expostos no contexto, mas o enforcement granular por escopo é um **refinamento
+> planejado**. A descrição abaixo é o design-alvo (papel ∩ scopes).
 
 A permissão efetiva de uma API key é **a interseção** do papel da Membership com os
 `scopes` da chave. Exemplos:

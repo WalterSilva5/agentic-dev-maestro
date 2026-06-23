@@ -37,18 +37,21 @@ entity Project {
   --
   name
   key
+  description
+  taskSeq
 }
 entity Board {
   * id
   --
   name
 }
-entity Column {
+entity BoardColumn {
   * id
   --
   name
   order
   wipLimit
+  isDone
 }
 entity Task {
   * id
@@ -97,8 +100,8 @@ Company  ||--o{ Membership
 Membership ||--o{ ApiKey
 Company  ||--o{ Project
 Project  ||--o{ Board
-Board    ||--o{ Column
-Column   ||--o{ Task
+Board    ||--o{ BoardColumn
+BoardColumn ||--o{ Task
 Task     ||--o{ Task : subtarefas
 Task     ||--o{ TaskDependency : blocker
 Task     ||--o{ TaskDependency : blocked
