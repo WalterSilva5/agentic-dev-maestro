@@ -55,6 +55,7 @@ export class TasksController {
     @Query('assigneeId') assigneeId?: string,
     @Query('priority') priority?: string,
     @Query('labelId') labelId?: string,
+    @Query('parentId') parentId?: string,
     @Query('search') search?: string
   ) {
     return this.tasks.list(ctx, {
@@ -63,6 +64,7 @@ export class TasksController {
       assigneeId: assigneeId ? Number(assigneeId) : undefined,
       priority,
       labelId: labelId ? Number(labelId) : undefined,
+      parentId: parentId ? Number(parentId) : undefined,
       search
     });
   }

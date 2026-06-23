@@ -1,7 +1,7 @@
 import { Component, Input, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import Swal from 'sweetalert2';
 
 import { MaestroApiService } from '../../services/maestro-api.service';
@@ -39,6 +39,7 @@ export class BoardComponent implements OnInit {
   constructor(
     private api: MaestroApiService,
     protected tenant: TenantService,
+    private router: Router,
   ) {}
 
   get hasCompany(): boolean {
@@ -132,6 +133,12 @@ export class BoardComponent implements OnInit {
       await this.loadBoard();
       Swal.fire({ icon: 'error', title: 'Erro', text: 'Não foi possível mover a tarefa.' });
     }
+  }
+
+  // ---- Card click ----
+
+  onCardClick(task: Task): void {
+    void this.router.navigate(['/tasks', task.code]);
   }
 
   // ---- Add task ----

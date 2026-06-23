@@ -58,20 +58,33 @@
         >{{ lbl.name }} ×</span>
       </div>
 
-      <!-- Responsável -->
-      <div class="mt-3 flex items-center gap-3">
-        <span class="text-sm text-grayscale-4">Responsável:</span>
-        <select
-          class="select select-bordered select-sm bg-dark-bg text-dark-text min-w-[180px]"
-          [ngModel]="t.assigneeId || ''"
-          (ngModelChange)="changeAssignee($event)"
-          name="assignee"
-        >
-          <option value="">Sem responsável</option>
-          <option *ngFor="let m of members" [value]="m.user.id">
-            {{ m.user.firstName }} {{ m.user.lastName }}
-          </option>
-        </select>
+      <!-- Coluna / Responsável -->
+      <div class="mt-3 flex flex-wrap items-center gap-4">
+        <div class="flex items-center gap-2">
+          <span class="text-sm text-grayscale-4">Coluna:</span>
+          <select
+            class="select select-bordered select-sm bg-dark-bg text-dark-text min-w-[140px]"
+            [ngModel]="t.columnId"
+            (ngModelChange)="changeColumn($event)"
+            name="column"
+          >
+            <option *ngFor="let col of columns" [value]="col.id">{{ col.name }}</option>
+          </select>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-sm text-grayscale-4">Responsável:</span>
+          <select
+            class="select select-bordered select-sm bg-dark-bg text-dark-text min-w-[180px]"
+            [ngModel]="t.assigneeId || ''"
+            (ngModelChange)="changeAssignee($event)"
+            name="assignee"
+          >
+            <option value="">Sem responsável</option>
+            <option *ngFor="let m of members" [value]="m.user.id">
+              {{ m.user.firstName }} {{ m.user.lastName }}
+            </option>
+          </select>
+        </div>
       </div>
 
       <!-- Ações: editar / excluir -->
@@ -170,14 +183,28 @@
 
       <!-- Modo visualização -->
       <ng-template #viewMode>
-        <p
-          *ngIf="t.description"
-          class="mt-3 text-grayscale-5 whitespace-pre-line"
-        >
-          {{ t.description }}
-        </p>
+        <div class="mt-4 rounded-card bg-dark-surface border border-dark-border p-4">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-sm font-semibold text-grayscale-4 uppercase tracking-wide">Descrição</h3>
+            <button
+              *ngIf="!t.description"
+              type="button"
+              class="btn btn-xs btn-outline btn-primary"
+              (click)="toggleEdit()"
+            >Adicionar descrição</button>
+          </div>
+          <div
+            *ngIf="t.description; else noDesc"
+            class="text-grayscale-5 text-sm whitespace-pre-wrap break-words leading-relaxed"
+          >
+            {{ t.description }}
+          </div>
+          <ng-template #noDesc>
+            <p class="text-grayscale-4 italic text-sm">Nenhuma descrição.</p>
+          </ng-template>
+        </div>
 
-        <div class="grid gap-4 md:grid-cols-2 mb-8 mt-6">
+        <div class="grid gap-4 md:grid-cols-2 my-6">
           <section class="card bg-dark-surface shadow-card">
             <div class="card-body">
               <h2 class="card-title text-base">Objetivo</h2>
@@ -234,6 +261,16 @@
         type="button"
         role="tab"
         class="tab"
+        [class.tab-active]="tab === 'subtarefas'"
+        (click)="setTab('subtarefas')"
+      >
+        Subtarefas
+        <span class="badge badge-sm badge-ghost ml-2">{{ subtasks.length }}</span>
+      </button>
+      <button
+        type="button"
+        role="tab"
+        class="tab"
         [class.tab-active]="tab === 'comentarios'"
         (click)="setTab('comentarios')"
       >
@@ -260,6 +297,59 @@
         Atividade
       </button>
     </div>
+
+    <!-- Subtarefas -->
+    <section *ngIf="tab === 'subtarefas'" class="card bg-dark-surface shadow-card">
+      <div class="card-body">
+        <h2 class="card-title text-base">Subtarefas</h2>
+        <p class="text-xs text-grayscale-4 mb-3">
+          Subtarefas têm apenas título. Toda descrição e comentários devem ficar na tarefa principal.
+        </p>
+
+        <ul class="flex flex-col gap-2 mt-2">
+          <li
+            *ngFor="let st of subtasks; trackBy: trackBySubtask"
+            class="flex items-center gap-3 rounded-card bg-dark-bg p-3"
+          >
+            <div class="min-w-0 flex-1 flex items-center gap-2">
+              <span class="text-xs font-mono text-primary">{{ st.code }}</span>
+              <span class="text-sm text-dark-text truncate">{{ st.title }}</span>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <span class="badge badge-sm badge-outline">{{ st.status }}</span>
+              <button
+                type="button"
+                class="btn btn-xs btn-ghost text-error"
+                (click)="confirmDeleteSubtask(st.code)"
+                title="Excluir subtarefa"
+              >×</button>
+            </div>
+          </li>
+          <li *ngIf="!subtasks.length" class="text-grayscale-4 italic text-sm">
+            Nenhuma subtarefa ainda.
+          </li>
+        </ul>
+
+        <form (ngSubmit)="addSubtask()" class="mt-4 flex gap-2">
+          <input
+            type="text"
+            class="input input-bordered flex-1 bg-dark-bg"
+            placeholder="Título da subtarefa..."
+            [(ngModel)]="newSubtaskTitle"
+            name="newSubtaskTitle"
+            [disabled]="savingSubtask"
+          />
+          <button
+            type="submit"
+            class="btn btn-primary"
+            [disabled]="savingSubtask || !newSubtaskTitle.trim()"
+          >
+            <span *ngIf="savingSubtask" class="loading loading-spinner loading-xs"></span>
+            Adicionar
+          </button>
+        </form>
+      </div>
+    </section>
 
     <!-- Fluxo -->
     <section *ngIf="tab === 'fluxo'" class="card bg-dark-surface shadow-card">
@@ -292,10 +382,50 @@
               <span class="text-xs text-grayscale-4 ml-auto">
                 {{ shortDate(c.createdAt) }}
               </span>
+              <div class="flex gap-1 ml-2">
+                <button
+                  type="button"
+                  class="btn btn-xs btn-ghost text-grayscale-4 hover:text-primary"
+                  (click)="startEditComment(c)"
+                  title="Editar comentário"
+                >✎</button>
+                <button
+                  type="button"
+                  class="btn btn-xs btn-ghost text-grayscale-4 hover:text-error"
+                  (click)="confirmDeleteComment(c.id)"
+                  title="Excluir comentário"
+                >×</button>
+              </div>
             </div>
-            <div class="text-grayscale-5 text-sm prose prose-invert max-w-none whitespace-pre-wrap">
-              {{ c.body }}
-            </div>
+
+            <!-- Modo edição -->
+            <ng-container *ngIf="editingCommentId === c.id; else viewComment">
+              <textarea
+                class="textarea textarea-bordered w-full bg-dark-bg font-mono text-sm"
+                rows="4"
+                [(ngModel)]="editCommentText"
+                name="editComment_{{ c.id }}"
+              ></textarea>
+              <div class="mt-2 flex justify-end gap-2">
+                <button type="button" class="btn btn-xs btn-ghost" (click)="cancelEditComment()">
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-xs btn-primary"
+                  (click)="saveEditComment(c.id)"
+                  [disabled]="!editCommentText.trim()"
+                >
+                  Salvar
+                </button>
+              </div>
+            </ng-container>
+
+            <ng-template #viewComment>
+              <div class="text-grayscale-5 text-sm whitespace-pre-wrap break-words">
+                {{ c.body }}
+              </div>
+            </ng-template>
           </li>
           <li *ngIf="!comments.length" class="text-grayscale-4 italic text-sm">
             Nenhum comentário ainda.

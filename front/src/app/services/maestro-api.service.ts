@@ -96,6 +96,8 @@ export class MaestroApiService {
   // ---- comentários ----
   listComments(taskId: number) { return this.get<M.Comment[]>(`/comments${this.qs({ taskId })}`); }
   createComment(taskId: number, body: string) { return this.post<M.Comment>('/comments', { taskId, body }); }
+  updateComment(id: number, body: string) { return this.patch<M.Comment>(`/comments/${id}`, { body }); }
+  deleteComment(id: number) { return this.del<{ deleted: boolean }>(`/comments/${id}`); }
 
   // ---- auditoria ----
   listActivity(filters: { entityType?: string; entityId?: number; limit?: number } = {}) { return this.get<M.ActivityItem[]>('/activity' + this.qs(filters)); }

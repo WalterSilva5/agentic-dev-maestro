@@ -18,7 +18,7 @@ import {
 import { FlowGraphComponent } from '../../components/flow-graph/flow-graph.component';
 
 // Aba ativa da página de detalhe.
-type DetailTab = 'fluxo' | 'comentarios' | 'documentos' | 'atividade';
+type DetailTab = 'subtarefas' | 'fluxo' | 'comentarios' | 'documentos' | 'atividade';
 
 @Component({
   selector: 'app-task-detail',
@@ -45,6 +45,7 @@ export class TaskDetailComponent implements OnInit {
   comments: Comment[] = [];
   docs: DocItem[] = [];
   activity: ActivityItem[] = [];
+  subtasks: Task[] = [];
 
   tab: DetailTab = 'fluxo';
 
@@ -56,9 +57,20 @@ export class TaskDetailComponent implements OnInit {
   // Prioridades disponíveis.
   priorities: Task['priority'][] = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
 
+  // Colunas disponíveis para mover.
+  columns: Array<{ id: number; name: string }> = [];
+
+  // Formulário de subtarefa.
+  newSubtaskTitle = '';
+  savingSubtask = false;
+
   // Formulário de comentário.
   commentText = '';
   postingComment = false;
+
+  // Edição de comentário.
+  editingCommentId: number | null = null;
+  editCommentText = '';
 
   // Formulário de documento.
   newDocTitle = '';
@@ -93,7 +105,15 @@ export class TaskDetailComponent implements OnInit {
         cid ? this.api.listMembers(cid).catch(() => [] as Member[]) : Promise.resolve([] as Member[]),
       ]);
       this.flow = flow;
+      this.subtasks = await this.api.listTasks({ parentId: this.task.id });
       this.comments = comments;
+      // Carrega colunas do board para o seletor de mover
+      try {
+        const board = await this.api.getBoard(this.task.projectId);
+        this.columns = board.columns.map((c) => ({ id: c.id, name: c.name }));
+      } catch {
+        this.columns = [];
+      }
       this.docs = docs;
       this.activity = activity;
       this.allLabels = labels;
@@ -162,6 +182,7 @@ export class TaskDetailComponent implements OnInit {
     return this.api.exportDocumentUrl(id);
   }
 
+  trackBySubtask = (_: number, s: Task) => s.id;
   trackByComment = (_: number, c: Comment) => c.id;
   trackByDoc = (_: number, d: DocItem) => d.id;
   trackByActivity = (_: number, a: ActivityItem) => a.id;
@@ -233,7 +254,63 @@ export class TaskDetailComponent implements OnInit {
     }
   }
 
-  // ---- Ações ----
+  // ---- Subtarefas ----
+
+  async addSubtask(): Promise<void> {
+    const title = this.newSubtaskTitle.trim();
+    if (!title || !this.task) return;
+    this.savingSubtask = true;
+    try {
+      await this.api.createTask({
+        projectId: this.task.projectId,
+        title,
+        parentId: this.task.id,
+      });
+      this.newSubtaskTitle = '';
+      this.subtasks = await this.api.listTasks({ parentId: this.task.id });
+      this.flow = await this.api.getFlow(this.code!);
+    } catch (err) {
+      console.error('addSubtask error', err);
+      Swal.fire({ icon: 'error', title: 'Erro', text: 'Não foi possível criar a subtarefa.' });
+    } finally {
+      this.savingSubtask = false;
+    }
+  }
+
+  async confirmDeleteSubtask(code: string): Promise<void> {
+    const result = await Swal.fire({
+      icon: 'warning',
+      title: 'Excluir subtarefa?',
+      text: `Tem certeza que deseja excluir ${code}?`,
+      showCancelButton: true,
+      confirmButtonText: 'Excluir',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#d33',
+    });
+    if (!result.isConfirmed) return;
+    try {
+      await this.api.deleteTask(code);
+      this.subtasks = await this.api.listTasks({ parentId: this.task!.id });
+      this.flow = await this.api.getFlow(this.code!);
+    } catch (err) {
+      console.error('deleteSubtask error', err);
+      Swal.fire({ icon: 'error', title: 'Erro', text: 'Não foi possível excluir a subtarefa.' });
+    }
+  }
+
+  // ---- Coluna (mover) ----
+
+  async changeColumn(columnId: string): Promise<void> {
+    if (!this.task || !this.code || !columnId) return;
+    try {
+      await this.api.moveTask(this.code, Number(columnId));
+      await this.load();
+    } catch {
+      Swal.fire({ icon: 'error', title: 'Erro', text: 'Não foi possível mover a tarefa.' });
+    }
+  }
+
+  // ---- Comentários ----
 
   async addComment(): Promise<void> {
     const body = this.commentText.trim();
@@ -252,6 +329,48 @@ export class TaskDetailComponent implements OnInit {
       });
     } finally {
       this.postingComment = false;
+    }
+  }
+
+  startEditComment(c: Comment): void {
+    this.editingCommentId = c.id;
+    this.editCommentText = c.body;
+  }
+
+  cancelEditComment(): void {
+    this.editingCommentId = null;
+    this.editCommentText = '';
+  }
+
+  async saveEditComment(commentId: number): Promise<void> {
+    const body = this.editCommentText.trim();
+    if (!body || !this.task) return;
+    try {
+      await this.api.updateComment(commentId, body);
+      this.editingCommentId = null;
+      this.editCommentText = '';
+      this.comments = await this.api.listComments(this.task.id);
+    } catch {
+      Swal.fire({ icon: 'error', title: 'Erro', text: 'Não foi possível editar o comentário.' });
+    }
+  }
+
+  async confirmDeleteComment(commentId: number): Promise<void> {
+    const result = await Swal.fire({
+      icon: 'warning',
+      title: 'Excluir comentário?',
+      text: 'Tem certeza? Esta ação não pode ser desfeita.',
+      showCancelButton: true,
+      confirmButtonText: 'Excluir',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#d33',
+    });
+    if (!result.isConfirmed || !this.task) return;
+    try {
+      await this.api.deleteComment(commentId);
+      this.comments = await this.api.listComments(this.task.id);
+    } catch {
+      Swal.fire({ icon: 'error', title: 'Erro', text: 'Não foi possível excluir o comentário.' });
     }
   }
 

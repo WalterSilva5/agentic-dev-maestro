@@ -4,6 +4,7 @@ import type { ICompanyContext } from 'src/interfaces/ICompanyContext';
 import { ActivityLogService } from 'src/modules/activity-log/activity-log.service';
 
 import type { CreateCommentDto } from './dto/create-comment.dto';
+import type { UpdateCommentDto } from './dto/update-comment.dto';
 
 const AUTHOR_INCLUDE = {
   author: { select: { id: true, firstName: true, lastName: true } }
@@ -50,5 +51,32 @@ export class CommentsService {
       orderBy: { createdAt: 'asc' },
       include: AUTHOR_INCLUDE
     });
+  }
+
+  async update(ctx: ICompanyContext, id: number, dto: UpdateCommentDto) {
+    const comment = await this.prisma.comment.findFirst({
+      where: { id, companyId: ctx.companyId }
+    });
+    if (!comment) throw new NotFoundException('Comentário não encontrado');
+
+    const updated = await this.prisma.comment.update({
+      where: { id },
+      data: { body: dto.body },
+      include: AUTHOR_INCLUDE
+    });
+
+    this.activity.log(ctx, 'Task', comment.taskId, 'comment_updated');
+    return updated;
+  }
+
+  async remove(ctx: ICompanyContext, id: number) {
+    const comment = await this.prisma.comment.findFirst({
+      where: { id, companyId: ctx.companyId }
+    });
+    if (!comment) throw new NotFoundException('Comentário não encontrado');
+
+    await this.prisma.comment.delete({ where: { id } });
+    this.activity.log(ctx, 'Task', comment.taskId, 'comment_deleted');
+    return { deleted: true };
   }
 }

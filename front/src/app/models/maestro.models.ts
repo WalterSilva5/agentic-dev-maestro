@@ -33,6 +33,7 @@ export interface Task {
   estimateMd?: number;
   columnId: number;
   projectId: number;
+  parentId?: number;
   assigneeId?: number;
   assignee?: TaskAssignee | null;
   labels?: Label[];

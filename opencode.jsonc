@@ -1,0 +1,11 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "name": "Agentic Dev Maestro",
+  "env": {
+    "MAESTRO_API_URL": "http://localhost:5000/api",
+    "MAESTRO_API_KEY": "adm_4752211dbdabb2214960a05d3991dc2961973a4270cd1243"
+  },
+  "tools": {
+    "maestro_*": true
+  }
+}

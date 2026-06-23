@@ -33,6 +33,7 @@ export interface TaskListFilter {
   assigneeId?: number;
   priority?: string;
   labelId?: number;
+  parentId?: number;
   search?: string;
 }
 
@@ -93,6 +94,7 @@ export class TasksService {
       ...(filter.priority ? { priority: filter.priority as Prisma.EnumTaskPriorityFilter } : {}),
       ...(filter.status ? { column: { name: filter.status } } : {}),
       ...(filter.labelId ? { labels: { some: { id: filter.labelId } } } : {}),
+      ...(filter.parentId !== undefined ? { parentId: filter.parentId } : {}),
       ...(filter.search ? { title: { contains: filter.search } } : {})
     };
     const tasks = await this.prisma.task.findMany({
