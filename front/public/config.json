@@ -2,7 +2,7 @@
   "apiUrl": "/api",
   "production": false,
   "app": {
-    "name": "Fullstack Template",
+    "name": "Agentic Dev Maestro",
     "version": "1.0.0",
     "versionCode": 1,
     "deepLinkHost": "app.example.com",

@@ -1,7 +1,7 @@
 {
-  "name": "Fullstack Template",
-  "short_name": "Template",
-  "description": "Template fullstack NestJS + Angular",
+  "name": "Agentic Dev Maestro",
+  "short_name": "Maestro",
+  "description": "Workspace de tarefas para humanos e agentes de IA — kanban, documentação e execução via API.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#181818",
