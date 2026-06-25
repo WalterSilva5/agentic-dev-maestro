@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QPushButton,
     QScrollArea,
     QSizePolicy,
     QVBoxLayout,
@@ -588,23 +589,43 @@ class FilterBar(QWidget):
 class BoardView(QWidget):
     task_changed = Signal()
 
+    AUTO_REFRESH_MS = 5000
+
     def __init__(self):
         super().__init__()
         self.project_id = None
         self._columns: list[ColumnWidget] = []
+        self._last_task_hash = None
 
         self.main_layout = QVBoxLayout(self)
         self.main_layout.setContentsMargins(24, 24, 24, 24)
         self.main_layout.setSpacing(12)
 
+        header_row = QHBoxLayout()
         self.header = QLabel("Selecione um projeto")
         self.header.setObjectName("sectionTitle")
-        self.main_layout.addWidget(self.header)
+        header_row.addWidget(self.header)
+        header_row.addStretch()
+
+        t = current_theme()
+        self.refresh_btn = QPushButton("Atualizar")
+        self.refresh_btn.setProperty("flat", True)
+        self.refresh_btn.setFixedHeight(28)
+        self.refresh_btn.setCursor(Qt.PointingHandCursor)
+        self.refresh_btn.clicked.connect(self.refresh)
+        header_row.addWidget(self.refresh_btn)
+
+        self.main_layout.addLayout(header_row)
 
         # Filter bar
         self.filter_bar = FilterBar()
         self.filter_bar.filters_changed.connect(self._apply_filters)
         self.main_layout.addWidget(self.filter_bar)
+
+        # Auto-refresh timer
+        self._auto_timer = QTimer(self)
+        self._auto_timer.timeout.connect(self._auto_refresh)
+        self._auto_timer.start(self.AUTO_REFRESH_MS)
 
         # Board scroll area
         self.scroll = QScrollArea()
@@ -687,6 +708,7 @@ class BoardView(QWidget):
         finally:
             s.close()
 
+        self._last_task_hash = self._compute_hash()
         self._apply_filters()
 
     def _apply_filters(self):
@@ -722,6 +744,28 @@ class BoardView(QWidget):
                     visible += 1
 
         self.filter_bar.set_count(visible, total)
+
+    def _compute_hash(self):
+        if not self.project_id:
+            return None
+        s = get_session()
+        try:
+            rows = (
+                s.query(Task.id, Task.column_id, Task.title, Task.updated_at)
+                .filter(Task.project_id == self.project_id, Task.deleted_at == None)
+                .order_by(Task.id)
+                .all()
+            )
+            return hash(tuple((r.id, r.column_id, r.title, str(r.updated_at)) for r in rows))
+        finally:
+            s.close()
+
+    def _auto_refresh(self):
+        if not self.project_id or not self.isVisible():
+            return
+        h = self._compute_hash()
+        if h != self._last_task_hash:
+            self.refresh()
 
     def _on_change(self):
         self.refresh()
