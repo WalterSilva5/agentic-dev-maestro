@@ -1,11 +1,11 @@
 SKILLS = [
     {
-        "id": "run",
+        "id": "maestro-run",
         "name": "Run Maestro Local",
         "category": "setup",
         "description": "Iniciar a aplicacao desktop (GUI + API)",
         "tags": ["setup", "launch"],
-        "filename": "run",
+        "filename": "maestro-run",
         "content": """---
 description: Run the Maestro Local desktop app (GUI + API)
 ---
@@ -27,12 +27,12 @@ curl http://127.0.0.1:9777/api/health
 """,
     },
     {
-        "id": "api-agent",
+        "id": "maestro-api-agent",
         "name": "API Agent Usage",
         "category": "agent",
         "description": "Interagir com a API REST como agente de IA",
         "tags": ["api", "agent", "rest"],
-        "filename": "api-agent",
+        "filename": "maestro-api-agent",
         "content": """---
 description: Interact with Maestro Local API as an AI agent
 ---
@@ -104,12 +104,12 @@ COMMENT, CODE_REVIEW, COMMIT_REF, DEPLOY_LOG
 """,
     },
     {
-        "id": "task-workflow",
+        "id": "maestro-task-workflow",
         "name": "Task Workflow",
         "category": "workflow",
         "description": "Fluxo completo de trabalho com tarefas: pegar task, implementar, mover, documentar",
         "tags": ["workflow", "task", "development"],
-        "filename": "task-workflow",
+        "filename": "maestro-task-workflow",
         "content": """---
 description: Complete task workflow - pick, implement, move, document
 ---
@@ -242,12 +242,12 @@ Apos mover para Revisao, o agente deve informar o desenvolvedor:
 """,
     },
     {
-        "id": "project-setup",
+        "id": "maestro-project-setup",
         "name": "Project Setup",
         "category": "setup",
         "description": "Criar e configurar um novo projeto com labels, tarefas iniciais e checklist",
         "tags": ["setup", "project", "bootstrap"],
-        "filename": "project-setup",
+        "filename": "maestro-project-setup",
         "content": """---
 description: Create and configure a new project with labels and initial tasks
 ---
@@ -306,12 +306,12 @@ curl -X POST http://127.0.0.1:9777/api/tasks/KEY-2/dependencies \\
 """,
     },
     {
-        "id": "sprint-planning",
+        "id": "maestro-sprint-planning",
         "name": "Sprint Planning",
         "category": "workflow",
         "description": "Planejar sprint: analisar metricas, priorizar backlog, estimar tarefas",
         "tags": ["sprint", "planning", "metrics"],
-        "filename": "sprint-planning",
+        "filename": "maestro-sprint-planning",
         "content": """---
 description: Sprint planning - analyze metrics, prioritize backlog, estimate tasks
 ---
@@ -372,12 +372,12 @@ curl -X POST http://127.0.0.1:9777/api/documents \\
 """,
     },
     {
-        "id": "code-review-log",
+        "id": "maestro-code-review-log",
         "name": "Code Review Log",
         "category": "workflow",
         "description": "Registrar resultados de code review em tarefas com comentarios tipados",
         "tags": ["review", "code", "quality"],
-        "filename": "code-review-log",
+        "filename": "maestro-code-review-log",
         "content": """---
 description: Log code review results on tasks with typed comments
 ---
@@ -425,12 +425,12 @@ curl -X PATCH http://127.0.0.1:9777/api/tasks/checklist/{ITEM_ID}/toggle
 """,
     },
     {
-        "id": "bug-triage",
+        "id": "maestro-bug-triage",
         "name": "Bug Triage",
         "category": "workflow",
         "description": "Triagem de bugs: criar, classificar, priorizar e documentar",
         "tags": ["bug", "triage", "quality"],
-        "filename": "bug-triage",
+        "filename": "maestro-bug-triage",
         "content": """---
 description: Bug triage - create, classify, prioritize and document bugs
 ---
@@ -479,12 +479,12 @@ curl -X POST http://127.0.0.1:9777/api/comments \\
 """,
     },
     {
-        "id": "daily-standup",
+        "id": "maestro-daily-standup",
         "name": "Daily Standup",
         "category": "workflow",
         "description": "Gerar resumo para daily standup: o que foi feito, o que esta em andamento, bloqueios",
         "tags": ["daily", "standup", "report"],
-        "filename": "daily-standup",
+        "filename": "maestro-daily-standup",
         "content": """---
 description: Generate daily standup summary - done, in progress, blockers
 ---
@@ -531,12 +531,12 @@ curl -s http://127.0.0.1:9777/api/projects/metrics | \\
 """,
     },
     {
-        "id": "tech-debt-tracker",
+        "id": "maestro-tech-debt-tracker",
         "name": "Tech Debt Tracker",
         "category": "management",
         "description": "Rastrear e gerenciar divida tecnica com tarefas tipadas e metricas",
         "tags": ["tech-debt", "management", "quality"],
-        "filename": "tech-debt-tracker",
+        "filename": "maestro-tech-debt-tracker",
         "content": """---
 description: Track and manage technical debt with typed tasks and metrics
 ---
@@ -583,12 +583,12 @@ curl -s http://127.0.0.1:9777/api/projects/metrics | \\
 """,
     },
     {
-        "id": "documentation-writer",
+        "id": "maestro-documentation-writer",
         "name": "Documentation Writer",
         "category": "management",
         "description": "Criar e gerenciar documentos tecnicos vinculados a projetos e tarefas",
         "tags": ["docs", "documentation", "writing"],
-        "filename": "documentation-writer",
+        "filename": "maestro-documentation-writer",
         "content": """---
 description: Create and manage technical documents linked to projects and tasks
 ---
@@ -642,6 +642,149 @@ curl -X PUT http://127.0.0.1:9777/api/documents/{DOC_ID} \\
 ```
 
 Cada PUT incrementa a versao automaticamente.
+""",
+    },
+    {
+        "id": "maestro-daily-report",
+        "name": "Daily Report",
+        "category": "workflow",
+        "description": "Gerar relatorio diario: criar nota, registrar atividades e gerar resumo via API",
+        "tags": ["daily", "report", "notes", "tracking"],
+        "filename": "maestro-daily-report",
+        "content": """---
+description: Generate daily report - create notes, track activity, generate summary via API
+---
+
+# Daily Report
+
+Fluxo para o agente criar e gerar o relatorio diario do usuario.
+
+## Template de nota diaria
+
+Ao criar a nota do dia, use este template como base:
+
+```markdown
+## Foco do Dia
+- Objetivo principal:
+- Prioridade maxima:
+
+---
+
+## Tarefas Planejadas
+- [ ] task 1
+- [ ] task 2
+
+---
+
+## Bloqueios / Problemas / Duvidas
+- Descricao do problema
+- Dependencia / quem pode ajudar
+
+---
+
+## Anotacoes Rapidas
+- Ideias
+- Decisoes tomadas
+- Links uteis
+
+---
+
+## Check-out do Dia
+- O que foi concluido:
+- O que ficou pendente:
+- Proximo passo amanha:
+```
+
+## 1. Obter o template padrao
+
+```bash
+curl -s http://127.0.0.1:9777/api/daily/template | jq -r '.template'
+```
+
+## 2. Verificar nota existente do dia
+
+```bash
+# Formato da data: YYYY-MM-DD
+curl -s http://127.0.0.1:9777/api/daily/2026-06-25
+```
+
+Resposta: `{"date":"...","body":"...","report":"...","exists":true/false}`
+
+## 3. Criar ou atualizar nota do dia
+
+```bash
+curl -X PUT http://127.0.0.1:9777/api/daily/2026-06-25 \\
+  -H 'Content-Type: application/json' \\
+  -d '{"body":"## Foco do Dia\\n- Objetivo principal: implementar modulo X\\n..."}'
+```
+
+O body deve seguir o template acima. Preencha com as informacoes que
+o usuario fornecer ou que voce conseguir extrair do contexto.
+
+## 4. Ver atividade do dia
+
+```bash
+curl -s http://127.0.0.1:9777/api/daily/2026-06-25/activity
+```
+
+Retorna lista de tarefas que tiveram atividade, contagem de atividades
+e comentarios. Use para enriquecer a nota automaticamente.
+
+## 5. Gerar relatorio base do dia
+
+```bash
+curl -X POST http://127.0.0.1:9777/api/daily/2026-06-25/report
+```
+
+Gera um relatorio base em Markdown com:
+- Tarefas trabalhadas (codigo, titulo, tipo, status)
+- Timeline de atividades (hora, acao, detalhe)
+- Code reviews do dia
+- Notas do usuario
+- Resumo (tarefas tocadas, atividades, reviews, concluidas)
+
+O relatorio e salvo no banco e retornado na resposta.
+
+## 6. Adicionar conteudo ao relatorio (PATCH — append)
+
+```bash
+curl -X PATCH http://127.0.0.1:9777/api/daily/2026-06-25/report \\
+  -H 'Content-Type: application/json' \\
+  -d '{"content":"## Analise de codigo\\n- Revisado modulo X\\n- Sugestoes: ..."}'
+```
+
+O PATCH **preserva** o conteudo original do relatorio no topo e adiciona
+o novo conteudo abaixo de um separador (`---`). Pode ser chamado varias
+vezes — cada chamada adiciona uma nova secao ao final.
+
+Use este endpoint para:
+- Adicionar resumos de code review
+- Inserir analises solicitadas pelo usuario
+- Anexar notas de reuniao ou decisoes tomadas
+- Qualquer conteudo complementar ao relatorio base
+
+Se o relatorio ainda nao existir, o conteudo enviado se torna o relatorio
+inicial (sem separador).
+
+## Fluxo recomendado para o agente
+
+1. No inicio do dia: verificar se ja existe nota (`GET /api/daily/{date}`)
+2. Se nao existe: criar com o template preenchido (`PUT /api/daily/{date}`)
+3. Durante o dia: atualizar o body conforme o usuario trabalha
+4. Gerar relatorio base quando solicitado (`POST /api/daily/{date}/report`)
+5. Adicionar analises e resumos ao relatorio (`PATCH /api/daily/{date}/report`)
+6. O usuario pode revisar o relatorio na interface do app
+
+## Dicas
+
+- Use `GET /api/daily/{date}/activity` para listar automaticamente o que
+  foi feito antes de preencher a nota
+- O campo `body` aceita Markdown livre — o template e uma sugestao
+- O relatorio gerado (`POST .../report`) inclui tudo: atividades do banco
+  + notas escritas pelo usuario
+- Use `PATCH .../report` para adicionar conteudo ao relatorio sem
+  sobrescrever o que ja existe — ideal para resumos e analises do agente
+- A data sempre no formato ISO: YYYY-MM-DD
 """,
     },
 ]

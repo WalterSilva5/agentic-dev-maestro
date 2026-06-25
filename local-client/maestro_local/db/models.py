@@ -169,6 +169,17 @@ class TaskDependency(Base):
     blocked = relationship("Task", foreign_keys=[blocked_id], back_populates="blocked_by")
 
 
+class DailyNote(Base):
+    __tablename__ = "daily_notes"
+
+    id = Column(Integer, primary_key=True)
+    date = Column(String(10), nullable=False, unique=True)
+    body = Column(Text, default="")
+    report = Column(Text, default="")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class ActivityLog(Base):
     __tablename__ = "activity_log"
 
@@ -186,12 +197,14 @@ Index("ix_activity_entity", ActivityLog.entity_type, ActivityLog.entity_id)
 
 _engine = None
 _SessionLocal = None
+_active_db_path = None
 
 
 def get_engine(db_path=None):
-    global _engine
+    global _engine, _active_db_path
     if _engine is None:
-        path = db_path or DB_PATH
+        path = db_path or _active_db_path or DB_PATH
+        _active_db_path = path
         _engine = create_engine(f"sqlite:///{path}", echo=False)
     return _engine
 
@@ -207,6 +220,17 @@ def init_db(db_path=None):
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     engine = get_engine(db_path)
     Base.metadata.create_all(engine)
+
+
+def switch_db(db_path: str):
+    """Close current engine and switch to a different database file."""
+    global _engine, _SessionLocal, _active_db_path
+    if _engine is not None:
+        _engine.dispose()
+    _engine = None
+    _SessionLocal = None
+    _active_db_path = db_path
+    init_db(db_path)
 
 
 DEFAULT_COLUMNS = [

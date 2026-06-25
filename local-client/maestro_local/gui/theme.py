@@ -400,9 +400,11 @@ PRIORITY_LABELS = {
 }
 
 NAV_ICONS = {
+    "daily": "◰",
     "board": "◫",
     "projects": "◈",
     "labels": "◉",
     "metrics": "◧",
     "skills": "⚙",
+    "guide": "?",
 }

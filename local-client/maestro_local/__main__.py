@@ -1,5 +1,6 @@
 import sys
 
+from maestro_local.config import get_active_workspace_id, get_workspace_db_path
 from maestro_local.db.models import init_db
 from maestro_local.api.server import start_api
 
@@ -10,7 +11,9 @@ def main():
         if arg in ("--port", "-p") and i < len(sys.argv) - 1:
             port = int(sys.argv[i + 1])
 
-    init_db()
+    ws_id = get_active_workspace_id()
+    db_path = get_workspace_db_path(ws_id)
+    init_db(db_path)
     start_api(port)
 
     from PySide6.QtWidgets import QApplication

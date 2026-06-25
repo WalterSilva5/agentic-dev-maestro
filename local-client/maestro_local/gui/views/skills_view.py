@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from maestro_local.config import load_config, save_config
 from maestro_local.gui.theme import current_theme
 from maestro_local.skills.catalog import CATEGORIES, SKILLS
 
@@ -102,7 +103,8 @@ class SkillCard(QFrame):
 class SkillsView(QWidget):
     def __init__(self):
         super().__init__()
-        self._target_dir = None
+        cfg = load_config()
+        self._target_dir = cfg.get("skills_target_dir")
 
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(24, 24, 24, 24)
@@ -128,6 +130,8 @@ class SkillsView(QWidget):
         self.dir_input = QLineEdit()
         self.dir_input.setPlaceholderText("Selecione o diretorio do projeto...")
         self.dir_input.setReadOnly(True)
+        if self._target_dir:
+            self.dir_input.setText(self._target_dir)
         dir_row.addWidget(self.dir_input, 1)
 
         browse_btn = QPushButton("Selecionar")
@@ -170,6 +174,9 @@ class SkillsView(QWidget):
         if d:
             self._target_dir = d
             self.dir_input.setText(d)
+            cfg = load_config()
+            cfg["skills_target_dir"] = d
+            save_config(cfg)
             self.refresh()
 
     def _skills_dir(self):

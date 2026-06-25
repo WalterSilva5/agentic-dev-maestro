@@ -24,11 +24,16 @@ from maestro_local.gui.theme import (
     is_dark,
     set_theme,
 )
+from maestro_local.config import get_active_workspace_id, get_workspace_db_path
+from maestro_local.db.models import switch_db
 from maestro_local.gui.views.board_view import BoardView
+from maestro_local.gui.views.daily_view import DailyView
+from maestro_local.gui.views.guide_view import GuideView
 from maestro_local.gui.views.labels_view import LabelsView
 from maestro_local.gui.views.metrics_view import MetricsView
 from maestro_local.gui.views.projects_view import ProjectsView
 from maestro_local.gui.views.skills_view import SkillsView
+from maestro_local.gui.workspace_selector import WorkspaceSelectorButton
 
 
 class ToastWidget(QLabel):
@@ -101,6 +106,11 @@ class MainWindow(QMainWindow):
         self.logo_container = logo_container
         sb_layout.addWidget(logo_container)
 
+        # Workspace selector (Obsidian-style)
+        self.ws_selector = WorkspaceSelectorButton()
+        self.ws_selector.workspace_changed.connect(self._on_workspace_changed)
+        sb_layout.addWidget(self.ws_selector)
+
         # Section label: workspace
         self.section_label_work = QLabel("  WORKSPACE")
         sb_layout.addWidget(self.section_label_work)
@@ -109,11 +119,13 @@ class MainWindow(QMainWindow):
         self.nav_list = QListWidget()
         self.nav_list.setObjectName("navList")
         nav_items = [
+            ("Diario", "daily"),
             ("Board", "board"),
             ("Projetos", "projects"),
             ("Labels", "labels"),
             ("Metricas", "metrics"),
             ("Skills", "skills"),
+            ("Instrucoes", "guide"),
         ]
         for label, key in nav_items:
             icon = NAV_ICONS.get(key, "")
@@ -174,17 +186,21 @@ class MainWindow(QMainWindow):
 
         # Stacked widget with views
         self.stack = QStackedWidget()
+        self.daily_view = DailyView()
         self.board_view = BoardView()
         self.projects_view = ProjectsView()
         self.labels_view = LabelsView()
         self.metrics_view = MetricsView()
         self.skills_view = SkillsView()
+        self.guide_view = GuideView()
 
+        self.stack.addWidget(self.daily_view)
         self.stack.addWidget(self.board_view)
         self.stack.addWidget(self.projects_view)
         self.stack.addWidget(self.labels_view)
         self.stack.addWidget(self.metrics_view)
         self.stack.addWidget(self.skills_view)
+        self.stack.addWidget(self.guide_view)
 
         content_layout.addWidget(self.stack)
         layout.addWidget(content_widget)
@@ -193,8 +209,8 @@ class MainWindow(QMainWindow):
         self.projects_view.project_selected.connect(self._open_board)
         self.board_view.task_changed.connect(self._refresh_all)
 
-        # Default to Projects view
-        self.nav_list.setCurrentRow(1)
+        # Default to Daily view
+        self.nav_list.setCurrentRow(0)
 
         # Status bar
         self.status = QStatusBar()
@@ -211,7 +227,7 @@ class MainWindow(QMainWindow):
         escape_shortcut = QShortcut(QKeySequence("Escape"), self)
         escape_shortcut.activated.connect(self._close_search)
 
-        for i in range(5):
+        for i in range(7):
             shortcut = QShortcut(QKeySequence(f"Alt+{i + 1}"), self)
             shortcut.activated.connect(lambda idx=i: self.nav_list.setCurrentRow(idx))
 
@@ -310,6 +326,7 @@ class MainWindow(QMainWindow):
     def _toggle_theme(self):
         set_theme(DARK if not is_dark() else LIGHT)
         self._apply_theme()
+        self.ws_selector.refresh_display()
         self._refresh_all()
 
     def _on_nav(self, row):
@@ -320,7 +337,15 @@ class MainWindow(QMainWindow):
 
     def _open_board(self, project_id):
         self.board_view.set_project(project_id)
-        self.nav_list.setCurrentRow(0)
+        self.nav_list.setCurrentRow(1)
+
+    def _on_workspace_changed(self, ws_id):
+        db_path = get_workspace_db_path(ws_id)
+        switch_db(db_path)
+        self.board_view.set_project(None)
+        self._refresh_all()
+        self.ws_selector.refresh_display()
+        self.show_toast(f"Workspace alterado")
 
     def _refresh_all(self):
         for i in range(self.stack.count()):
@@ -398,7 +423,7 @@ class MainWindow(QMainWindow):
         self._close_search()
         if task and hasattr(self.board_view, "open_task_detail"):
             self.board_view.open_task_detail(task)
-            self.nav_list.setCurrentRow(0)
+            self.nav_list.setCurrentRow(1)
 
     # --- Toast ---
 

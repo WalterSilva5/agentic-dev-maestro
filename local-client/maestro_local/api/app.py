@@ -18,6 +18,7 @@ from maestro_local.db.models import (
     ActivityLog,
     BoardColumn,
     Comment,
+    DailyNote,
     Document,
     Label,
     Project,
@@ -1014,3 +1015,271 @@ def get_skill(skill_id: str):
         "filename": skill["filename"],
         "content": skill["content"],
     }
+
+
+# ---------------------------------------------------------------------------
+# Daily Notes
+# ---------------------------------------------------------------------------
+
+DAILY_NOTE_TEMPLATE = """\
+## Foco do Dia
+- Objetivo principal:
+- Prioridade maxima:
+
+---
+
+## Tarefas Planejadas
+- [ ] ...
+
+---
+
+## Bloqueios / Problemas / Duvidas
+- Descricao do problema
+- Dependencia / quem pode ajudar
+
+---
+
+## Anotacoes Rapidas
+- Ideias
+- Decisoes tomadas
+- Links uteis
+
+---
+
+## Check-out do Dia
+- O que foi concluido:
+- O que ficou pendente:
+- Proximo passo amanha:
+"""
+
+
+class DailyNoteUpdate(BaseModel):
+    body: str | None = None
+
+
+class ReportAppend(BaseModel):
+    content: str
+
+
+def _build_daily_report(s: Session, day_str: str) -> str:
+    day_start = datetime.fromisoformat(f"{day_str}T00:00:00")
+    day_end = datetime.fromisoformat(f"{day_str}T23:59:59")
+
+    activities = (
+        s.query(ActivityLog)
+        .filter(ActivityLog.created_at >= day_start, ActivityLog.created_at <= day_end)
+        .order_by(ActivityLog.created_at)
+        .all()
+    )
+
+    task_ids = set()
+    for a in activities:
+        if a.entity_type == "task":
+            task_ids.add(a.entity_id)
+
+    comments = (
+        s.query(Comment)
+        .filter(Comment.created_at >= day_start, Comment.created_at <= day_end)
+        .all()
+    )
+    for c in comments:
+        task_ids.add(c.task_id)
+
+    tasks = s.query(Task).filter(Task.id.in_(task_ids)).all() if task_ids else []
+
+    note = s.query(DailyNote).filter(DailyNote.date == day_str).first()
+    user_notes = note.body if note else ""
+
+    lines = [f"# Relatorio Diario — {day_str}", ""]
+
+    if tasks:
+        lines.append("## Tarefas trabalhadas")
+        lines.append("")
+        for task in tasks:
+            ttype = task.type or "FEATURE"
+            lines.append(f"- **{task.code}** — {task.title} [{ttype}] (_{task.status}_)")
+        lines.append("")
+
+    if activities:
+        lines.append("## Atividades")
+        lines.append("")
+        for a in activities:
+            time_str = a.created_at.strftime("%H:%M") if a.created_at else ""
+            lines.append(f"- `{time_str}` {a.action}: {a.detail or ''}")
+        lines.append("")
+
+    reviews = [c for c in comments if c.type == "CODE_REVIEW"]
+    if reviews:
+        lines.append("## Code Reviews")
+        lines.append("")
+        for r in reviews:
+            task = s.query(Task).get(r.task_id)
+            code = task.code if task else f"#{r.task_id}"
+            lines.append(f"### {code}")
+            lines.append(r.body or "")
+            lines.append("")
+
+    if user_notes.strip():
+        lines.append("## Notas")
+        lines.append("")
+        lines.append(user_notes.strip())
+        lines.append("")
+
+    lines.append("## Resumo")
+    lines.append("")
+    lines.append(f"- **Tarefas tocadas**: {len(tasks)}")
+    lines.append(f"- **Atividades registradas**: {len(activities)}")
+    lines.append(f"- **Code reviews**: {len(reviews)}")
+    done_today = sum(
+        1 for task in tasks
+        if s.query(BoardColumn).get(task.column_id)
+        and s.query(BoardColumn).get(task.column_id).is_done
+    )
+    lines.append(f"- **Concluidas hoje**: {done_today}")
+
+    return "\n".join(lines)
+
+
+@app.get("/api/daily/template")
+def get_daily_template():
+    """Retorna o template padrao para notas diarias."""
+    return {"template": DAILY_NOTE_TEMPLATE}
+
+
+@app.get("/api/daily/{date}")
+def get_daily_note(date: str):
+    """Retorna a nota diaria de uma data (YYYY-MM-DD)."""
+    s = get_session()
+    try:
+        note = s.query(DailyNote).filter(DailyNote.date == date).first()
+        if not note:
+            return {"date": date, "body": "", "report": "", "exists": False}
+        return {
+            "date": note.date,
+            "body": note.body or "",
+            "report": note.report or "",
+            "exists": True,
+            "createdAt": note.created_at.isoformat() if note.created_at else None,
+            "updatedAt": note.updated_at.isoformat() if note.updated_at else None,
+        }
+    finally:
+        s.close()
+
+
+@app.put("/api/daily/{date}")
+def save_daily_note(date: str, payload: DailyNoteUpdate):
+    """Salva ou atualiza o corpo da nota diaria."""
+    s = get_session()
+    try:
+        note = s.query(DailyNote).filter(DailyNote.date == date).first()
+        if note:
+            if payload.body is not None:
+                note.body = payload.body
+            note.updated_at = datetime.utcnow()
+        else:
+            note = DailyNote(date=date, body=payload.body or "")
+            s.add(note)
+        s.commit()
+        return {"date": note.date, "body": note.body, "report": note.report or ""}
+    finally:
+        s.close()
+
+
+@app.post("/api/daily/{date}/report")
+def generate_daily_report(date: str):
+    """Gera o relatorio base do dia com atividades e notas. Salva no banco."""
+    s = get_session()
+    try:
+        report = _build_daily_report(s, date)
+
+        note = s.query(DailyNote).filter(DailyNote.date == date).first()
+        if note:
+            note.report = report
+            note.updated_at = datetime.utcnow()
+        else:
+            note = DailyNote(date=date, body="", report=report)
+            s.add(note)
+        s.commit()
+        return {"date": date, "report": report}
+    finally:
+        s.close()
+
+
+@app.patch("/api/daily/{date}/report")
+def append_to_daily_report(date: str, payload: ReportAppend):
+    """Adiciona conteudo ao relatorio existente, preservando o original no inicio.
+
+    Uso principal: agente de IA adiciona resumos ou analises ao relatorio
+    que o usuario ja criou. O conteudo original permanece intacto no topo,
+    e o novo conteudo e adicionado ao final com um separador.
+    """
+    s = get_session()
+    try:
+        note = s.query(DailyNote).filter(DailyNote.date == date).first()
+
+        if not note:
+            note = DailyNote(date=date, body="")
+            s.add(note)
+
+        existing = (note.report or "").rstrip()
+        addition = payload.content.strip()
+
+        if existing:
+            note.report = f"{existing}\n\n---\n\n{addition}\n"
+        else:
+            note.report = f"{addition}\n"
+
+        note.updated_at = datetime.utcnow()
+        s.commit()
+        return {"date": date, "report": note.report}
+    finally:
+        s.close()
+
+
+@app.get("/api/daily/{date}/activity")
+def get_daily_activity(date: str):
+    """Lista tarefas que tiveram atividade em uma data."""
+    s = get_session()
+    try:
+        day_start = datetime.fromisoformat(f"{date}T00:00:00")
+        day_end = datetime.fromisoformat(f"{date}T23:59:59")
+
+        activities = (
+            s.query(ActivityLog)
+            .filter(ActivityLog.created_at >= day_start, ActivityLog.created_at <= day_end)
+            .order_by(ActivityLog.created_at.desc())
+            .all()
+        )
+
+        task_ids = set()
+        for a in activities:
+            if a.entity_type == "task":
+                task_ids.add(a.entity_id)
+
+        comments = (
+            s.query(Comment)
+            .filter(Comment.created_at >= day_start, Comment.created_at <= day_end)
+            .all()
+        )
+        for c in comments:
+            task_ids.add(c.task_id)
+
+        tasks = s.query(Task).filter(Task.id.in_(task_ids)).all() if task_ids else []
+
+        return {
+            "date": date,
+            "tasks": [
+                {
+                    "code": t.code,
+                    "title": t.title,
+                    "status": t.status,
+                    "type": t.type or "FEATURE",
+                    "requiresHuman": t.requires_human,
+                }
+                for t in tasks
+            ],
+            "activityCount": len(activities),
+            "commentCount": len(comments),
+        }
+    finally:
+        s.close()
