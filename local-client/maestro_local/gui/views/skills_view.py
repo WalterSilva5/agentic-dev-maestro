@@ -24,7 +24,8 @@ class SkillCard(QFrame):
         super().__init__()
         t = current_theme()
         self.setStyleSheet(
-            f"SkillCard {{ background: {t.bg_card}; border: 1px solid {t.border}; border-radius: 6px; }}"
+            f"SkillCard {{ background: {t.bg_card}; border: 1px solid {t.border_light}; border-radius: 10px; }}"
+            f"SkillCard:hover {{ border-color: {t.border}; }}"
         )
 
         layout = QVBoxLayout(self)

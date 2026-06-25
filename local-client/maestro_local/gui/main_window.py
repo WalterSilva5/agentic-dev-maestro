@@ -56,7 +56,7 @@ class MainWindow(QMainWindow):
     def __init__(self, api_port: int = 9777):
         super().__init__()
         self.api_port = api_port
-        self.setWindowTitle("Maestro Local")
+        self.setWindowTitle("Agentic Dev Maestro")
         self.resize(1200, 800)
         self.setMinimumSize(900, 600)
 
@@ -73,23 +73,37 @@ class MainWindow(QMainWindow):
         sb_layout.setContentsMargins(0, 0, 0, 0)
         sb_layout.setSpacing(0)
 
-        # Logo section
+        # Logo / branding section
         logo_container = QWidget()
-        logo_layout = QHBoxLayout(logo_container)
-        logo_layout.setContentsMargins(16, 16, 16, 16)
-        logo_layout.setSpacing(10)
+        logo_layout = QVBoxLayout(logo_container)
+        logo_layout.setContentsMargins(16, 20, 16, 16)
+        logo_layout.setSpacing(4)
 
-        self.logo_badge = QLabel("M")
-        self.logo_badge.setFixedSize(32, 32)
+        brand_row = QHBoxLayout()
+        brand_row.setSpacing(10)
+
+        self.logo_badge = QLabel("A")
+        self.logo_badge.setFixedSize(36, 36)
         self.logo_badge.setAlignment(Qt.AlignCenter)
-        logo_layout.addWidget(self.logo_badge)
+        brand_row.addWidget(self.logo_badge)
 
-        self.logo_text = QLabel("Maestro")
-        logo_layout.addWidget(self.logo_text)
-        logo_layout.addStretch()
+        brand_text = QVBoxLayout()
+        brand_text.setSpacing(0)
+        self.logo_text = QLabel("Agentic Dev")
+        self.logo_subtitle = QLabel("Maestro")
+        brand_text.addWidget(self.logo_text)
+        brand_text.addWidget(self.logo_subtitle)
+        brand_row.addLayout(brand_text)
+        brand_row.addStretch()
+
+        logo_layout.addLayout(brand_row)
 
         self.logo_container = logo_container
         sb_layout.addWidget(logo_container)
+
+        # Section label: workspace
+        self.section_label_work = QLabel("  WORKSPACE")
+        sb_layout.addWidget(self.section_label_work)
 
         # Navigation list
         self.nav_list = QListWidget()
@@ -216,39 +230,48 @@ class MainWindow(QMainWindow):
         )
         self.logo_badge.setStyleSheet(
             f"background-color: {t.accent}; color: {t.text_on_accent}; "
-            f"font-size: 16px; font-weight: 700; border-radius: 8px;"
+            f"font-size: 18px; font-weight: 800; border-radius: 10px;"
         )
         self.logo_text.setStyleSheet(
-            f"font-size: 17px; font-weight: 700; color: {t.text_primary}; "
-            f"background: transparent;"
+            f"font-size: 15px; font-weight: 700; color: {t.text_primary}; "
+            f"background: transparent; letter-spacing: 0.5px;"
+        )
+        self.logo_subtitle.setStyleSheet(
+            f"font-size: 12px; font-weight: 600; color: {t.accent}; "
+            f"background: transparent; letter-spacing: 1px;"
+        )
+        self.section_label_work.setStyleSheet(
+            f"color: {t.text_muted}; font-size: 10px; font-weight: 700; "
+            f"letter-spacing: 1.5px; padding: 12px 16px 4px 16px; background: transparent;"
         )
         self.nav_list.setStyleSheet(f"""
             QListWidget {{
-                background: transparent; border: none; padding: 8px 6px;
+                background: transparent; border: none; padding: 4px 6px;
                 outline: none;
             }}
             QListWidget::item {{
-                padding: 10px 12px; border-radius: 6px; margin: 1px 6px;
+                padding: 10px 14px; border-radius: 8px; margin: 2px 8px;
                 color: {t.text_secondary}; font-size: 13px;
             }}
             QListWidget::item:selected {{
                 background-color: {t.bg_selected}; color: {t.text_primary};
-                border-left: 3px solid {t.accent};
+                font-weight: 600;
             }}
             QListWidget::item:hover:!selected {{
                 background-color: {t.bg_hover};
             }}
         """)
+        theme_icon = "☾" if not is_dark() else "☀"
+        self.theme_btn.setText(f"  {theme_icon}   {'Tema escuro' if not is_dark() else 'Tema claro'}")
         self.theme_btn.setStyleSheet(
-            f"color: {t.text_muted}; font-size: 12px; padding: 8px 16px; "
-            f"text-align: left; border: none; background: transparent;"
+            f"color: {t.text_muted}; font-size: 12px; padding: 10px 16px; "
+            f"text-align: left; border: none; background: transparent; border-radius: 8px; margin: 2px 8px;"
         )
-        self.theme_btn.setText("Tema escuro" if not is_dark() else "Tema claro")
         self.api_label.setStyleSheet(
-            f"color: {t.text_muted}; font-size: 11px; padding: 4px 16px;"
+            f"color: {t.text_muted}; font-size: 10px; padding: 4px 16px; background: transparent;"
         )
         self.version_label.setStyleSheet(
-            f"color: {t.text_muted}; font-size: 10px; padding: 2px 16px 12px 16px;"
+            f"color: {t.text_muted}; font-size: 10px; padding: 2px 16px 12px 16px; background: transparent;"
         )
         self.status.setStyleSheet(
             f"background-color: {t.bg_sidebar}; color: {t.text_muted}; "
@@ -280,8 +303,8 @@ class MainWindow(QMainWindow):
         """)
         self.toast.setStyleSheet(
             f"background-color: {t.bg_card}; color: {t.text_primary}; "
-            f"border: 1px solid {t.border}; border-radius: 8px; "
-            f"padding: 8px 16px; font-size: 12px;"
+            f"border: 1px solid {t.border_light}; border-radius: 10px; "
+            f"padding: 10px 20px; font-size: 13px; font-weight: 500;"
         )
 
     def _toggle_theme(self):

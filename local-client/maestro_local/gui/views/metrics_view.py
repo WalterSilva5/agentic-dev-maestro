@@ -26,7 +26,7 @@ class MetricCard(QFrame):
         super().__init__()
         t = current_theme()
         self.setStyleSheet(
-            f"background: {t.bg_card}; border: 1px solid {t.border}; border-radius: 6px; padding: 16px;"
+            f"background: {t.bg_card}; border: 1px solid {t.border_light}; border-radius: 10px; padding: 18px;"
         )
         layout = QVBoxLayout(self)
         layout.setSpacing(4)
@@ -38,7 +38,7 @@ class MetricCard(QFrame):
         layout.addWidget(lbl_title)
 
         lbl_value = QLabel(str(value))
-        lbl_value.setStyleSheet(f"font-size: 28px; font-weight: 700; color: {t.text_primary};")
+        lbl_value.setStyleSheet(f"font-size: 30px; font-weight: 800; color: {t.text_primary}; letter-spacing: -0.5px;")
         layout.addWidget(lbl_value)
 
         if subtitle:
@@ -219,8 +219,8 @@ class MetricsView(QWidget):
 
             throughput_frame = QFrame()
             card_style = (
-                f"background: {t.bg_card}; border: 1px solid {t.border}; "
-                f"border-radius: 6px; padding: 16px;"
+                f"background: {t.bg_card}; border: 1px solid {t.border_light}; "
+                f"border-radius: 10px; padding: 18px;"
             )
             throughput_frame.setStyleSheet(card_style)
             throughput_layout = QVBoxLayout(throughput_frame)

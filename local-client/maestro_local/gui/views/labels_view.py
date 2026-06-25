@@ -27,8 +27,9 @@ class LabelCard(QFrame):
         color = label_data["color"] or "#868E96"
 
         self.setStyleSheet(
-            f"LabelCard {{ background: {t.bg_card}; border: 1px solid {t.border}; "
-            f"border-left: 4px solid {color}; border-radius: 6px; }}"
+            f"LabelCard {{ background: {t.bg_card}; border: 1px solid {t.border_light}; "
+            f"border-left: 4px solid {color}; border-radius: 10px; }}"
+            f"LabelCard:hover {{ border-color: {t.border}; }}"
         )
 
         row = QHBoxLayout(self)
@@ -81,8 +82,8 @@ class LabelsView(QWidget):
         form_frame = QFrame()
         t = current_theme()
         form_frame.setStyleSheet(
-            f"QFrame {{ background: {t.bg_card}; border: 1px solid {t.border}; "
-            f"border-radius: 6px; padding: 16px; }}"
+            f"QFrame {{ background: {t.bg_card}; border: 1px solid {t.border_light}; "
+            f"border-radius: 10px; padding: 16px; }}"
         )
         form_layout = QVBoxLayout(form_frame)
         form_layout.setSpacing(12)

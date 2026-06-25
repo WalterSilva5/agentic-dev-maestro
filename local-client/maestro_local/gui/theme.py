@@ -43,71 +43,71 @@ class ThemeColors:
 
 
 LIGHT = ThemeColors(
-    bg_primary="#FFFFFF",
-    bg_secondary="#F8F9FC",
-    bg_sidebar="#F0F2F8",
+    bg_primary="#FAFBFD",
+    bg_secondary="#F1F3F9",
+    bg_sidebar="#EAECF4",
     bg_card="#FFFFFF",
     bg_input="#FFFFFF",
-    bg_hover="#EBEDF5",
-    bg_selected="#E3E8FF",
-    bg_badge="#EBEDF5",
+    bg_hover="#E4E7F1",
+    bg_selected="#DAE0FF",
+    bg_badge="#E4E7F1",
     bg_overlay="rgba(0,0,0,0.3)",
 
-    text_primary="#1A1D2E",
-    text_secondary="#4A4F65",
-    text_muted="#8B90A0",
+    text_primary="#161929",
+    text_secondary="#454A63",
+    text_muted="#828799",
     text_on_accent="#FFFFFF",
 
-    border="#DFE1EA",
-    border_focus="#4C6EF5",
-    border_light="#ECEEF5",
+    border="#D5D8E4",
+    border_focus="#4361EE",
+    border_light="#E8EAF2",
 
-    accent="#4C6EF5",
-    accent_hover="#3D5BD6",
-    accent_pressed="#2F4BC7",
-    accent_light="#EEF1FF",
+    accent="#4361EE",
+    accent_hover="#3651D9",
+    accent_pressed="#2A42C4",
+    accent_light="#ECF0FF",
 
-    danger="#DC3545",
-    success="#28A745",
-    warning="#F59F00",
-    info="#17A2B8",
+    danger="#E5383B",
+    success="#2D9F46",
+    warning="#F4A100",
+    info="#0CA5C2",
 
     shadow="0 1px 3px rgba(0,0,0,0.08)",
     shadow_lg="0 8px 30px rgba(0,0,0,0.12)",
 )
 
 DARK = ThemeColors(
-    bg_primary="#1A1B2E",
-    bg_secondary="#151625",
-    bg_sidebar="#111220",
-    bg_card="#1E1F34",
-    bg_input="#151625",
-    bg_hover="#2A2B42",
-    bg_selected="#2E2F4A",
-    bg_badge="#2A2B42",
-    bg_overlay="rgba(0,0,0,0.5)",
+    bg_primary="#13141F",
+    bg_secondary="#0F1019",
+    bg_sidebar="#0C0D15",
+    bg_card="#1A1B2A",
+    bg_input="#13141F",
+    bg_hover="#24253A",
+    bg_selected="#2C2D48",
+    bg_badge="#24253A",
+    bg_overlay="rgba(0,0,0,0.55)",
 
-    text_primary="#E2E4F0",
-    text_secondary="#A0A3B8",
-    text_muted="#6B6E82",
+    text_primary="#E6E8F4",
+    text_secondary="#9DA1BB",
+    text_muted="#636780",
     text_on_accent="#FFFFFF",
 
-    border="#2A2B42",
-    border_focus="#7C8CFF",
-    border_light="#232438",
+    border="#252638",
+    border_focus="#7B8DFF",
+    border_light="#1E1F30",
 
-    accent="#7C8CFF",
-    accent_hover="#6B7BF0",
-    accent_pressed="#5A6AE0",
-    accent_light="#252640",
+    accent="#7B8DFF",
+    accent_hover="#6A7CF0",
+    accent_pressed="#596BE0",
+    accent_light="#1F2038",
 
     danger="#FF6B7A",
-    success="#6BCB77",
+    success="#5EC96A",
     warning="#FFB347",
-    info="#5BC0DE",
+    info="#4DB8D5",
 
-    shadow="0 1px 3px rgba(0,0,0,0.3)",
-    shadow_lg="0 8px 30px rgba(0,0,0,0.5)",
+    shadow="0 1px 3px rgba(0,0,0,0.35)",
+    shadow_lg="0 8px 30px rgba(0,0,0,0.55)",
 )
 
 
@@ -132,7 +132,7 @@ def build_stylesheet(t: ThemeColors) -> str:
 QMainWindow, QWidget {{
     background-color: {t.bg_primary};
     color: {t.text_primary};
-    font-family: "Segoe UI", "Noto Sans", "Roboto", sans-serif;
+    font-family: "Inter", "Segoe UI", "Noto Sans", "Roboto", system-ui, sans-serif;
     font-size: 13px;
 }}
 QMenuBar {{
@@ -185,10 +185,11 @@ QPushButton {{
     background-color: {t.accent};
     color: {t.text_on_accent};
     border: none;
-    border-radius: 6px;
-    padding: 7px 16px;
-    min-height: 20px;
+    border-radius: 8px;
+    padding: 8px 18px;
+    min-height: 22px;
     font-weight: 600;
+    font-size: 13px;
 }}
 QPushButton:hover {{ background-color: {t.accent_hover}; }}
 QPushButton:pressed {{ background-color: {t.accent_pressed}; }}
@@ -210,10 +211,11 @@ QLineEdit, QTextEdit, QPlainTextEdit, QComboBox, QSpinBox, QDoubleSpinBox {{
     background-color: {t.bg_input};
     color: {t.text_primary};
     border: 1px solid {t.border};
-    border-radius: 6px;
-    padding: 6px 10px;
+    border-radius: 8px;
+    padding: 8px 12px;
     selection-background-color: {t.accent};
     selection-color: {t.text_on_accent};
+    font-size: 13px;
 }}
 QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus,
 QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus {{
@@ -293,13 +295,14 @@ QTabBar::tab:hover:!selected {{
     border-bottom: 2px solid {t.border};
 }}
 QLabel#sectionTitle {{
-    font-size: 18px;
-    font-weight: 600;
+    font-size: 20px;
+    font-weight: 700;
     color: {t.text_primary};
+    letter-spacing: -0.3px;
 }}
 QLabel#subtitle {{
     color: {t.text_muted};
-    font-size: 12px;
+    font-size: 13px;
 }}
 QProgressBar {{
     background-color: {t.bg_secondary};
@@ -397,9 +400,9 @@ PRIORITY_LABELS = {
 }
 
 NAV_ICONS = {
-    "board": "░",
-    "projects": "❐",
-    "labels": "❖",
-    "metrics": "▓",
+    "board": "◫",
+    "projects": "◈",
+    "labels": "◉",
+    "metrics": "◧",
     "skills": "⚙",
 }

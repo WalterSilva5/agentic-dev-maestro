@@ -73,19 +73,19 @@ class TaskCard(QFrame):
         self.setStyleSheet(f"""
             TaskCard {{
                 background-color: {t.bg_card};
-                border: 1px solid {t.border};
-                border-left: 3px solid {left_color};
-                border-radius: 6px;
+                border: 1px solid {t.border_light};
+                border-left: 4px solid {left_color};
+                border-radius: 8px;
             }}
             TaskCard:hover {{
-                border-color: {t.accent};
-                border-left: 3px solid {left_color};
+                border-color: {t.border_focus};
+                border-left: 4px solid {left_color};
             }}
         """)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(10, 8, 10, 8)
-        layout.setSpacing(4)
+        layout.setContentsMargins(12, 10, 12, 10)
+        layout.setSpacing(6)
 
         # -- Blocked indicator (prominent) --
         if blocked:
@@ -314,7 +314,7 @@ class ColumnWidget(QWidget):
         self.project_id = project_id
         self.wip_limit = column_data.get("wip_limit")
         self.is_done = column_data.get("is_done", False)
-        self.setFixedWidth(290)
+        self.setFixedWidth(300)
         self.setAcceptDrops(True)
         self._highlight = False
         self._cards: list[TaskCard] = []
@@ -329,17 +329,18 @@ class ColumnWidget(QWidget):
         header_frame = QFrame()
         done_accent = t.success if self.is_done else t.bg_badge
         header_frame.setStyleSheet(
-            f"QFrame {{ background: {done_accent}; border-radius: 8px 8px 0 0; "
-            f"padding: 8px 10px; }}"
+            f"QFrame {{ background: {done_accent}; border-radius: 10px 10px 0 0; "
+            f"padding: 10px 12px; }}"
         )
         header_layout = QHBoxLayout(header_frame)
-        header_layout.setContentsMargins(10, 6, 10, 6)
+        header_layout.setContentsMargins(12, 8, 12, 8)
         header_layout.setSpacing(8)
 
         name = QLabel(column_data["name"])
         name_color = t.text_on_accent if self.is_done else t.text_primary
         name.setStyleSheet(
-            f"font-weight: 600; font-size: 13px; color: {name_color}; border: none;"
+            f"font-weight: 700; font-size: 13px; color: {name_color}; border: none; "
+            f"letter-spacing: 0.3px;"
         )
         header_layout.addWidget(name)
 
@@ -368,8 +369,7 @@ class ColumnWidget(QWidget):
         scroll.setWidgetResizable(True)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         scroll.setStyleSheet(
-            f"QScrollArea {{ border: none; background: {t.bg_secondary}; "
-            f"border-radius: 0 0 8px 8px; }}"
+            f"QScrollArea {{ border: none; background: {t.bg_secondary}; }}"
         )
         scroll.setAcceptDrops(True)
 
@@ -377,8 +377,8 @@ class ColumnWidget(QWidget):
         cards_widget.setAcceptDrops(True)
         cards_widget.setStyleSheet(f"background: {t.bg_secondary}; border: none;")
         self.cards_layout = QVBoxLayout(cards_widget)
-        self.cards_layout.setContentsMargins(6, 6, 6, 6)
-        self.cards_layout.setSpacing(6)
+        self.cards_layout.setContentsMargins(8, 8, 8, 8)
+        self.cards_layout.setSpacing(8)
 
         for task in column_data.get("tasks", []):
             card = TaskCard(task)
@@ -395,8 +395,8 @@ class ColumnWidget(QWidget):
         # -- Quick add input --
         add_frame = QFrame()
         add_frame.setStyleSheet(
-            f"QFrame {{ background: {t.bg_secondary}; border-radius: 0 0 8px 8px; "
-            f"padding: 4px 6px; }}"
+            f"QFrame {{ background: {t.bg_secondary}; border-radius: 0 0 10px 10px; "
+            f"border-top: 1px solid {t.border_light}; padding: 4px 6px; }}"
         )
         add_row = QHBoxLayout(add_frame)
         add_row.setContentsMargins(6, 4, 6, 6)
@@ -542,7 +542,7 @@ class FilterBar(QWidget):
         # Search input
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("\U0001f50d Buscar por titulo ou codigo...")
-        self.search_input.setFixedWidth(260)
+        self.search_input.setFixedWidth(280)
         self.search_input.setStyleSheet(
             f"QLineEdit {{ background: {t.bg_input}; border: 1px solid {t.border_light}; "
             f"border-radius: 4px; padding: 5px 10px; font-size: 12px; color: {t.text_primary}; }}"

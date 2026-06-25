@@ -36,10 +36,10 @@ class ProjectCard(QFrame):
 
         self.setStyleSheet(
             f"ProjectCard {{ background: {t.bg_card}; border: 1px solid {t.border_light}; "
-            f"border-radius: 8px; }}"
+            f"border-radius: 10px; }}"
             f"ProjectCard:hover {{ border-color: {t.accent}; }}"
         )
-        self.setMinimumHeight(80)
+        self.setMinimumHeight(90)
 
         outer = QHBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -70,7 +70,7 @@ class ProjectCard(QFrame):
         top_row.addWidget(key_lbl)
 
         name_lbl = QLabel(name)
-        name_lbl.setStyleSheet(f"font-weight: bold; font-size: 15px; color: {t.text_primary}; border: none;")
+        name_lbl.setStyleSheet(f"font-weight: 700; font-size: 16px; color: {t.text_primary}; border: none;")
         top_row.addWidget(name_lbl, 1)
         content.addLayout(top_row)
 
@@ -101,10 +101,10 @@ class ProjectCard(QFrame):
 
         # Action buttons
         open_btn = QPushButton("Abrir Board")
-        open_btn.setFixedHeight(28)
+        open_btn.setFixedHeight(32)
         open_btn.setStyleSheet(
             f"QPushButton {{ background: {t.accent}; color: {t.text_on_accent}; "
-            f"border-radius: 4px; padding: 4px 12px; font-size: 12px; font-weight: 600; border: none; }}"
+            f"border-radius: 6px; padding: 6px 16px; font-size: 12px; font-weight: 600; border: none; }}"
             f"QPushButton:hover {{ background: {t.accent_hover}; }}"
         )
         open_btn.setCursor(Qt.PointingHandCursor)
@@ -144,7 +144,7 @@ class ProjectsView(QWidget):
         t = current_theme()
         form_frame.setStyleSheet(
             f"QFrame {{ background: {t.bg_card}; border: 1px solid {t.border_light}; "
-            f"border-radius: 8px; padding: 16px; }}"
+            f"border-radius: 10px; padding: 16px; }}"
         )
         form_outer = QVBoxLayout(form_frame)
         form_outer.setContentsMargins(16, 12, 16, 12)
