@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 from maestro_local.db.models import (
     ActivityLog,
     BoardColumn,
+    Comment,
     Project,
     Task,
     get_session,
@@ -455,6 +456,22 @@ class ColumnWidget(QWidget):
             if not task or task.column_id == self.column_id:
                 return
             old_col_name = task.column.name if task.column else "?"
+            if self.column_name.lower() in ("revisão", "revisao", "review"):
+                has_review = (
+                    s.query(Comment)
+                    .filter(Comment.task_id == task.id, Comment.type == "CODE_REVIEW")
+                    .first()
+                )
+                if not has_review:
+                    from PySide6.QtWidgets import QMessageBox
+
+                    QMessageBox.warning(
+                        self,
+                        "Code Review obrigatório",
+                        "Adicione um comentário de Code Review antes de mover para Revisão.\n\n"
+                        "Abra a tarefa e adicione um comentário do tipo CODE_REVIEW.",
+                    )
+                    return
             task.column_id = self.column_id
             task.updated_at = __import__("datetime").datetime.utcnow()
             s.add(

@@ -614,6 +614,18 @@ def move_task(code: str, body: MoveBody, s: Session = Depends(db)):
     new_col = s.query(BoardColumn).filter(BoardColumn.id == body.columnId).first()
     if not new_col:
         raise HTTPException(404, "Column not found")
+    if new_col.name.lower() in ("revisão", "revisao", "review"):
+        has_review = (
+            s.query(Comment)
+            .filter(Comment.task_id == task.id, Comment.type == "CODE_REVIEW")
+            .first()
+        )
+        if not has_review:
+            raise HTTPException(
+                422,
+                "Code review obrigatorio antes de mover para Revisao. "
+                "Crie um comentario com type=CODE_REVIEW na tarefa.",
+            )
     task.column_id = new_col.id
     task.updated_at = datetime.utcnow()
     _log(

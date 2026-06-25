@@ -177,13 +177,35 @@ curl -s http://127.0.0.1:9777/api/tasks/{CODE} | jq '.checklist'
 curl -X PATCH http://127.0.0.1:9777/api/tasks/checklist/{ITEM_ID}/toggle
 ```
 
-## 6. Mover para "Revisao" ou "Concluido"
+## 6. Criar Code Review ANTES de mover para Revisao
+
+**OBRIGATORIO**: Antes de mover qualquer tarefa para "Revisao", o agente
+DEVE criar um comentario do tipo CODE_REVIEW com o resumo da revisao.
+
+O comentario deve conter:
+- **Resumo** das alteracoes feitas
+- **Arquivos modificados** (lista)
+- **Testes** realizados ou pendentes
+- **Riscos/observacoes** relevantes
+- **Checklist de qualidade**: lint, tipagem, testes, seguranca
 
 ```bash
+# 6a. Criar o code review (OBRIGATORIO antes de mover)
+curl -X POST http://127.0.0.1:9777/api/comments \\
+  -H 'Content-Type: application/json' \\
+  -d '{
+    "taskId": TASK_ID,
+    "body": "## Code Review\\n\\n### Resumo\\nDescricao do que foi feito...\\n\\n### Arquivos modificados\\n- `path/to/file1`\\n- `path/to/file2`\\n\\n### Testes\\n- [x] Testes unitarios passando\\n- [ ] Teste de integracao pendente\\n\\n### Riscos / Observacoes\\nNenhum risco identificado.\\n\\n### Checklist de qualidade\\n- [x] Sem erros de lint\\n- [x] Tipagem correta\\n- [x] Sem vulnerabilidades obvias",
+    "type": "CODE_REVIEW"
+  }'
+
+# 6b. Agora sim, mover para Revisao
 curl -X POST http://127.0.0.1:9777/api/tasks/{CODE}/move \\
   -H 'Content-Type: application/json' \\
   -d '{"columnId": REVIEW_COLUMN_ID}'
 ```
+
+**NAO mova para Revisao sem o CODE_REVIEW.** Esta e uma regra do workflow.
 """,
     },
     {
