@@ -80,6 +80,7 @@ class TaskCreate(BaseModel):
     parentId: Optional[int] = None
     dueDate: str | None = None
     assignee: str | None = None
+    requiresHuman: bool | None = None
 
 
 class TaskUpdate(BaseModel):
@@ -95,6 +96,7 @@ class TaskUpdate(BaseModel):
     rank: Optional[str] = None
     dueDate: str | None = None
     assignee: str | None = None
+    requiresHuman: bool | None = None
 
 
 class MoveBody(BaseModel):
@@ -181,6 +183,7 @@ def _task_brief(t: Task) -> dict:
         "estimateMd": t.estimate_md,
         "dueDate": t.due_date.isoformat() if t.due_date else None,
         "assignee": t.assignee,
+        "requiresHuman": t.requires_human or False,
         "parentId": t.parent_id,
         "createdAt": t.created_at.isoformat() if t.created_at else None,
         "updatedAt": t.updated_at.isoformat() if t.updated_at else None,
@@ -494,6 +497,8 @@ def create_task(body: TaskCreate, s: Session = Depends(db)):
         task.due_date = _dt.fromisoformat(body.dueDate)
     if body.assignee:
         task.assignee = body.assignee
+    if body.requiresHuman is not None:
+        task.requires_human = body.requiresHuman
     s.add(task)
     s.flush()
     _log(s, "task", task.id, "created", f"Task {project.key}-{number} created")
@@ -579,6 +584,12 @@ def update_task(code: str, body: TaskUpdate, s: Session = Depends(db)):
         if old_assignee != new_assignee:
             task.assignee = new_assignee
             changes.append(f"assignee: {old_assignee} -> {new_assignee}")
+    if "requiresHuman" in data:
+        old_rh = task.requires_human or False
+        new_rh = bool(data["requiresHuman"])
+        if old_rh != new_rh:
+            task.requires_human = new_rh
+            changes.append(f"requiresHuman: {old_rh} -> {new_rh}")
     task.updated_at = datetime.utcnow()
     if changes:
         _log(s, "task", task.id, "updated", "; ".join(changes))

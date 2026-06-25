@@ -118,12 +118,19 @@ description: Complete task workflow - pick, implement, move, document
 
 Fluxo padrao para trabalhar com uma tarefa no Maestro Local.
 
+## IMPORTANTE: Respeitar flag "Requer desenvolvedor"
+
+Antes de pegar qualquer tarefa, verifique o campo `requiresHuman`.
+Tarefas com `"requiresHuman": true` devem ser feitas por um desenvolvedor
+humano e NAO por agentes de IA. **Pule essas tarefas silenciosamente.**
+
 ## 1. Buscar proxima tarefa disponivel
 
 ```bash
 # Listar tarefas no backlog ou "A fazer"
-curl -s http://127.0.0.1:9777/api/tasks?status=Backlog | jq '.[0]'
-curl -s http://127.0.0.1:9777/api/tasks?status=A+fazer | jq '.[0]'
+# IMPORTANTE: filtrar tarefas que NAO requerem humano
+curl -s http://127.0.0.1:9777/api/tasks?status=Backlog | jq '[.[] | select(.requiresHuman != true)][0]'
+curl -s http://127.0.0.1:9777/api/tasks?status=A+fazer | jq '[.[] | select(.requiresHuman != true)][0]'
 ```
 
 ## 2. Obter contexto completo

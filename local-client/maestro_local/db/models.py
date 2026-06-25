@@ -83,6 +83,7 @@ class Task(Base):
     deleted_at = Column(DateTime)
     due_date = Column(DateTime)
     assignee = Column(String(100))
+    requires_human = Column(Boolean, default=False)
 
     project = relationship("Project", back_populates="tasks")
     column = relationship("BoardColumn", back_populates="tasks")

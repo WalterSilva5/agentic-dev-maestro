@@ -156,6 +156,17 @@ class TaskDetailDialog(QDialog):
             )
             header2.addWidget(self.assignee_input)
 
+            self.human_check = QCheckBox("Requer desenvolvedor")
+            self.human_check.setChecked(task.requires_human or False)
+            self.human_check.setToolTip(
+                "Marque para tarefas que devem ser feitas por um desenvolvedor humano, "
+                "nao por agentes de IA"
+            )
+            self.human_check.toggled.connect(
+                lambda val: self._save_field("requires_human", val)
+            )
+            header2.addWidget(self.human_check)
+
             header2.addStretch()
             layout.addLayout(header2)
 

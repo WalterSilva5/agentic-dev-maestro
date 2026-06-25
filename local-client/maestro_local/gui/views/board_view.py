@@ -200,6 +200,17 @@ class TaskCard(QFrame):
             bottom.addWidget(avatar)
             has_bottom = True
 
+        # Requires human badge
+        if task_data.get("requires_human"):
+            human_badge = QLabel("DEV")
+            human_badge.setStyleSheet(
+                f"background: {t.warning}; color: white; padding: 1px 6px; "
+                f"border-radius: 3px; font-size: 9px; font-weight: 700; border: none;"
+            )
+            human_badge.setToolTip("Requer desenvolvedor")
+            bottom.addWidget(human_badge)
+            has_bottom = True
+
         # Comment count
         comments_count = task_data.get("comments_count", 0)
         if comments_count > 0:
@@ -698,6 +709,7 @@ class BoardView(QWidget):
                         "due_date": t.due_date.isoformat() if t.due_date else None,
                         "assignee": t.assignee,
                         "comments_count": len(t.comments),
+                        "requires_human": t.requires_human or False,
                     }
                     col_data["tasks"].append(td)
 
