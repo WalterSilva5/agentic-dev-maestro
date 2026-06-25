@@ -51,8 +51,8 @@ class TaskDetailDialog(QDialog):
         super().__init__(parent)
         self.task_id = task_id
         self.setWindowTitle("Detalhes da Tarefa")
-        self.resize(700, 600)
-        self.setMinimumSize(500, 400)
+        self.resize(800, 700)
+        self.setMinimumSize(600, 500)
 
         t = current_theme()
 
@@ -188,15 +188,15 @@ class TaskDetailDialog(QDialog):
             info_layout.setSpacing(10)
 
             self.desc_edit = QTextEdit(task.description or "")
-            self.desc_edit.setMaximumHeight(80)
+            self.desc_edit.setMinimumHeight(100)
             info_layout.addRow("Descricao:", self.desc_edit)
 
             self.obj_edit = QTextEdit(task.objective or "")
-            self.obj_edit.setMaximumHeight(60)
+            self.obj_edit.setMinimumHeight(80)
             info_layout.addRow("Objetivo:", self.obj_edit)
 
             self.acc_edit = QTextEdit(task.acceptance or "")
-            self.acc_edit.setMaximumHeight(60)
+            self.acc_edit.setMinimumHeight(80)
             info_layout.addRow("Aceite:", self.acc_edit)
 
             self.est_spin = QDoubleSpinBox()
