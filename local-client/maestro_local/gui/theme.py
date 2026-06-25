@@ -43,37 +43,37 @@ class ThemeColors:
 
 
 LIGHT = ThemeColors(
-    bg_primary="#FAFBFD",
-    bg_secondary="#F1F3F9",
-    bg_sidebar="#EAECF4",
-    bg_card="#FFFFFF",
-    bg_input="#FFFFFF",
-    bg_hover="#E4E7F1",
-    bg_selected="#DAE0FF",
-    bg_badge="#E4E7F1",
+    bg_primary="#EDEEF2",
+    bg_secondary="#E4E5EB",
+    bg_sidebar="#D9DBE3",
+    bg_card="#F2F3F6",
+    bg_input="#F0F1F5",
+    bg_hover="#DDDEE6",
+    bg_selected="#D0D4EE",
+    bg_badge="#DDDEE6",
     bg_overlay="rgba(0,0,0,0.3)",
 
-    text_primary="#161929",
-    text_secondary="#454A63",
-    text_muted="#828799",
+    text_primary="#1A1D2E",
+    text_secondary="#3E4259",
+    text_muted="#71758A",
     text_on_accent="#FFFFFF",
 
-    border="#D5D8E4",
+    border="#C5C8D4",
     border_focus="#4361EE",
-    border_light="#E8EAF2",
+    border_light="#D5D7E0",
 
     accent="#4361EE",
     accent_hover="#3651D9",
     accent_pressed="#2A42C4",
-    accent_light="#ECF0FF",
+    accent_light="#DFE4FF",
 
     danger="#E5383B",
     success="#2D9F46",
     warning="#F4A100",
     info="#0CA5C2",
 
-    shadow="0 1px 3px rgba(0,0,0,0.08)",
-    shadow_lg="0 8px 30px rgba(0,0,0,0.12)",
+    shadow="0 1px 3px rgba(0,0,0,0.10)",
+    shadow_lg="0 8px 30px rgba(0,0,0,0.14)",
 )
 
 DARK = ThemeColors(

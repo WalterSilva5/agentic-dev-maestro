@@ -118,7 +118,26 @@ description: Complete task workflow - pick, implement, move, document
 
 Fluxo padrao para trabalhar com uma tarefa no Maestro Local.
 
-## IMPORTANTE: Respeitar flag "Requer desenvolvedor"
+## REGRAS FUNDAMENTAIS
+
+### NUNCA fazer commits ou pushs sem autorizacao explicita
+
+O agente **NUNCA** deve executar `git commit`, `git push`, ou qualquer
+operacao de versionamento por conta propria. Commits e pushs so devem
+ser feitos quando o desenvolvedor **explicitamente** pedir.
+
+O papel do agente e:
+1. **Implementar** o codigo da tarefa
+2. **Documentar** o que foi feito (comentarios, code review, docs)
+3. **Informar o desenvolvedor** sobre o estado e proximo passo
+4. **Aguardar** a decisao do dev sobre commit/push
+
+Ao terminar uma implementacao, o agente deve:
+- Criar o code review como comentario na tarefa
+- Informar ao dev: quais arquivos foram alterados, o que testar
+- Perguntar ao dev se deseja fazer commit e push
+
+### Respeitar flag "Requer desenvolvedor"
 
 Antes de pegar qualquer tarefa, verifique o campo `requiresHuman`.
 Tarefas com `"requiresHuman": true` devem ser feitas por um desenvolvedor
@@ -153,7 +172,9 @@ curl -X POST http://127.0.0.1:9777/api/tasks/{CODE}/move \\
   -d '{"columnId": COLUMN_ID}'
 ```
 
-## 4. Registrar progresso via comentarios
+## 4. Implementar e documentar progresso
+
+Durante a implementacao, registre progresso via comentarios:
 
 ```bash
 curl -X POST http://127.0.0.1:9777/api/comments \\
@@ -162,9 +183,9 @@ curl -X POST http://127.0.0.1:9777/api/comments \\
 ```
 
 Tipos de comentario:
-- `COMMENT` — comentario geral
-- `CODE_REVIEW` — revisao de codigo
-- `COMMIT_REF` — referencia a commit
+- `COMMENT` — comentario geral / progresso
+- `CODE_REVIEW` — revisao de codigo (obrigatorio antes de Revisao)
+- `COMMIT_REF` — referencia a commit (somente quando o dev fizer commit)
 - `DEPLOY_LOG` — log de deploy
 
 ## 5. Atualizar checklist (Definition of Done)
@@ -180,14 +201,15 @@ curl -X PATCH http://127.0.0.1:9777/api/tasks/checklist/{ITEM_ID}/toggle
 ## 6. Criar Code Review ANTES de mover para Revisao
 
 **OBRIGATORIO**: Antes de mover qualquer tarefa para "Revisao", o agente
-DEVE criar um comentario do tipo CODE_REVIEW com o resumo da revisao.
+DEVE criar um comentario do tipo CODE_REVIEW com o resumo completo.
 
-O comentario deve conter:
+O code review deve conter:
 - **Resumo** das alteracoes feitas
-- **Arquivos modificados** (lista)
+- **Arquivos modificados** (lista completa com paths)
 - **Testes** realizados ou pendentes
 - **Riscos/observacoes** relevantes
 - **Checklist de qualidade**: lint, tipagem, testes, seguranca
+- **Instrucoes para o dev**: como testar, o que verificar
 
 ```bash
 # 6a. Criar o code review (OBRIGATORIO antes de mover)
@@ -195,7 +217,7 @@ curl -X POST http://127.0.0.1:9777/api/comments \\
   -H 'Content-Type: application/json' \\
   -d '{
     "taskId": TASK_ID,
-    "body": "## Code Review\\n\\n### Resumo\\nDescricao do que foi feito...\\n\\n### Arquivos modificados\\n- `path/to/file1`\\n- `path/to/file2`\\n\\n### Testes\\n- [x] Testes unitarios passando\\n- [ ] Teste de integracao pendente\\n\\n### Riscos / Observacoes\\nNenhum risco identificado.\\n\\n### Checklist de qualidade\\n- [x] Sem erros de lint\\n- [x] Tipagem correta\\n- [x] Sem vulnerabilidades obvias",
+    "body": "## Code Review\\n\\n### Resumo\\nDescricao do que foi feito...\\n\\n### Arquivos modificados\\n- `path/to/file1`\\n- `path/to/file2`\\n\\n### Testes\\n- [x] Testes unitarios passando\\n- [ ] Teste de integracao pendente\\n\\n### Riscos / Observacoes\\nNenhum risco identificado.\\n\\n### Checklist de qualidade\\n- [x] Sem erros de lint\\n- [x] Tipagem correta\\n- [x] Sem vulnerabilidades obvias\\n\\n### Para o desenvolvedor\\n- Testar X manualmente\\n- Verificar Y no browser\\n- Quando aprovado, fazer commit e push",
     "type": "CODE_REVIEW"
   }'
 
@@ -205,7 +227,18 @@ curl -X POST http://127.0.0.1:9777/api/tasks/{CODE}/move \\
   -d '{"columnId": REVIEW_COLUMN_ID}'
 ```
 
-**NAO mova para Revisao sem o CODE_REVIEW.** Esta e uma regra do workflow.
+**NAO mova para Revisao sem o CODE_REVIEW.** A API bloqueia essa acao.
+
+## 7. Informar o desenvolvedor
+
+Apos mover para Revisao, o agente deve informar o desenvolvedor:
+
+- Resumo do que foi implementado
+- Lista de arquivos modificados
+- O que o dev precisa testar/validar
+- Lembrar que commits e pushs sao responsabilidade do dev
+
+**O agente NAO faz commit. O agente NAO faz push. O agente documenta e informa.**
 """,
     },
     {
