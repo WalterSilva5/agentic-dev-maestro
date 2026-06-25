@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "maestro-local"
+version = "0.1.0"
+description = "Agentic Dev Maestro — cliente desktop local para organização de tarefas e facilitação do ciclo de desenvolvimento"
+requires-python = ">=3.10"
+dependencies = [
+    "PySide6>=6.6",
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.29",
+    "sqlalchemy>=2.0",
+    "pydantic>=2.0",
+]
+
+[project.scripts]
+maestro = "maestro_local.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["maestro_local*"]

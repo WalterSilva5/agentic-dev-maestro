@@ -30,7 +30,8 @@ export class CommentsService {
         taskId: dto.taskId,
         authorId: ctx.userId,
         viaApiKeyId: ctx.viaApiKeyId,
-        body: dto.body
+        body: dto.body,
+        type: dto.type ?? 'COMMENT'
       },
       include: AUTHOR_INCLUDE
     });

@@ -65,6 +65,7 @@ export class MobileBottomNavComponent implements OnInit, OnDestroy {
     { icon: '/icons/Communication/Group.svg', label: 'Membros', route: '/members' },
     { icon: '/icons/icon-project.svg', label: 'Labels', route: '/labels' },
     { icon: '/icons/General/Settings.svg', label: 'Acesso', route: '/access' },
+    { icon: '/icons/icon-project.svg', label: 'Métricas', route: '/metrics' },
     { icon: '/icons/icon-project.svg', label: 'API keys', route: '/api-keys' },
     { icon: '/icons/icon-project.svg', label: 'Workspaces', route: '/companies' },
     { icon: '/icons/icon-project.svg', label: 'Downloads', route: '/downloads' },

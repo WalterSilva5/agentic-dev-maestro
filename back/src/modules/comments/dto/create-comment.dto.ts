@@ -1,5 +1,6 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsInt, IsString, MaxLength } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { CommentType } from '@prisma/client';
+import { IsEnum, IsInt, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class CreateCommentDto {
   @ApiProperty()
@@ -10,4 +11,9 @@ export class CreateCommentDto {
   @IsString()
   @MaxLength(10000)
   body: string;
+
+  @ApiPropertyOptional({ enum: CommentType, example: CommentType.COMMENT })
+  @IsOptional()
+  @IsEnum(CommentType)
+  type?: CommentType;
 }

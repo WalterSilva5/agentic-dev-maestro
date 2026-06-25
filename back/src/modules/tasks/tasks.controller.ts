@@ -47,6 +47,23 @@ export class TasksController {
     return this.tasks.bulk(ctx, dto, idempotencyKey);
   }
 
+  // Checklist endpoints (must come before :idOrCode routes)
+  @Patch('checklist/:itemId/toggle')
+  toggleChecklistItem(
+    @CompanyContext() ctx: ICompanyContext,
+    @Param('itemId', ParseIntPipe) itemId: number
+  ) {
+    return this.tasks.toggleChecklistItem(ctx, itemId);
+  }
+
+  @Delete('checklist/:itemId')
+  removeChecklistItem(
+    @CompanyContext() ctx: ICompanyContext,
+    @Param('itemId', ParseIntPipe) itemId: number
+  ) {
+    return this.tasks.removeChecklistItem(ctx, itemId);
+  }
+
   @Get()
   list(
     @CompanyContext() ctx: ICompanyContext,
@@ -77,6 +94,23 @@ export class TasksController {
     @Query('format') format?: string
   ) {
     return this.tasks.getFlow(ctx, idOrCode, format);
+  }
+
+  @Post(':idOrCode/checklist')
+  addChecklistItem(
+    @CompanyContext() ctx: ICompanyContext,
+    @Param('idOrCode') idOrCode: string,
+    @Body('title') title: string
+  ) {
+    return this.tasks.addChecklistItem(ctx, idOrCode, title);
+  }
+
+  @Get(':idOrCode/context')
+  getContext(
+    @CompanyContext() ctx: ICompanyContext,
+    @Param('idOrCode') idOrCode: string
+  ) {
+    return this.tasks.getContext(ctx, idOrCode);
   }
 
   @Get(':idOrCode')

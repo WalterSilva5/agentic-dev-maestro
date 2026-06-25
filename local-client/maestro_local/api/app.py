@@ -1,0 +1,993 @@
+"""Maestro Local — FastAPI application.
+
+All endpoints are open (no auth). The response shapes mirror the web version
+so that agents can use the same API format against both backends.
+"""
+
+from __future__ import annotations
+
+from datetime import datetime, timedelta
+from typing import Any, Optional
+
+from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
+
+from maestro_local.db.models import (
+    ActivityLog,
+    BoardColumn,
+    Comment,
+    Document,
+    Label,
+    Project,
+    Task,
+    TaskChecklist,
+    TaskDependency,
+    get_session,
+    task_labels,
+    DEFAULT_COLUMNS,
+)
+
+# ---------------------------------------------------------------------------
+# FastAPI application
+# ---------------------------------------------------------------------------
+
+app = FastAPI(title="Maestro Local", version="0.1.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+# ---------------------------------------------------------------------------
+# Dependency — DB session
+# ---------------------------------------------------------------------------
+
+
+def db():
+    session = get_session()
+    try:
+        yield session
+    finally:
+        session.close()
+
+
+# ---------------------------------------------------------------------------
+# Pydantic request / response models
+# ---------------------------------------------------------------------------
+
+
+class ProjectCreate(BaseModel):
+    name: str
+    key: str
+    description: Optional[str] = None
+
+
+class TaskCreate(BaseModel):
+    projectId: int
+    title: str
+    description: Optional[str] = None
+    objective: Optional[str] = None
+    acceptance: Optional[str] = None
+    priority: Optional[str] = "MEDIUM"
+    estimateMd: Optional[float] = None
+    type: Optional[str] = "FEATURE"
+    columnId: Optional[int] = None
+    parentId: Optional[int] = None
+    dueDate: str | None = None
+    assignee: str | None = None
+
+
+class TaskUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    objective: Optional[str] = None
+    acceptance: Optional[str] = None
+    priority: Optional[str] = None
+    estimateMd: Optional[float] = None
+    type: Optional[str] = None
+    columnId: Optional[int] = None
+    parentId: Optional[int] = None
+    rank: Optional[str] = None
+    dueDate: str | None = None
+    assignee: str | None = None
+
+
+class MoveBody(BaseModel):
+    columnId: int
+
+
+class ChecklistBody(BaseModel):
+    title: str
+
+
+class DependencyBody(BaseModel):
+    blockerCode: str
+
+
+class LabelCreate(BaseModel):
+    name: str
+    color: Optional[str] = None
+
+
+class CommentCreate(BaseModel):
+    taskId: int
+    body: str
+    type: Optional[str] = "COMMENT"
+
+
+class CommentUpdate(BaseModel):
+    body: str
+
+
+class DocumentCreate(BaseModel):
+    title: str
+    body: Optional[str] = ""
+    type: Optional[str] = "NOTES"
+    taskId: Optional[int] = None
+    projectId: Optional[int] = None
+
+
+class DocumentUpdate(BaseModel):
+    title: Optional[str] = None
+    body: Optional[str] = None
+    type: Optional[str] = None
+
+
+# ---------------------------------------------------------------------------
+# Serialisation helpers
+# ---------------------------------------------------------------------------
+
+
+def _label_dict(l: Label) -> dict:
+    return {"id": l.id, "name": l.name, "color": l.color}
+
+
+def _checklist_dict(c: TaskChecklist) -> dict:
+    return {
+        "id": c.id,
+        "title": c.title,
+        "checked": c.checked,
+        "sortOrder": c.sort_order,
+    }
+
+
+def _dep_dict(d: TaskDependency, role: str) -> dict:
+    """role is 'blocker' or 'blocked'."""
+    task = d.blocker if role == "blocker" else d.blocked
+    return {
+        "id": d.id,
+        "taskId": task.id,
+        "code": task.code,
+        "title": task.title,
+        "status": task.status,
+    }
+
+
+def _task_brief(t: Task) -> dict:
+    return {
+        "id": t.id,
+        "code": t.code,
+        "number": t.number,
+        "title": t.title,
+        "type": t.type,
+        "priority": t.priority,
+        "status": t.status,
+        "columnId": t.column_id,
+        "estimateMd": t.estimate_md,
+        "dueDate": t.due_date.isoformat() if t.due_date else None,
+        "assignee": t.assignee,
+        "parentId": t.parent_id,
+        "createdAt": t.created_at.isoformat() if t.created_at else None,
+        "updatedAt": t.updated_at.isoformat() if t.updated_at else None,
+        "labels": [_label_dict(lb) for lb in t.labels],
+    }
+
+
+def _task_full(t: Task) -> dict:
+    d = _task_brief(t)
+    d.update(
+        {
+            "description": t.description,
+            "objective": t.objective,
+            "acceptance": t.acceptance,
+            "rank": t.rank,
+            "projectId": t.project_id,
+            "projectKey": t.project.key if t.project else None,
+            "checklist": [_checklist_dict(c) for c in t.checklist],
+            "blockedBy": [_dep_dict(dep, "blocker") for dep in t.blocked_by],
+            "blocking": [_dep_dict(dep, "blocked") for dep in t.blocking],
+            "subtasks": [_task_brief(s) for s in t.subtasks if s.deleted_at is None],
+        }
+    )
+    return d
+
+
+def _column_dict(c: BoardColumn, include_tasks: bool = False) -> dict:
+    d = {
+        "id": c.id,
+        "name": c.name,
+        "order": c.order,
+        "wipLimit": c.wip_limit,
+        "isDone": c.is_done,
+    }
+    if include_tasks:
+        d["tasks"] = [
+            _task_brief(t) for t in c.tasks if t.deleted_at is None
+        ]
+    return d
+
+
+def _project_dict(p: Project) -> dict:
+    return {
+        "id": p.id,
+        "name": p.name,
+        "key": p.key,
+        "description": p.description,
+        "taskSeq": p.task_seq,
+        "createdAt": p.created_at.isoformat() if p.created_at else None,
+    }
+
+
+def _comment_dict(c: Comment) -> dict:
+    return {
+        "id": c.id,
+        "taskId": c.task_id,
+        "body": c.body,
+        "type": c.type,
+        "author": c.author,
+        "createdAt": c.created_at.isoformat() if c.created_at else None,
+    }
+
+
+def _document_dict(d: Document) -> dict:
+    return {
+        "id": d.id,
+        "taskId": d.task_id,
+        "projectId": d.project_id,
+        "title": d.title,
+        "body": d.body,
+        "type": d.type,
+        "version": d.version,
+        "createdAt": d.created_at.isoformat() if d.created_at else None,
+        "updatedAt": d.updated_at.isoformat() if d.updated_at else None,
+    }
+
+
+def _activity_dict(a: ActivityLog) -> dict:
+    return {
+        "id": a.id,
+        "entityType": a.entity_type,
+        "entityId": a.entity_id,
+        "action": a.action,
+        "detail": a.detail,
+        "createdAt": a.created_at.isoformat() if a.created_at else None,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Helper — resolve task by code ("KEY-NUM") or raw id
+# ---------------------------------------------------------------------------
+
+
+def _resolve_task(code_or_id: str, s: Session) -> Task:
+    if "-" in code_or_id:
+        parts = code_or_id.rsplit("-", 1)
+        if len(parts) == 2 and parts[1].isdigit():
+            project_key, number = parts[0], int(parts[1])
+            task = (
+                s.query(Task)
+                .join(Project)
+                .filter(
+                    Project.key == project_key,
+                    Task.number == number,
+                    Task.deleted_at.is_(None),
+                )
+                .first()
+            )
+            if task:
+                return task
+    # Fallback: try as raw integer id
+    if code_or_id.isdigit():
+        task = s.query(Task).filter(Task.id == int(code_or_id), Task.deleted_at.is_(None)).first()
+        if task:
+            return task
+    raise HTTPException(status_code=404, detail=f"Task '{code_or_id}' not found")
+
+
+# ---------------------------------------------------------------------------
+# Helper — activity log
+# ---------------------------------------------------------------------------
+
+
+def _log(s: Session, entity_type: str, entity_id: int, action: str, detail: str | None = None):
+    s.add(ActivityLog(entity_type=entity_type, entity_id=entity_id, action=action, detail=detail))
+
+
+# ============================= ENDPOINTS ==================================
+
+
+# ---------------------------------------------------------------------------
+# Health
+# ---------------------------------------------------------------------------
+
+
+@app.get("/api/health")
+def health():
+    return {"status": "ok"}
+
+
+# ---------------------------------------------------------------------------
+# Projects
+# ---------------------------------------------------------------------------
+
+
+@app.post("/api/projects")
+def create_project(body: ProjectCreate, s: Session = Depends(db)):
+    existing = s.query(Project).filter(Project.key == body.key.upper()).first()
+    if existing:
+        raise HTTPException(400, "Project key already exists")
+    p = Project(name=body.name, key=body.key.upper(), description=body.description)
+    s.add(p)
+    s.flush()
+    for col_def in DEFAULT_COLUMNS:
+        s.add(BoardColumn(project_id=p.id, **col_def))
+    s.commit()
+    s.refresh(p)
+    return _project_dict(p)
+
+
+@app.get("/api/projects")
+def list_projects(s: Session = Depends(db)):
+    projects = s.query(Project).order_by(Project.created_at.desc()).all()
+    return [_project_dict(p) for p in projects]
+
+
+@app.get("/api/projects/metrics")
+def project_metrics(s: Session = Depends(db)):
+    now = datetime.utcnow()
+    seven_ago = now - timedelta(days=7)
+    thirty_ago = now - timedelta(days=30)
+
+    all_tasks = s.query(Task).filter(Task.deleted_at.is_(None)).all()
+
+    done_tasks = [t for t in all_tasks if t.column and t.column.is_done]
+    total = len(all_tasks)
+    done_count = len(done_tasks)
+
+    completed_7d = len([t for t in done_tasks if t.updated_at and t.updated_at >= seven_ago])
+    completed_30d = len([t for t in done_tasks if t.updated_at and t.updated_at >= thirty_ago])
+
+    # Lead time = created_at -> updated_at for done tasks
+    lead_times = []
+    cycle_times = []
+    for t in done_tasks:
+        if t.created_at and t.updated_at:
+            lt = (t.updated_at - t.created_at).total_seconds() / 3600
+            lead_times.append(lt)
+            cycle_times.append(lt)  # local version doesn't track "started" separately
+
+    avg_lead = round(sum(lead_times) / len(lead_times), 1) if lead_times else 0
+    avg_cycle = round(sum(cycle_times) / len(cycle_times), 1) if cycle_times else 0
+
+    # Weekly throughput — last 8 weeks
+    weekly: list[dict] = []
+    for w in range(7, -1, -1):
+        start = now - timedelta(weeks=w + 1)
+        end = now - timedelta(weeks=w)
+        count = len([t for t in done_tasks if t.updated_at and start <= t.updated_at < end])
+        weekly.append({"week": (now - timedelta(weeks=w)).strftime("%Y-W%W"), "count": count})
+
+    # By type / priority
+    by_type: dict[str, int] = {}
+    by_priority: dict[str, int] = {}
+    for t in all_tasks:
+        by_type[t.type or "FEATURE"] = by_type.get(t.type or "FEATURE", 0) + 1
+        by_priority[t.priority or "MEDIUM"] = by_priority.get(t.priority or "MEDIUM", 0) + 1
+
+    # Per project
+    per_project: list[dict] = []
+    projects = s.query(Project).all()
+    for p in projects:
+        ptasks = [t for t in all_tasks if t.project_id == p.id]
+        pdone = [t for t in ptasks if t.column and t.column.is_done]
+        per_project.append({
+            "projectId": p.id,
+            "projectName": p.name,
+            "projectKey": p.key,
+            "totalTasks": len(ptasks),
+            "doneTasks": len(pdone),
+        })
+
+    return {
+        "summary": {
+            "totalTasks": total,
+            "doneTasks": done_count,
+            "completedLast7d": completed_7d,
+            "completedLast30d": completed_30d,
+            "avgLeadTimeHours": avg_lead,
+            "avgCycleTimeHours": avg_cycle,
+        },
+        "weeklyThroughput": weekly,
+        "byType": by_type,
+        "byPriority": by_priority,
+        "perProject": per_project,
+    }
+
+
+@app.get("/api/projects/{project_id}/board")
+def project_board(project_id: int, s: Session = Depends(db)):
+    p = s.query(Project).filter(Project.id == project_id).first()
+    if not p:
+        raise HTTPException(404, "Project not found")
+    return {
+        **_project_dict(p),
+        "columns": [_column_dict(c, include_tasks=True) for c in p.columns],
+    }
+
+
+@app.delete("/api/projects/{project_id}")
+def delete_project(project_id: int, s: Session = Depends(db)):
+    p = s.query(Project).get(project_id)
+    if not p:
+        raise HTTPException(404, "Project not found")
+    s.delete(p)
+    s.commit()
+    return {"ok": True}
+
+
+@app.patch("/api/projects/{project_id}")
+def update_project(project_id: int, body: dict, s: Session = Depends(db)):
+    p = s.query(Project).get(project_id)
+    if not p:
+        raise HTTPException(404, "Project not found")
+    if "name" in body:
+        p.name = body["name"]
+    if "description" in body:
+        p.description = body["description"]
+    s.commit()
+    return _project_dict(p)
+
+
+# ---------------------------------------------------------------------------
+# Tasks
+# ---------------------------------------------------------------------------
+
+
+@app.post("/api/tasks")
+def create_task(body: TaskCreate, s: Session = Depends(db)):
+    project = s.query(Project).filter(Project.id == body.projectId).first()
+    if not project:
+        raise HTTPException(404, "Project not found")
+
+    # Determine column
+    col_id = body.columnId
+    if not col_id:
+        first_col = s.query(BoardColumn).filter(BoardColumn.project_id == project.id).order_by(BoardColumn.order).first()
+        if not first_col:
+            raise HTTPException(500, "Project has no columns")
+        col_id = first_col.id
+
+    # Increment sequence
+    project.task_seq = (project.task_seq or 0) + 1
+    number = project.task_seq
+
+    task = Task(
+        project_id=project.id,
+        column_id=col_id,
+        number=number,
+        title=body.title,
+        description=body.description,
+        objective=body.objective,
+        acceptance=body.acceptance,
+        type=body.type,
+        priority=body.priority,
+        estimate_md=body.estimateMd,
+        parent_id=body.parentId,
+    )
+    if body.dueDate:
+        from datetime import datetime as _dt
+        task.due_date = _dt.fromisoformat(body.dueDate)
+    if body.assignee:
+        task.assignee = body.assignee
+    s.add(task)
+    s.flush()
+    _log(s, "task", task.id, "created", f"Task {project.key}-{number} created")
+    s.commit()
+    s.refresh(task)
+    return _task_full(task)
+
+
+@app.get("/api/tasks")
+def list_tasks(
+    projectId: Optional[int] = None,
+    status: Optional[str] = None,
+    priority: Optional[str] = None,
+    search: Optional[str] = None,
+    labelId: Optional[int] = None,
+    parentId: Optional[int] = None,
+    type: str | None = None,
+    assignee: str | None = None,
+    s: Session = Depends(db),
+):
+    q = s.query(Task).filter(Task.deleted_at.is_(None))
+    if projectId:
+        q = q.filter(Task.project_id == projectId)
+    if priority:
+        q = q.filter(Task.priority == priority)
+    if parentId is not None:
+        q = q.filter(Task.parent_id == parentId)
+    if type:
+        q = q.filter(Task.type == type)
+    if assignee:
+        q = q.filter(Task.assignee == assignee)
+    if search:
+        pattern = f"%{search}%"
+        q = q.filter(Task.title.ilike(pattern) | Task.description.ilike(pattern))
+    if status:
+        q = q.join(BoardColumn).filter(BoardColumn.name == status)
+    if labelId:
+        q = q.join(task_labels).filter(task_labels.c.label_id == labelId)
+    tasks = q.order_by(Task.created_at.desc()).all()
+    return [_task_brief(t) for t in tasks]
+
+
+@app.get("/api/tasks/{code}")
+def get_task(code: str, s: Session = Depends(db)):
+    task = _resolve_task(code, s)
+    return _task_full(task)
+
+
+@app.patch("/api/tasks/{code}")
+def update_task(code: str, body: TaskUpdate, s: Session = Depends(db)):
+    task = _resolve_task(code, s)
+    changes: list[str] = []
+    data = body.model_dump(exclude_unset=True)
+    field_map = {
+        "title": "title",
+        "description": "description",
+        "objective": "objective",
+        "acceptance": "acceptance",
+        "priority": "priority",
+        "estimateMd": "estimate_md",
+        "type": "type",
+        "columnId": "column_id",
+        "parentId": "parent_id",
+        "rank": "rank",
+    }
+    for api_field, model_field in field_map.items():
+        if api_field in data:
+            old = getattr(task, model_field)
+            new = data[api_field]
+            if old != new:
+                setattr(task, model_field, new)
+                changes.append(f"{api_field}: {old} -> {new}")
+    if "dueDate" in data:
+        from datetime import datetime as _dt
+        old_due = task.due_date
+        new_due = _dt.fromisoformat(data["dueDate"]) if data["dueDate"] else None
+        if old_due != new_due:
+            task.due_date = new_due
+            changes.append(f"dueDate: {old_due} -> {new_due}")
+    if "assignee" in data:
+        old_assignee = task.assignee
+        new_assignee = data["assignee"]
+        if old_assignee != new_assignee:
+            task.assignee = new_assignee
+            changes.append(f"assignee: {old_assignee} -> {new_assignee}")
+    task.updated_at = datetime.utcnow()
+    if changes:
+        _log(s, "task", task.id, "updated", "; ".join(changes))
+    s.commit()
+    s.refresh(task)
+    return _task_full(task)
+
+
+@app.delete("/api/tasks/{code}")
+def delete_task(code: str, s: Session = Depends(db)):
+    task = _resolve_task(code, s)
+    task.deleted_at = datetime.utcnow()
+    _log(s, "task", task.id, "deleted", f"Task {task.code} soft-deleted")
+    s.commit()
+    return {"ok": True}
+
+
+@app.post("/api/tasks/{code}/move")
+def move_task(code: str, body: MoveBody, s: Session = Depends(db)):
+    task = _resolve_task(code, s)
+    old_col = task.column
+    new_col = s.query(BoardColumn).filter(BoardColumn.id == body.columnId).first()
+    if not new_col:
+        raise HTTPException(404, "Column not found")
+    task.column_id = new_col.id
+    task.updated_at = datetime.utcnow()
+    _log(
+        s,
+        "task",
+        task.id,
+        "moved",
+        f"{old_col.name if old_col else '?'} -> {new_col.name}",
+    )
+    s.commit()
+    s.refresh(task)
+    return _task_full(task)
+
+
+# -- Checklist --------------------------------------------------------------
+
+
+@app.post("/api/tasks/{code}/checklist")
+def add_checklist_item(code: str, body: ChecklistBody, s: Session = Depends(db)):
+    task = _resolve_task(code, s)
+    max_order = max((c.sort_order for c in task.checklist), default=-1)
+    item = TaskChecklist(task_id=task.id, title=body.title, sort_order=max_order + 1)
+    s.add(item)
+    s.commit()
+    s.refresh(item)
+    return _checklist_dict(item)
+
+
+@app.patch("/api/tasks/checklist/{item_id}/toggle")
+def toggle_checklist(item_id: int, s: Session = Depends(db)):
+    item = s.query(TaskChecklist).filter(TaskChecklist.id == item_id).first()
+    if not item:
+        raise HTTPException(404, "Checklist item not found")
+    item.checked = not item.checked
+    s.commit()
+    s.refresh(item)
+    return _checklist_dict(item)
+
+
+@app.delete("/api/tasks/checklist/{item_id}")
+def delete_checklist(item_id: int, s: Session = Depends(db)):
+    item = s.query(TaskChecklist).filter(TaskChecklist.id == item_id).first()
+    if not item:
+        raise HTTPException(404, "Checklist item not found")
+    s.delete(item)
+    s.commit()
+    return {"ok": True}
+
+
+# -- Dependencies -----------------------------------------------------------
+
+
+@app.post("/api/tasks/{code}/dependencies")
+def add_dependency(code: str, body: DependencyBody, s: Session = Depends(db)):
+    blocked = _resolve_task(code, s)
+    blocker = _resolve_task(body.blockerCode, s)
+    if blocker.id == blocked.id:
+        raise HTTPException(400, "A task cannot block itself")
+    existing = (
+        s.query(TaskDependency)
+        .filter(TaskDependency.blocker_id == blocker.id, TaskDependency.blocked_id == blocked.id)
+        .first()
+    )
+    if existing:
+        raise HTTPException(400, "Dependency already exists")
+    dep = TaskDependency(blocker_id=blocker.id, blocked_id=blocked.id)
+    s.add(dep)
+    s.flush()
+    _log(s, "task", blocked.id, "dependency_added", f"Blocked by {blocker.code}")
+    s.commit()
+    s.refresh(dep)
+    return {
+        "id": dep.id,
+        "blockerId": dep.blocker_id,
+        "blockedId": dep.blocked_id,
+        "blockerCode": blocker.code,
+        "blockedCode": blocked.code,
+    }
+
+
+@app.delete("/api/tasks/{code}/dependencies/{dep_id}")
+def remove_dependency(code: str, dep_id: int, s: Session = Depends(db)):
+    task = _resolve_task(code, s)
+    dep = s.query(TaskDependency).filter(TaskDependency.id == dep_id).first()
+    if not dep:
+        raise HTTPException(404, "Dependency not found")
+    if dep.blocker_id != task.id and dep.blocked_id != task.id:
+        raise HTTPException(400, "Dependency does not belong to this task")
+    _log(s, "task", task.id, "dependency_removed", f"Dependency {dep_id} removed")
+    s.delete(dep)
+    s.commit()
+    return {"ok": True}
+
+
+# -- Flow / Context ---------------------------------------------------------
+
+
+@app.get("/api/tasks/{code}/flow")
+def task_flow(code: str, s: Session = Depends(db)):
+    """Return a simple dependency graph for the task."""
+    task = _resolve_task(code, s)
+    nodes = [{"id": task.id, "code": task.code, "title": task.title, "status": task.status}]
+    edges: list[dict] = []
+    seen = {task.id}
+
+    def _walk(t: Task):
+        for dep in t.blocked_by:
+            b = dep.blocker
+            if b.id not in seen:
+                seen.add(b.id)
+                nodes.append({"id": b.id, "code": b.code, "title": b.title, "status": b.status})
+                _walk(b)
+            edges.append({"from": b.id, "to": t.id, "type": "blocks"})
+        for dep in t.blocking:
+            bl = dep.blocked
+            if bl.id not in seen:
+                seen.add(bl.id)
+                nodes.append({"id": bl.id, "code": bl.code, "title": bl.title, "status": bl.status})
+                _walk(bl)
+            edges.append({"from": t.id, "to": bl.id, "type": "blocks"})
+
+    _walk(task)
+    return {"nodes": nodes, "edges": edges}
+
+
+@app.get("/api/tasks/{code}/context")
+def task_context(code: str, s: Session = Depends(db)):
+    """Aggregated context for a task — everything an agent needs."""
+    task = _resolve_task(code, s)
+    comments = (
+        s.query(Comment)
+        .filter(Comment.task_id == task.id)
+        .order_by(Comment.created_at)
+        .all()
+    )
+    docs = (
+        s.query(Document)
+        .filter(Document.task_id == task.id)
+        .all()
+    )
+    activity = (
+        s.query(ActivityLog)
+        .filter(ActivityLog.entity_type == "task", ActivityLog.entity_id == task.id)
+        .order_by(ActivityLog.created_at.desc())
+        .limit(50)
+        .all()
+    )
+    return {
+        "task": _task_full(task),
+        "comments": [_comment_dict(c) for c in comments],
+        "documents": [_document_dict(d) for d in docs],
+        "activity": [_activity_dict(a) for a in activity],
+    }
+
+
+# ---------------------------------------------------------------------------
+# Labels
+# ---------------------------------------------------------------------------
+
+
+@app.get("/api/labels")
+def list_labels(s: Session = Depends(db)):
+    labels = s.query(Label).order_by(Label.name).all()
+    return [_label_dict(lb) for lb in labels]
+
+
+@app.post("/api/labels")
+def create_label(body: LabelCreate, s: Session = Depends(db)):
+    existing = s.query(Label).filter(Label.name == body.name).first()
+    if existing:
+        raise HTTPException(400, "Label already exists")
+    lb = Label(name=body.name, color=body.color)
+    s.add(lb)
+    s.commit()
+    s.refresh(lb)
+    return _label_dict(lb)
+
+
+@app.delete("/api/labels/{label_id}")
+def delete_label(label_id: int, s: Session = Depends(db)):
+    lb = s.query(Label).filter(Label.id == label_id).first()
+    if not lb:
+        raise HTTPException(404, "Label not found")
+    s.delete(lb)
+    s.commit()
+    return {"ok": True}
+
+
+@app.post("/api/labels/{label_id}/tasks/{task_id}")
+def attach_label(label_id: int, task_id: int, s: Session = Depends(db)):
+    lb = s.query(Label).filter(Label.id == label_id).first()
+    if not lb:
+        raise HTTPException(404, "Label not found")
+    task = s.query(Task).filter(Task.id == task_id, Task.deleted_at.is_(None)).first()
+    if not task:
+        raise HTTPException(404, "Task not found")
+    if lb not in task.labels:
+        task.labels.append(lb)
+        s.commit()
+    return {"ok": True}
+
+
+@app.delete("/api/labels/{label_id}/tasks/{task_id}")
+def detach_label(label_id: int, task_id: int, s: Session = Depends(db)):
+    lb = s.query(Label).filter(Label.id == label_id).first()
+    if not lb:
+        raise HTTPException(404, "Label not found")
+    task = s.query(Task).filter(Task.id == task_id, Task.deleted_at.is_(None)).first()
+    if not task:
+        raise HTTPException(404, "Task not found")
+    if lb in task.labels:
+        task.labels.remove(lb)
+        s.commit()
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# Comments
+# ---------------------------------------------------------------------------
+
+
+@app.get("/api/comments")
+def list_comments(taskId: int, s: Session = Depends(db)):
+    comments = (
+        s.query(Comment)
+        .filter(Comment.task_id == taskId)
+        .order_by(Comment.created_at)
+        .all()
+    )
+    return [_comment_dict(c) for c in comments]
+
+
+@app.post("/api/comments")
+def create_comment(body: CommentCreate, s: Session = Depends(db)):
+    task = s.query(Task).filter(Task.id == body.taskId, Task.deleted_at.is_(None)).first()
+    if not task:
+        raise HTTPException(404, "Task not found")
+    c = Comment(task_id=body.taskId, body=body.body, type=body.type)
+    s.add(c)
+    s.flush()
+    _log(s, "comment", c.id, "created", f"Comment on task {task.code}")
+    s.commit()
+    s.refresh(c)
+    return _comment_dict(c)
+
+
+@app.patch("/api/comments/{comment_id}")
+def update_comment(comment_id: int, body: CommentUpdate, s: Session = Depends(db)):
+    c = s.query(Comment).filter(Comment.id == comment_id).first()
+    if not c:
+        raise HTTPException(404, "Comment not found")
+    c.body = body.body
+    s.commit()
+    s.refresh(c)
+    return _comment_dict(c)
+
+
+@app.delete("/api/comments/{comment_id}")
+def delete_comment(comment_id: int, s: Session = Depends(db)):
+    c = s.query(Comment).filter(Comment.id == comment_id).first()
+    if not c:
+        raise HTTPException(404, "Comment not found")
+    s.delete(c)
+    s.commit()
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# Documents
+# ---------------------------------------------------------------------------
+
+
+@app.get("/api/documents")
+def list_documents(
+    taskId: Optional[int] = None,
+    projectId: Optional[int] = None,
+    s: Session = Depends(db),
+):
+    q = s.query(Document)
+    if taskId:
+        q = q.filter(Document.task_id == taskId)
+    if projectId:
+        q = q.filter(Document.project_id == projectId)
+    return [_document_dict(d) for d in q.order_by(Document.created_at.desc()).all()]
+
+
+@app.post("/api/documents")
+def create_document(body: DocumentCreate, s: Session = Depends(db)):
+    doc = Document(
+        title=body.title,
+        body=body.body,
+        type=body.type,
+        task_id=body.taskId,
+        project_id=body.projectId,
+    )
+    s.add(doc)
+    s.commit()
+    s.refresh(doc)
+    return _document_dict(doc)
+
+
+@app.put("/api/documents/{doc_id}")
+def update_document(doc_id: int, body: DocumentUpdate, s: Session = Depends(db)):
+    doc = s.query(Document).filter(Document.id == doc_id).first()
+    if not doc:
+        raise HTTPException(404, "Document not found")
+    data = body.model_dump(exclude_unset=True)
+    for field in ("title", "body", "type"):
+        if field in data:
+            setattr(doc, field, data[field])
+    doc.version = (doc.version or 1) + 1
+    doc.updated_at = datetime.utcnow()
+    s.commit()
+    s.refresh(doc)
+    return _document_dict(doc)
+
+
+@app.delete("/api/documents/{doc_id}")
+def delete_document(doc_id: int, s: Session = Depends(db)):
+    doc = s.query(Document).filter(Document.id == doc_id).first()
+    if not doc:
+        raise HTTPException(404, "Document not found")
+    s.delete(doc)
+    s.commit()
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# Activity
+# ---------------------------------------------------------------------------
+
+
+@app.get("/api/activity")
+def list_activity(
+    entityType: Optional[str] = None,
+    entityId: Optional[int] = None,
+    limit: int = Query(default=50, le=200),
+    s: Session = Depends(db),
+):
+    q = s.query(ActivityLog)
+    if entityType:
+        q = q.filter(ActivityLog.entity_type == entityType.lower())
+    if entityId:
+        q = q.filter(ActivityLog.entity_id == entityId)
+    entries = q.order_by(ActivityLog.created_at.desc()).limit(limit).all()
+    return [_activity_dict(a) for a in entries]
+
+
+# -- Skills -----------------------------------------------------------------
+
+
+@app.get("/api/skills")
+def list_skills():
+    from maestro_local.skills.catalog import SKILLS, CATEGORIES
+
+    return {
+        "skills": [
+            {
+                "id": s["id"],
+                "name": s["name"],
+                "category": s["category"],
+                "categoryLabel": CATEGORIES.get(s["category"], s["category"]),
+                "description": s["description"],
+                "tags": s.get("tags", []),
+                "filename": s["filename"],
+            }
+            for s in SKILLS
+        ],
+        "categories": CATEGORIES,
+    }
+
+
+@app.get("/api/skills/{skill_id}")
+def get_skill(skill_id: str):
+    from maestro_local.skills.catalog import SKILLS
+
+    skill = next((s for s in SKILLS if s["id"] == skill_id), None)
+    if not skill:
+        raise HTTPException(404, "Skill not found")
+    return {
+        "id": skill["id"],
+        "name": skill["name"],
+        "category": skill["category"],
+        "description": skill["description"],
+        "tags": skill.get("tags", []),
+        "filename": skill["filename"],
+        "content": skill["content"],
+    }

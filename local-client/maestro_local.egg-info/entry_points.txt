@@ -1,0 +1,2 @@
+[console_scripts]
+maestro = maestro_local.main:main

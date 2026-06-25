@@ -26,6 +26,11 @@ export class ProjectsController {
     return this.projects.list(ctx);
   }
 
+  @Get('metrics')
+  metrics(@CompanyContext() ctx: ICompanyContext) {
+    return this.projects.getMetrics(ctx);
+  }
+
   @Get(':id/board')
   board(@CompanyContext() ctx: ICompanyContext, @Param('id', ParseIntPipe) id: number) {
     return this.projects.getBoard(ctx, id);

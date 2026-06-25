@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { TaskPriority } from '@prisma/client';
+import { TaskPriority, TaskType } from '@prisma/client';
 import { IsEnum, IsInt, IsNumber, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class UpdateTaskDto {
@@ -38,4 +38,9 @@ export class UpdateTaskDto {
   @IsOptional()
   @IsInt()
   assigneeId?: number;
+
+  @ApiPropertyOptional({ enum: TaskType, example: TaskType.FEATURE })
+  @IsOptional()
+  @IsEnum(TaskType)
+  type?: TaskType;
 }

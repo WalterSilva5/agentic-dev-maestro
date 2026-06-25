@@ -66,6 +66,7 @@ export class MaestroApiService {
   listProjects() { return this.get<M.Project[]>('/projects'); }
   createProject(b: { name: string; key: string; description?: string }) { return this.post<M.Project>('/projects', b); }
   getBoard(pid: number) { return this.get<M.Board>(`/projects/${pid}/board`); }
+  getMetrics() { return this.get<M.MetricsResponse>('/projects/metrics'); }
 
   // ---- tarefas ----
   listTasks(filters: Record<string, unknown> = {}) { return this.get<M.Task[]>('/tasks' + this.qs(filters)); }
@@ -78,6 +79,10 @@ export class MaestroApiService {
   getFlow(code: string) { return this.get<M.TaskFlow>(`/tasks/${code}/flow`); }
   addDependency(code: string, blockerCode: string) { return this.post<unknown>(`/tasks/${code}/dependencies`, { blockerCode }); }
   removeDependency(code: string, depId: number) { return this.del<unknown>(`/tasks/${code}/dependencies/${depId}`); }
+  addChecklistItem(code: string, title: string) { return this.post<M.ChecklistItem>(`/tasks/${code}/checklist`, { title }); }
+  toggleChecklistItem(itemId: number) { return this.patch<M.ChecklistItem>(`/tasks/checklist/${itemId}/toggle`); }
+  removeChecklistItem(itemId: number) { return this.del<unknown>(`/tasks/checklist/${itemId}`); }
+  getTaskContext(code: string) { return this.get<any>(`/tasks/${code}/context`); }
 
   // ---- labels ----
   listLabels() { return this.get<M.Label[]>('/labels'); }
@@ -95,7 +100,7 @@ export class MaestroApiService {
 
   // ---- comentários ----
   listComments(taskId: number) { return this.get<M.Comment[]>(`/comments${this.qs({ taskId })}`); }
-  createComment(taskId: number, body: string) { return this.post<M.Comment>('/comments', { taskId, body }); }
+  createComment(taskId: number, body: string, type?: M.CommentType) { return this.post<M.Comment>('/comments', { taskId, body, ...(type ? { type } : {}) }); }
   updateComment(id: number, body: string) { return this.patch<M.Comment>(`/comments/${id}`, { body }); }
   deleteComment(id: number) { return this.del<{ deleted: boolean }>(`/comments/${id}`); }
 

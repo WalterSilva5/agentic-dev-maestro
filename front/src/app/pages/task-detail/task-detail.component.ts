@@ -83,6 +83,9 @@ export class TaskDetailComponent implements OnInit {
   allLabels: Label[] = [];
   members: Member[] = [];
 
+  newChecklistTitle = '';
+  addingChecklist = false;
+
   constructor(private api: MaestroApiService, private tenant: TenantService) {}
 
   ngOnInit(): void {
@@ -418,6 +421,130 @@ export class TaskDetailComponent implements OnInit {
     } catch {
       Swal.fire({ icon: 'error', title: 'Erro', text: 'Não foi possível alterar o responsável.' });
     }
+  }
+
+  // ---- Checklist (Definition of Done) ----
+
+  get checklistProgress(): { done: number; total: number; percent: number } {
+    const items = this.task?.checklist ?? [];
+    const done = items.filter(i => i.checked).length;
+    const total = items.length;
+    return { done, total, percent: total ? Math.round((done / total) * 100) : 0 };
+  }
+
+  async addChecklistItem(): Promise<void> {
+    const title = this.newChecklistTitle.trim();
+    if (!title || !this.code) return;
+    this.addingChecklist = true;
+    try {
+      await this.api.addChecklistItem(this.code, title);
+      this.newChecklistTitle = '';
+      await this.load();
+    } catch {
+      Swal.fire({ icon: 'error', title: 'Erro', text: 'Não foi possível adicionar o item.' });
+    } finally {
+      this.addingChecklist = false;
+    }
+  }
+
+  async toggleChecklistItem(itemId: number): Promise<void> {
+    try {
+      await this.api.toggleChecklistItem(itemId);
+      await this.load();
+    } catch {
+      Swal.fire({ icon: 'error', title: 'Erro', text: 'Não foi possível alterar o item.' });
+    }
+  }
+
+  async removeChecklistItem(itemId: number): Promise<void> {
+    try {
+      await this.api.removeChecklistItem(itemId);
+      await this.load();
+    } catch {
+      Swal.fire({ icon: 'error', title: 'Erro', text: 'Não foi possível remover o item.' });
+    }
+  }
+
+  // ---- Dependencies ----
+
+  depCode(dep: any): string {
+    if (dep.blocker) return `${dep.blocker.project.key}-${dep.blocker.number}`;
+    if (dep.blocked) return `${dep.blocked.project.key}-${dep.blocked.number}`;
+    return '';
+  }
+
+  depTitle(dep: any): string {
+    return dep.blocker?.title || dep.blocked?.title || '';
+  }
+
+  async removeDep(depId: number): Promise<void> {
+    if (!this.code) return;
+    try {
+      await this.api.removeDependency(this.code, depId);
+      await this.load();
+    } catch {
+      Swal.fire({ icon: 'error', title: 'Erro', text: 'Não foi possível remover a dependência.' });
+    }
+  }
+
+  // ---- Type ----
+
+  typeLabel(type?: string): string {
+    const labels: Record<string, string> = {
+      FEATURE: 'Feature', BUG: 'Bug', TECH_DEBT: 'Dívida Técnica',
+      IMPROVEMENT: 'Melhoria', CHORE: 'Tarefa'
+    };
+    return labels[type || 'FEATURE'] || type || 'Feature';
+  }
+
+  typeColor(type?: string): string {
+    const colors: Record<string, string> = {
+      FEATURE: '#8B5CF6', BUG: '#EF4444', TECH_DEBT: '#F59E0B',
+      IMPROVEMENT: '#10B981', CHORE: '#6B7280'
+    };
+    return colors[type || 'FEATURE'] || '#8B5CF6';
+  }
+
+  async changeType(newType: string): Promise<void> {
+    if (!this.code) return;
+    try {
+      await this.api.updateTask(this.code, { type: newType } as any);
+      await this.load();
+    } catch {
+      Swal.fire({ icon: 'error', title: 'Erro', text: 'Não foi possível alterar o tipo.' });
+    }
+  }
+
+  // ---- Activity formatting ----
+
+  activityIcon(action: string): string {
+    const icons: Record<string, string> = {
+      created: '🆕', moved: '➡️', updated: '✏️', deleted: '🗑️',
+      commented: '💬', comment_updated: '💬', comment_deleted: '💬',
+      dependency_added: '🔗', dependency_removed: '🔗',
+      bulk_tasks_created: '📦'
+    };
+    return icons[action] || '📋';
+  }
+
+  activityLabel(action: string): string {
+    const labels: Record<string, string> = {
+      created: 'Criada', moved: 'Movida', updated: 'Atualizada', deleted: 'Excluída',
+      commented: 'Comentário', comment_updated: 'Comentário editado',
+      comment_deleted: 'Comentário removido',
+      dependency_added: 'Dependência adicionada', dependency_removed: 'Dependência removida'
+    };
+    return labels[action] || action;
+  }
+
+  commentTypeBadge(type?: string): { label: string; class: string } | null {
+    if (!type || type === 'COMMENT') return null;
+    const map: Record<string, { label: string; class: string }> = {
+      CODE_REVIEW: { label: 'Code Review', class: 'badge-secondary' },
+      COMMIT_REF: { label: 'Commit', class: 'badge-info' },
+      DEPLOY_LOG: { label: 'Deploy', class: 'badge-warning' }
+    };
+    return map[type] || null;
   }
 
   async addDocument(): Promise<void> {

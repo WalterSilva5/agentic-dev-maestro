@@ -20,6 +20,24 @@ export interface TaskAssignee {
   lastName: string;
 }
 
+export type TaskType = 'FEATURE' | 'BUG' | 'TECH_DEBT' | 'IMPROVEMENT' | 'CHORE';
+export type CommentType = 'COMMENT' | 'CODE_REVIEW' | 'COMMIT_REF' | 'DEPLOY_LOG';
+
+export interface ChecklistItem {
+  id: number;
+  title: string;
+  checked: boolean;
+  sortOrder: number;
+}
+
+export interface TaskDep {
+  id: number;
+  code: string;
+  title: string;
+  status: string;
+  isDone?: boolean;
+}
+
 export interface Task {
   id: number;
   number: number;
@@ -29,6 +47,7 @@ export interface Task {
   objective?: string;
   acceptance?: string;
   status: string;
+  type?: TaskType;
   priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
   estimateMd?: number;
   columnId: number;
@@ -37,6 +56,9 @@ export interface Task {
   assigneeId?: number;
   assignee?: TaskAssignee | null;
   labels?: Label[];
+  checklist?: ChecklistItem[];
+  blockedBy?: { id: number; blockerId: number; blocker: { id: number; number: number; title: string; project: { key: string } } }[];
+  blocking?: { id: number; blockedId: number; blocked: { id: number; number: number; title: string; project: { key: string } } }[];
 }
 
 export interface BoardColumn {
@@ -96,9 +118,27 @@ export interface DocItem {
 export interface Comment {
   id: number;
   body: string;
+  type?: CommentType;
   createdAt: string;
   viaApiKeyId?: number | null;
   author?: { id: number; firstName: string; lastName: string };
+}
+
+export interface MetricsSummary {
+  totalTasks: number;
+  doneTasks: number;
+  completedLast7d: number;
+  completedLast30d: number;
+  avgLeadTimeHours: number | null;
+  avgCycleTimeHours: number | null;
+}
+
+export interface MetricsResponse {
+  summary: MetricsSummary;
+  weeklyThroughput: { week: string; count: number }[];
+  byType: Record<string, { total: number; done: number }>;
+  byPriority: Record<string, { total: number; done: number }>;
+  perProject: { id: number; name: string; key: string; total: number; done: number; percent: number }[];
 }
 
 export interface Member {

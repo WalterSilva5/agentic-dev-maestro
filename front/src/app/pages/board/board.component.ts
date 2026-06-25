@@ -69,6 +69,32 @@ export class BoardComponent implements OnInit {
   trackByColumn = (_: number, c: BoardColumn) => c.id;
   trackByTask = (_: number, t: Task) => t.code;
 
+  typeLabel(type?: string): string {
+    const labels: Record<string, string> = {
+      FEATURE: 'Feature', BUG: 'Bug', TECH_DEBT: 'Dívida Técn.',
+      IMPROVEMENT: 'Melhoria', CHORE: 'Tarefa'
+    };
+    return labels[type || 'FEATURE'] || type || 'Feature';
+  }
+
+  typeColor(type?: string): string {
+    const colors: Record<string, string> = {
+      FEATURE: '#8B5CF6', BUG: '#EF4444', TECH_DEBT: '#F59E0B',
+      IMPROVEMENT: '#10B981', CHORE: '#6B7280'
+    };
+    return colors[type || 'FEATURE'] || '#8B5CF6';
+  }
+
+  isBlocked(task: any): boolean {
+    return (task.blockedBy ?? []).length > 0;
+  }
+
+  checklistPercent(task: any): number {
+    const items = task.checklist ?? [];
+    if (items.length === 0) return -1;
+    return Math.round((items.filter((i: any) => i.checked).length / items.length) * 100);
+  }
+
   priorityClass(priority: Task['priority']): string {
     switch (priority) {
       case 'URGENT':
@@ -147,7 +173,7 @@ export class BoardComponent implements OnInit {
     const title = (this.newTaskTitle[column.id] ?? '').trim();
     if (!title) return;
     try {
-      await this.api.createTask({ projectId: this.projectId, title, columnId: column.id });
+      await this.api.createTask({ projectId: this.projectId, title, columnId: column.id, type: 'FEATURE' });
       this.newTaskTitle[column.id] = '';
       await this.loadBoard();
     } catch (err) {

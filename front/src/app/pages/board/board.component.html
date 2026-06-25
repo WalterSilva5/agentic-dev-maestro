@@ -56,11 +56,20 @@
               >
                 {{ task.code }}
               </span>
+              <span class="px-1.5 py-0 rounded text-white text-[10px] font-semibold"
+                    [style.background-color]="typeColor(task.type)">{{ typeLabel(task.type) }}</span>
               <span class="badge badge-xs" [ngClass]="priorityClass(task.priority)">
                 {{ task.priority }}
               </span>
             </div>
             <p class="text-sm text-dark-text leading-snug">{{ task.title }}</p>
+              <div *ngIf="isBlocked(task)" class="flex items-center gap-1 text-red-400 text-xs mt-0.5">
+                🔒 Bloqueada
+              </div>
+              <div *ngIf="checklistPercent(task) >= 0" class="flex items-center gap-1 text-xs text-grayscale-4 mt-0.5">
+                <progress class="progress progress-primary w-12 h-1" [value]="checklistPercent(task)" max="100"></progress>
+                {{ checklistPercent(task) }}%
+              </div>
             <!-- Labels -->
             <div *ngIf="task.labels?.length" class="flex flex-wrap gap-1 mt-1">
               <span

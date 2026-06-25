@@ -1,0 +1,10 @@
+Metadata-Version: 2.4
+Name: maestro-local
+Version: 0.1.0
+Summary: Agentic Dev Maestro — cliente desktop local para organização de tarefas e facilitação do ciclo de desenvolvimento
+Requires-Python: >=3.10
+Requires-Dist: PySide6>=6.6
+Requires-Dist: fastapi>=0.110
+Requires-Dist: uvicorn[standard]>=0.29
+Requires-Dist: sqlalchemy>=2.0
+Requires-Dist: pydantic>=2.0

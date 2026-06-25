@@ -23,6 +23,7 @@ import { ApiKeysComponent } from '../pages/api-keys/api-keys.component';
 import { DownloadsComponent } from '../pages/downloads/downloads.component';
 import { LabelsComponent } from '../pages/labels/labels.component';
 import { AccessComponent } from '../pages/access/access.component';
+import { MetricsComponent } from '../pages/metrics/metrics.component';
 import { InviteComponent } from '../pages/invite/invite.component';
 import { AuthGuard } from '../permissions/auth.guard';
 import { workspaceGuard } from '../permissions/workspace.guard';
@@ -51,6 +52,7 @@ export const routes: Routes = [
   { path: RoutesEnum.API_KEYS, component: ApiKeysComponent, canActivate: [AuthGuard, workspaceGuard] },
   { path: RoutesEnum.LABELS, component: LabelsComponent, canActivate: [AuthGuard, workspaceGuard] },
   { path: RoutesEnum.ACCESS, component: AccessComponent, canActivate: [AuthGuard, workspaceGuard] },
+  { path: RoutesEnum.METRICS, component: MetricsComponent, canActivate: [AuthGuard, workspaceGuard] },
   { path: RoutesEnum.DOWNLOADS, component: DownloadsComponent, canActivate: [AuthGuard] },
   { path: '**', component: NotFoundComponent }
 ];

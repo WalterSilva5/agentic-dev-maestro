@@ -19,5 +19,6 @@ export enum RoutesEnum {
   API_KEYS = 'api-keys',
   LABELS = 'labels',
   ACCESS = 'access',
+  METRICS = 'metrics',
   DOWNLOADS = 'downloads',
 }

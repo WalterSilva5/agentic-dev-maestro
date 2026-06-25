@@ -24,7 +24,10 @@ const VIEW_INCLUDE = {
   project: { select: { key: true } },
   column: { select: { name: true } },
   labels: { select: { id: true, name: true, color: true } },
-  assignee: { select: { id: true, firstName: true, lastName: true } }
+  assignee: { select: { id: true, firstName: true, lastName: true } },
+  checklist: { orderBy: { sortOrder: 'asc' }, select: { id: true, title: true, checked: true, sortOrder: true } },
+  blockedBy: { select: { id: true, blockerId: true, blocker: { select: { id: true, number: true, title: true, project: { select: { key: true } } } } } },
+  blocking: { select: { id: true, blockedId: true, blocked: { select: { id: true, number: true, title: true, project: { select: { key: true } } } } } }
 } as const;
 
 export interface TaskListFilter {
@@ -73,6 +76,7 @@ export class TasksService {
           estimateMd: dto.estimateMd,
           parentId: dto.parentId,
           assigneeId: dto.assigneeId,
+          type: dto.type ?? 'FEATURE',
           rank: `${Date.now().toString(36)}`
         },
         include: VIEW_INCLUDE
@@ -120,7 +124,8 @@ export class TasksService {
         ...(dto.acceptance !== undefined ? { acceptance: dto.acceptance } : {}),
         ...(dto.priority !== undefined ? { priority: dto.priority } : {}),
         ...(dto.estimateMd !== undefined ? { estimateMd: dto.estimateMd } : {}),
-        ...(dto.assigneeId !== undefined ? { assigneeId: dto.assigneeId } : {})
+        ...(dto.assigneeId !== undefined ? { assigneeId: dto.assigneeId } : {}),
+        ...(dto.type !== undefined ? { type: dto.type } : {})
       },
       include: VIEW_INCLUDE
     });
@@ -257,6 +262,126 @@ export class TasksService {
       });
       return tasks.map((t) => this.toView(t));
     });
+  }
+
+  // ---- checklist ----
+
+  async addChecklistItem(ctx: ICompanyContext, idOrCode: string, title: string) {
+    const task = await this.resolveTask(ctx, idOrCode);
+    const maxOrder = await this.prisma.taskChecklist.aggregate({
+      where: { taskId: task.id },
+      _max: { sortOrder: true }
+    });
+    return this.prisma.taskChecklist.create({
+      data: { taskId: task.id, title, sortOrder: (maxOrder._max.sortOrder ?? -1) + 1 }
+    });
+  }
+
+  async toggleChecklistItem(ctx: ICompanyContext, itemId: number) {
+    const item = await this.prisma.taskChecklist.findFirst({
+      where: { id: itemId },
+      include: { task: { select: { companyId: true } } }
+    });
+    if (!item || item.task.companyId !== ctx.companyId) throw new NotFoundException('Item não encontrado');
+    return this.prisma.taskChecklist.update({
+      where: { id: itemId },
+      data: { checked: !item.checked }
+    });
+  }
+
+  async removeChecklistItem(ctx: ICompanyContext, itemId: number) {
+    const item = await this.prisma.taskChecklist.findFirst({
+      where: { id: itemId },
+      include: { task: { select: { companyId: true } } }
+    });
+    if (!item || item.task.companyId !== ctx.companyId) throw new NotFoundException('Item não encontrado');
+    await this.prisma.taskChecklist.delete({ where: { id: itemId } });
+    return { deleted: true };
+  }
+
+  // ---- context/onboarding ----
+
+  async getContext(ctx: ICompanyContext, idOrCode: string) {
+    const task = await this.resolveTask(ctx, idOrCode);
+    const taskView = this.toView(task);
+
+    // Get dependencies
+    const blockedBy = await this.prisma.taskDependency.findMany({
+      where: { blockedId: task.id, companyId: ctx.companyId },
+      include: { blocker: { include: { project: { select: { key: true } }, column: { select: { name: true, isDone: true } } } } }
+    });
+    const blocking = await this.prisma.taskDependency.findMany({
+      where: { blockerId: task.id, companyId: ctx.companyId },
+      include: { blocked: { include: { project: { select: { key: true } }, column: { select: { name: true, isDone: true } } } } }
+    });
+
+    // Related tasks (same project, same labels)
+    const labelIds = (task as any).labels?.map((l: any) => l.id) ?? [];
+    const related = labelIds.length > 0
+      ? await this.prisma.task.findMany({
+          where: {
+            companyId: ctx.companyId,
+            id: { not: task.id },
+            deletedAt: null,
+            labels: { some: { id: { in: labelIds } } }
+          },
+          take: 5,
+          include: { project: { select: { key: true } }, column: { select: { name: true } } }
+        })
+      : [];
+
+    // Recent activity on this task
+    const recentActivity = await this.prisma.activityLog.findMany({
+      where: { companyId: ctx.companyId, entityType: 'Task', entityId: task.id },
+      orderBy: { createdAt: 'desc' },
+      take: 10
+    });
+
+    // Subtasks
+    const subtasks = await this.prisma.task.findMany({
+      where: { parentId: task.id, deletedAt: null },
+      include: { project: { select: { key: true } }, column: { select: { name: true, isDone: true } } },
+      orderBy: { number: 'asc' }
+    });
+
+    // Checklist
+    const checklist = await this.prisma.taskChecklist.findMany({
+      where: { taskId: task.id },
+      orderBy: { sortOrder: 'asc' }
+    });
+
+    return {
+      task: taskView,
+      dependencies: {
+        blockedBy: blockedBy.map(d => ({
+          id: d.id,
+          code: `${d.blocker.project.key}-${d.blocker.number}`,
+          title: d.blocker.title,
+          status: d.blocker.column.name,
+          isDone: d.blocker.column.isDone
+        })),
+        blocking: blocking.map(d => ({
+          id: d.id,
+          code: `${d.blocked.project.key}-${d.blocked.number}`,
+          title: d.blocked.title,
+          status: d.blocked.column.name,
+          isDone: d.blocked.column.isDone
+        }))
+      },
+      relatedTasks: related.map(r => ({
+        code: `${r.project.key}-${r.number}`,
+        title: r.title,
+        status: r.column.name
+      })),
+      subtasks: subtasks.map(s => ({
+        code: `${s.project.key}-${s.number}`,
+        title: s.title,
+        status: s.column.name,
+        isDone: s.column.isDone
+      })),
+      checklist,
+      recentActivity
+    };
   }
 
   // ---- dependências e fluxo (doc 08) ----

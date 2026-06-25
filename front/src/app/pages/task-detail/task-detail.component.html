@@ -31,6 +31,8 @@
 
       <div class="flex flex-wrap items-center gap-3">
         <span class="font-mono text-sm text-grayscale-4">{{ t.code }}</span>
+        <span class="inline-block px-2 py-0.5 rounded text-white text-xs font-semibold"
+              [style.background-color]="typeColor(t.type)">{{ typeLabel(t.type) }}</span>
         <h1 class="text-2xl font-semibold flex-1 min-w-0 break-words">
           {{ t.title }}
         </h1>
@@ -83,6 +85,22 @@
             <option *ngFor="let m of members" [value]="m.user.id">
               {{ m.user.firstName }} {{ m.user.lastName }}
             </option>
+          </select>
+        </div>
+        <!-- Tipo -->
+        <div class="mt-2 flex items-center gap-3">
+          <span class="text-sm text-grayscale-4">Tipo:</span>
+          <select
+            class="select select-bordered select-sm bg-dark-bg text-dark-text min-w-[160px]"
+            [ngModel]="t.type || 'FEATURE'"
+            (ngModelChange)="changeType($event)"
+            name="taskType"
+          >
+            <option value="FEATURE">Feature</option>
+            <option value="BUG">Bug</option>
+            <option value="TECH_DEBT">Dívida Técnica</option>
+            <option value="IMPROVEMENT">Melhoria</option>
+            <option value="CHORE">Tarefa</option>
           </select>
         </div>
       </div>
@@ -232,6 +250,70 @@
       </ng-template>
     </header>
 
+    <!-- Checklist (Definition of Done) -->
+    <div class="mb-4 card bg-dark-surface shadow-card">
+      <div class="card-body p-4">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="font-semibold text-sm">Checklist</h3>
+          <span *ngIf="(t.checklist ?? []).length > 0" class="text-xs text-grayscale-4">
+            {{ checklistProgress.done }}/{{ checklistProgress.total }}
+            ({{ checklistProgress.percent }}%)
+          </span>
+        </div>
+        <progress *ngIf="(t.checklist ?? []).length > 0"
+                  class="progress progress-primary w-full h-1.5 mb-2"
+                  [value]="checklistProgress.percent" max="100"></progress>
+        <ul class="flex flex-col gap-1">
+          <li *ngFor="let item of t.checklist" class="flex items-center gap-2 group">
+            <input type="checkbox" class="checkbox checkbox-sm checkbox-primary"
+                   [checked]="item.checked"
+                   (change)="toggleChecklistItem(item.id)" />
+            <span class="flex-1 text-sm" [class.line-through]="item.checked"
+                  [class.text-grayscale-4]="item.checked">{{ item.title }}</span>
+            <button type="button"
+                    class="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100 text-error"
+                    (click)="removeChecklistItem(item.id)">×</button>
+          </li>
+        </ul>
+        <form (ngSubmit)="addChecklistItem()" class="mt-2 flex gap-2">
+          <input type="text" class="input input-bordered input-sm flex-1 bg-dark-bg"
+                 placeholder="Novo item..."
+                 [(ngModel)]="newChecklistTitle" name="checklistTitle"
+                 [disabled]="addingChecklist" />
+          <button type="submit" class="btn btn-sm btn-primary"
+                  [disabled]="addingChecklist || !newChecklistTitle.trim()">+</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Dependências -->
+    <div *ngIf="(t.blockedBy ?? []).length > 0 || (t.blocking ?? []).length > 0" class="mb-4 card bg-dark-surface shadow-card">
+      <div class="card-body p-4">
+        <h3 class="font-semibold text-sm mb-2">Dependências</h3>
+        <div *ngIf="(t.blockedBy ?? []).length > 0" class="mb-2">
+          <p class="text-xs text-grayscale-4 mb-1">Bloqueada por:</p>
+          <div class="flex flex-wrap gap-1">
+            <span *ngFor="let dep of t.blockedBy"
+                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-red-900/30 text-red-300 text-xs">
+              <a [routerLink]="'/tasks/' + depCode(dep)" class="hover:underline font-mono">{{ depCode(dep) }}</a>
+              <span class="hidden sm:inline">{{ depTitle(dep) | slice:0:30 }}</span>
+              <button type="button" class="ml-1 hover:text-red-400" (click)="removeDep(dep.id)">×</button>
+            </span>
+          </div>
+        </div>
+        <div *ngIf="(t.blocking ?? []).length > 0">
+          <p class="text-xs text-grayscale-4 mb-1">Bloqueia:</p>
+          <div class="flex flex-wrap gap-1">
+            <span *ngFor="let dep of t.blocking"
+                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-yellow-900/30 text-yellow-300 text-xs">
+              <a [routerLink]="'/tasks/' + depCode(dep)" class="hover:underline font-mono">{{ depCode(dep) }}</a>
+              <span class="hidden sm:inline">{{ depTitle(dep) | slice:0:30 }}</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Adicionar label -->
     <div *ngIf="availableLabels.length > 0" class="mb-4 flex items-center gap-2">
       <span class="text-sm text-grayscale-4">Adicionar label:</span>
@@ -379,6 +461,9 @@
               <span *ngIf="c.viaApiKeyId" class="badge badge-sm badge-secondary">
                 via agente
               </span>
+              <ng-container *ngIf="commentTypeBadge(c.type) as tb">
+                <span class="badge badge-sm" [ngClass]="tb.class">{{ tb.label }}</span>
+              </ng-container>
               <span class="text-xs text-grayscale-4 ml-auto">
                 {{ shortDate(c.createdAt) }}
               </span>
@@ -554,8 +639,8 @@
             *ngFor="let a of activity; trackBy: trackByActivity"
             class="flex items-center gap-2 rounded-card bg-dark-bg p-3 text-sm"
           >
-            <span class="font-medium text-grayscale-5">{{ a.action }}</span>
-            <span class="text-grayscale-4">{{ a.entityType }}</span>
+            <span class="mr-1">{{ activityIcon(a.action) }}</span>
+            <span class="font-medium text-grayscale-5">{{ activityLabel(a.action) }}</span>
             <span *ngIf="a.viaApiKeyId" class="badge badge-sm badge-secondary">
               via agente
             </span>

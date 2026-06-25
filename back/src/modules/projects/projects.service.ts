@@ -40,6 +40,133 @@ export class ProjectsService {
     });
   }
 
+  async getMetrics(ctx: ICompanyContext) {
+    const projects = await this.prisma.project.findMany({
+      where: { companyId: ctx.companyId, deletedAt: null },
+      select: { id: true, name: true, key: true }
+    });
+
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    // All tasks for this company
+    const tasks = await this.prisma.task.findMany({
+      where: { companyId: ctx.companyId, deletedAt: null },
+      select: {
+        id: true, projectId: true, createdAt: true, updatedAt: true,
+        type: true, priority: true,
+        column: { select: { name: true, isDone: true } }
+      }
+    });
+
+    // Activity logs for movement events (to compute lead/cycle time)
+    const moveLogs = await this.prisma.activityLog.findMany({
+      where: {
+        companyId: ctx.companyId,
+        entityType: 'Task',
+        action: { in: ['moved', 'created'] },
+        createdAt: { gte: thirtyDaysAgo }
+      },
+      orderBy: { createdAt: 'asc' },
+      select: { entityId: true, action: true, changes: true, createdAt: true }
+    });
+
+    const doneTasks = tasks.filter(t => t.column.isDone);
+    const totalTasks = tasks.length;
+
+    // Completed last 7 days
+    const completedLast7d = doneTasks.filter(t => t.updatedAt && t.updatedAt >= sevenDaysAgo).length;
+    // Completed last 30 days
+    const completedLast30d = doneTasks.filter(t => t.updatedAt && t.updatedAt >= thirtyDaysAgo).length;
+
+    // Lead time = time from creation to done (for done tasks in last 30d)
+    const leadTimes: number[] = [];
+    for (const t of doneTasks) {
+      if (t.updatedAt && t.updatedAt >= thirtyDaysAgo) {
+        const hours = (t.updatedAt.getTime() - t.createdAt.getTime()) / (1000 * 60 * 60);
+        leadTimes.push(hours);
+      }
+    }
+    const avgLeadTimeHours = leadTimes.length ? leadTimes.reduce((a, b) => a + b, 0) / leadTimes.length : null;
+
+    // Cycle time = time from first "moved" (out of backlog) to done
+    const firstMoveMap = new Map<number, Date>();
+    for (const log of moveLogs) {
+      if (log.action === 'moved' && !firstMoveMap.has(log.entityId)) {
+        firstMoveMap.set(log.entityId, log.createdAt);
+      }
+    }
+    const cycleTimes: number[] = [];
+    for (const t of doneTasks) {
+      if (t.updatedAt && t.updatedAt >= thirtyDaysAgo) {
+        const firstMove = firstMoveMap.get(t.id);
+        if (firstMove) {
+          const hours = (t.updatedAt.getTime() - firstMove.getTime()) / (1000 * 60 * 60);
+          cycleTimes.push(hours);
+        }
+      }
+    }
+    const avgCycleTimeHours = cycleTimes.length ? cycleTimes.reduce((a, b) => a + b, 0) / cycleTimes.length : null;
+
+    // Throughput per week (last 4 weeks)
+    const weeklyThroughput: Array<{ week: string; count: number }> = [];
+    for (let i = 3; i >= 0; i--) {
+      const weekStart = new Date(now.getTime() - (i + 1) * 7 * 24 * 60 * 60 * 1000);
+      const weekEnd = new Date(now.getTime() - i * 7 * 24 * 60 * 60 * 1000);
+      const count = doneTasks.filter(t => t.updatedAt && t.updatedAt >= weekStart && t.updatedAt < weekEnd).length;
+      weeklyThroughput.push({
+        week: weekStart.toISOString().slice(0, 10),
+        count
+      });
+    }
+
+    // By type breakdown
+    const byType: Record<string, { total: number; done: number }> = {};
+    for (const t of tasks) {
+      const type = t.type || 'FEATURE';
+      if (!byType[type]) byType[type] = { total: 0, done: 0 };
+      byType[type].total++;
+      if (t.column.isDone) byType[type].done++;
+    }
+
+    // By priority breakdown
+    const byPriority: Record<string, { total: number; done: number }> = {};
+    for (const t of tasks) {
+      const p = t.priority || 'MEDIUM';
+      if (!byPriority[p]) byPriority[p] = { total: 0, done: 0 };
+      byPriority[p].total++;
+      if (t.column.isDone) byPriority[p].done++;
+    }
+
+    // Per project stats
+    const perProject = projects.map(p => {
+      const projectTasks = tasks.filter(t => t.projectId === p.id);
+      const projectDone = projectTasks.filter(t => t.column.isDone);
+      return {
+        id: p.id, name: p.name, key: p.key,
+        total: projectTasks.length,
+        done: projectDone.length,
+        percent: projectTasks.length ? Math.round((projectDone.length / projectTasks.length) * 100) : 0
+      };
+    });
+
+    return {
+      summary: {
+        totalTasks,
+        doneTasks: doneTasks.length,
+        completedLast7d,
+        completedLast30d,
+        avgLeadTimeHours: avgLeadTimeHours ? Math.round(avgLeadTimeHours * 10) / 10 : null,
+        avgCycleTimeHours: avgCycleTimeHours ? Math.round(avgCycleTimeHours * 10) / 10 : null
+      },
+      weeklyThroughput,
+      byType,
+      byPriority,
+      perProject
+    };
+  }
+
   // Quadro completo (colunas + tarefas) para renderizar o kanban.
   async getBoard(ctx: ICompanyContext, projectId: number) {
     const board = await this.prisma.board.findFirst({

@@ -243,6 +243,7 @@ model Task {
   acceptance  String?      @db.Text // critério de aceite (ponto de aceitação)
   parentId    Int?
   assigneeId  Int?
+  type        TaskType     @default(FEATURE)
   priority    TaskPriority @default(MEDIUM)
   estimateMd  Float? // estimativa em homem-dia
   rank        String       @db.VarChar(64) // ordenação lexicográfica no kanban
@@ -258,6 +259,7 @@ model Task {
   labels      Label[]      @relation("TaskLabels")
   comments    Comment[]
   documents   Document[]
+  checklist   TaskChecklist[]
   blocking    TaskDependency[] @relation("Blocker")
   blockedBy   TaskDependency[] @relation("Blocked")
 
@@ -280,6 +282,21 @@ enum TaskPriority {
   MEDIUM
   HIGH
   URGENT
+}
+
+enum TaskType {
+  FEATURE
+  BUG
+  TECH_DEBT
+  IMPROVEMENT
+  CHORE
+}
+
+enum CommentType {
+  COMMENT
+  CODE_REVIEW
+  COMMIT_REF
+  DEPLOY_LOG
 }
 
 enum DocType {
@@ -325,14 +342,29 @@ model Document {
   @@map("TB_DOCUMENT")
 }
 
+model TaskChecklist {
+  id        Int      @id @default(autoincrement())
+  taskId    Int
+  title     String   @db.VarChar(255)
+  checked   Boolean  @default(false)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@map("TB_TASK_CHECKLIST")
+}
+
 model Comment {
-  id          Int      @id @default(autoincrement())
+  id          Int         @id @default(autoincrement())
   companyId   Int
   taskId      Int
   authorId    Int
-  body        String   @db.Text
+  body        String      @db.Text
+  type        CommentType @default(COMMENT)
   viaApiKeyId Int? // marca quando veio de um agente
-  createdAt   DateTime @default(now())
+  createdAt   DateTime    @default(now())
   company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   author      User     @relation("CommentAuthor", fields: [authorId], references: [id])
