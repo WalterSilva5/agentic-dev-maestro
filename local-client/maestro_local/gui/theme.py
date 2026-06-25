@@ -253,14 +253,15 @@ QScrollBar::handle:vertical:hover {{
 }}
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0; }}
 QScrollBar:horizontal {{
-    background: transparent;
-    height: 6px;
-    margin: 2px;
+    background: {t.bg_secondary};
+    height: 14px;
+    margin: 0;
+    border-radius: 7px;
 }}
 QScrollBar::handle:horizontal {{
     background: {t.bg_badge};
-    border-radius: 3px;
-    min-width: 30px;
+    border-radius: 7px;
+    min-width: 40px;
 }}
 QScrollBar::handle:horizontal:hover {{
     background: {t.text_muted};
