@@ -168,4 +168,4 @@ Os dados ficam em `~/.maestro-local/`:
 
 ## Licença
 
-MIT
+Licença Privada. Copyright (c) 2026 WalterSilva5. Todos os direitos reservados. Consulte o arquivo [LICENSE](LICENSE) para detalhes.
