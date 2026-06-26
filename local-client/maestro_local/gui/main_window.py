@@ -28,6 +28,7 @@ from maestro_local.config import get_active_workspace_id, get_workspace_db_path
 from maestro_local.db.models import switch_db
 from maestro_local.gui.views.board_view import BoardView
 from maestro_local.gui.views.daily_view import DailyView
+from maestro_local.gui.views.dashboard_view import DashboardView
 from maestro_local.gui.views.guide_view import GuideView
 from maestro_local.gui.views.labels_view import LabelsView
 from maestro_local.gui.views.metrics_view import MetricsView
@@ -35,6 +36,86 @@ from maestro_local.gui.views.projects_view import ProjectsView
 from maestro_local.gui.views.skills_view import SkillsView
 from maestro_local.gui.views.study_view import StudyView
 from maestro_local.gui.workspace_selector import WorkspaceSelectorButton
+
+
+class PomodoroWidget(QWidget):
+    def __init__(self):
+        super().__init__()
+        self._duration = 25 * 60
+        self._remaining = self._duration
+        self._running = False
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(8, 2, 8, 2)
+        layout.setSpacing(4)
+
+        self._label = QLabel("🍅")
+        self._label.setFixedWidth(16)
+        layout.addWidget(self._label)
+
+        self._time_label = QLabel(self._fmt(self._remaining))
+        layout.addWidget(self._time_label)
+
+        self._btn = QPushButton("▶")
+        self._btn.setFixedSize(22, 22)
+        self._btn.setCursor(Qt.PointingHandCursor)
+        self._btn.clicked.connect(self._toggle)
+        layout.addWidget(self._btn)
+
+        self._reset_btn = QPushButton("↺")
+        self._reset_btn.setFixedSize(22, 22)
+        self._reset_btn.setCursor(Qt.PointingHandCursor)
+        self._reset_btn.clicked.connect(self._reset)
+        layout.addWidget(self._reset_btn)
+
+        self._timer = QTimer(self)
+        self._timer.setInterval(1000)
+        self._timer.timeout.connect(self._tick)
+
+    def _fmt(self, secs):
+        return f"{secs // 60:02d}:{secs % 60:02d}"
+
+    def _toggle(self):
+        if self._running:
+            self._timer.stop()
+            self._running = False
+            self._btn.setText("▶")
+        else:
+            self._timer.start()
+            self._running = True
+            self._btn.setText("⏸")
+
+    def _reset(self):
+        self._timer.stop()
+        self._running = False
+        self._remaining = self._duration
+        self._time_label.setText(self._fmt(self._remaining))
+        self._btn.setText("▶")
+
+    def _tick(self):
+        self._remaining -= 1
+        if self._remaining <= 0:
+            self._timer.stop()
+            self._running = False
+            self._remaining = 0
+            self._btn.setText("▶")
+            self._time_label.setText("00:00")
+            return
+        self._time_label.setText(self._fmt(self._remaining))
+
+    def apply_theme(self, t):
+        self._time_label.setStyleSheet(
+            f"color: {t.text_secondary}; font-size: 11px; font-weight: 600; "
+            f"font-family: monospace; background: transparent;"
+        )
+        self._label.setStyleSheet("background: transparent;")
+        btn_style = (
+            f"background: {t.bg_badge}; color: {t.text_secondary}; "
+            f"border: 1px solid {t.border}; border-radius: 4px; "
+            f"font-size: 10px; padding: 0;"
+        )
+        self._btn.setStyleSheet(btn_style)
+        self._reset_btn.setStyleSheet(btn_style)
 
 
 class ToastWidget(QLabel):
@@ -63,8 +144,8 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.api_port = api_port
         self.setWindowTitle("Agentic Dev Maestro")
-        self.resize(1200, 800)
-        self.setMinimumSize(900, 600)
+        self.resize(960, 640)
+        self.setMinimumSize(700, 450)
 
         central = QWidget()
         self.setCentralWidget(central)
@@ -74,7 +155,7 @@ class MainWindow(QMainWindow):
 
         # --- Sidebar ---
         self.sidebar = QWidget()
-        self.sidebar.setFixedWidth(220)
+        self.sidebar.setFixedWidth(180)
         sb_layout = QVBoxLayout(self.sidebar)
         sb_layout.setContentsMargins(0, 0, 0, 0)
         sb_layout.setSpacing(0)
@@ -82,14 +163,14 @@ class MainWindow(QMainWindow):
         # Logo / branding section
         logo_container = QWidget()
         logo_layout = QVBoxLayout(logo_container)
-        logo_layout.setContentsMargins(16, 14, 16, 10)
-        logo_layout.setSpacing(4)
+        logo_layout.setContentsMargins(12, 8, 12, 6)
+        logo_layout.setSpacing(2)
 
         brand_row = QHBoxLayout()
         brand_row.setSpacing(10)
 
         self.logo_badge = QLabel("A")
-        self.logo_badge.setFixedSize(36, 36)
+        self.logo_badge.setFixedSize(28, 28)
         self.logo_badge.setAlignment(Qt.AlignCenter)
         brand_row.addWidget(self.logo_badge)
 
@@ -120,7 +201,8 @@ class MainWindow(QMainWindow):
         self.nav_list = QListWidget()
         self.nav_list.setObjectName("navList")
         nav_items = [
-            ("Diario", "daily"),
+            ("Dashboard", "dashboard"),
+            ("Meu Dia", "daily"),
             ("Estudos", "study"),
             ("Board", "board"),
             ("Projetos", "projects"),
@@ -138,9 +220,12 @@ class MainWindow(QMainWindow):
         self.nav_list.currentRowChanged.connect(self._on_nav)
         sb_layout.addWidget(self.nav_list)
 
+        # Pomodoro timer
+        self.pomodoro = PomodoroWidget()
+        sb_layout.addWidget(self.pomodoro)
+
         # Theme toggle
         self.theme_btn = QPushButton("Tema escuro")
-        self.theme_btn.setProperty("flat", True)
         self.theme_btn.setCursor(Qt.PointingHandCursor)
         self.theme_btn.clicked.connect(self._toggle_theme)
         sb_layout.addWidget(self.theme_btn)
@@ -187,6 +272,7 @@ class MainWindow(QMainWindow):
 
         # Stacked widget with views
         self.stack = QStackedWidget()
+        self.dashboard_view = DashboardView()
         self.daily_view = DailyView()
         self.study_view = StudyView()
         self.board_view = BoardView()
@@ -196,6 +282,7 @@ class MainWindow(QMainWindow):
         self.skills_view = SkillsView()
         self.guide_view = GuideView()
 
+        self.stack.addWidget(self.dashboard_view)
         self.stack.addWidget(self.daily_view)
         self.stack.addWidget(self.study_view)
         self.stack.addWidget(self.board_view)
@@ -212,9 +299,11 @@ class MainWindow(QMainWindow):
         self.projects_view.project_selected.connect(self._open_board)
         self.board_view.project_opened.connect(self._open_board)
         self.board_view.task_changed.connect(self._refresh_all)
+        self.dashboard_view.task_clicked.connect(self._open_task_from_dashboard)
+        self.dashboard_view.project_clicked.connect(self._open_board)
 
-        # Default to Daily view
-        self.nav_list.setCurrentRow(0)
+        # Default to Meu Dia view
+        self.nav_list.setCurrentRow(1)
 
         # Status bar
         self.status = QStatusBar()
@@ -231,7 +320,7 @@ class MainWindow(QMainWindow):
         escape_shortcut = QShortcut(QKeySequence("Escape"), self)
         escape_shortcut.activated.connect(self._close_search)
 
-        for i in range(8):
+        for i in range(9):
             shortcut = QShortcut(QKeySequence(f"Alt+{i + 1}"), self)
             shortcut.activated.connect(lambda idx=i: self.nav_list.setCurrentRow(idx))
 
@@ -250,28 +339,28 @@ class MainWindow(QMainWindow):
         )
         self.logo_badge.setStyleSheet(
             f"background-color: {t.accent}; color: {t.text_on_accent}; "
-            f"font-size: 18px; font-weight: 800; border-radius: 10px;"
+            f"font-size: 14px; font-weight: 800; border-radius: 7px;"
         )
         self.logo_text.setStyleSheet(
-            f"font-size: 15px; font-weight: 700; color: {t.text_primary}; "
-            f"background: transparent; letter-spacing: 0.5px;"
+            f"font-size: 13px; font-weight: 700; color: {t.text_primary}; "
+            f"background: transparent; letter-spacing: 0.3px;"
         )
         self.logo_subtitle.setStyleSheet(
-            f"font-size: 12px; font-weight: 600; color: {t.accent}; "
-            f"background: transparent; letter-spacing: 1px;"
+            f"font-size: 10px; font-weight: 600; color: {t.accent}; "
+            f"background: transparent; letter-spacing: 0.8px;"
         )
         self.section_label_work.setStyleSheet(
-            f"color: {t.text_muted}; font-size: 10px; font-weight: 700; "
-            f"letter-spacing: 1.5px; padding: 8px 16px 2px 16px; background: transparent;"
+            f"color: {t.text_muted}; font-size: 9px; font-weight: 700; "
+            f"letter-spacing: 1.2px; padding: 6px 12px 2px 12px; background: transparent;"
         )
         self.nav_list.setStyleSheet(f"""
             QListWidget {{
-                background: transparent; border: none; padding: 2px 4px;
+                background: transparent; border: none; padding: 2px 2px;
                 outline: none;
             }}
             QListWidget::item {{
-                padding: 7px 12px; border-radius: 6px; margin: 1px 6px;
-                color: {t.text_secondary}; font-size: 13px;
+                padding: 5px 10px; border-radius: 5px; margin: 1px 4px;
+                color: {t.text_secondary}; font-size: 12px;
             }}
             QListWidget::item:selected {{
                 background-color: {t.bg_selected}; color: {t.text_primary};
@@ -281,17 +370,19 @@ class MainWindow(QMainWindow):
                 background-color: {t.bg_hover};
             }}
         """)
+        self.pomodoro.apply_theme(t)
         theme_icon = "☾" if not is_dark() else "☀"
         self.theme_btn.setText(f"  {theme_icon}   {'Tema escuro' if not is_dark() else 'Tema claro'}")
         self.theme_btn.setStyleSheet(
-            f"color: {t.text_muted}; font-size: 12px; padding: 6px 16px; "
-            f"text-align: left; border: none; background: transparent; border-radius: 8px; margin: 2px 8px;"
+            f"color: {t.text_muted}; font-size: 11px; padding: 4px 12px; "
+            f"text-align: left; border: 1px solid {t.border}; background: transparent; "
+            f"border-radius: 6px; margin: 2px 4px;"
         )
         self.api_label.setStyleSheet(
-            f"color: {t.text_muted}; font-size: 10px; padding: 4px 16px; background: transparent;"
+            f"color: {t.text_muted}; font-size: 9px; padding: 2px 12px; background: transparent;"
         )
         self.version_label.setStyleSheet(
-            f"color: {t.text_muted}; font-size: 10px; padding: 2px 16px 12px 16px; background: transparent;"
+            f"color: {t.text_muted}; font-size: 9px; padding: 1px 12px 8px 12px; background: transparent;"
         )
         self.status.setStyleSheet(
             f"background-color: {t.bg_sidebar}; color: {t.text_muted}; "
@@ -341,7 +432,13 @@ class MainWindow(QMainWindow):
 
     def _open_board(self, project_id):
         self.board_view.set_project(project_id)
-        self.nav_list.setCurrentRow(2)
+        self.nav_list.setCurrentRow(3)
+
+    def _open_task_from_dashboard(self, task_id):
+        from maestro_local.gui.views.task_detail_dialog import TaskDetailDialog
+        dlg = TaskDetailDialog(task_id, self)
+        dlg.task_updated.connect(self._refresh_all)
+        dlg.exec()
 
     def _on_workspace_changed(self, ws_id):
         db_path = get_workspace_db_path(ws_id)
@@ -427,7 +524,7 @@ class MainWindow(QMainWindow):
         self._close_search()
         if task and hasattr(self.board_view, "open_task_detail"):
             self.board_view.open_task_detail(task)
-            self.nav_list.setCurrentRow(2)
+            self.nav_list.setCurrentRow(3)
 
     # --- Toast ---
 

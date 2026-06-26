@@ -30,7 +30,7 @@ class SkillCard(QFrame):
         )
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 12, 16, 12)
+        layout.setContentsMargins(10, 8, 10, 8)
         layout.setSpacing(6)
 
         top = QHBoxLayout()
@@ -107,8 +107,8 @@ class SkillsView(QWidget):
         self._target_dir = cfg.get("skills_target_dir")
 
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(24, 24, 24, 24)
-        main_layout.setSpacing(16)
+        main_layout.setContentsMargins(14, 14, 14, 14)
+        main_layout.setSpacing(10)
 
         title = QLabel("Skills")
         title.setObjectName("sectionTitle")
@@ -124,7 +124,7 @@ class SkillsView(QWidget):
 
         dir_row = QHBoxLayout()
         dir_label = QLabel("Diretorio destino:")
-        dir_label.setStyleSheet("font-weight: 600;")
+        dir_label.setProperty("class", "sectionLabel")
         dir_row.addWidget(dir_label)
 
         self.dir_input = QLineEdit()
@@ -139,16 +139,24 @@ class SkillsView(QWidget):
         dir_row.addWidget(browse_btn)
         main_layout.addLayout(dir_row)
 
+        search_row = QHBoxLayout()
         self.search = QLineEdit()
         self.search.setPlaceholderText("Buscar skills...")
         self.search.textChanged.connect(lambda: self.refresh())
-        main_layout.addWidget(self.search)
+        search_row.addWidget(self.search, 1)
+
+        self.install_all_btn = QPushButton("Instalar todas")
+        self.install_all_btn.setFixedHeight(28)
+        self.install_all_btn.setCursor(Qt.PointingHandCursor)
+        self.install_all_btn.clicked.connect(self._install_all)
+        search_row.addWidget(self.install_all_btn)
+        main_layout.addLayout(search_row)
 
         self.preview_area = QTextEdit()
         self.preview_area.setReadOnly(True)
         self.preview_area.setVisible(False)
         self.preview_area.setMaximumHeight(200)
-        self.preview_area.setStyleSheet("font-family: monospace; font-size: 12px;")
+        self.preview_area.setProperty("class", "mono")
 
         self.preview_close = QPushButton("Fechar preview")
         self.preview_close.setProperty("flat", True)
@@ -204,6 +212,14 @@ class SkillsView(QWidget):
             content = content.replace("{project_dir}", self._target_dir or ".")
         (target / "SKILL.md").write_text(content)
         self.refresh()
+
+    def _install_all(self):
+        sd = self._skills_dir()
+        if not sd:
+            return
+        for skill in SKILLS:
+            if not self._is_installed(skill["id"]):
+                self._install(skill["id"])
 
     def _uninstall(self, skill_id):
         sd = self._skills_dir()

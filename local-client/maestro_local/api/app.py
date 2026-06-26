@@ -1332,33 +1332,13 @@ def get_skill(skill_id: str):
 
 DAILY_NOTE_TEMPLATE = """\
 ## Foco do Dia
-- Objetivo principal:
-- Prioridade maxima:
-
----
-
-## Tarefas Planejadas
 - [ ] ...
 
----
+## Bloqueios
+- ...
 
-## Bloqueios / Problemas / Duvidas
-- Descricao do problema
-- Dependencia / quem pode ajudar
-
----
-
-## Anotacoes Rapidas
-- Ideias
-- Decisoes tomadas
-- Links uteis
-
----
-
-## Check-out do Dia
-- O que foi concluido:
-- O que ficou pendente:
-- Proximo passo amanha:
+## Notas
+- ...
 """
 
 
@@ -1399,24 +1379,32 @@ def _build_daily_report(s: Session, day_str: str) -> str:
     note = s.query(DailyNote).filter(DailyNote.date == day_str).first()
     user_notes = note.body if note else ""
 
-    lines = [f"# Relatorio Diario — {day_str}", ""]
+    lines = [f"# Relatório Diário — {day_str}", ""]
 
+    # --- Conteúdo estruturado da nota do dia (se existe) ---
+    if user_notes.strip():
+        lines.append(user_notes.strip())
+        lines.append("")
+
+    # --- Tarefas trabalhadas (do board) ---
     if tasks:
-        lines.append("## Tarefas trabalhadas")
+        lines.append("## Tarefas do Board")
         lines.append("")
         for task in tasks:
             ttype = task.type or "FEATURE"
             lines.append(f"- **{task.code}** — {task.title} [{ttype}] (_{task.status}_)")
         lines.append("")
 
+    # --- Timeline de atividades ---
     if activities:
-        lines.append("## Atividades")
+        lines.append("## Timeline de Atividades")
         lines.append("")
         for a in activities:
             time_str = a.created_at.strftime("%H:%M") if a.created_at else ""
             lines.append(f"- `{time_str}` {a.action}: {a.detail or ''}")
         lines.append("")
 
+    # --- Code reviews ---
     reviews = [c for c in comments if c.type == "CODE_REVIEW"]
     if reviews:
         lines.append("## Code Reviews")
@@ -1428,12 +1416,7 @@ def _build_daily_report(s: Session, day_str: str) -> str:
             lines.append(r.body or "")
             lines.append("")
 
-    if user_notes.strip():
-        lines.append("## Notas")
-        lines.append("")
-        lines.append(user_notes.strip())
-        lines.append("")
-
+    # --- Resumo automático ---
     lines.append("## Resumo")
     lines.append("")
     lines.append(f"- **Tarefas tocadas**: {len(tasks)}")
@@ -1444,7 +1427,8 @@ def _build_daily_report(s: Session, day_str: str) -> str:
         if s.query(BoardColumn).get(task.column_id)
         and s.query(BoardColumn).get(task.column_id).is_done
     )
-    lines.append(f"- **Concluidas hoje**: {done_today}")
+    if done_today:
+        lines.append(f"- **Concluídas hoje**: {done_today}")
 
     return "\n".join(lines)
 

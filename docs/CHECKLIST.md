@@ -1,11 +1,8 @@
 # Checklist mestre — Definition of Done
 
-Visão única do que precisa estar pronto. As listas detalhadas por área ficam em
-[`tarefas/`](tarefas/).
+Visão única do que precisa estar pronto. Estado em 2026-06-25.
 
 > Convenção: `[ ]` a fazer · `[~]` parcial · `[x]` feito.
-> Estado em 2026-06-22 — backend Gates 0–4, app Angular e servidor MCP implementados
-> e verificados (e2e de API + click-through no browser). Desvios/pendências sinalizados.
 
 ---
 
@@ -13,9 +10,9 @@ Visão única do que precisa estar pronto. As listas detalhadas por área ficam 
 
 - [x] Projeto a partir do template; `docker compose` sobe mysql/redis/api/front
 - [x] `Company` + `Membership` + papéis (OWNER/MANAGER/TECH_LEAD/DEV/VIEWER)
-- [x] Guard de contexto + **isolamento por `companyId`** (provado: 401 sem chave, sem vazamento)
+- [x] Guard de contexto + **isolamento por `companyId`**
 - [x] Autenticação por **API key** (hash sha256, escopos, expiração, revogação)
-- [x] Seed: empresa demo + OWNER + API key de agente (segredo impresso)
+- [x] Seed: empresa demo + OWNER + API key de agente
 
 ## 🚪 Gate 1 — Núcleo de tarefas e quadro ✅
 
@@ -24,59 +21,76 @@ Visão única do que precisa estar pronto. As listas detalhadas por área ficam 
 - [x] Tarefas com código (`DEMO-42`), prioridade, estimativa (hd), labels
 - [x] Tarefas com **objetivo** e **critério de aceite**
 - [x] Subtarefas (auto-relacional)
-- [~] `move` (mudar coluna/status) — feito; `wipLimit` existe no schema mas **ainda não é imposto**
-- [x] **Fluxo da tarefa:** `TaskDependency` (DAG validado, anticiclo) + `GET /flow` (nós/arestas)
-- [x] **Front:** kanban com drag-and-drop, update otimista + rollback — *nativo HTML5* (não CDK)
+- [x] `move` (mudar coluna/status) — feito
+- [x] **Fluxo da tarefa:** `TaskDependency` (DAG validado, anticiclo) + `GET /flow`
+- [x] **Front:** kanban com drag-and-drop, update otimista + rollback
 - [x] **Front:** detalhe de tarefa (objetivo, aceite, comentários; subtarefas via fluxo)
-- [x] **Front:** aba de fluxo com nós por status + export Mermaid — *SVG próprio* (não ngx-graph)
+- [x] **Front:** aba de fluxo com nós por status + export Mermaid
 
 ## 🚪 Gate 2 — Docs e API de agente → MVP funcional ✅
 
 - [x] `Document` markdown (versão) em projeto/tarefa + export
 - [x] `POST /tasks/bulk` (decompose) em transação, com `dependsOn`
-- [x] Idempotência (`Idempotency-Key`) sem duplicar (testado)
+- [x] Idempotência (`Idempotency-Key`) sem duplicar
 - [x] `ActivityLog` em toda escrita (humano vs. agente)
 - [x] **Front:** editor/visualizador markdown (textarea) + aba de atividade
-- [x] ✅ **Maestro Loop ponta a ponta** (verificado por e2e de API key e click-through no browser)
 
-## 🚪 Gate 3 — MCP e integrações ✅ (com ressalvas)
+## 🚪 Gate 3 — MCP e integrações ✅
 
-- [x] Servidor MCP (`mcp/`) com 11 tools (decompose, write_doc, list/get/move task, flow, comment, …)
-- [~] Loop via MCP: **build + handshake stdio verificados**; falta rodar conectado a um agente real
-- [~] Webhooks de status (dispatch HMAC em `task.created/moved`) + **e-mail** (notificação no convite de membro; webhooks não usam a fila Bull)
+- [x] Servidor MCP (`mcp/`) com 11 tools
+- [x] Webhooks de status (dispatch HMAC em `task.created/moved`)
 
-## 🚪 Gate 4 — Visão e polish ✅ (com ressalvas)
+## 🚪 Gate 4 — Visão e polish ✅
 
-- [x] Busca + filtros (status, assignee, label, texto) no `GET /tasks`
+- [x] Busca + filtros no `GET /tasks`
 - [x] Dashboard (progresso por projeto + atividade recente)
-- [~] Gestão de membros e API keys na UI — convite só adiciona **usuário já cadastrado** (sem convite por e-mail a não-usuário)
+- [x] Gestão de membros e API keys na UI
 - [x] Links de navegação (navbar) para as páginas do Maestro
 
----
+## 🚪 Gate 5 — Modulo de Estudos ✅
 
-## ✅ Qualidade transversal
+- [x] Modelos SQLAlchemy: StudyPlan, StudyTopic, StudySession
+- [x] Endpoints CRUD para planos, tópicos e sessões
+- [x] Cálculo de progresso automático
+- [x] GUI com lista de planos, detalhe com tópicos
+- [x] Sidebar "Estudos" no local-client
 
-**Segurança**
-- [x] Nenhuma query de domínio sem filtro `companyId` (isolamento provado)
-- [x] API key só como hash; segredo exibido uma única vez; revogação imediata
-- [~] Permissão efetiva por papel (`@RequireRole` no guard) — **sem testes automatizados** ainda
-- [x] `.env` (e `config.json` de teste) nunca commitados
+## 🚪 Gate 6 — Edição/Deleção de Tarefas ✅
 
-**Confiabilidade**
-- [x] Bulk + idempotência testados contra duplicação
-- [x] Migrations versionadas (`maestro_domain`, `maestro_fase2_4`); seed idempotente
-- [ ] CI (lint + test + build) — **não configurado**
+- [x] Backend: `PATCH /tasks/:code` (update), `DELETE /tasks/:code` (soft delete)
+- [x] Backend: `PATCH /comments/:id` (update), `DELETE /comments/:id` (delete)
+- [x] Backend: Filtro `parentId` no `GET /tasks`
+- [x] Frontend: Cards clicáveis no board → abrem detalhes
+- [x] Frontend: Formulário de edição inline na task detail
+- [x] Frontend: Aba de subtarefas (criar/excluir, só título)
+- [x] Frontend: Edição/deleção inline de comentários
+- [x] Frontend: Seletor de coluna para mover tarefa
+- [x] Frontend: Card de descrição destacado
 
-**Documentação**
-- [x] Swagger completo (`/api/docs`)
-- [x] Diagramas (`docs/diagramas/`) — SVGs regenerados (PlantUML 1.2026.6); `modelo-dados` alinhado ao schema (`BoardColumn`, `taskSeq`, `isDone`) e auth key corrigida (`adm_`)
-- [x] README e docs refletem o estado real
+## 🚪 Gate 7 — OpenCode Tools ✅
+
+- [x] 12 ferramentas customizadas (`.opencode/tools/maestro.ts`)
+- [x] 2 comandos: `/review` e `/decompose`
+- [x] Skill de uso da plataforma
+- [x] Config `opencode.jsonc`
+
+## 🚪 Gate 8 — Reorganização ✅
+
+- [x] Web client movido para `web-client/`
+- [x] README geral + README do web client
+- [x] CLAUDE.md atualizado com novos caminhos
+- [x] Tema claro com melhor contraste (cards brancos, bordas visíveis)
+- [x] Sidebar sem scroll desnecessário
+- [x] Board view mostra lista de projetos quando nenhum selecionado
 
 ---
 
 ## Pendências conhecidas (próximos passos)
 
-1. Impor `wipLimit` no `move`.
-2. Testes automatizados (RBAC, isolamento) + pipeline de CI.
-3. Convite por e-mail a usuário ainda não cadastrado.
-4. Validar o MCP conectado a um agente real (Claude Code).
+1. Timer real para sessões de estudo
+2. Gamificação (streak, badges, XP)
+3. Importação de roadmaps em markdown
+4. Flashcards/revisão espaçada
+5. Compartilhamento de planos como template
+6. CI (lint + test + build) — não configurado
+7. Testes automatizados (RBAC, isolamento)

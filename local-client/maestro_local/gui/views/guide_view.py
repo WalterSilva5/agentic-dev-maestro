@@ -108,8 +108,8 @@ class GuideView(QWidget):
     def __init__(self):
         super().__init__()
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(24, 24, 24, 24)
-        main_layout.setSpacing(16)
+        main_layout.setContentsMargins(14, 14, 14, 14)
+        main_layout.setSpacing(10)
 
         title = QLabel("Como usar o Agentic Dev Maestro")
         title.setObjectName("sectionTitle")
@@ -123,63 +123,60 @@ class GuideView(QWidget):
         subtitle.setObjectName("subtitle")
         main_layout.addWidget(subtitle)
 
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setStyleSheet("QScrollArea { border: none; }")
+        self.scroll = QScrollArea()
+        self.scroll.setWidgetResizable(True)
+        self.scroll.setFrameShape(QFrame.NoFrame)
 
-        content = QWidget()
-        content_layout = QVBoxLayout(content)
-        content_layout.setContentsMargins(0, 0, 0, 0)
-        content_layout.setSpacing(12)
+        self.cards_container = QWidget()
+        self.cards_layout = QVBoxLayout(self.cards_container)
+        self.cards_layout.setContentsMargins(0, 0, 0, 0)
+        self.cards_layout.setSpacing(12)
 
-        for section in SECTIONS:
-            card = self._make_card(section)
-            content_layout.addWidget(card)
+        self.scroll.setWidget(self.cards_container)
+        main_layout.addWidget(self.scroll, 1)
 
-        content_layout.addStretch()
-        scroll.setWidget(content)
-        main_layout.addWidget(scroll, 1)
+        self._build_cards()
 
-    @staticmethod
-    def _make_card(section: dict) -> QFrame:
+    def _build_cards(self):
+        while self.cards_layout.count():
+            item = self.cards_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
         t = current_theme()
-        card = QFrame()
-        card.setStyleSheet(
-            f"QFrame {{ background: {t.bg_card}; border: 1px solid {t.border_light}; "
-            f"border-radius: 10px; }}"
-        )
+        for section in SECTIONS:
+            card = QFrame()
+            card.setProperty("class", "card")
 
-        row = QHBoxLayout(card)
-        row.setContentsMargins(16, 14, 16, 14)
-        row.setSpacing(14)
+            row = QHBoxLayout(card)
+            row.setContentsMargins(10, 8, 10, 8)
+            row.setSpacing(14)
 
-        badge = QLabel(section["icon"])
-        badge.setFixedSize(36, 36)
-        badge.setAlignment(Qt.AlignCenter)
-        badge.setStyleSheet(
-            f"background: {t.accent}; color: {t.text_on_accent}; "
-            f"border-radius: 18px; font-size: 15px; font-weight: 800; border: none;"
-        )
-        row.addWidget(badge, 0, Qt.AlignTop)
+            badge = QLabel(section["icon"])
+            badge.setFixedSize(36, 36)
+            badge.setAlignment(Qt.AlignCenter)
+            badge.setStyleSheet(
+                f"background: {t.accent}; color: {t.text_on_accent}; "
+                f"border-radius: 18px; font-size: 15px; font-weight: 800; border: none;"
+            )
+            row.addWidget(badge, 0, Qt.AlignTop)
 
-        text_col = QVBoxLayout()
-        text_col.setSpacing(4)
+            text_col = QVBoxLayout()
+            text_col.setSpacing(4)
 
-        heading = QLabel(section["title"])
-        heading.setStyleSheet(
-            f"font-weight: 700; font-size: 14px; color: {t.text_primary}; border: none;"
-        )
-        text_col.addWidget(heading)
+            heading = QLabel(section["title"])
+            heading.setProperty("class", "cardTitle")
+            text_col.addWidget(heading)
 
-        body = QLabel(section["body"])
-        body.setWordWrap(True)
-        body.setStyleSheet(
-            f"color: {t.text_secondary}; font-size: 13px; line-height: 1.5; border: none;"
-        )
-        text_col.addWidget(body)
+            body = QLabel(section["body"])
+            body.setWordWrap(True)
+            body.setProperty("class", "hint")
+            text_col.addWidget(body)
 
-        row.addLayout(text_col, 1)
-        return card
+            row.addLayout(text_col, 1)
+            self.cards_layout.addWidget(card)
+
+        self.cards_layout.addStretch()
 
     def refresh(self):
-        pass
+        self._build_cards()

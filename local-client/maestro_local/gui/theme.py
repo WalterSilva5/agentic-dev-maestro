@@ -133,7 +133,7 @@ QMainWindow, QWidget {{
     background-color: {t.bg_primary};
     color: {t.text_primary};
     font-family: "Inter", "Segoe UI", "Noto Sans", "Roboto", system-ui, sans-serif;
-    font-size: 13px;
+    font-size: 12px;
 }}
 QMenuBar {{
     background-color: {t.bg_sidebar};
@@ -152,7 +152,6 @@ QMenu {{
     border: 1px solid {t.border};
     border-radius: 8px;
     padding: 6px;
-    box-shadow: {t.shadow};
 }}
 QMenu::item {{
     padding: 6px 24px 6px 12px;
@@ -172,7 +171,7 @@ QListWidget, QTreeWidget, QTableWidget {{
     outline: none;
 }}
 QListWidget::item, QTreeWidget::item {{
-    padding: 7px 10px;
+    padding: 5px 8px;
     border-radius: 5px;
     margin: 1px 0;
 }}
@@ -187,11 +186,11 @@ QPushButton {{
     background-color: {t.accent};
     color: {t.text_on_accent};
     border: none;
-    border-radius: 8px;
-    padding: 8px 18px;
-    min-height: 22px;
+    border-radius: 6px;
+    padding: 5px 14px;
+    min-height: 18px;
     font-weight: 600;
-    font-size: 13px;
+    font-size: 12px;
 }}
 QPushButton:hover {{ background-color: {t.accent_hover}; }}
 QPushButton:pressed {{ background-color: {t.accent_pressed}; }}
@@ -213,11 +212,11 @@ QLineEdit, QTextEdit, QPlainTextEdit, QComboBox, QSpinBox, QDoubleSpinBox {{
     background-color: {t.bg_input};
     color: {t.text_primary};
     border: 1px solid {t.border};
-    border-radius: 8px;
-    padding: 8px 12px;
+    border-radius: 6px;
+    padding: 5px 10px;
     selection-background-color: {t.accent};
     selection-color: {t.text_on_accent};
-    font-size: 13px;
+    font-size: 12px;
 }}
 QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus,
 QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus {{
@@ -227,13 +226,13 @@ QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus {{
 QLineEdit#globalSearch {{
     background-color: {t.bg_card};
     border: 1px solid {t.border};
-    border-radius: 10px;
-    padding: 10px 16px;
-    font-size: 14px;
+    border-radius: 8px;
+    padding: 7px 12px;
+    font-size: 13px;
 }}
 QLineEdit#globalSearch:focus {{
     border-color: {t.border_focus};
-    box-shadow: 0 0 0 3px {t.accent_light};
+
 }}
 QComboBox::drop-down {{
     border: none;
@@ -302,15 +301,15 @@ QTabBar::tab:hover:!selected {{
     border-bottom: 2px solid {t.border};
 }}
 QLabel#sectionTitle {{
-    font-size: 22px;
+    font-size: 16px;
     font-weight: 700;
     color: {t.text_primary};
-    letter-spacing: -0.3px;
-    margin-bottom: 4px;
+    letter-spacing: -0.2px;
+    margin-bottom: 2px;
 }}
 QLabel#subtitle {{
     color: {t.text_muted};
-    font-size: 13px;
+    font-size: 11px;
 }}
 QProgressBar {{
     background-color: {t.bg_badge};
@@ -324,9 +323,9 @@ QProgressBar::chunk {{
     border-radius: 4px;
 }}
 QCheckBox::indicator {{
-    width: 18px;
-    height: 18px;
-    border-radius: 5px;
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
     border: 2px solid {t.border};
     background-color: {t.bg_input};
 }}
@@ -355,7 +354,7 @@ QDialog {{
     background-color: {t.bg_card};
     color: {t.text_primary};
     border-radius: 10px;
-    box-shadow: {t.shadow_lg};
+
 }}
 QToolTip {{
     background-color: {t.bg_card};
@@ -364,7 +363,6 @@ QToolTip {{
     border-radius: 6px;
     padding: 8px 12px;
     font-size: 12px;
-    box-shadow: {t.shadow};
 }}
 QMessageBox {{
     background-color: {t.bg_card};
@@ -377,6 +375,90 @@ QMessageBox QLabel {{
 QMessageBox QPushButton {{
     min-width: 80px;
     padding: 7px 18px;
+}}
+QFrame[class="card"] {{
+    background: {t.bg_card};
+    border: 1px solid {t.border_light};
+    border-radius: 8px;
+    padding: 10px;
+}}
+QLabel[class="cardTitle"] {{
+    font-weight: 700;
+    font-size: 13px;
+    color: {t.text_primary};
+    border: none;
+    background: transparent;
+}}
+QLabel[class="hint"] {{
+    color: {t.text_muted};
+    font-size: 11px;
+    border: none;
+    background: transparent;
+}}
+QLabel[class="sectionLabel"] {{
+    color: {t.text_secondary};
+    font-weight: 600;
+    font-size: 11px;
+    border: none;
+    background: transparent;
+}}
+QPushButton[class="secondary"] {{
+    background: {t.bg_badge};
+    color: {t.text_secondary};
+    border: 1px solid {t.border};
+    border-radius: 5px;
+    padding: 3px 10px;
+    font-size: 11px;
+    font-weight: 600;
+}}
+QPushButton[class="secondary"]:hover {{
+    background: {t.bg_hover};
+}}
+QTextEdit[class="mono"] {{
+    background: {t.bg_input};
+    border: 1px solid {t.border_light};
+    border-radius: 6px;
+    padding: 8px;
+    font-family: monospace;
+    font-size: 12px;
+    color: {t.text_primary};
+}}
+QTextBrowser[class="preview"] {{
+    background: {t.bg_input};
+    border: 1px solid {t.border_light};
+    border-radius: 6px;
+    padding: 8px;
+    font-size: 12px;
+    color: {t.text_primary};
+}}
+QDateEdit {{
+    background-color: {t.bg_input};
+    color: {t.text_primary};
+    border: 1px solid {t.border};
+    border-radius: 8px;
+    padding: 4px 8px;
+}}
+QLabel#summaryValue {{
+    font-size: 22px;
+    font-weight: 800;
+    color: {t.text_primary};
+    border: none;
+    background: transparent;
+}}
+QPushButton[class="quickMove"] {{
+    background: {t.bg_badge};
+    color: {t.text_muted};
+    border: 1px solid {t.border_light};
+    border-radius: 4px;
+    padding: 2px 8px;
+    font-size: 10px;
+    font-weight: 600;
+    min-height: 18px;
+}}
+QPushButton[class="quickMove"]:hover {{
+    background: {t.accent};
+    color: {t.text_on_accent};
+    border-color: {t.accent};
 }}
 """
 
@@ -412,6 +494,7 @@ PRIORITY_LABELS = {
 }
 
 NAV_ICONS = {
+    "dashboard": "◱",
     "daily": "◰",
     "study": "📚",
     "board": "◫",

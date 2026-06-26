@@ -33,7 +33,7 @@ class LabelCard(QFrame):
         )
 
         row = QHBoxLayout(self)
-        row.setContentsMargins(16, 12, 16, 12)
+        row.setContentsMargins(10, 8, 10, 8)
         row.setSpacing(12)
 
         dot = QLabel()
@@ -68,8 +68,8 @@ class LabelsView(QWidget):
     def __init__(self):
         super().__init__()
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(24, 24, 24, 24)
-        layout.setSpacing(16)
+        layout.setContentsMargins(14, 14, 14, 14)
+        layout.setSpacing(10)
 
         title = QLabel("Labels")
         title.setObjectName("sectionTitle")
@@ -80,16 +80,12 @@ class LabelsView(QWidget):
         layout.addWidget(subtitle)
 
         form_frame = QFrame()
-        t = current_theme()
-        form_frame.setStyleSheet(
-            f"QFrame {{ background: {t.bg_card}; border: 1px solid {t.border_light}; "
-            f"border-radius: 10px; padding: 16px; }}"
-        )
+        form_frame.setProperty("class", "card")
         form_layout = QVBoxLayout(form_frame)
         form_layout.setSpacing(12)
 
         form_title = QLabel("Nova label")
-        form_title.setStyleSheet(f"font-weight: 600; border: none;")
+        form_title.setProperty("class", "cardTitle")
         form_layout.addWidget(form_title)
 
         name_row = QHBoxLayout()
@@ -101,7 +97,7 @@ class LabelsView(QWidget):
 
         colors_row = QHBoxLayout()
         colors_lbl = QLabel("Cor:")
-        colors_lbl.setStyleSheet(f"color: {t.text_secondary}; font-size: 12px; border: none;")
+        colors_lbl.setProperty("class", "sectionLabel")
         colors_row.addWidget(colors_lbl)
 
         self.selected_color = COLOR_PALETTE[0]

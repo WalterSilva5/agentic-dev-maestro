@@ -2,12 +2,11 @@
 
 ## Visão Geral
 
-Plataforma fullstack de gestão de projetos e estudos, com suporte a agentes de IA. Monorepo com múltiplos clientes:
+O **Maestro Local** é uma aplicação desktop que combina gestão de tarefas kanban com ferramentas para agentes de IA. O agente cria, edita, move e comenta tarefas diretamente pelo terminal, enquanto o usuário acompanha pela interface gráfica.
 
-- **Web Client** (`web-client/`) — NestJS 8 + Angular 20 (Docker)
-- **Local Client** (`local-client/`) — Python desktop (PySide6 + FastAPI + SQLite)
-- **MCP** (`mcp/`) — Servidores Model Context Protocol
-- **OpenCode Tools** (`.opencode/`) — Ferramentas customizadas para agentes
+- **Produto principal**: `local-client/` — Python desktop (PySide6 + FastAPI + SQLite)
+- **Cliente web**: `web-client/` — NestJS + Angular (Docker, para deploy)
+- **Ferramentas**: `.opencode/` — Tools customizadas para agentes
 
 ---
 
@@ -15,98 +14,37 @@ Plataforma fullstack de gestão de projetos e estudos, com suporte a agentes de 
 
 ```
 agentic-dev-maestro/
-├── web-client/            # Cliente web (NestJS + Angular)
-│   ├── back/              # Backend NestJS 8 + Prisma 4.8 + MySQL 8
-│   ├── front/             # Frontend Angular 20 + Tailwind + Capacitor
-│   ├── docker-compose.yml # Docker Compose (MySQL, Redis, API, Frontend)
-│   └── .env.example       # Template de variáveis de ambiente
-│
-├── local-client/          # Cliente desktop Python
+├── local-client/          # ← PRODUTO PRINCIPAL
 │   ├── maestro_local/     # Código fonte Python
-│   ├── pyproject.toml     # Configuração do projeto Python
-│   └── run.sh             # Script de execução
+│   │   ├── api/app.py     # FastAPI — todos os endpoints
+│   │   ├── db/models.py   # SQLAlchemy — modelos de dados
+│   │   ├── gui/           # Interface desktop (PySide6)
+│   │   │   ├── main_window.py
+│   │   │   ├── theme.py   # Tema dark/light
+│   │   │   └── views/     # Board, Tasks, Estudos, Métricas...
+│   │   └── skills/        # Skills para agentes
+│   ├── pyproject.toml
+│   └── run.sh
 │
-├── .opencode/             # Ferramentas OpenCode para agentes
-│   ├── tools/             # Custom tools (TypeScript)
-│   ├── commands/          # Comandos customizados
-│   └── skills/            # Skills de uso da plataforma
+├── web-client/            # Cliente web (secundário)
+│   ├── back/              # NestJS 8 + Prisma + MySQL
+│   ├── front/             # Angular 20 + Tailwind
+│   └── docker-compose.yml
 │
-├── mcp/                   # Servidores MCP
-├── docs/                  # Documentação e diagramas
+├── .opencode/             # Ferramentas para agentes
+│   ├── tools/maestro.ts   # 12 tools customizadas
+│   ├── commands/          # /review, /decompose
+│   └── skills/            # Skill de uso da plataforma
+│
+├── mcp/                   # Servidor MCP
+├── docs/                  # Documentação
 ├── CLAUDE.md              # Este arquivo
-├── README.md              # Readme geral do projeto
-└── opencode.jsonc          # Config do OpenCode
+└── README.md              # Readme do projeto
 ```
 
 ---
 
-## Regra Fundamental: Backend e Frontend Devem Estar Sincronizados
-
-**Toda alteração em um lado DEVE ser refletida no outro.**
-
-**Checklist para qualquer mudança de dados:**
-
-1. `web-client/back/prisma/schema.prisma` — adicionar/alterar campo
-2. `cd web-client/back && npx prisma migrate dev --name <descricao>`
-3. DTOs em `web-client/back/src/modules/<modulo>/dto/`
-4. Repository em `web-client/back/src/modules/<modulo>/`
-5. Service e Controller do módulo
-6. Frontend model — `web-client/front/src/app/models/`
-7. Frontend service/API — `web-client/front/src/app/services/`
-8. Frontend templates/páginas
-
----
-
-## Web Client (`web-client/`)
-
-### Stack
-
-- **Backend**: NestJS 8 + Prisma 4.8 + MySQL 8 + Bull/Redis
-- **Frontend**: Angular 20 (standalone) + Tailwind + NgRx + Capacitor
-
-### Funcionalidades
-
-- Autenticação (JWT local + refresh, Google OAuth, reset de senha)
-- CRUD de projetos com kanban board
-- Tasks com prioridade, tipo, labels, checklist, dependências
-- Módulo de estudos (planos, tópicos, sessões)
-- Comentários (markdown, code reviews)
-- Documentos e atividade
-- Dashboard e métricas
-
-### Executar com Docker
-
-```bash
-cd web-client
-cp .env.example .env
-docker compose up --build
-# Frontend: :4200 · API: :5000/api · Swagger: :5000/api/docs
-```
-
-### Executar localmente
-
-```bash
-cd web-client/back
-npm install --legacy-peer-deps
-npx prisma generate
-npx prisma migrate deploy
-npm run prisma:seed
-npm run start:dev
-
-cd web-client/front
-npm install --legacy-peer-deps
-npm start
-```
-
----
-
-## Local Client (`local-client/`)
-
-### Stack
-
-- Python 3.10+ com PySide6 (Qt 6) para GUI desktop
-- FastAPI + uvicorn para API REST embutida
-- SQLAlchemy 2.0 + SQLite para banco local
+## Local Client — O Produto Principal
 
 ### Executar
 
@@ -118,42 +56,74 @@ pip install -e .
 python -m maestro_local          # porta 9777
 ```
 
-### API local
+### O que ele faz
 
-Endpoints sem autenticação em `http://127.0.0.1:9777/api`:
-- `GET/POST /api/projects` — CRUD de projetos
-- `GET /api/projects/{id}/board` — board kanban
-- `GET/POST /api/tasks` — CRUD de tarefas
-- `POST/GET /api/study/plans` — planos de estudo
-- `POST/GET /api/study/sessions` — sessões de estudo
-- `GET /api/study/stats` — estatísticas
+**Para o usuário (GUI):**
+- Board kanban com drag-and-drop
+- Diário de trabalho com relatórios
+- Planos de estudo com roadmap visual
+- Métricas e dashboard
+- Tema dark/light
+
+**Para o agente (API):**
+- CRUD completo de projetos e tarefas
+- Move tarefas entre colunas
+- Adiciona comentários (code reviews, commits)
+- Cria e gerencia planos de estudo
+- Consulta métricas e contexto
+
+### API Local
+
+Base URL: `http://127.0.0.1:9777/api` (sem autenticação)
+
+| Recurso | Endpoints |
+|---------|-----------|
+| Projetos | `GET/POST /api/projects`, `GET /api/projects/{id}/board` |
+| Tarefas | `POST/GET /api/tasks`, `GET/PATCH/DELETE /api/tasks/{code}` |
+| Comentários | `GET/POST /api/comments`, `PATCH/DELETE /api/comments/{id}` |
+| Estudos | `POST/GET /api/study/plans`, `GET/POST /api/study/plans/{id}/topics` |
+| Sessões | `POST /api/study/sessions`, `GET /api/study/stats` |
+| Documentos | `GET/POST /api/documents`, `PUT/DELETE /api/documents/{id}` |
+| Labels | `POST/GET /api/labels`, `POST/DELETE /api/labels/{id}/tasks/{task_id}` |
 
 ---
 
-## OpenCode Tools (`.opencode/`)
+## OpenCode Tools
 
-Ferramentas customizadas para agentes de IA interagirem com a plataforma via terminal.
+Ferramentas customizadas para agentes de IA no terminal.
 
 ### Ferramentas disponíveis
 
+- `maestro_listProjects` — Listar projetos
 - `maestro_board` — Consultar board kanban
-- `maestro_createTask` / `maestro_updateTask` / `maestro_deleteTask` — CRUD de tarefas
-- `maestro_addComment` — Postar comentários (markdown, code reviews)
+- `maestro_getTask` / `maestro_listTasks` — Detalhes e filtros de tarefas
+- `maestro_createTask` / `maestro_updateTask` / `maestro_deleteTask` — CRUD
+- `maestro_moveTask` — Mover entre colunas
+- `maestro_addSubtask` — Adicionar subtarefa (só título)
+- `maestro_addComment` — Comentário com markdown
 - `maestro_getFlow` — Exportar fluxo em mermaid
-- `maestro_createDocument` — Criar documentos
-- `maestro_addSubtask` — Adicionar subtarefas
+- `maestro_createDocument` — Criar documento (spec, plan, ADR)
 
 ### Comandos
 
 - `/review <task>` — Code review de uma tarefa
 - `/decompose <task>` — Decompor em subtarefas
 
+### Como usar
+
+```bash
+# No opencode:
+"liste os projetos usando maestro_listProjects"
+"crie uma tarefa 'Implementar busca' no projeto MAESTRO"
+"adicione um comentário de code review na MAESTRO-10"
+```
+
 ---
 
 ## Convenções
 
-- Commits e branches em português
 - Código em inglês; UI em português brasileiro
+- Commits e branches em português
 - Nunca commitar `.env` real
-- Backend: controller fino, service com lógica, repository com queries
-- Frontend: standalone components, services injetáveis, NgRx para auth
+- API sem autenticação (app local, single-user)
+- SQLite local (sem necessidade de Docker para o app principal)

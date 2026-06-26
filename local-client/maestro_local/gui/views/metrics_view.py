@@ -25,20 +25,21 @@ class MetricCard(QFrame):
     def __init__(self, title, value, subtitle=""):
         super().__init__()
         t = current_theme()
+        self.setMinimumWidth(130)
         self.setStyleSheet(
-            f"background: {t.bg_card}; border: 1px solid {t.border_light}; border-radius: 10px; padding: 18px;"
+            f"background: {t.bg_card}; border: 1px solid {t.border_light}; border-radius: 8px; padding: 12px;"
         )
         layout = QVBoxLayout(self)
-        layout.setSpacing(4)
+        layout.setSpacing(2)
 
         lbl_title = QLabel(title)
         lbl_title.setStyleSheet(
-            f"color: {t.text_muted}; font-size: 11px; text-transform: uppercase; font-weight: 600;"
+            f"color: {t.text_muted}; font-size: 10px; text-transform: uppercase; font-weight: 600;"
         )
         layout.addWidget(lbl_title)
 
         lbl_value = QLabel(str(value))
-        lbl_value.setStyleSheet(f"font-size: 30px; font-weight: 800; color: {t.text_primary}; letter-spacing: -0.5px;")
+        lbl_value.setStyleSheet(f"font-size: 22px; font-weight: 800; color: {t.text_primary}; letter-spacing: -0.5px;")
         layout.addWidget(lbl_value)
 
         if subtitle:
@@ -72,8 +73,8 @@ class MetricsView(QWidget):
     def __init__(self):
         super().__init__()
         self.main_layout = QVBoxLayout(self)
-        self.main_layout.setContentsMargins(24, 24, 24, 24)
-        self.main_layout.setSpacing(16)
+        self.main_layout.setContentsMargins(14, 14, 14, 14)
+        self.main_layout.setSpacing(10)
 
         title = QLabel("Metricas")
         title.setObjectName("sectionTitle")
@@ -81,7 +82,7 @@ class MetricsView(QWidget):
 
         self.content = QWidget()
         self.content_layout = QVBoxLayout(self.content)
-        self.content_layout.setSpacing(16)
+        self.content_layout.setSpacing(10)
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -177,7 +178,16 @@ class MetricsView(QWidget):
             # ---- Summary section ----
             self.content_layout.addWidget(_section_header("Resumo", t))
 
-            cards_row = QHBoxLayout()
+            cards_scroll = QScrollArea()
+            cards_scroll.setWidgetResizable(False)
+            cards_scroll.setFixedHeight(110)
+            cards_scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+            cards_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+            cards_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+            cards_widget = QWidget()
+            cards_row = QHBoxLayout(cards_widget)
+            cards_row.setContentsMargins(0, 0, 0, 0)
+            cards_row.setSpacing(8)
             cards_row.addWidget(MetricCard("Total de Tarefas", total, f"{done} concluidas"))
             cards_row.addWidget(MetricCard("Ultimos 7 dias", last_7d, "tarefas concluidas"))
             cards_row.addWidget(
@@ -187,7 +197,9 @@ class MetricsView(QWidget):
             cards_row.addWidget(
                 MetricCard("Cycle Time", fmt_hours(avg_cycle), "inicio -> conclusao")
             )
-            self.content_layout.addLayout(cards_row)
+            cards_widget.adjustSize()
+            cards_scroll.setWidget(cards_widget)
+            self.content_layout.addWidget(cards_scroll)
 
             # Overdue card (only if there are overdue tasks)
             if overdue > 0:

@@ -55,7 +55,7 @@ class ProjectCard(QFrame):
 
         # Content area
         content = QVBoxLayout()
-        content.setContentsMargins(16, 12, 16, 12)
+        content.setContentsMargins(10, 8, 10, 8)
         content.setSpacing(6)
 
         # Top row: key badge + name
@@ -132,8 +132,8 @@ class ProjectsView(QWidget):
     def __init__(self):
         super().__init__()
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(24, 24, 24, 24)
-        layout.setSpacing(16)
+        layout.setContentsMargins(14, 14, 14, 14)
+        layout.setSpacing(10)
 
         title = QLabel("Projetos")
         title.setObjectName("sectionTitle")
@@ -141,17 +141,13 @@ class ProjectsView(QWidget):
 
         # --- Creation form ---
         form_frame = QFrame()
-        t = current_theme()
-        form_frame.setStyleSheet(
-            f"QFrame {{ background: {t.bg_card}; border: 1px solid {t.border_light}; "
-            f"border-radius: 10px; padding: 16px; }}"
-        )
+        form_frame.setProperty("class", "card")
         form_outer = QVBoxLayout(form_frame)
-        form_outer.setContentsMargins(16, 12, 16, 12)
+        form_outer.setContentsMargins(10, 8, 10, 8)
         form_outer.setSpacing(10)
 
         form_title = QLabel("Novo Projeto")
-        form_title.setStyleSheet(f"font-weight: 600; font-size: 13px; color: {t.text_primary}; border: none;")
+        form_title.setProperty("class", "cardTitle")
         form_outer.addWidget(form_title)
 
         form_layout = QFormLayout()

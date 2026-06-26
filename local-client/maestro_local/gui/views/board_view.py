@@ -54,6 +54,7 @@ TYPE_FILTER_MAP = {
 
 class TaskCard(QFrame):
     clicked = Signal(int)
+    move_next = Signal(int)
 
     def __init__(self, task_data: dict):
         super().__init__()
@@ -224,6 +225,14 @@ class TaskCard(QFrame):
             bottom.addStretch()
             layout.addLayout(bottom)
 
+        # -- Quick move button --
+        move_btn = QPushButton("Mover →")
+        move_btn.setProperty("class", "quickMove")
+        move_btn.setCursor(Qt.PointingHandCursor)
+        move_btn.setToolTip("Mover para proxima coluna")
+        move_btn.clicked.connect(lambda: self.move_next.emit(self.task_id))
+        layout.addWidget(move_btn, alignment=Qt.AlignRight)
+
     # ── Drag & drop (unchanged) ──────────────────────────────
 
     def mousePressEvent(self, event):
@@ -383,6 +392,7 @@ class ColumnWidget(QWidget):
         for task in column_data.get("tasks", []):
             card = TaskCard(task)
             card.clicked.connect(self._open_task)
+            card.move_next.connect(self._move_to_next)
             self.cards_layout.addWidget(card)
             self._cards.append(card)
 
@@ -516,6 +526,44 @@ class ColumnWidget(QWidget):
         finally:
             s.close()
 
+    def _move_to_next(self, task_id):
+        s = get_session()
+        try:
+            task = s.query(Task).get(task_id)
+            if not task:
+                return
+            columns = (
+                s.query(BoardColumn)
+                .filter(BoardColumn.project_id == self.project_id)
+                .order_by(BoardColumn.order)
+                .all()
+            )
+            col_ids = [c.id for c in columns]
+            try:
+                idx = col_ids.index(task.column_id)
+            except ValueError:
+                return
+            if idx >= len(col_ids) - 1:
+                return
+            next_col = columns[idx + 1]
+            old_col_name = task.column.name if task.column else "?"
+            task.column_id = next_col.id
+            task.updated_at = __import__("datetime").datetime.utcnow()
+            s.add(
+                ActivityLog(
+                    entity_type="task",
+                    entity_id=task_id,
+                    action="moved",
+                    detail=f"{old_col_name} -> {next_col.name}",
+                )
+            )
+            s.commit()
+            self.task_changed.emit()
+        except Exception:
+            s.rollback()
+        finally:
+            s.close()
+
     def _open_task(self, task_id):
         from maestro_local.gui.views.task_detail_dialog import TaskDetailDialog
 
@@ -533,7 +581,6 @@ class FilterBar(QWidget):
 
     def __init__(self):
         super().__init__()
-        t = current_theme()
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -543,53 +590,45 @@ class FilterBar(QWidget):
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("\U0001f50d Buscar por titulo ou codigo...")
         self.search_input.setFixedWidth(280)
-        self.search_input.setStyleSheet(
-            f"QLineEdit {{ background: {t.bg_input}; border: 1px solid {t.border_light}; "
-            f"border-radius: 4px; padding: 5px 10px; font-size: 12px; color: {t.text_primary}; }}"
-            f"QLineEdit:focus {{ border-color: {t.accent}; }}"
-        )
         self.search_input.textChanged.connect(self._emit_changed)
         layout.addWidget(self.search_input)
 
         # Type filter
         type_label = QLabel("Tipo:")
-        type_label.setStyleSheet(f"color: {t.text_secondary}; font-size: 12px;")
+        type_label.setProperty("class", "sectionLabel")
         layout.addWidget(type_label)
         self.type_combo = QComboBox()
         self.type_combo.addItems(list(TYPE_FILTER_MAP.keys()))
         self.type_combo.setFixedWidth(110)
-        self.type_combo.setStyleSheet(self._combo_style(t))
         self.type_combo.currentIndexChanged.connect(self._emit_changed)
         layout.addWidget(self.type_combo)
 
         # Priority filter
         pri_label = QLabel("Prioridade:")
-        pri_label.setStyleSheet(f"color: {t.text_secondary}; font-size: 12px;")
+        pri_label.setProperty("class", "sectionLabel")
         layout.addWidget(pri_label)
         self.priority_combo = QComboBox()
         self.priority_combo.addItems(list(PRIORITY_FILTER_MAP.keys()))
         self.priority_combo.setFixedWidth(100)
-        self.priority_combo.setStyleSheet(self._combo_style(t))
         self.priority_combo.currentIndexChanged.connect(self._emit_changed)
         layout.addWidget(self.priority_combo)
+
+        # Assignee filter
+        assignee_label = QLabel("Responsavel:")
+        assignee_label.setProperty("class", "sectionLabel")
+        layout.addWidget(assignee_label)
+        self.assignee_combo = QComboBox()
+        self.assignee_combo.addItem("Todos")
+        self.assignee_combo.setFixedWidth(130)
+        self.assignee_combo.currentIndexChanged.connect(self._emit_changed)
+        layout.addWidget(self.assignee_combo)
 
         layout.addStretch()
 
         # Task count
         self.count_label = QLabel("0 tarefas")
-        self.count_label.setStyleSheet(
-            f"color: {t.text_muted}; font-size: 12px; font-weight: 600;"
-        )
+        self.count_label.setProperty("class", "hint")
         layout.addWidget(self.count_label)
-
-    @staticmethod
-    def _combo_style(t) -> str:
-        return (
-            f"QComboBox {{ background: {t.bg_input}; border: 1px solid {t.border_light}; "
-            f"border-radius: 4px; padding: 4px 8px; font-size: 12px; color: {t.text_primary}; }}"
-            f"QComboBox:focus {{ border-color: {t.accent}; }}"
-            f"QComboBox::drop-down {{ border: none; }}"
-        )
 
     def _emit_changed(self):
         self.filters_changed.emit()
@@ -602,6 +641,27 @@ class FilterBar(QWidget):
 
     def get_priority_filter(self):
         return PRIORITY_FILTER_MAP.get(self.priority_combo.currentText())
+
+    def get_assignee_filter(self):
+        text = self.assignee_combo.currentText()
+        if text == "Todos":
+            return None
+        if text == "Sem responsavel":
+            return "__none__"
+        return text
+
+    def load_assignees(self, assignees: list[str]):
+        current = self.assignee_combo.currentText()
+        self.assignee_combo.blockSignals(True)
+        self.assignee_combo.clear()
+        self.assignee_combo.addItem("Todos")
+        self.assignee_combo.addItem("Sem responsavel")
+        for a in sorted(set(assignees)):
+            self.assignee_combo.addItem(a)
+        idx = self.assignee_combo.findText(current)
+        if idx >= 0:
+            self.assignee_combo.setCurrentIndex(idx)
+        self.assignee_combo.blockSignals(False)
 
     def set_count(self, visible: int, total: int):
         if visible == total:
@@ -627,21 +687,18 @@ class BoardView(QWidget):
         self._last_task_hash = None
 
         self.main_layout = QVBoxLayout(self)
-        self.main_layout.setContentsMargins(24, 24, 24, 24)
+        self.main_layout.setContentsMargins(14, 14, 14, 14)
         self.main_layout.setSpacing(12)
 
         # -- Empty state (project selection) --
         self.empty_widget = QWidget()
         self.empty_layout = QVBoxLayout(self.empty_widget)
         self.empty_layout.setAlignment(Qt.AlignCenter)
-        self.empty_layout.setSpacing(16)
+        self.empty_layout.setSpacing(10)
 
-        t = current_theme()
         empty_title = QLabel("Selecione um projeto para ver o board")
         empty_title.setAlignment(Qt.AlignCenter)
-        empty_title.setStyleSheet(
-            f"font-size: 18px; font-weight: 700; color: {t.text_primary};"
-        )
+        empty_title.setObjectName("sectionTitle")
         self.empty_layout.addWidget(empty_title)
 
         self.project_buttons_container = QWidget()
@@ -688,7 +745,7 @@ class BoardView(QWidget):
         self.columns_widget = QWidget()
         self.columns_layout = QHBoxLayout(self.columns_widget)
         self.columns_layout.setAlignment(Qt.AlignLeft)
-        self.columns_layout.setSpacing(16)
+        self.columns_layout.setSpacing(10)
         self.scroll.setWidget(self.columns_widget)
 
         self.main_layout.addWidget(self.board_widget)
@@ -823,6 +880,14 @@ class BoardView(QWidget):
         finally:
             s.close()
 
+        assignees = set()
+        for cw in self._columns:
+            for card in cw.get_cards():
+                a = card.task_data.get("assignee")
+                if a:
+                    assignees.add(a)
+        self.filter_bar.load_assignees(list(assignees))
+
         self._last_task_hash = self._compute_hash()
         self._apply_filters()
 
@@ -830,6 +895,7 @@ class BoardView(QWidget):
         search = self.filter_bar.get_search_text()
         type_filter = self.filter_bar.get_type_filter()
         priority_filter = self.filter_bar.get_priority_filter()
+        assignee_filter = self.filter_bar.get_assignee_filter()
 
         total = 0
         visible = 0
@@ -852,6 +918,14 @@ class BoardView(QWidget):
 
                 if show and priority_filter:
                     if data.get("priority") != priority_filter:
+                        show = False
+
+                if show and assignee_filter:
+                    task_assignee = data.get("assignee") or ""
+                    if assignee_filter == "__none__":
+                        if task_assignee:
+                            show = False
+                    elif task_assignee != assignee_filter:
                         show = False
 
                 card.setVisible(show)

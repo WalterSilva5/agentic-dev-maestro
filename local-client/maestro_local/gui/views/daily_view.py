@@ -3,7 +3,7 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QSize, QTimer
-from PySide6.QtGui import QFont
+from PySide6.QtGui import QFont  # noqa: F401
 from PySide6.QtWidgets import (
     QComboBox,
     QFileDialog,
@@ -22,7 +22,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from maestro_local.config import load_config, save_config
+from maestro_local.config import get_active_workspace_id, load_config, save_config
 from maestro_local.db.models import (
     ActivityLog,
     BoardColumn,
@@ -47,12 +47,12 @@ class DailyView(QWidget):
         self._today = date.today().isoformat()
 
         main = QVBoxLayout(self)
-        main.setContentsMargins(24, 24, 24, 24)
-        main.setSpacing(16)
+        main.setContentsMargins(14, 14, 14, 14)
+        main.setSpacing(10)
 
         # Header
         header = QHBoxLayout()
-        title = QLabel("Diario de Trabalho")
+        title = QLabel("Meu Dia")
         title.setObjectName("sectionTitle")
         header.addWidget(title)
         header.addStretch()
@@ -73,58 +73,92 @@ class DailyView(QWidget):
         content = QWidget()
         self.content_layout = QVBoxLayout(content)
         self.content_layout.setContentsMargins(0, 0, 0, 0)
-        self.content_layout.setSpacing(16)
+        self.content_layout.setSpacing(10)
 
-        t = current_theme()
+        # --- Obsidian sync section (top of daily view) ---
+        self.obsidian_frame = QFrame()
+        self.obsidian_frame.setProperty("class", "card")
+        obs_layout = QVBoxLayout(self.obsidian_frame)
+        obs_layout.setSpacing(8)
+
+        self.obs_title = QLabel("Obsidian Vault")
+        self.obs_title.setProperty("class", "cardTitle")
+        obs_layout.addWidget(self.obs_title)
+
+        self.obs_hint = QLabel(
+            "Configure um vault do Obsidian por projeto para exportar dados como Markdown estruturado."
+        )
+        self.obs_hint.setWordWrap(True)
+        self.obs_hint.setProperty("class", "hint")
+        obs_layout.addWidget(self.obs_hint)
+
+        obs_row1 = QHBoxLayout()
+        self.obs_proj_label = QLabel("Projeto:")
+        self.obs_proj_label.setProperty("class", "sectionLabel")
+        obs_row1.addWidget(self.obs_proj_label)
+
+        self.obs_project_combo = QComboBox()
+        self.obs_project_combo.setMinimumWidth(120)
+        self.obs_project_combo.currentIndexChanged.connect(self._on_obs_project_changed)
+        obs_row1.addWidget(self.obs_project_combo, 1)
+
+        self.obs_browse = QPushButton("Vault...")
+        self.obs_browse.setFixedHeight(24)
+        self.obs_browse.setProperty("class", "secondary")
+        self.obs_browse.setCursor(Qt.PointingHandCursor)
+        self.obs_browse.clicked.connect(self._browse_vault)
+        obs_row1.addWidget(self.obs_browse)
+
+        obs_sync = QPushButton("Sync")
+        obs_sync.setFixedHeight(24)
+        obs_sync.setCursor(Qt.PointingHandCursor)
+        obs_sync.clicked.connect(self._sync_obsidian)
+        obs_row1.addWidget(obs_sync)
+
+        obs_layout.addLayout(obs_row1)
+
+        self.obs_path_input = QLabel("Nenhum vault configurado")
+        self.obs_path_input.setProperty("class", "hint")
+        obs_layout.addWidget(self.obs_path_input)
+
+        self.content_layout.addWidget(self.obsidian_frame)
+
+        self.obs_status_label = QLabel("")
+        self.obs_status_label.setProperty("class", "hint")
+        self.content_layout.addWidget(self.obs_status_label)
 
         # --- Notes section ---
-        notes_frame = QFrame()
-        notes_frame.setStyleSheet(
-            f"QFrame#notesFrame {{ background: {t.bg_card}; border: 1px solid {t.border_light}; "
-            f"border-radius: 10px; padding: 16px; }}"
-        )
-        notes_frame.setObjectName("notesFrame")
-        notes_frame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        notes_layout = QVBoxLayout(notes_frame)
+        self.notes_frame = QFrame()
+        self.notes_frame.setProperty("class", "card")
+        self.notes_frame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        notes_layout = QVBoxLayout(self.notes_frame)
         notes_layout.setSpacing(8)
-        notes_layout.setContentsMargins(16, 12, 16, 12)
+        notes_layout.setContentsMargins(10, 8, 10, 8)
 
         notes_header = QHBoxLayout()
-        notes_title = QLabel("Notas do dia")
-        notes_title.setStyleSheet(
-            f"font-weight: 700; font-size: 14px; color: {t.text_primary}; border: none;"
-        )
-        notes_header.addWidget(notes_title)
+        self.notes_title = QLabel("Notas do dia")
+        self.notes_title.setProperty("class", "cardTitle")
+        notes_header.addWidget(self.notes_title)
         notes_header.addStretch()
 
         self._editor_mode = "edit"
 
-        self.toggle_btn = QPushButton("Visualizar")
-        self.toggle_btn.setFixedHeight(30)
-        self.toggle_btn.setStyleSheet(
-            f"QPushButton {{ background: {t.bg_badge}; color: {t.text_secondary}; "
-            f"border: 1px solid {t.border}; border-radius: 6px; padding: 4px 14px; "
-            f"font-size: 12px; font-weight: 600; }}"
-            f"QPushButton:hover {{ background: {t.bg_hover}; }}"
-        )
+        self.toggle_btn = QPushButton("Preview")
+        self.toggle_btn.setFixedHeight(24)
+        self.toggle_btn.setProperty("class", "secondary")
         self.toggle_btn.setCursor(Qt.PointingHandCursor)
         self.toggle_btn.clicked.connect(self._toggle_preview)
         notes_header.addWidget(self.toggle_btn)
 
-        tmpl_btn = QPushButton("Usar template")
-        tmpl_btn.setFixedHeight(30)
-        tmpl_btn.setStyleSheet(
-            f"QPushButton {{ background: {t.bg_badge}; color: {t.text_secondary}; "
-            f"border: 1px solid {t.border}; border-radius: 6px; padding: 4px 14px; "
-            f"font-size: 12px; font-weight: 600; }}"
-            f"QPushButton:hover {{ background: {t.bg_hover}; }}"
-        )
-        tmpl_btn.setCursor(Qt.PointingHandCursor)
-        tmpl_btn.clicked.connect(self._insert_template)
-        notes_header.addWidget(tmpl_btn)
+        self.tmpl_btn = QPushButton("Template")
+        self.tmpl_btn.setFixedHeight(24)
+        self.tmpl_btn.setProperty("class", "secondary")
+        self.tmpl_btn.setCursor(Qt.PointingHandCursor)
+        self.tmpl_btn.clicked.connect(self._insert_template)
+        notes_header.addWidget(self.tmpl_btn)
 
         save_btn = QPushButton("Salvar")
-        save_btn.setFixedHeight(30)
+        save_btn.setFixedHeight(24)
         save_btn.setCursor(Qt.PointingHandCursor)
         save_btn.clicked.connect(self._save_notes)
         notes_header.addWidget(save_btn)
@@ -161,191 +195,105 @@ class DailyView(QWidget):
         )
         self.notes_edit.setAcceptRichText(False)
         self.notes_edit.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.notes_edit.setStyleSheet(
-            f"QTextEdit {{ background: {t.bg_input}; border: 1px solid {t.border_light}; "
-            f"border-radius: 8px; padding: 12px; font-family: monospace; font-size: 13px; "
-            f"color: {t.text_primary}; }}"
-        )
+        self.notes_edit.setProperty("class", "mono")
         self.editor_stack.addWidget(self.notes_edit)
 
         # --- Preview mode ---
         self.notes_preview = QTextBrowser()
         self.notes_preview.setOpenExternalLinks(True)
         self.notes_preview.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.notes_preview.setStyleSheet(
-            f"QTextBrowser {{ background: {t.bg_input}; border: 1px solid {t.border_light}; "
-            f"border-radius: 8px; padding: 12px; font-size: 13px; "
-            f"color: {t.text_primary}; }}"
-        )
+        self.notes_preview.setProperty("class", "preview")
         self.editor_stack.addWidget(self.notes_preview)
 
         notes_layout.addWidget(self.editor_stack, 1)
-        self.content_layout.addWidget(notes_frame)
+        self.content_layout.addWidget(self.notes_frame)
 
         # --- Generate report ---
         actions_row = QHBoxLayout()
 
         gen_btn = QPushButton("Gerar Relatorio do Dia")
-        gen_btn.setFixedHeight(36)
+        gen_btn.setFixedHeight(28)
         gen_btn.setCursor(Qt.PointingHandCursor)
         gen_btn.clicked.connect(self._generate_report)
         actions_row.addWidget(gen_btn)
 
         actions_row.addStretch()
 
-        # Backup button
-        backup_btn = QPushButton("Backup do Banco")
-        backup_btn.setFixedHeight(36)
-        backup_btn.setStyleSheet(
-            f"QPushButton {{ background: {t.bg_badge}; color: {t.text_secondary}; "
-            f"border: 1px solid {t.border}; border-radius: 8px; padding: 8px 18px; "
-            f"font-weight: 600; }}"
-            f"QPushButton:hover {{ background: {t.bg_hover}; }}"
-        )
-        backup_btn.setCursor(Qt.PointingHandCursor)
-        backup_btn.clicked.connect(self._backup_db)
-        actions_row.addWidget(backup_btn)
+        self.backup_btn = QPushButton("Backup do Banco")
+        self.backup_btn.setFixedHeight(28)
+        self.backup_btn.setProperty("class", "secondary")
+        self.backup_btn.setCursor(Qt.PointingHandCursor)
+        self.backup_btn.clicked.connect(self._backup_db)
+        actions_row.addWidget(self.backup_btn)
 
         self.content_layout.addLayout(actions_row)
 
         # --- Activity summary (tasks worked on) ---
         self.activity_frame = QFrame()
-        self.activity_frame.setStyleSheet(
-            f"QFrame {{ background: {t.bg_card}; border: 1px solid {t.border_light}; "
-            f"border-radius: 10px; padding: 16px; }}"
-        )
+        self.activity_frame.setProperty("class", "card")
         self.activity_layout = QVBoxLayout(self.activity_frame)
         self.activity_layout.setSpacing(6)
         self.content_layout.addWidget(self.activity_frame)
 
         # --- Report output ---
         self.report_frame = QFrame()
-        self.report_frame.setStyleSheet(
-            f"QFrame {{ background: {t.bg_card}; border: 1px solid {t.border_light}; "
-            f"border-radius: 10px; padding: 16px; }}"
-        )
+        self.report_frame.setProperty("class", "card")
         self.report_frame.setVisible(False)
         report_inner = QVBoxLayout(self.report_frame)
         report_inner.setSpacing(8)
 
         report_header = QHBoxLayout()
-        report_title = QLabel("Relatorio Gerado")
-        report_title.setStyleSheet(
-            f"font-weight: 700; font-size: 14px; color: {t.text_primary}; border: none;"
-        )
-        report_header.addWidget(report_title)
+        self.report_title = QLabel("Relatorio Gerado")
+        self.report_title.setProperty("class", "cardTitle")
+        report_header.addWidget(self.report_title)
+
         report_header.addStretch()
 
+        hint_btn = QPushButton("Dica IA")
+        hint_btn.setFixedHeight(24)
+        hint_btn.setProperty("class", "secondary")
+        hint_btn.setCursor(Qt.PointingHandCursor)
+        hint_btn.clicked.connect(self._toggle_report_hint)
+        report_header.addWidget(hint_btn)
+
         copy_btn = QPushButton("Copiar")
-        copy_btn.setFixedHeight(28)
-        copy_btn.setStyleSheet(
-            f"QPushButton {{ background: {t.bg_badge}; color: {t.text_secondary}; "
-            f"border: 1px solid {t.border}; border-radius: 6px; padding: 4px 14px; "
-            f"font-size: 12px; font-weight: 600; }}"
-            f"QPushButton:hover {{ background: {t.bg_hover}; }}"
-        )
+        copy_btn.setFixedHeight(24)
+        copy_btn.setProperty("class", "secondary")
         copy_btn.setCursor(Qt.PointingHandCursor)
         copy_btn.clicked.connect(self._copy_report)
         report_header.addWidget(copy_btn)
 
-        export_btn = QPushButton("Exportar .md")
-        export_btn.setFixedHeight(28)
-        export_btn.setStyleSheet(
-            f"QPushButton {{ background: {t.bg_badge}; color: {t.text_secondary}; "
-            f"border: 1px solid {t.border}; border-radius: 6px; padding: 4px 14px; "
-            f"font-size: 12px; font-weight: 600; }}"
-            f"QPushButton:hover {{ background: {t.bg_hover}; }}"
-        )
+        export_btn = QPushButton(".md")
+        export_btn.setFixedHeight(24)
+        export_btn.setProperty("class", "secondary")
         export_btn.setCursor(Qt.PointingHandCursor)
         export_btn.clicked.connect(self._export_report)
         report_header.addWidget(export_btn)
 
         report_inner.addLayout(report_header)
 
+        t = current_theme()
+        self.report_hint = QLabel(
+            "Dica: peça a um agente de IA para resumir o relatorio usando a skill instalada.\n\n"
+            "Prompt sugerido:\n"
+            "\"Gere o relatorio diario de trabalho de hoje usando a skill maestro-daily-report. "
+            "Consulte as atividades e notas do dia via API e crie um resumo em bullet list.\""
+        )
+        self.report_hint.setWordWrap(True)
+        self.report_hint.setVisible(False)
+        self.report_hint.setStyleSheet(
+            f"background: {t.accent_light}; color: {t.text_secondary}; "
+            f"border: 1px solid {t.border}; border-radius: 6px; "
+            f"padding: 8px; font-size: 11px;"
+        )
+        report_inner.addWidget(self.report_hint)
+
         self.report_output = QTextEdit()
         self.report_output.setReadOnly(True)
         self.report_output.setMinimumHeight(250)
-        self.report_output.setStyleSheet(
-            f"QTextEdit {{ background: {t.bg_input}; border: 1px solid {t.border_light}; "
-            f"border-radius: 8px; padding: 10px; font-family: monospace; font-size: 13px; "
-            f"color: {t.text_primary}; }}"
-        )
+        self.report_output.setProperty("class", "mono")
         report_inner.addWidget(self.report_output)
         self.content_layout.addWidget(self.report_frame)
-
-        # --- Obsidian sync section ---
-        obsidian_frame = QFrame()
-        obsidian_frame.setStyleSheet(
-            f"QFrame {{ background: {t.bg_card}; border: 1px solid {t.border_light}; "
-            f"border-radius: 10px; padding: 16px; }}"
-        )
-        obs_layout = QVBoxLayout(obsidian_frame)
-        obs_layout.setSpacing(8)
-
-        obs_title = QLabel("Obsidian Vault")
-        obs_title.setStyleSheet(
-            f"font-weight: 700; font-size: 14px; color: {t.text_primary}; border: none;"
-        )
-        obs_layout.addWidget(obs_title)
-
-        obs_hint = QLabel(
-            "Configure um vault do Obsidian por projeto para exportar dados como Markdown estruturado."
-        )
-        obs_hint.setWordWrap(True)
-        obs_hint.setStyleSheet(f"color: {t.text_muted}; font-size: 12px; border: none;")
-        obs_layout.addWidget(obs_hint)
-
-        obs_row = QHBoxLayout()
-        obs_proj_label = QLabel("Projeto:")
-        obs_proj_label.setStyleSheet(f"font-weight: 600; font-size: 12px; border: none;")
-        obs_row.addWidget(obs_proj_label)
-
-        self.obs_project_combo = QComboBox()
-        self.obs_project_combo.setFixedWidth(200)
-        self.obs_project_combo.currentIndexChanged.connect(self._on_obs_project_changed)
-        obs_row.addWidget(self.obs_project_combo)
-
-        self.obs_path_input = QLabel("Nenhum vault configurado")
-        self.obs_path_input.setStyleSheet(
-            f"color: {t.text_muted}; font-size: 12px; border: none;"
-        )
-        obs_row.addWidget(self.obs_path_input, 1)
-
-        obs_browse = QPushButton("Selecionar Vault")
-        obs_browse.setFixedHeight(30)
-        obs_browse.setStyleSheet(
-            f"QPushButton {{ background: {t.bg_badge}; color: {t.text_secondary}; "
-            f"border: 1px solid {t.border}; border-radius: 6px; padding: 6px 14px; "
-            f"font-size: 12px; font-weight: 600; }}"
-            f"QPushButton:hover {{ background: {t.bg_hover}; }}"
-        )
-        obs_browse.setCursor(Qt.PointingHandCursor)
-        obs_browse.clicked.connect(self._browse_vault)
-        obs_row.addWidget(obs_browse)
-
-        obs_sync = QPushButton("Sincronizar")
-        obs_sync.setFixedHeight(30)
-        obs_sync.setCursor(Qt.PointingHandCursor)
-        obs_sync.clicked.connect(self._sync_obsidian)
-        obs_row.addWidget(obs_sync)
-
-        obs_layout.addLayout(obs_row)
-
-        obs_struct = QLabel(
-            "Estrutura: Vault / Projeto / {Board, Tasks, Reports, Docs}"
-        )
-        obs_struct.setStyleSheet(
-            f"color: {t.text_muted}; font-size: 11px; font-style: italic; border: none;"
-        )
-        obs_layout.addWidget(obs_struct)
-
-        self.content_layout.addWidget(obsidian_frame)
-
-        self.obs_status_label = QLabel("")
-        self.obs_status_label.setStyleSheet(
-            f"color: {t.text_muted}; font-size: 11px; border: none; padding: 0 4px;"
-        )
-        self.content_layout.addWidget(self.obs_status_label)
 
         self.content_layout.addStretch()
 
@@ -406,28 +354,21 @@ class DailyView(QWidget):
             s.close()
 
     def _toggle_preview(self):
-        t = current_theme()
         if self._editor_mode == "edit":
             self._editor_mode = "preview"
             self._update_preview()
             self.editor_stack.setCurrentIndex(1)
-            self.toggle_btn.setText("Editar")
-            self.toggle_btn.setStyleSheet(
-                f"QPushButton {{ background: {t.accent}; color: {t.text_on_accent}; "
-                f"border: none; border-radius: 6px; padding: 4px 14px; "
-                f"font-size: 12px; font-weight: 600; }}"
-                f"QPushButton:hover {{ background: {t.accent_hover}; }}"
-            )
+            self.toggle_btn.setText("Edit")
+            self.toggle_btn.setProperty("class", "")
+            self.toggle_btn.style().unpolish(self.toggle_btn)
+            self.toggle_btn.style().polish(self.toggle_btn)
         else:
             self._editor_mode = "edit"
             self.editor_stack.setCurrentIndex(0)
-            self.toggle_btn.setText("Visualizar")
-            self.toggle_btn.setStyleSheet(
-                f"QPushButton {{ background: {t.bg_badge}; color: {t.text_secondary}; "
-                f"border: 1px solid {t.border}; border-radius: 6px; padding: 4px 14px; "
-                f"font-size: 12px; font-weight: 600; }}"
-                f"QPushButton:hover {{ background: {t.bg_hover}; }}"
-            )
+            self.toggle_btn.setText("Preview")
+            self.toggle_btn.setProperty("class", "secondary")
+            self.toggle_btn.style().unpolish(self.toggle_btn)
+            self.toggle_btn.style().polish(self.toggle_btn)
 
     def _update_preview(self):
         md = self.notes_edit.toPlainText()
@@ -762,6 +703,9 @@ class DailyView(QWidget):
         finally:
             s.close()
 
+    def _toggle_report_hint(self):
+        self.report_hint.setVisible(not self.report_hint.isVisible())
+
     def _copy_report(self):
         from PySide6.QtWidgets import QApplication
         clipboard = QApplication.clipboard()
@@ -812,24 +756,41 @@ class DailyView(QWidget):
         if self.obs_project_combo.count() > 0:
             self._on_obs_project_changed(0)
 
+    def _get_workspace_vaults(self) -> dict:
+        cfg = load_config()
+        ws_id = get_active_workspace_id()
+        all_vaults = cfg.get("workspace_vaults", {})
+        # migrate from old global format
+        if "obsidian_vaults" in cfg and ws_id not in all_vaults:
+            all_vaults[ws_id] = cfg.pop("obsidian_vaults")
+            cfg["workspace_vaults"] = all_vaults
+            save_config(cfg)
+        return all_vaults.get(ws_id, {})
+
+    def _set_workspace_vault(self, pid_str: str, vault_path: str):
+        cfg = load_config()
+        ws_id = get_active_workspace_id()
+        all_vaults = cfg.get("workspace_vaults", {})
+        ws_vaults = all_vaults.get(ws_id, {})
+        ws_vaults[pid_str] = vault_path
+        all_vaults[ws_id] = ws_vaults
+        cfg["workspace_vaults"] = all_vaults
+        save_config(cfg)
+
     def _on_obs_project_changed(self, idx):
         pid = self.obs_project_combo.currentData()
         if pid is None:
             return
-        cfg = load_config()
-        vaults = cfg.get("obsidian_vaults", {})
+        vaults = self._get_workspace_vaults()
         vault_path = vaults.get(str(pid))
-        t = current_theme()
         if vault_path:
             self.obs_path_input.setText(vault_path)
-            self.obs_path_input.setStyleSheet(
-                f"color: {t.text_primary}; font-size: 12px; border: none;"
-            )
+            self.obs_path_input.setProperty("class", "sectionLabel")
         else:
             self.obs_path_input.setText("Nenhum vault configurado")
-            self.obs_path_input.setStyleSheet(
-                f"color: {t.text_muted}; font-size: 12px; border: none;"
-            )
+            self.obs_path_input.setProperty("class", "hint")
+        self.obs_path_input.style().unpolish(self.obs_path_input)
+        self.obs_path_input.style().polish(self.obs_path_input)
 
     def _browse_vault(self):
         pid = self.obs_project_combo.currentData()
@@ -838,16 +799,11 @@ class DailyView(QWidget):
         d = QFileDialog.getExistingDirectory(self, "Selecionar pasta do Obsidian Vault")
         if not d:
             return
-        cfg = load_config()
-        vaults = cfg.get("obsidian_vaults", {})
-        vaults[str(pid)] = d
-        cfg["obsidian_vaults"] = vaults
-        save_config(cfg)
+        self._set_workspace_vault(str(pid), d)
         self._on_obs_project_changed(self.obs_project_combo.currentIndex())
 
     def _auto_sync_obsidian(self):
-        cfg = load_config()
-        vaults = cfg.get("obsidian_vaults", {})
+        vaults = self._get_workspace_vaults()
         if not vaults:
             return
         s = get_session()
@@ -982,8 +938,8 @@ class DailyView(QWidget):
         pid = self.obs_project_combo.currentData()
         if pid is None:
             return
-        cfg = load_config()
-        vault_path = cfg.get("obsidian_vaults", {}).get(str(pid))
+        vaults = self._get_workspace_vaults()
+        vault_path = vaults.get(str(pid))
         if not vault_path:
             QMessageBox.warning(self, "Vault nao configurado", "Selecione uma pasta de vault primeiro.")
             return

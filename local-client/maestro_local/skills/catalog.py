@@ -659,76 +659,63 @@ description: Generate daily report - create notes, track activity, generate summ
 
 Fluxo para o agente criar e gerar o relatorio diario do usuario.
 
+## IMPORTANTE: A nota do dia e o conteudo PRINCIPAL do relatorio
+
+O relatorio e gerado a partir da nota do dia (body da DailyNote). O conteudo
+da nota aparece INTEIRO no topo do relatorio, preservando todas as secoes.
+
+As atividades do board e timeline sao COMPLEMENTARES — aparecem abaixo da
+nota do dia como "Tarefas do Board" e "Timeline de Atividades".
+
 ## Template de nota diaria
 
-Ao criar a nota do dia, use este template como base:
+O template padrao e simples — apenas checklist:
 
 ```markdown
 ## Foco do Dia
-- Objetivo principal:
-- Prioridade maxima:
+- [ ] ...
 
----
+## Bloqueios
+- ...
 
-## Tarefas Planejadas
-- [ ] task 1
-- [ ] task 2
-
----
-
-## Bloqueios / Problemas / Duvidas
-- Descricao do problema
-- Dependencia / quem pode ajudar
-
----
-
-## Anotacoes Rapidas
-- Ideias
-- Decisoes tomadas
-- Links uteis
-
----
-
-## Check-out do Dia
-- O que foi concluido:
-- O que ficou pendente:
-- Proximo passo amanha:
+## Notas
+- ...
 ```
 
-## 1. Obter o template padrao
+## 1. Verificar nota existente do dia
 
 ```bash
-curl -s http://127.0.0.1:9777/api/daily/template | jq -r '.template'
-```
-
-## 2. Verificar nota existente do dia
-
-```bash
-# Formato da data: YYYY-MM-DD
 curl -s http://127.0.0.1:9777/api/daily/2026-06-25
 ```
 
-Resposta: `{"date":"...","body":"...","report":"...","exists":true/false}`
+Se a nota ja existe, leia o body para entender o contexto do dia.
 
-## 3. Criar ou atualizar nota do dia
+## 2. Criar nota do dia (se nao existe)
 
 ```bash
 curl -X PUT http://127.0.0.1:9777/api/daily/2026-06-25 \\
   -H 'Content-Type: application/json' \\
-  -d '{"body":"## Foco do Dia\\n- Objetivo principal: implementar modulo X\\n..."}'
+  -d '{"body":"## Foco do Dia\\n- [ ] Implementar modulo X\\n..."}'
 ```
 
-O body deve seguir o template acima. Preencha com as informacoes que
-o usuario fornecer ou que voce conseguir extrair do contexto.
+## 3. Atualizar nota do dia
 
-## 4. Ver atividade do dia
+```bash
+curl -X PATCH http://127.0.0.1:9777/api/daily/2026-06-25 \\
+  -H 'Content-Type: application/json' \\
+  -d '{"body":"## Foco do Dia\\n- [x] Implementar modulo X\\n- [ ] Modulo Y\\n..."}'
+```
+
+Use PATCH para atualizar secoes especificas sem perder o que ja existe.
+
+## 4. Ver atividade do dia (complementar)
 
 ```bash
 curl -s http://127.0.0.1:9777/api/daily/2026-06-25/activity
 ```
 
-Retorna lista de tarefas que tiveram atividade, contagem de atividades
-e comentarios. Use para enriquecer a nota automaticamente.
+Retorna tarefas que tiveram atividade no board.
+Use para ENRIQUECER a nota — adicione itens nos checkpoints.
 
 ## 5. Gerar relatorio base do dia
 
@@ -736,55 +723,78 @@ e comentarios. Use para enriquecer a nota automaticamente.
 curl -X POST http://127.0.0.1:9777/api/daily/2026-06-25/report
 ```
 
-Gera um relatorio base em Markdown com:
-- Tarefas trabalhadas (codigo, titulo, tipo, status)
-- Timeline de atividades (hora, acao, detalhe)
-- Code reviews do dia
-- Notas do usuario
-- Resumo (tarefas tocadas, atividades, reviews, concluidas)
+O relatorio inclui:
+1. Conteudo completo da nota do dia (topo)
+2. Tarefas do board que tiveram atividade
+3. Timeline de atividades
+4. Resumo automatico
 
-O relatorio e salvo no banco e retornado na resposta.
-
-## 6. Adicionar conteudo ao relatorio (PATCH — append)
+## 6. Adicionar analise ao relatorio
 
 ```bash
 curl -X PATCH http://127.0.0.1:9777/api/daily/2026-06-25/report \\
   -H 'Content-Type: application/json' \\
-  -d '{"content":"## Analise de codigo\\n- Revisado modulo X\\n- Sugestoes: ..."}'
+  -d '{"content":"## Analise\\n- ..."}'
 ```
 
-O PATCH **preserva** o conteudo original do relatorio no topo e adiciona
-o novo conteudo abaixo de um separador (`---`). Pode ser chamado varias
-vezes — cada chamada adiciona uma nova secao ao final.
+## Fluxo recomendado
 
-Use este endpoint para:
-- Adicionar resumos de code review
-- Inserir analises solicitadas pelo usuario
-- Anexar notas de reuniao ou decisoes tomadas
-- Qualquer conteudo complementar ao relatorio base
+1. Verificar se ja existe nota (`GET /api/daily/{date}`)
+2. Se existe: ler o body
+3. Se nao existe: criar com template (`PUT /api/daily/{date}`)
+4. Verificar atividade do board (`GET /api/daily/{date}/activity`)
+5. Atualizar nota com informacoes novas (`PATCH /api/daily/{date}`)
+6. Gerar relatorio quando solicitado (`POST /api/daily/{date}/report`)
+7. **Gerar resumo final** (ver secao abaixo)
 
-Se o relatorio ainda nao existir, o conteudo enviado se torna o relatorio
-inicial (sem separador).
+## 7. Resumo final para registro de trabalho
 
-## Fluxo recomendado para o agente
+Ao final do fluxo, SEMPRE gere um resumo simples para registro de trabalho.
+O resumo deve ser uma bullet list direta, sem codigo, sem detalhes tecnicos,
+sem explicacoes longas — apenas o que foi feito no dia.
 
-1. No inicio do dia: verificar se ja existe nota (`GET /api/daily/{date}`)
-2. Se nao existe: criar com o template preenchido (`PUT /api/daily/{date}`)
-3. Durante o dia: atualizar o body conforme o usuario trabalha
-4. Gerar relatorio base quando solicitado (`POST /api/daily/{date}/report`)
-5. Adicionar analises e resumos ao relatorio (`PATCH /api/daily/{date}/report`)
-6. O usuario pode revisar o relatorio na interface do app
+### Formato obrigatorio
+
+```markdown
+## Resumo do dia — YYYY-MM-DD
+
+- Tarefa/atividade descrita de forma simples e curta
+- Outra tarefa ou atividade
+- ...
+```
+
+### Exemplo
+
+```markdown
+## Resumo do dia — 2026-06-26
+
+- Implementacao do modulo de notificacoes
+- Correcao de bug no login com Google
+- Revisao de PR do fluxo de pagamento
+- Reuniao de alinhamento com o time de produto
+- Atualizacao da documentacao da API
+```
+
+### Regras do resumo
+
+- Uma linha por item, comecando com `-`
+- Linguagem simples e direta (sem jargao tecnico desnecessario)
+- NAO incluir: trechos de codigo, nomes de arquivos, hashes de commit, stack traces
+- NAO incluir: detalhes de implementacao ("adicionei campo X na tabela Y")
+- SIM incluir: o QUE foi feito em alto nivel ("implementacao do modulo de relatorios")
+- Manter entre 3 e 15 itens — agrupar atividades menores relacionadas
+- Usar verbos no passado ou infinitivo ("Implementacao de...", "Correcao de...")
+
+O resumo deve ser exibido ao usuario no final da conversa E salvo na nota do dia
+via `PATCH /api/daily/{date}` — adicionado ao final do body existente.
 
 ## Dicas
 
-- Use `GET /api/daily/{date}/activity` para listar automaticamente o que
-  foi feito antes de preencher a nota
-- O campo `body` aceita Markdown livre — o template e uma sugestao
-- O relatorio gerado (`POST .../report`) inclui tudo: atividades do banco
-  + notas escritas pelo usuario
-- Use `PATCH .../report` para adicionar conteudo ao relatorio sem
-  sobrescrever o que ja existe — ideal para resumos e analises do agente
+- A nota do dia e a FONTE PRINCIPAL do relatorio
+- O relatorio preserva o conteudo da nota inteiro no topo
+- Use `GET /api/daily/{date}/activity` para complementar
 - A data sempre no formato ISO: YYYY-MM-DD
+- O resumo final e obrigatorio — nao encerre sem gera-lo
 """,
     },
 ]

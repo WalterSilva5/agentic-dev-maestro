@@ -87,7 +87,7 @@ class StudyPlanCard(QFrame):
         outer.addWidget(accent)
 
         content = QVBoxLayout()
-        content.setContentsMargins(16, 12, 16, 12)
+        content.setContentsMargins(10, 8, 10, 8)
         content.setSpacing(6)
 
         top = QHBoxLayout()
@@ -215,22 +215,19 @@ class StudyView(QWidget):
     def _build_list_page(self):
         page = QWidget()
         layout = QVBoxLayout(page)
-        layout.setContentsMargins(24, 24, 24, 24)
-        layout.setSpacing(16)
+        layout.setContentsMargins(14, 14, 14, 14)
+        layout.setSpacing(10)
         title = QLabel("Estudos")
         title.setObjectName("sectionTitle")
         layout.addWidget(title)
 
-        t = current_theme()
         form = QFrame()
-        form.setStyleSheet(
-            f"QFrame {{ background: {t.bg_card}; border: 1px solid {t.border_light}; border-radius: 10px; }}"
-        )
+        form.setProperty("class", "card")
         form_layout = QVBoxLayout(form)
-        form_layout.setContentsMargins(16, 12, 16, 12)
+        form_layout.setContentsMargins(10, 8, 10, 8)
         form_layout.setSpacing(10)
         form_title = QLabel("Novo Plano")
-        form_title.setStyleSheet(f"font-weight: 600; font-size: 13px; color: {t.text_primary};")
+        form_title.setProperty("class", "cardTitle")
         form_layout.addWidget(form_title)
 
         inputs = QFormLayout()
@@ -257,7 +254,7 @@ class StudyView(QWidget):
         layout.addWidget(form)
 
         self.stats_label = QLabel("")
-        self.stats_label.setStyleSheet(f"color: {t.text_muted}; font-size: 12px;")
+        self.stats_label.setProperty("class", "hint")
         layout.addWidget(self.stats_label)
 
         self.scroll = QScrollArea()
@@ -274,8 +271,8 @@ class StudyView(QWidget):
     def _build_detail_page(self):
         page = QWidget()
         layout = QVBoxLayout(page)
-        layout.setContentsMargins(24, 24, 24, 24)
-        layout.setSpacing(16)
+        layout.setContentsMargins(14, 14, 14, 14)
+        layout.setSpacing(10)
 
         header_row = QHBoxLayout()
         back_btn = QPushButton("< Voltar")

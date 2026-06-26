@@ -73,7 +73,7 @@ def set_active_workspace(ws_id: str):
     save_config(cfg)
 
 
-def create_workspace(name: str, icon: str = "W") -> dict:
+def create_workspace(name: str, icon: str = "W", description: str = "", color: str = "") -> dict:
     cfg = _ensure_workspaces()
     ws_list = cfg.get("workspaces", [])
 
@@ -92,22 +92,32 @@ def create_workspace(name: str, icon: str = "W") -> dict:
     ws_dir = WORKSPACES_DIR / ws_id
     ws_dir.mkdir(parents=True, exist_ok=True)
 
-    ws = {"id": ws_id, "name": name, "icon": icon}
+    ws = {"id": ws_id, "name": name, "icon": icon, "description": description, "color": color}
     ws_list.append(ws)
     cfg["workspaces"] = ws_list
     save_config(cfg)
     return ws
 
 
-def rename_workspace(ws_id: str, new_name: str, new_icon: str | None = None):
+def update_workspace(ws_id: str, *, name: str | None = None, icon: str | None = None,
+                     description: str | None = None, color: str | None = None):
     cfg = load_config()
     for ws in cfg.get("workspaces", []):
         if ws["id"] == ws_id:
-            ws["name"] = new_name
-            if new_icon is not None:
-                ws["icon"] = new_icon
+            if name is not None:
+                ws["name"] = name
+            if icon is not None:
+                ws["icon"] = icon
+            if description is not None:
+                ws["description"] = description
+            if color is not None:
+                ws["color"] = color
             break
     save_config(cfg)
+
+
+def rename_workspace(ws_id: str, new_name: str, new_icon: str | None = None):
+    update_workspace(ws_id, name=new_name, icon=new_icon)
 
 
 def delete_workspace(ws_id: str) -> bool:
