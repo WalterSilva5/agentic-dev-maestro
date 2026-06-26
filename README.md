@@ -17,33 +17,20 @@ O Maestro é uma ferramenta local para desenvolvedores que querem organizar seu 
 - **Obsidian sync**: sincroniza notas diárias e tarefas com seu vault do Obsidian
 - **Pomodoro integrado**: timer na sidebar para sessões de foco
 
-## Início Rápido
+## Instalação com agente de IA
 
-```bash
-cd local-client
-./install.sh    # cria venv + instala dependências + valida
-./run.sh        # executa a aplicação
-```
+Peça ao seu agente de IA (Claude Code, Cursor, etc.) para instalar o Maestro automaticamente. Basta enviar algo como:
 
-Ou manualmente:
+> Clone o repositório https://github.com/WalterSilva5/agentic-dev-maestro.git, execute o install.sh no diretório local-client, crie um atalho na área de trabalho para o run.sh e me explique como usar a aplicação.
 
-```bash
-cd local-client
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e .
-python -m maestro_local
-```
+O agente vai:
 
-A aplicação abre com:
-- **GUI desktop** — interface completa com 9 telas (atalhos Alt+1 a Alt+9)
-- **API REST** — `http://127.0.0.1:9777/api` para agentes de IA
+1. Clonar o repositório
+2. Executar `local-client/install.sh` (cria venv + instala dependências)
+3. Criar um atalho `.desktop` na área de trabalho apontando para `local-client/run.sh`
+4. Explicar as funcionalidades principais: board kanban, meu dia, skills, API para agentes
 
-### Porta customizada
-
-```bash
-./run.sh --port 8888
-```
+Após a instalação, abra o Maestro pelo atalho ou execute `local-client/run.sh`. Na aba **Skills**, instale as skills no diretório do seu projeto — elas ensinam o agente a usar a API do Maestro para criar tarefas, documentar progresso e gerar relatórios.
 
 ## Funcionalidades
 
@@ -82,6 +69,34 @@ Guia de uso da aplicação com 10 seções, incluindo explicações de cada tela
 - Backup do banco de dados
 - Auto-sync com Obsidian vault por workspace (a cada 5 min)
 - Vault configurável por workspace e projeto
+
+## Início Rápido (manual)
+
+```bash
+cd local-client
+./install.sh    # cria venv + instala dependências + valida
+./run.sh        # executa a aplicação
+```
+
+Ou:
+
+```bash
+cd local-client
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e .
+python -m maestro_local
+```
+
+A aplicação abre com:
+- **GUI desktop** — interface completa com 9 telas (atalhos Alt+1 a Alt+9)
+- **API REST** — `http://127.0.0.1:9777/api` para agentes de IA
+
+### Porta customizada
+
+```bash
+./run.sh --port 8888
+```
 
 ## API REST para agentes
 
