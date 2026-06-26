@@ -15,8 +15,8 @@ SECTIONS = [
         "icon": "🎯",
         "title": "O papel dos agentes",
         "body": (
-            "Agentes de IA são auxiliares dos desenvolvedores. Eles não substituem "
-            "o desenvolvedor — ajudam a acelerar o trabalho repetitivo, documentar "
+            "Agentes de IA são auxiliares dos desenvolvedores. "
+            "Ajudam a acelerar o trabalho repetitivo, documentar "
             "progresso e preparar código para revisão humana.\n\n"
             "O que agentes fazem:\n"
             "- Auxiliam na implementação de tarefas\n"
@@ -138,6 +138,7 @@ SECTIONS = [
             "- Alt+7 — Métricas\n"
             "- Alt+8 — Skills\n"
             "- Alt+9 — Instruções (esta tela)\n"
+            "- Alt+0 — Configurações\n"
             "- Escape — Fechar busca"
         ),
     },

@@ -503,4 +503,5 @@ NAV_ICONS = {
     "metrics": "◧",
     "skills": "⚙",
     "guide": "?",
+    "settings": "⚡",
 }

@@ -38,7 +38,7 @@ maestro --port 8888  # porta customizada
 ## O que a aplicação faz
 
 Ao iniciar, o Maestro abre:
-1. **GUI desktop** (PySide6/Qt 6) — interface gráfica com 9 telas
+1. **GUI desktop** (PySide6/Qt 6) — interface gráfica com 10 telas
 2. **API REST** (FastAPI/uvicorn) — `http://127.0.0.1:9777/api` em thread daemon
 
 A tela inicial é **Meu Dia**, que funciona como home da aplicação.
@@ -125,17 +125,25 @@ Biblioteca de skills para agentes de IA:
 
 Guia de uso reestruturado com 10 seções, incluindo explicações de cada tela, fluxo de trabalho, o papel dos agentes e tarefas de revisão.
 
+### Configurações (Alt+0)
+
+Tela de configurações gerais:
+
+- **Pomodoro**: duração da sessão configurável (1-120 minutos), atualiza o timer da sidebar em tempo real
+- **Notificações push**: notificações periódicas na área de trabalho com mensagem personalizada, intervalo configurável (1-480 min) e toggle de ativação. Desabilitado por padrão. Usa `QSystemTrayIcon` com fallback para `notify-send`
+
 ## Recursos gerais
 
 | Recurso | Descrição |
 |---|---|
 | **Tema dark/light** | Toggle na sidebar, aplica em todas as telas |
-| **Pomodoro** | Timer de 25 min na sidebar com play/pause e reset |
+| **Pomodoro** | Timer configurável na sidebar com play/pause e reset |
+| **Notificações push** | Lembretes periódicos na área de trabalho com mensagem e intervalo customizáveis |
 | **Busca global** | `Ctrl+K` abre busca por título ou código de tarefa |
 | **Workspaces** | Isolamento completo com banco separado, emoji, cor e descrição customizáveis |
 | **Obsidian sync** | Auto-sync a cada 5 min, vault configurável por workspace/projeto |
 | **Backup** | Exportar banco SQLite a qualquer momento |
-| **Atalhos** | `Alt+1` a `Alt+9` para navegar entre telas, `Ctrl+K` para busca |
+| **Atalhos** | `Alt+1` a `Alt+9` + `Alt+0` para navegar entre telas, `Ctrl+K` para busca |
 
 ## API REST
 
@@ -289,7 +297,8 @@ maestro_local/
 │       ├── labels_view.py       # CRUD de labels com paleta
 │       ├── metrics_view.py      # Dashboard de métricas
 │       ├── skills_view.py       # Skills para agentes de IA
-│       └── guide_view.py        # Instruções de uso
+│       ├── guide_view.py        # Instruções de uso
+│       └── settings_view.py    # Configurações (pomodoro, notificações)
 └── skills/
     └── catalog.py           # Catálogo de 12 skills com conteúdo SKILL.md
 ```

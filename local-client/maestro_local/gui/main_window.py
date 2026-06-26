@@ -31,6 +31,7 @@ from maestro_local.gui.views.board_view import BoardView
 from maestro_local.gui.views.daily_view import DailyView
 from maestro_local.gui.views.dashboard_view import DashboardView
 from maestro_local.gui.views.guide_view import GuideView
+from maestro_local.gui.views.settings_view import SettingsView
 from maestro_local.gui.views.labels_view import LabelsView
 from maestro_local.gui.views.metrics_view import MetricsView
 from maestro_local.gui.views.projects_view import ProjectsView
@@ -235,6 +236,7 @@ class MainWindow(QMainWindow):
             ("Métricas", "metrics"),
             ("Skills", "skills"),
             ("Instruções", "guide"),
+            ("Configurações", "settings"),
         ]
         for label, key in nav_items:
             icon = NAV_ICONS.get(key, "")
@@ -308,6 +310,8 @@ class MainWindow(QMainWindow):
         self.metrics_view = MetricsView()
         self.skills_view = SkillsView()
         self.guide_view = GuideView()
+        self.settings_view = SettingsView()
+        self.settings_view.notification_changed.connect(self._setup_notification_timer)
 
         self.stack.addWidget(self.dashboard_view)
         self.stack.addWidget(self.daily_view)
@@ -318,6 +322,7 @@ class MainWindow(QMainWindow):
         self.stack.addWidget(self.metrics_view)
         self.stack.addWidget(self.skills_view)
         self.stack.addWidget(self.guide_view)
+        self.stack.addWidget(self.settings_view)
 
         content_layout.addWidget(self.stack)
         layout.addWidget(content_widget)
@@ -347,9 +352,13 @@ class MainWindow(QMainWindow):
         escape_shortcut = QShortcut(QKeySequence("Escape"), self)
         escape_shortcut.activated.connect(self._close_search)
 
-        for i in range(9):
-            shortcut = QShortcut(QKeySequence(f"Alt+{i + 1}"), self)
+        for i in range(10):
+            shortcut = QShortcut(QKeySequence(f"Alt+{i + 1}" if i < 9 else "Alt+0"), self)
             shortcut.activated.connect(lambda idx=i: self.nav_list.setCurrentRow(idx))
+
+        self._notif_timer = QTimer(self)
+        self._notif_timer.timeout.connect(self._send_notification)
+        self._setup_notification_timer()
 
         self._apply_theme()
 
@@ -552,6 +561,45 @@ class MainWindow(QMainWindow):
         if task and hasattr(self.board_view, "open_task_detail"):
             self.board_view.open_task_detail(task)
             self.nav_list.setCurrentRow(3)
+
+    # --- Notifications ---
+
+    def _setup_notification_timer(self):
+        self._notif_timer.stop()
+        settings = self.settings_view.get_notification_settings()
+        if settings["enabled"] and settings["interval_minutes"] > 0:
+            self._notif_timer.start(settings["interval_minutes"] * 60 * 1000)
+        pomodoro_mins = self.settings_view.pomodoro_duration.value()
+        self.pomodoro._duration = pomodoro_mins * 60
+        if not self.pomodoro._running:
+            self.pomodoro._remaining = self.pomodoro._duration
+            self.pomodoro._time_label.setText(self.pomodoro._fmt(self.pomodoro._remaining))
+
+    def _send_notification(self):
+        settings = self.settings_view.get_notification_settings()
+        if not settings["enabled"]:
+            return
+        msg = settings["message"] or "Maestro — lembrete"
+        try:
+            from PySide6.QtWidgets import QSystemTrayIcon
+            from PySide6.QtGui import QIcon
+            if not hasattr(self, "_tray_icon"):
+                self._tray_icon = QSystemTrayIcon(self)
+                self._tray_icon.setIcon(QIcon.fromTheme("dialog-information"))
+                self._tray_icon.show()
+            if self._tray_icon.supportsMessages():
+                self._tray_icon.showMessage("Agentic Dev Maestro", msg, QSystemTrayIcon.Information, 5000)
+                return
+        except Exception:
+            pass
+        import subprocess
+        try:
+            subprocess.Popen(
+                ["notify-send", "-a", "Maestro", "Agentic Dev Maestro", msg],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+        except FileNotFoundError:
+            self.show_toast(msg)
 
     # --- Toast ---
 

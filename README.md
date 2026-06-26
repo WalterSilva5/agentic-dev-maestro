@@ -61,9 +61,15 @@ Biblioteca de 12 skills para agentes de IA. Cada skill é um arquivo SKILL.md qu
 ### Instruções
 Guia de uso da aplicação com 10 seções, incluindo explicações de cada tela, fluxo de trabalho, o papel dos agentes e tarefas de revisão.
 
+### Configurações
+Tela de configurações gerais com:
+- **Pomodoro**: duração da sessão configurável (1-120 min)
+- **Notificações push**: notificações periódicas na área de trabalho com mensagem personalizada, intervalo configurável e ativação/desativação
+
 ### Recursos gerais
 - Tema dark/light com toggle na sidebar
-- Pomodoro timer (25 min) na sidebar
+- Pomodoro timer configurável na sidebar
+- Notificações push periódicas com mensagem customizada
 - Busca global de tarefas (Ctrl+K)
 - Workspaces isolados com bancos separados, emojis e cores customizáveis
 - Backup do banco de dados
@@ -89,7 +95,7 @@ python -m maestro_local
 ```
 
 A aplicação abre com:
-- **GUI desktop** — interface completa com 9 telas (atalhos Alt+1 a Alt+9)
+- **GUI desktop** — interface completa com 10 telas (atalhos Alt+1 a Alt+9, Alt+0)
 - **API REST** — `http://127.0.0.1:9777/api` para agentes de IA
 
 ### Porta customizada
@@ -141,6 +147,7 @@ A API roda em `http://127.0.0.1:9777/api` sem autenticação. Endpoints principa
 ![Skills](local-client/docs/screenshots/skills-light.png)
 ![Métricas](local-client/docs/screenshots/metricas-light.png)
 ![Instruções](local-client/docs/screenshots/instrucoes-light.png)
+![Configurações](local-client/docs/screenshots/configuracoes-light.png)
 
 ## Estrutura do projeto
 
@@ -148,7 +155,7 @@ A API roda em `http://127.0.0.1:9777/api` sem autenticação. Endpoints principa
 agentic-dev-maestro/
 ├── local-client/              # App principal (Python/PySide6)
 │   ├── maestro_local/         # Código fonte
-│   │   ├── gui/views/         # 9 telas da interface
+│   │   ├── gui/views/         # 10 telas da interface
 │   │   ├── api/               # FastAPI endpoints
 │   │   ├── db/                # SQLAlchemy models + SQLite
 │   │   └── skills/            # Catálogo de 12 skills
