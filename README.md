@@ -2,7 +2,7 @@
 
 Aplicacao desktop de gestao de projetos, diario de trabalho e estudos, com API REST embutida para integracao com agentes de IA.
 
-![Dashboard Light](local-client/docs/screenshots/01-dashboard-light.png)
+![Dashboard Light](local-client/docs/screenshots/dashboard-light.png)
 
 ## O que e
 
@@ -119,10 +119,12 @@ A API roda em `http://127.0.0.1:9777/api` sem autenticacao. Endpoints principais
 
 | Tema Claro | Tema Escuro |
 |---|---|
-| ![Dashboard](local-client/docs/screenshots/01-dashboard-light.png) | ![Dashboard Dark](local-client/docs/screenshots/10-dashboard-dark.png) |
-| ![Meu Dia](local-client/docs/screenshots/02-diario-light.png) | ![Meu Dia Dark](local-client/docs/screenshots/13-diario-dark.png) |
-| ![Board](local-client/docs/screenshots/04-board-light.png) | ![Board Dark](local-client/docs/screenshots/11-board-dark.png) |
-| ![Metricas](local-client/docs/screenshots/07-metricas-light.png) | ![Metricas Dark](local-client/docs/screenshots/12-metricas-dark.png) |
+| ![Dashboard](local-client/docs/screenshots/dashboard-light.png) | ![Dashboard Dark](local-client/docs/screenshots/dashboard-dark.png) |
+| ![Meu Dia](local-client/docs/screenshots/meudia-light.png) | ![Meu Dia Dark](local-client/docs/screenshots/meudia-dark.png) |
+| ![Board](local-client/docs/screenshots/board-light.png) | ![Board Dark](local-client/docs/screenshots/board-dark.png) |
+| ![Skills](local-client/docs/screenshots/skills-light.png) | ![Skills Dark](local-client/docs/screenshots/skills-dark.png) |
+| ![Metricas](local-client/docs/screenshots/metricas-light.png) | ![Metricas Dark](local-client/docs/screenshots/metricas-dark.png) |
+| ![Instrucoes](local-client/docs/screenshots/instrucoes-light.png) | ![Instrucoes Dark](local-client/docs/screenshots/instrucoes-dark.png) |
 
 ## Estrutura do projeto
 
