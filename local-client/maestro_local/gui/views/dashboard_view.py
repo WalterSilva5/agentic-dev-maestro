@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
@@ -150,7 +150,7 @@ class DashboardView(QWidget):
         today = datetime.utcnow().date()
         overdue = [
             t for t in active_tasks
-            if t.due_date and t.due_date < today and t.column_id not in done_cols
+            if t.due_date and (t.due_date.date() if hasattr(t.due_date, 'date') else t.due_date) < today and t.column_id not in done_cols
         ]
         self._summary_cards["overdue"]["value"].setText(str(len(overdue)))
 
