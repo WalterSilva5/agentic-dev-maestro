@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from PySide6.QtCore import QDate, Qt, Signal
+from PySide6.QtCore import QDate, Qt, QTimer, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QMessageBox,
     QPushButton,
+    QScrollArea,
     QTabWidget,
     QTextEdit,
     QVBoxLayout,
@@ -193,48 +194,72 @@ class TaskDetailDialog(QDialog):
             # --- Tabs ---
             tabs = QTabWidget()
 
-            # Info
-            info_tab = QWidget()
-            info_layout = QFormLayout(info_tab)
-            info_layout.setSpacing(10)
+            # Info (scrollable)
+            info_scroll = QScrollArea()
+            info_scroll.setWidgetResizable(True)
+            info_scroll.setFrameShape(QFrame.NoFrame)
 
+            info_inner = QWidget()
+            info_layout = QVBoxLayout(info_inner)
+            info_layout.setSpacing(8)
+            info_layout.setContentsMargins(8, 8, 8, 8)
+
+            desc_label = QLabel("Descricao:")
+            desc_label.setStyleSheet(f"color: {t.text_secondary}; font-weight: 600; font-size: 12px;")
+            info_layout.addWidget(desc_label)
             self.desc_edit = QTextEdit(task.description or "")
-            self.desc_edit.setMinimumHeight(100)
-            info_layout.addRow("Descricao:", self.desc_edit)
+            self.desc_edit.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+            self.desc_edit.textChanged.connect(lambda: self._auto_resize(self.desc_edit))
+            info_layout.addWidget(self.desc_edit)
 
+            obj_label = QLabel("Objetivo:")
+            obj_label.setStyleSheet(f"color: {t.text_secondary}; font-weight: 600; font-size: 12px;")
+            info_layout.addWidget(obj_label)
             self.obj_edit = QTextEdit(task.objective or "")
-            self.obj_edit.setMinimumHeight(80)
-            info_layout.addRow("Objetivo:", self.obj_edit)
+            self.obj_edit.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+            self.obj_edit.textChanged.connect(lambda: self._auto_resize(self.obj_edit))
+            info_layout.addWidget(self.obj_edit)
 
+            acc_label = QLabel("Aceite:")
+            acc_label.setStyleSheet(f"color: {t.text_secondary}; font-weight: 600; font-size: 12px;")
+            info_layout.addWidget(acc_label)
             self.acc_edit = QTextEdit(task.acceptance or "")
-            self.acc_edit.setMinimumHeight(80)
-            info_layout.addRow("Aceite:", self.acc_edit)
+            self.acc_edit.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+            self.acc_edit.textChanged.connect(lambda: self._auto_resize(self.acc_edit))
+            info_layout.addWidget(self.acc_edit)
 
+            est_row = QHBoxLayout()
+            est_label = QLabel("Estimativa:")
+            est_label.setStyleSheet(f"color: {t.text_secondary}; font-weight: 600; font-size: 12px;")
+            est_row.addWidget(est_label)
             self.est_spin = QDoubleSpinBox()
             self.est_spin.setRange(0, 999)
             self.est_spin.setSingleStep(0.5)
             self.est_spin.setSuffix(" homem-dia")
             self.est_spin.setValue(task.estimate_md or 0)
-            info_layout.addRow("Estimativa:", self.est_spin)
+            est_row.addWidget(self.est_spin)
+            est_row.addStretch()
+            info_layout.addLayout(est_row)
 
             save_info = QPushButton("Salvar alteracoes")
             save_info.clicked.connect(self._save_info)
-            info_layout.addRow("", save_info)
+            info_layout.addWidget(save_info)
 
-            # Timestamps
-            info_layout.addRow("", _h_divider(t))
+            info_layout.addWidget(_h_divider(t))
             created_lbl = QLabel(
                 f"Criada em: {task.created_at.strftime('%d/%m/%Y %H:%M') if task.created_at else '--'}"
             )
             created_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 11px;")
-            info_layout.addRow("", created_lbl)
+            info_layout.addWidget(created_lbl)
             updated_lbl = QLabel(
                 f"Atualizada em: {task.updated_at.strftime('%d/%m/%Y %H:%M') if task.updated_at else '--'}"
             )
             updated_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 11px;")
-            info_layout.addRow("", updated_lbl)
+            info_layout.addWidget(updated_lbl)
 
-            tabs.addTab(info_tab, "Info")
+            info_layout.addStretch()
+            info_scroll.setWidget(info_inner)
+            tabs.addTab(info_scroll, "Info")
 
             # Checklist
             cl_tab = QWidget()
@@ -407,6 +432,8 @@ class TaskDetailDialog(QDialog):
         finally:
             s.close()
 
+        QTimer.singleShot(0, self._init_auto_resize)
+
     # ------------------------------------------------------------------ #
     # Labels management (rebuilt inline, no dialog close)
     # ------------------------------------------------------------------ #
@@ -461,6 +488,18 @@ class TaskDetailDialog(QDialog):
             s.close()
 
         self._labels_container_layout.addWidget(labels_row)
+
+    # ------------------------------------------------------------------ #
+    # Auto-resize text edits
+    # ------------------------------------------------------------------ #
+
+    def _auto_resize(self, editor):
+        doc_height = int(editor.document().size().height()) + 10
+        editor.setFixedHeight(max(36, min(doc_height, 300)))
+
+    def _init_auto_resize(self):
+        for ed in (self.desc_edit, self.obj_edit, self.acc_edit):
+            self._auto_resize(ed)
 
     # ------------------------------------------------------------------ #
     # Checklist helpers

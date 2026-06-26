@@ -33,6 +33,7 @@ from maestro_local.gui.views.labels_view import LabelsView
 from maestro_local.gui.views.metrics_view import MetricsView
 from maestro_local.gui.views.projects_view import ProjectsView
 from maestro_local.gui.views.skills_view import SkillsView
+from maestro_local.gui.views.study_view import StudyView
 from maestro_local.gui.workspace_selector import WorkspaceSelectorButton
 
 
@@ -81,7 +82,7 @@ class MainWindow(QMainWindow):
         # Logo / branding section
         logo_container = QWidget()
         logo_layout = QVBoxLayout(logo_container)
-        logo_layout.setContentsMargins(16, 20, 16, 16)
+        logo_layout.setContentsMargins(16, 14, 16, 10)
         logo_layout.setSpacing(4)
 
         brand_row = QHBoxLayout()
@@ -120,6 +121,7 @@ class MainWindow(QMainWindow):
         self.nav_list.setObjectName("navList")
         nav_items = [
             ("Diario", "daily"),
+            ("Estudos", "study"),
             ("Board", "board"),
             ("Projetos", "projects"),
             ("Labels", "labels"),
@@ -135,7 +137,6 @@ class MainWindow(QMainWindow):
 
         self.nav_list.currentRowChanged.connect(self._on_nav)
         sb_layout.addWidget(self.nav_list)
-        sb_layout.addStretch()
 
         # Theme toggle
         self.theme_btn = QPushButton("Tema escuro")
@@ -187,6 +188,7 @@ class MainWindow(QMainWindow):
         # Stacked widget with views
         self.stack = QStackedWidget()
         self.daily_view = DailyView()
+        self.study_view = StudyView()
         self.board_view = BoardView()
         self.projects_view = ProjectsView()
         self.labels_view = LabelsView()
@@ -195,6 +197,7 @@ class MainWindow(QMainWindow):
         self.guide_view = GuideView()
 
         self.stack.addWidget(self.daily_view)
+        self.stack.addWidget(self.study_view)
         self.stack.addWidget(self.board_view)
         self.stack.addWidget(self.projects_view)
         self.stack.addWidget(self.labels_view)
@@ -207,6 +210,7 @@ class MainWindow(QMainWindow):
 
         # Connections
         self.projects_view.project_selected.connect(self._open_board)
+        self.board_view.project_opened.connect(self._open_board)
         self.board_view.task_changed.connect(self._refresh_all)
 
         # Default to Daily view
@@ -227,7 +231,7 @@ class MainWindow(QMainWindow):
         escape_shortcut = QShortcut(QKeySequence("Escape"), self)
         escape_shortcut.activated.connect(self._close_search)
 
-        for i in range(7):
+        for i in range(8):
             shortcut = QShortcut(QKeySequence(f"Alt+{i + 1}"), self)
             shortcut.activated.connect(lambda idx=i: self.nav_list.setCurrentRow(idx))
 
@@ -258,15 +262,15 @@ class MainWindow(QMainWindow):
         )
         self.section_label_work.setStyleSheet(
             f"color: {t.text_muted}; font-size: 10px; font-weight: 700; "
-            f"letter-spacing: 1.5px; padding: 12px 16px 4px 16px; background: transparent;"
+            f"letter-spacing: 1.5px; padding: 8px 16px 2px 16px; background: transparent;"
         )
         self.nav_list.setStyleSheet(f"""
             QListWidget {{
-                background: transparent; border: none; padding: 4px 6px;
+                background: transparent; border: none; padding: 2px 4px;
                 outline: none;
             }}
             QListWidget::item {{
-                padding: 10px 14px; border-radius: 8px; margin: 2px 8px;
+                padding: 7px 12px; border-radius: 6px; margin: 1px 6px;
                 color: {t.text_secondary}; font-size: 13px;
             }}
             QListWidget::item:selected {{
@@ -280,7 +284,7 @@ class MainWindow(QMainWindow):
         theme_icon = "☾" if not is_dark() else "☀"
         self.theme_btn.setText(f"  {theme_icon}   {'Tema escuro' if not is_dark() else 'Tema claro'}")
         self.theme_btn.setStyleSheet(
-            f"color: {t.text_muted}; font-size: 12px; padding: 10px 16px; "
+            f"color: {t.text_muted}; font-size: 12px; padding: 6px 16px; "
             f"text-align: left; border: none; background: transparent; border-radius: 8px; margin: 2px 8px;"
         )
         self.api_label.setStyleSheet(
@@ -337,7 +341,7 @@ class MainWindow(QMainWindow):
 
     def _open_board(self, project_id):
         self.board_view.set_project(project_id)
-        self.nav_list.setCurrentRow(1)
+        self.nav_list.setCurrentRow(2)
 
     def _on_workspace_changed(self, ws_id):
         db_path = get_workspace_db_path(ws_id)
@@ -423,7 +427,7 @@ class MainWindow(QMainWindow):
         self._close_search()
         if task and hasattr(self.board_view, "open_task_detail"):
             self.board_view.open_task_detail(task)
-            self.nav_list.setCurrentRow(1)
+            self.nav_list.setCurrentRow(2)
 
     # --- Toast ---
 

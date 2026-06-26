@@ -43,37 +43,37 @@ class ThemeColors:
 
 
 LIGHT = ThemeColors(
-    bg_primary="#EDEEF2",
-    bg_secondary="#E4E5EB",
-    bg_sidebar="#D9DBE3",
-    bg_card="#F2F3F6",
-    bg_input="#F0F1F5",
-    bg_hover="#DDDEE6",
-    bg_selected="#D0D4EE",
-    bg_badge="#DDDEE6",
-    bg_overlay="rgba(0,0,0,0.3)",
+    bg_primary="#F5F6FA",
+    bg_secondary="#EAECF2",
+    bg_sidebar="#EEF0F6",
+    bg_card="#FFFFFF",
+    bg_input="#FFFFFF",
+    bg_hover="#F0F3FF",
+    bg_selected="#E0E5FF",
+    bg_badge="#E6E8EF",
+    bg_overlay="rgba(15,15,35,0.40)",
 
-    text_primary="#1A1D2E",
-    text_secondary="#3E4259",
-    text_muted="#71758A",
+    text_primary="#0E1120",
+    text_secondary="#2D3148",
+    text_muted="#5F6478",
     text_on_accent="#FFFFFF",
 
-    border="#C5C8D4",
-    border_focus="#4361EE",
-    border_light="#D5D7E0",
+    border="#CDD1DB",
+    border_focus="#4C5FD0",
+    border_light="#E3E5EC",
 
-    accent="#4361EE",
-    accent_hover="#3651D9",
-    accent_pressed="#2A42C4",
-    accent_light="#DFE4FF",
+    accent="#4C5FD0",
+    accent_hover="#3D4EB8",
+    accent_pressed="#3140A0",
+    accent_light="#E8EBFF",
 
-    danger="#E5383B",
-    success="#2D9F46",
-    warning="#F4A100",
-    info="#0CA5C2",
+    danger="#D1242F",
+    success="#1E8A4A",
+    warning="#C47D00",
+    info="#0779B3",
 
-    shadow="0 1px 3px rgba(0,0,0,0.10)",
-    shadow_lg="0 8px 30px rgba(0,0,0,0.14)",
+    shadow="0 1px 3px rgba(0,0,0,0.08), 0 0 0 0.5px rgba(0,0,0,0.04)",
+    shadow_lg="0 4px 16px rgba(0,0,0,0.10), 0 0 0 1px rgba(0,0,0,0.03)",
 )
 
 DARK = ThemeColors(
@@ -138,7 +138,7 @@ QMainWindow, QWidget {{
 QMenuBar {{
     background-color: {t.bg_sidebar};
     color: {t.text_primary};
-    border-bottom: 1px solid {t.border};
+    border-bottom: 1px solid {t.border_light};
     padding: 2px 0;
 }}
 QMenuBar::item {{
@@ -150,12 +150,13 @@ QMenu {{
     background-color: {t.bg_card};
     color: {t.text_primary};
     border: 1px solid {t.border};
-    border-radius: 6px;
-    padding: 4px;
+    border-radius: 8px;
+    padding: 6px;
+    box-shadow: {t.shadow};
 }}
 QMenu::item {{
     padding: 6px 24px 6px 12px;
-    border-radius: 3px;
+    border-radius: 4px;
 }}
 QMenu::item:selected {{ background-color: {t.bg_hover}; }}
 QMenu::separator {{
@@ -164,15 +165,16 @@ QMenu::separator {{
     margin: 4px 8px;
 }}
 QListWidget, QTreeWidget, QTableWidget {{
-    background-color: {t.bg_secondary};
+    background-color: {t.bg_card};
     border: 1px solid {t.border};
-    border-radius: 6px;
-    padding: 2px;
+    border-radius: 8px;
+    padding: 4px;
     outline: none;
 }}
 QListWidget::item, QTreeWidget::item {{
-    padding: 6px 8px;
-    border-radius: 4px;
+    padding: 7px 10px;
+    border-radius: 5px;
+    margin: 1px 0;
 }}
 QListWidget::item:selected, QTreeWidget::item:selected {{
     background-color: {t.bg_selected};
@@ -220,34 +222,39 @@ QLineEdit, QTextEdit, QPlainTextEdit, QComboBox, QSpinBox, QDoubleSpinBox {{
 QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus,
 QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus {{
     border-color: {t.border_focus};
+    background-color: {t.bg_card};
 }}
 QLineEdit#globalSearch {{
-    background-color: {t.bg_secondary};
+    background-color: {t.bg_card};
     border: 1px solid {t.border};
-    border-radius: 8px;
-    padding: 8px 12px;
+    border-radius: 10px;
+    padding: 10px 16px;
     font-size: 14px;
 }}
 QLineEdit#globalSearch:focus {{
     border-color: {t.border_focus};
-    background-color: {t.bg_card};
+    box-shadow: 0 0 0 3px {t.accent_light};
 }}
-QComboBox::drop-down {{ border: none; }}
+QComboBox::drop-down {{
+    border: none;
+    padding-right: 8px;
+}}
 QComboBox QAbstractItemView {{
     background-color: {t.bg_card};
     color: {t.text_primary};
     selection-background-color: {t.bg_selected};
     border: 1px solid {t.border};
-    border-radius: 6px;
+    border-radius: 8px;
+    padding: 4px;
 }}
 QScrollBar:vertical {{
     background: transparent;
-    width: 6px;
+    width: 8px;
     margin: 2px;
 }}
 QScrollBar::handle:vertical {{
-    background: {t.bg_badge};
-    border-radius: 3px;
+    background: {t.border};
+    border-radius: 4px;
     min-height: 30px;
 }}
 QScrollBar::handle:vertical:hover {{
@@ -255,14 +262,13 @@ QScrollBar::handle:vertical:hover {{
 }}
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0; }}
 QScrollBar:horizontal {{
-    background: {t.bg_secondary};
-    height: 14px;
-    margin: 0;
-    border-radius: 7px;
+    background: transparent;
+    height: 8px;
+    margin: 2px;
 }}
 QScrollBar::handle:horizontal {{
-    background: {t.bg_badge};
-    border-radius: 7px;
+    background: {t.border};
+    border-radius: 4px;
     min-width: 40px;
 }}
 QScrollBar::handle:horizontal:hover {{
@@ -272,7 +278,7 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{ width: 0; }}
 QTabWidget::pane {{
     border: 1px solid {t.border};
     border-top: none;
-    border-radius: 0 0 6px 6px;
+    border-radius: 0 0 8px 8px;
 }}
 QTabBar {{
     border-bottom: 2px solid {t.border_light};
@@ -280,7 +286,7 @@ QTabBar {{
 QTabBar::tab {{
     background-color: transparent;
     color: {t.text_muted};
-    padding: 8px 16px;
+    padding: 10px 18px;
     border: none;
     border-bottom: 2px solid transparent;
     margin-bottom: -2px;
@@ -289,37 +295,39 @@ QTabBar::tab {{
 QTabBar::tab:selected {{
     color: {t.accent};
     border-bottom: 2px solid {t.accent};
+    font-weight: 600;
 }}
 QTabBar::tab:hover:!selected {{
     color: {t.text_primary};
     border-bottom: 2px solid {t.border};
 }}
 QLabel#sectionTitle {{
-    font-size: 20px;
+    font-size: 22px;
     font-weight: 700;
     color: {t.text_primary};
     letter-spacing: -0.3px;
+    margin-bottom: 4px;
 }}
 QLabel#subtitle {{
     color: {t.text_muted};
     font-size: 13px;
 }}
 QProgressBar {{
-    background-color: {t.bg_secondary};
-    border: 1px solid {t.border_light};
-    border-radius: 3px;
-    height: 6px;
+    background-color: {t.bg_badge};
+    border: none;
+    border-radius: 4px;
+    height: 8px;
     text-align: center;
 }}
 QProgressBar::chunk {{
     background-color: {t.accent};
-    border-radius: 3px;
+    border-radius: 4px;
 }}
 QCheckBox::indicator {{
-    width: 16px;
-    height: 16px;
-    border-radius: 4px;
-    border: 1px solid {t.border};
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    border: 2px solid {t.border};
     background-color: {t.bg_input};
 }}
 QCheckBox::indicator:checked {{
@@ -332,28 +340,31 @@ QCheckBox::indicator:hover {{
 QSplitter::handle {{ background: {t.border_light}; }}
 QGroupBox {{
     border: 1px solid {t.border};
-    border-radius: 6px;
-    margin-top: 12px;
-    padding-top: 16px;
+    border-radius: 8px;
+    margin-top: 14px;
+    padding-top: 18px;
     font-weight: 600;
+    font-size: 13px;
 }}
 QGroupBox::title {{
     subcontrol-origin: margin;
-    left: 10px;
-    padding: 0 4px;
+    left: 12px;
+    padding: 0 6px;
 }}
 QDialog {{
     background-color: {t.bg_card};
     color: {t.text_primary};
-    border-radius: 8px;
+    border-radius: 10px;
+    box-shadow: {t.shadow_lg};
 }}
 QToolTip {{
     background-color: {t.bg_card};
     color: {t.text_primary};
     border: 1px solid {t.border};
-    border-radius: 4px;
-    padding: 6px 10px;
+    border-radius: 6px;
+    padding: 8px 12px;
     font-size: 12px;
+    box-shadow: {t.shadow};
 }}
 QMessageBox {{
     background-color: {t.bg_card};
@@ -361,20 +372,21 @@ QMessageBox {{
 QMessageBox QLabel {{
     color: {t.text_primary};
     font-size: 13px;
+    padding: 8px 0;
 }}
 QMessageBox QPushButton {{
     min-width: 80px;
-    padding: 6px 16px;
+    padding: 7px 18px;
 }}
 """
 
 
 TYPE_COLORS = {
-    "FEATURE": "#4C6EF5",
-    "BUG": "#E03131",
-    "TECH_DEBT": "#E8590C",
-    "IMPROVEMENT": "#2F9E44",
-    "CHORE": "#868E96",
+    "FEATURE": "#4050C8",
+    "BUG": "#CC222B",
+    "TECH_DEBT": "#D1550B",
+    "IMPROVEMENT": "#1E7E3F",
+    "CHORE": "#5E6273",
 }
 
 TYPE_LABELS = {
@@ -386,10 +398,10 @@ TYPE_LABELS = {
 }
 
 PRIORITY_COLORS = {
-    "LOW": "#868E96",
-    "MEDIUM": "#4C6EF5",
-    "HIGH": "#E8590C",
-    "URGENT": "#E03131",
+    "LOW": "#5E6273",
+    "MEDIUM": "#4050C8",
+    "HIGH": "#D1550B",
+    "URGENT": "#CC222B",
 }
 
 PRIORITY_LABELS = {
@@ -401,6 +413,7 @@ PRIORITY_LABELS = {
 
 NAV_ICONS = {
     "daily": "◰",
+    "study": "📚",
     "board": "◫",
     "projects": "◈",
     "labels": "◉",

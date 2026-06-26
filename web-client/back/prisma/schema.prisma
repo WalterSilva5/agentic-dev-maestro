@@ -28,6 +28,7 @@ model User {
   memberships    Membership[]
   assignedTasks  Task[]        @relation("TaskAssignee")
   authoredComments Comment[]   @relation("CommentAuthor")
+  studyPlans     StudyPlan[]
 
   @@map("USERS")
 }
@@ -127,6 +128,7 @@ model Company {
   activityLogs ActivityLog[]
   webhooks     Webhook[]
   invitations  Invitation[]
+  studyPlans   StudyPlan[]
 
   @@map("TB_COMPANY")
 }
@@ -431,4 +433,98 @@ model IdempotencyKey {
 
   @@unique([companyId, key])
   @@map("TB_IDEMPOTENCY_KEY")
+}
+
+// ---- Módulo de Estudos ----
+
+enum StudyPlanStatus {
+  PLANEJADO
+  EM_ANDAMENTO
+  PAUSADO
+  CONCLUIDO
+  ABANDONADO
+}
+
+enum StudyTopicStatus {
+  PENDENTE
+  ESTUDANDO
+  REVISAO
+  CONCLUIDO
+  PULADO
+}
+
+enum StudyCategory {
+  LINGUAGEM
+  FRAMEWORK
+  CERTIFICACAO
+  CONCEITO
+  CURSO
+  LIVRO
+}
+
+model StudyPlan {
+  id          Int             @id @default(autoincrement())
+  companyId   Int
+  userId      Int
+  title       String          @db.VarChar(200)
+  description String?         @db.Text
+  category    StudyCategory
+  status      StudyPlanStatus @default(PLANEJADO)
+  startDate   DateTime?
+  targetDate  DateTime?
+  resources   Json?
+  projectId   Int?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime?       @updatedAt
+  company     Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user        User            @relation(fields: [userId], references: [id])
+  topics      StudyTopic[]
+  sessions    StudySession[]
+
+  @@index([companyId])
+  @@index([userId])
+  @@map("TB_STUDY_PLAN")
+}
+
+model StudyTopic {
+  id            Int              @id @default(autoincrement())
+  planId        Int
+  parentId      Int?
+  title         String           @db.VarChar(200)
+  description   String?          @db.Text
+  sortOrder     Int              @default(0)
+  status        StudyTopicStatus @default(PENDENTE)
+  weight        Float            @default(1)
+  estimateHours Float?
+  loggedHours   Float            @default(0)
+  notes         String?          @db.Text
+  resources     Json?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime?        @updatedAt
+  plan          StudyPlan        @relation(fields: [planId], references: [id], onDelete: Cascade)
+  parent        StudyTopic?      @relation("SubTopics", fields: [parentId], references: [id])
+  children      StudyTopic[]     @relation("SubTopics")
+  sessions      StudySession[]
+
+  @@index([planId])
+  @@index([parentId])
+  @@map("TB_STUDY_TOPIC")
+}
+
+model StudySession {
+  id          Int      @id @default(autoincrement())
+  planId      Int
+  topicId     Int
+  startedAt   DateTime
+  endedAt     DateTime?
+  durationMin Int?
+  notes       String?  @db.Text
+  confidence  Int?     // 1 a 5
+  createdAt   DateTime @default(now())
+  plan        StudyPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  topic       StudyTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@index([planId])
+  @@index([topicId])
+  @@map("TB_STUDY_SESSION")
 }

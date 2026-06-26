@@ -2,7 +2,7 @@ import shutil
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QSize
+from PySide6.QtCore import Qt, QSize, QTimer
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
     QComboBox,
@@ -340,10 +340,21 @@ class DailyView(QWidget):
         obs_layout.addWidget(obs_struct)
 
         self.content_layout.addWidget(obsidian_frame)
+
+        self.obs_status_label = QLabel("")
+        self.obs_status_label.setStyleSheet(
+            f"color: {t.text_muted}; font-size: 11px; border: none; padding: 0 4px;"
+        )
+        self.content_layout.addWidget(self.obs_status_label)
+
         self.content_layout.addStretch()
 
         scroll.setWidget(content)
         main.addWidget(scroll, 1)
+
+        self._sync_timer = QTimer(self)
+        self._sync_timer.timeout.connect(self._auto_sync_obsidian)
+        self._sync_timer.start(5 * 60 * 1000)
 
     def refresh(self):
         self._populate_dates()
@@ -834,6 +845,139 @@ class DailyView(QWidget):
         save_config(cfg)
         self._on_obs_project_changed(self.obs_project_combo.currentIndex())
 
+    def _auto_sync_obsidian(self):
+        cfg = load_config()
+        vaults = cfg.get("obsidian_vaults", {})
+        if not vaults:
+            return
+        s = get_session()
+        try:
+            synced = 0
+            for pid_str, vault_path in vaults.items():
+                if not vault_path or not Path(vault_path).is_dir():
+                    continue
+                project = s.query(Project).get(int(pid_str))
+                if not project:
+                    continue
+                self._sync_project_to_vault(s, project, vault_path)
+                synced += 1
+            if synced:
+                now = datetime.now().strftime("%H:%M")
+                self.obs_status_label.setText(f"Auto-sync: {synced} projeto(s) sincronizado(s) às {now}")
+        except Exception:
+            pass
+        finally:
+            s.close()
+
+    def _sync_project_to_vault(self, s, project, vault_path):
+        base = Path(vault_path) / _sanitize(project.name)
+        (base / "Board").mkdir(parents=True, exist_ok=True)
+        (base / "Tasks").mkdir(parents=True, exist_ok=True)
+        (base / "Reports").mkdir(parents=True, exist_ok=True)
+        (base / "Docs").mkdir(parents=True, exist_ok=True)
+
+        readme = [
+            f"# {project.name}", "",
+            f"**Chave**: {project.key}",
+            f"**Descricao**: {project.description or '—'}",
+            f"**Criado em**: {project.created_at.strftime('%Y-%m-%d') if project.created_at else '—'}",
+            "", "## Estrutura", "",
+            "- `Board/` — Estado atual de cada coluna do kanban",
+            "- `Tasks/` — Detalhes de cada tarefa",
+            "- `Reports/` — Relatorios diarios",
+            "- `Docs/` — Documentos do projeto",
+        ]
+        (base / "README.md").write_text("\n".join(readme), encoding="utf-8")
+
+        columns = s.query(BoardColumn).filter(
+            BoardColumn.project_id == project.id
+        ).order_by(BoardColumn.order).all()
+
+        for col in columns:
+            tasks = (
+                s.query(Task)
+                .filter(Task.column_id == col.id, Task.deleted_at == None)
+                .order_by(Task.rank)
+                .all()
+            )
+            lines = [f"# {col.name}", ""]
+            if not tasks:
+                lines.append("_Nenhuma tarefa nesta coluna._")
+            else:
+                for t in tasks:
+                    pri = t.priority or "MEDIUM"
+                    ttype = t.type or "FEATURE"
+                    human = " 🧑‍💻" if t.requires_human else ""
+                    lines.append(
+                        f"- [[{t.code} - {_sanitize(t.title)}|{t.code}]] "
+                        f"[{ttype}] ({pri}){human}"
+                    )
+            lines.append("")
+            col_name = _sanitize(col.name)
+            (base / "Board" / f"{col_name}.md").write_text("\n".join(lines), encoding="utf-8")
+
+        all_tasks = (
+            s.query(Task)
+            .filter(Task.project_id == project.id, Task.deleted_at == None)
+            .order_by(Task.number)
+            .all()
+        )
+        for task in all_tasks:
+            lines = [
+                f"# {task.code} — {task.title}", "",
+                f"**Tipo**: {task.type or 'FEATURE'}",
+                f"**Prioridade**: {task.priority or 'MEDIUM'}",
+                f"**Status**: {task.status}",
+                f"**Criado**: {task.created_at.strftime('%Y-%m-%d %H:%M') if task.created_at else '—'}",
+            ]
+            if task.assignee:
+                lines.append(f"**Responsavel**: {task.assignee}")
+            if task.due_date:
+                lines.append(f"**Prazo**: {task.due_date.strftime('%Y-%m-%d')}")
+            if task.requires_human:
+                lines.append("**Requer desenvolvedor**: Sim")
+            if task.estimate_md:
+                lines.append(f"**Estimativa**: {task.estimate_md} dias")
+            lines.append("")
+            if task.description:
+                lines.extend(["## Descricao", "", task.description, ""])
+            if task.objective:
+                lines.extend(["## Objetivo", "", task.objective, ""])
+            if task.acceptance:
+                lines.extend(["## Criterios de Aceite", "", task.acceptance, ""])
+            if task.checklist:
+                lines.extend(["## Checklist", ""])
+                for ci in task.checklist:
+                    mark = "x" if ci.checked else " "
+                    lines.append(f"- [{mark}] {ci.title}")
+                lines.append("")
+            if task.comments:
+                lines.extend(["## Comentarios", ""])
+                for c in task.comments:
+                    ts = c.created_at.strftime("%Y-%m-%d %H:%M") if c.created_at else ""
+                    lines.append(f"### [{c.type}] {ts}")
+                    lines.append(c.body or "")
+                    lines.append("")
+            fname = f"{task.code} - {_sanitize(task.title)}.md"
+            (base / "Tasks" / fname).write_text("\n".join(lines), encoding="utf-8")
+
+        notes = s.query(DailyNote).filter(DailyNote.report != "").order_by(DailyNote.date).all()
+        for note in notes:
+            (base / "Reports" / f"{note.date}.md").write_text(note.report or "", encoding="utf-8")
+
+        from maestro_local.db.models import Document
+        docs = s.query(Document).filter(
+            (Document.project_id == project.id) | (Document.task_id.in_(
+                s.query(Task.id).filter(Task.project_id == project.id)
+            ))
+        ).all()
+        for doc in docs:
+            lines = [f"# {doc.title}", ""]
+            if doc.body:
+                lines.append(doc.body)
+            fname = f"{_sanitize(doc.title)}.md"
+            (base / "Docs" / fname).write_text("\n".join(lines), encoding="utf-8")
+
     def _sync_obsidian(self):
         pid = self.obs_project_combo.currentData()
         if pid is None:
@@ -849,141 +993,11 @@ class DailyView(QWidget):
             project = s.query(Project).get(pid)
             if not project:
                 return
-
+            self._sync_project_to_vault(s, project, vault_path)
             base = Path(vault_path) / _sanitize(project.name)
-
-            # Create structure
-            (base / "Board").mkdir(parents=True, exist_ok=True)
-            (base / "Tasks").mkdir(parents=True, exist_ok=True)
-            (base / "Reports").mkdir(parents=True, exist_ok=True)
-            (base / "Docs").mkdir(parents=True, exist_ok=True)
-
-            # Project README
-            readme = [
-                f"# {project.name}",
-                "",
-                f"**Chave**: {project.key}",
-                f"**Descricao**: {project.description or '—'}",
-                f"**Criado em**: {project.created_at.strftime('%Y-%m-%d') if project.created_at else '—'}",
-                "",
-                "## Estrutura",
-                "",
-                "- `Board/` — Estado atual de cada coluna do kanban",
-                "- `Tasks/` — Detalhes de cada tarefa",
-                "- `Reports/` — Relatorios diarios",
-                "- `Docs/` — Documentos do projeto",
-            ]
-            (base / "README.md").write_text("\n".join(readme), encoding="utf-8")
-
-            # Board columns
-            columns = s.query(BoardColumn).filter(
-                BoardColumn.project_id == pid
-            ).order_by(BoardColumn.order).all()
-
-            for col in columns:
-                tasks = (
-                    s.query(Task)
-                    .filter(Task.column_id == col.id, Task.deleted_at == None)
-                    .order_by(Task.rank)
-                    .all()
-                )
-                lines = [f"# {col.name}", ""]
-                if not tasks:
-                    lines.append("_Nenhuma tarefa nesta coluna._")
-                else:
-                    for t in tasks:
-                        pri = t.priority or "MEDIUM"
-                        ttype = t.type or "FEATURE"
-                        human = " 🧑‍💻" if t.requires_human else ""
-                        lines.append(
-                            f"- [[{t.code} - {_sanitize(t.title)}|{t.code}]] "
-                            f"[{ttype}] ({pri}){human}"
-                        )
-                lines.append("")
-                col_name = _sanitize(col.name)
-                (base / "Board" / f"{col_name}.md").write_text(
-                    "\n".join(lines), encoding="utf-8"
-                )
-
-            # Tasks
-            all_tasks = (
-                s.query(Task)
-                .filter(Task.project_id == pid, Task.deleted_at == None)
-                .order_by(Task.number)
-                .all()
-            )
-            for task in all_tasks:
-                lines = [
-                    f"# {task.code} — {task.title}",
-                    "",
-                    f"**Tipo**: {task.type or 'FEATURE'}",
-                    f"**Prioridade**: {task.priority or 'MEDIUM'}",
-                    f"**Status**: {task.status}",
-                    f"**Criado**: {task.created_at.strftime('%Y-%m-%d %H:%M') if task.created_at else '—'}",
-                ]
-                if task.assignee:
-                    lines.append(f"**Responsavel**: {task.assignee}")
-                if task.due_date:
-                    lines.append(f"**Prazo**: {task.due_date.strftime('%Y-%m-%d')}")
-                if task.requires_human:
-                    lines.append("**Requer desenvolvedor**: Sim")
-                if task.estimate_md:
-                    lines.append(f"**Estimativa**: {task.estimate_md} dias")
-                lines.append("")
-
-                if task.description:
-                    lines.extend(["## Descricao", "", task.description, ""])
-                if task.objective:
-                    lines.extend(["## Objetivo", "", task.objective, ""])
-                if task.acceptance:
-                    lines.extend(["## Criterios de Aceite", "", task.acceptance, ""])
-
-                if task.checklist:
-                    lines.extend(["## Checklist", ""])
-                    for ci in task.checklist:
-                        mark = "x" if ci.checked else " "
-                        lines.append(f"- [{mark}] {ci.title}")
-                    lines.append("")
-
-                if task.comments:
-                    lines.extend(["## Comentarios", ""])
-                    for c in task.comments:
-                        ts = c.created_at.strftime("%Y-%m-%d %H:%M") if c.created_at else ""
-                        lines.append(f"### [{c.type}] {ts}")
-                        lines.append(c.body or "")
-                        lines.append("")
-
-                fname = f"{task.code} - {_sanitize(task.title)}.md"
-                (base / "Tasks" / fname).write_text("\n".join(lines), encoding="utf-8")
-
-            # Reports (daily notes)
-            notes = s.query(DailyNote).filter(DailyNote.report != "").order_by(DailyNote.date).all()
-            for note in notes:
-                (base / "Reports" / f"{note.date}.md").write_text(
-                    note.report or "", encoding="utf-8"
-                )
-
-            # Documents
-            from maestro_local.db.models import Document
-            docs = s.query(Document).filter(
-                (Document.project_id == pid) | (Document.task_id.in_(
-                    s.query(Task.id).filter(Task.project_id == pid)
-                ))
-            ).all()
-            for doc in docs:
-                lines = [f"# {doc.title}", ""]
-                if doc.body:
-                    lines.append(doc.body)
-                fname = f"{_sanitize(doc.title)}.md"
-                (base / "Docs" / fname).write_text("\n".join(lines), encoding="utf-8")
-
             QMessageBox.information(
                 self, "Sincronizacao concluida",
-                f"Dados exportados para:\n{base}\n\n"
-                f"- {len(columns)} colunas\n"
-                f"- {len(all_tasks)} tarefas\n"
-                f"- {len(notes)} relatorios\n"
-                f"- {len(docs)} documentos",
+                f"Dados exportados para:\n{base}",
             )
         except Exception as e:
             QMessageBox.warning(self, "Erro na sincronizacao", str(e))

@@ -616,6 +616,7 @@ class FilterBar(QWidget):
 
 class BoardView(QWidget):
     task_changed = Signal()
+    project_opened = Signal(int)
 
     AUTO_REFRESH_MS = 5000
 
@@ -629,13 +630,40 @@ class BoardView(QWidget):
         self.main_layout.setContentsMargins(24, 24, 24, 24)
         self.main_layout.setSpacing(12)
 
+        # -- Empty state (project selection) --
+        self.empty_widget = QWidget()
+        self.empty_layout = QVBoxLayout(self.empty_widget)
+        self.empty_layout.setAlignment(Qt.AlignCenter)
+        self.empty_layout.setSpacing(16)
+
+        t = current_theme()
+        empty_title = QLabel("Selecione um projeto para ver o board")
+        empty_title.setAlignment(Qt.AlignCenter)
+        empty_title.setStyleSheet(
+            f"font-size: 18px; font-weight: 700; color: {t.text_primary};"
+        )
+        self.empty_layout.addWidget(empty_title)
+
+        self.project_buttons_container = QWidget()
+        self.project_buttons_layout = QVBoxLayout(self.project_buttons_container)
+        self.project_buttons_layout.setContentsMargins(0, 0, 0, 0)
+        self.project_buttons_layout.setSpacing(8)
+        self.empty_layout.addWidget(self.project_buttons_container, 1)
+
+        self.main_layout.addWidget(self.empty_widget)
+
+        # -- Board view (hidden when no project) --
+        self.board_widget = QWidget()
+        self.board_layout = QVBoxLayout(self.board_widget)
+        self.board_layout.setContentsMargins(0, 0, 0, 0)
+        self.board_layout.setSpacing(12)
+
         header_row = QHBoxLayout()
-        self.header = QLabel("Selecione um projeto")
+        self.header = QLabel("")
         self.header.setObjectName("sectionTitle")
         header_row.addWidget(self.header)
         header_row.addStretch()
 
-        t = current_theme()
         self.refresh_btn = QPushButton("Atualizar")
         self.refresh_btn.setProperty("flat", True)
         self.refresh_btn.setFixedHeight(28)
@@ -643,24 +671,19 @@ class BoardView(QWidget):
         self.refresh_btn.clicked.connect(self.refresh)
         header_row.addWidget(self.refresh_btn)
 
-        self.main_layout.addLayout(header_row)
+        self.board_layout.addLayout(header_row)
 
         # Filter bar
         self.filter_bar = FilterBar()
         self.filter_bar.filters_changed.connect(self._apply_filters)
-        self.main_layout.addWidget(self.filter_bar)
-
-        # Auto-refresh timer
-        self._auto_timer = QTimer(self)
-        self._auto_timer.timeout.connect(self._auto_refresh)
-        self._auto_timer.start(self.AUTO_REFRESH_MS)
+        self.board_layout.addWidget(self.filter_bar)
 
         # Board scroll area
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
         self.scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
-        self.main_layout.addWidget(self.scroll, 1)
+        self.board_layout.addWidget(self.scroll, 1)
 
         self.columns_widget = QWidget()
         self.columns_layout = QHBoxLayout(self.columns_widget)
@@ -668,9 +691,72 @@ class BoardView(QWidget):
         self.columns_layout.setSpacing(16)
         self.scroll.setWidget(self.columns_widget)
 
+        self.main_layout.addWidget(self.board_widget)
+        self.board_widget.setVisible(False)
+
+        # Auto-refresh timer
+        self._auto_timer = QTimer(self)
+        self._auto_timer.timeout.connect(self._auto_refresh)
+        self._auto_timer.start(self.AUTO_REFRESH_MS)
+
+        self._load_project_list()
+
     def set_project(self, project_id):
         self.project_id = project_id
+        if project_id:
+            self.empty_widget.setVisible(False)
+            self.board_widget.setVisible(True)
+        else:
+            self.empty_widget.setVisible(True)
+            self.board_widget.setVisible(False)
+            self._load_project_list()
         self.refresh()
+
+    def _load_project_list(self):
+        while self.project_buttons_layout.count():
+            item = self.project_buttons_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        t = current_theme()
+        s = get_session()
+        try:
+            projects = s.query(Project).order_by(Project.created_at.desc()).all()
+            if not projects:
+                empty_lbl = QLabel("Nenhum projeto criado ainda.\nCrie um em Projetos.")
+                empty_lbl.setAlignment(Qt.AlignCenter)
+                empty_lbl.setStyleSheet(
+                    f"color: {t.text_muted}; font-size: 14px; padding: 40px;"
+                )
+                self.project_buttons_layout.addWidget(empty_lbl)
+            for p in projects:
+                row = QHBoxLayout()
+                row.setSpacing(10)
+                name_lbl = QLabel(f"{p.key}  {p.name}")
+                name_lbl.setStyleSheet(
+                    f"font-size: 14px; font-weight: 600; color: {t.text_primary}; border: none;"
+                )
+                row.addWidget(name_lbl, 1)
+
+                open_btn = QPushButton("Abrir Board")
+                open_btn.setFixedSize(120, 32)
+                open_btn.setCursor(Qt.PointingHandCursor)
+                open_btn.setStyleSheet(
+                    f"QPushButton {{ background: {t.accent}; color: {t.text_on_accent}; "
+                    f"border-radius: 6px; font-size: 12px; font-weight: 600; }}"
+                    f"QPushButton:hover {{ background: {t.accent_hover}; }}"
+                )
+                pid = p.id
+                open_btn.clicked.connect(lambda _, _pid=pid: self._open_project(_pid))
+                row.addWidget(open_btn)
+
+                btn_widget = QWidget()
+                btn_widget.setLayout(row)
+                self.project_buttons_layout.addWidget(btn_widget)
+        finally:
+            s.close()
+
+    def _open_project(self, project_id):
+        self.project_opened.emit(project_id)
 
     def refresh(self):
         if not self.project_id:

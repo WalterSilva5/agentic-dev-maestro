@@ -28,6 +28,7 @@ import { MembersModule } from './modules/members/members.module';
 import { InvitationsModule } from './modules/invitations/invitations.module';
 import { ProjectsModule } from './modules/projects/projects.module';
 import { TasksModule } from './modules/tasks/tasks.module';
+import { StudyModule } from './modules/study/study.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
 
 @Module({
@@ -80,6 +81,7 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
     InvitationsModule,
     ProjectsModule,
     TasksModule,
+    StudyModule,
     LabelsModule,
     DocumentsModule,
     CommentsModule,

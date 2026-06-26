@@ -22,6 +22,9 @@ from maestro_local.db.models import (
     Document,
     Label,
     Project,
+    StudyPlan,
+    StudySession,
+    StudyTopic,
     Task,
     TaskChecklist,
     TaskDependency,
@@ -141,9 +144,116 @@ class DocumentUpdate(BaseModel):
     type: Optional[str] = None
 
 
+class StudyPlanCreate(BaseModel):
+    title: str
+    category: str = "LINGUAGEM"
+    description: Optional[str] = None
+    startDate: Optional[str] = None
+    targetDate: Optional[str] = None
+    resources: Optional[list] = None
+
+
+class StudyPlanUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    category: Optional[str] = None
+    status: Optional[str] = None
+    startDate: Optional[str] = None
+    targetDate: Optional[str] = None
+    resources: Optional[list] = None
+
+
+class StudyTopicCreate(BaseModel):
+    title: str
+    description: Optional[str] = None
+    parentId: Optional[int] = None
+    weight: Optional[float] = 1.0
+    estimateHours: Optional[float] = None
+    resources: Optional[list] = None
+
+
+class StudyTopicUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[str] = None
+    weight: Optional[float] = None
+    estimateHours: Optional[float] = None
+    loggedHours: Optional[float] = None
+    notes: Optional[str] = None
+    resources: Optional[list] = None
+
+
+class ReorderTopicsBody(BaseModel):
+    ids: list[int]
+
+
+class StudySessionCreate(BaseModel):
+    topicId: int
+    startedAt: str
+    endedAt: Optional[str] = None
+    durationMin: Optional[int] = None
+    notes: Optional[str] = None
+    confidence: Optional[int] = Field(default=None, ge=1, le=5)
+
+
 # ---------------------------------------------------------------------------
 # Serialisation helpers
 # ---------------------------------------------------------------------------
+
+# -- Study serialisation -----------------------------------------------------
+
+def _topic_dict(t: "StudyTopic", include_children: bool = True) -> dict:
+    import json
+    d = {
+        "id": t.id, "planId": t.plan_id, "parentId": t.parent_id,
+        "title": t.title, "description": t.description,
+        "sortOrder": t.sort_order, "status": t.status,
+        "weight": t.weight, "estimateHours": t.estimate_hours,
+        "loggedHours": t.logged_hours, "notes": t.notes,
+        "resources": json.loads(t.resources) if t.resources else [],
+        "createdAt": t.created_at.isoformat() if t.created_at else None,
+        "updatedAt": t.updated_at.isoformat() if t.updated_at else None,
+    }
+    if include_children and t.children:
+        d["children"] = [_topic_dict(c, include_children=False)
+                         for c in sorted(t.children, key=lambda x: x.sort_order)]
+    return d
+
+
+def _plan_progress(plan: "StudyPlan") -> tuple:
+    topics = plan.topics
+    not_skipped = [t for t in topics if t.status != "PULADO" and t.parent_id is None]
+    done = [t for t in not_skipped if t.status == "CONCLUIDO"]
+    done_weight = sum(t.weight or 1 for t in done)
+    total_weight = sum(t.weight or 1 for t in not_skipped)
+    progress = round((done_weight / total_weight) * 100) if total_weight > 0 else 0
+    return progress, len(done), len(not_skipped)
+
+
+def _plan_dict(p: "StudyPlan", include_topics: bool = False) -> dict:
+    progress, done, total = _plan_progress(p)
+    return {
+        "id": p.id, "title": p.title, "description": p.description,
+        "category": p.category, "status": p.status,
+        "startDate": p.start_date.isoformat() if p.start_date else None,
+        "targetDate": p.target_date.isoformat() if p.target_date else None,
+        "progress": progress, "doneTopics": done, "totalTopics": total,
+        "createdAt": p.created_at.isoformat() if p.created_at else None,
+        "updatedAt": p.updated_at.isoformat() if p.updated_at else None,
+        **({"topics": [_topic_dict(t) for t in p.topics if t.parent_id is None]} if include_topics else {}),
+    }
+
+
+def _session_dict(s: "StudySession") -> dict:
+    return {
+        "id": s.id, "planId": s.plan_id, "topicId": s.topic_id,
+        "topic": {"id": s.topic.id, "title": s.topic.title} if s.topic else None,
+        "startedAt": s.started_at.isoformat() if s.started_at else None,
+        "endedAt": s.ended_at.isoformat() if s.ended_at else None,
+        "durationMin": s.duration_min, "notes": s.notes,
+        "confidence": s.confidence,
+        "createdAt": s.created_at.isoformat() if s.created_at else None,
+    }
 
 
 def _label_dict(l: Label) -> dict:
@@ -973,6 +1083,205 @@ def list_activity(
         q = q.filter(ActivityLog.entity_id == entityId)
     entries = q.order_by(ActivityLog.created_at.desc()).limit(limit).all()
     return [_activity_dict(a) for a in entries]
+
+
+# ============================= STUDY =======================================
+
+
+@app.post("/api/study/plans")
+def create_study_plan(body: StudyPlanCreate, s: Session = Depends(db)):
+    import json
+    p = StudyPlan(
+        title=body.title, description=body.description,
+        category=body.category or "LINGUAGEM",
+        start_date=datetime.fromisoformat(body.startDate) if body.startDate else None,
+        target_date=datetime.fromisoformat(body.targetDate) if body.targetDate else None,
+        resources=json.dumps(body.resources) if body.resources else None,
+    )
+    s.add(p)
+    s.commit()
+    s.refresh(p)
+    return _plan_dict(p)
+
+
+@app.get("/api/study/plans")
+def list_study_plans(
+    status: Optional[str] = None,
+    category: Optional[str] = None,
+    s: Session = Depends(db),
+):
+    q = s.query(StudyPlan)
+    if status:
+        q = q.filter(StudyPlan.status == status)
+    if category:
+        q = q.filter(StudyPlan.category == category)
+    plans = q.order_by(StudyPlan.updated_at.desc()).all()
+    return [_plan_dict(p) for p in plans]
+
+
+@app.get("/api/study/plans/{plan_id}")
+def get_study_plan(plan_id: int, s: Session = Depends(db)):
+    p = s.query(StudyPlan).filter(StudyPlan.id == plan_id).first()
+    if not p:
+        raise HTTPException(404, "Plano nao encontrado")
+    return _plan_dict(p, include_topics=True)
+
+
+@app.patch("/api/study/plans/{plan_id}")
+def update_study_plan(plan_id: int, body: StudyPlanUpdate, s: Session = Depends(db)):
+    import json
+    p = s.query(StudyPlan).filter(StudyPlan.id == plan_id).first()
+    if not p:
+        raise HTTPException(404, "Plano nao encontrado")
+    data = body.model_dump(exclude_unset=True)
+    for field in ["title", "description", "category", "status"]:
+        if field in data:
+            setattr(p, field, data[field])
+    if "startDate" in data:
+        p.start_date = datetime.fromisoformat(data["startDate"]) if data["startDate"] else None
+    if "targetDate" in data:
+        p.target_date = datetime.fromisoformat(data["targetDate"]) if data["targetDate"] else None
+    if "resources" in data:
+        p.resources = json.dumps(data["resources"]) if data["resources"] else None
+    p.updated_at = datetime.utcnow()
+    s.commit()
+    s.refresh(p)
+    return _plan_dict(p, include_topics=True)
+
+
+@app.delete("/api/study/plans/{plan_id}")
+def delete_study_plan(plan_id: int, s: Session = Depends(db)):
+    p = s.query(StudyPlan).filter(StudyPlan.id == plan_id).first()
+    if not p:
+        raise HTTPException(404, "Plano nao encontrado")
+    s.delete(p)
+    s.commit()
+    return {"ok": True}
+
+
+# -- Topics ----------------------------------------------------------------
+
+@app.get("/api/study/plans/{plan_id}/topics")
+def list_study_topics(plan_id: int, s: Session = Depends(db)):
+    topics = s.query(StudyTopic).filter(StudyTopic.plan_id == plan_id, StudyTopic.parent_id.is_(None))\
+        .order_by(StudyTopic.sort_order).all()
+    return [_topic_dict(t) for t in topics]
+
+
+@app.post("/api/study/plans/{plan_id}/topics")
+def create_study_topic(plan_id: int, body: StudyTopicCreate, s: Session = Depends(db)):
+    import json
+    p = s.query(StudyPlan).filter(StudyPlan.id == plan_id).first()
+    if not p:
+        raise HTTPException(404, "Plano nao encontrado")
+    max_order = s.query(StudyTopic).filter(StudyTopic.plan_id == plan_id, StudyTopic.parent_id.is_(None))\
+        .with_entities(StudyTopic.sort_order).order_by(StudyTopic.sort_order.desc()).first()
+    t = StudyTopic(
+        plan_id=plan_id, parent_id=body.parentId, title=body.title,
+        description=body.description, sort_order=(max_order[0] + 1) if max_order else 0,
+        weight=body.weight or 1.0, estimate_hours=body.estimateHours,
+        resources=json.dumps(body.resources) if body.resources else None,
+    )
+    s.add(t)
+    s.commit()
+    s.refresh(t)
+    return _topic_dict(t)
+
+
+@app.patch("/api/study/topics/{topic_id}")
+def update_study_topic(topic_id: int, body: StudyTopicUpdate, s: Session = Depends(db)):
+    import json
+    t = s.query(StudyTopic).filter(StudyTopic.id == topic_id).first()
+    if not t:
+        raise HTTPException(404, "Topico nao encontrado")
+    data = body.model_dump(exclude_unset=True)
+    for field in ["title", "description", "status", "weight", "estimateHours", "loggedHours", "notes"]:
+        if field in data:
+            setattr(t, field, data[field])
+    if "estimateHours" in data:
+        t.estimate_hours = data["estimateHours"]
+    if "loggedHours" in data:
+        t.logged_hours = data["loggedHours"]
+    if "resources" in data:
+        t.resources = json.dumps(data["resources"]) if data["resources"] else None
+    t.updated_at = datetime.utcnow()
+    s.commit()
+    s.refresh(t)
+    return _topic_dict(t)
+
+
+@app.delete("/api/study/topics/{topic_id}")
+def delete_study_topic(topic_id: int, s: Session = Depends(db)):
+    t = s.query(StudyTopic).filter(StudyTopic.id == topic_id).first()
+    if not t:
+        raise HTTPException(404, "Topico nao encontrado")
+    s.delete(t)
+    s.commit()
+    return {"ok": True}
+
+
+@app.patch("/api/study/plans/{plan_id}/topics/reorder")
+def reorder_study_topics(plan_id: int, body: ReorderTopicsBody, s: Session = Depends(db)):
+    for idx, tid in enumerate(body.ids):
+        t = s.query(StudyTopic).filter(StudyTopic.id == tid, StudyTopic.plan_id == plan_id).first()
+        if t:
+            t.sort_order = idx
+    s.commit()
+    return {"ok": True}
+
+
+# -- Sessions --------------------------------------------------------------
+
+@app.post("/api/study/sessions")
+def create_study_session(body: StudySessionCreate, s: Session = Depends(db)):
+    t = s.query(StudyTopic).filter(StudyTopic.id == body.topicId).first()
+    if not t:
+        raise HTTPException(404, "Topico nao encontrado")
+    sess = StudySession(
+        plan_id=t.plan_id, topic_id=body.topicId,
+        started_at=datetime.fromisoformat(body.startedAt),
+        ended_at=datetime.fromisoformat(body.endedAt) if body.endedAt else None,
+        duration_min=body.durationMin, notes=body.notes, confidence=body.confidence,
+    )
+    s.add(sess)
+    if body.durationMin and body.durationMin > 0:
+        t.logged_hours = (t.logged_hours or 0) + body.durationMin / 60
+    s.commit()
+    s.refresh(sess)
+    return _session_dict(sess)
+
+
+@app.get("/api/study/sessions")
+def list_study_sessions(
+    planId: Optional[int] = None,
+    date: Optional[str] = None,
+    s: Session = Depends(db),
+):
+    q = s.query(StudySession)
+    if planId:
+        q = q.filter(StudySession.plan_id == planId)
+    if date:
+        day_start = datetime.fromisoformat(f"{date}T00:00:00")
+        day_end = datetime.fromisoformat(f"{date}T23:59:59")
+        q = q.filter(StudySession.started_at >= day_start, StudySession.started_at <= day_end)
+    sessions = q.order_by(StudySession.started_at.desc()).all()
+    return [_session_dict(ss) for ss in sessions]
+
+
+@app.get("/api/study/plans/{plan_id}/sessions")
+def list_plan_sessions(plan_id: int, s: Session = Depends(db)):
+    sessions = s.query(StudySession).filter(StudySession.plan_id == plan_id)\
+        .order_by(StudySession.started_at.desc()).all()
+    return [_session_dict(ss) for ss in sessions]
+
+
+@app.get("/api/study/stats")
+def get_study_stats(s: Session = Depends(db)):
+    plans = s.query(StudyPlan).all()
+    sessions = s.query(StudySession).all()
+    total_hours = round(sum(ss.duration_min or 0 for ss in sessions) / 60, 1)
+    active_plans = len([p for p in plans if p.status == "EM_ANDAMENTO"])
+    return {"totalHours": total_hours, "activePlans": active_plans, "totalPlans": len(plans)}
 
 
 # -- Skills -----------------------------------------------------------------

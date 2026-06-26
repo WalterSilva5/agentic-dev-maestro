@@ -240,3 +240,65 @@ DEFAULT_COLUMNS = [
     {"name": "Revisão", "order": 3},
     {"name": "Concluído", "order": 4, "is_done": True},
 ]
+
+
+# ---- Módulo de Estudos ----
+
+class StudyPlan(Base):
+    __tablename__ = "study_plans"
+
+    id = Column(Integer, primary_key=True)
+    title = Column(String(200), nullable=False)
+    description = Column(Text)
+    category = Column(String(40), nullable=False, default="LINGUAGEM")
+    status = Column(String(20), default="PLANEJADO")
+    start_date = Column(DateTime)
+    target_date = Column(DateTime)
+    resources = Column(Text)  # JSON string
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="SET NULL"))
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    topics = relationship("StudyTopic", back_populates="plan", cascade="all,delete-orphan",
+                          order_by="StudyTopic.sort_order")
+    sessions = relationship("StudySession", back_populates="plan", cascade="all,delete-orphan")
+
+
+class StudyTopic(Base):
+    __tablename__ = "study_topics"
+
+    id = Column(Integer, primary_key=True)
+    plan_id = Column(Integer, ForeignKey("study_plans.id", ondelete="CASCADE"), nullable=False)
+    parent_id = Column(Integer, ForeignKey("study_topics.id"))
+    title = Column(String(200), nullable=False)
+    description = Column(Text)
+    sort_order = Column(Integer, default=0)
+    status = Column(String(20), default="PENDENTE")
+    weight = Column(Float, default=1.0)
+    estimate_hours = Column(Float)
+    logged_hours = Column(Float, default=0.0)
+    notes = Column(Text)
+    resources = Column(Text)  # JSON string
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    plan = relationship("StudyPlan", back_populates="topics")
+    parent = relationship("StudyTopic", remote_side="StudyTopic.id", backref="children")
+    sessions = relationship("StudySession", back_populates="topic", cascade="all,delete-orphan")
+
+
+class StudySession(Base):
+    __tablename__ = "study_sessions"
+
+    id = Column(Integer, primary_key=True)
+    plan_id = Column(Integer, ForeignKey("study_plans.id", ondelete="CASCADE"), nullable=False)
+    topic_id = Column(Integer, ForeignKey("study_topics.id", ondelete="CASCADE"), nullable=False)
+    started_at = Column(DateTime, nullable=False)
+    ended_at = Column(DateTime)
+    duration_min = Column(Integer)
+    notes = Column(Text)
+    confidence = Column(Integer)  # 1 a 5
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    plan = relationship("StudyPlan", back_populates="sessions")
+    topic = relationship("StudyTopic", back_populates="sessions")

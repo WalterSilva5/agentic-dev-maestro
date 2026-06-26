@@ -9,6 +9,16 @@ build/
 *.local
 # Ferramenta de diagramas (baixada pelo gerar.sh)
 docs/diagramas/.plantuml.jar
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Banco de dados
+*.db
+*.sqlite
+*.sqlite3
+
 # Sistema
 .DS_Store
 Thumbs.db

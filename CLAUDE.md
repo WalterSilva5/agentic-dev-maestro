@@ -1,17 +1,42 @@
-# Fullstack Template (NestJS + Angular/React/Flutter) — Guia para Agentes de IA
+# Agentic Dev Maestro — Guia para Agentes de IA
 
 ## Visão Geral
 
-Template fullstack genérico (sem regra de negócio de domínio). Monorepo com backend e frontend no mesmo repositório:
+Plataforma fullstack de gestão de projetos e estudos, com suporte a agentes de IA. Monorepo com múltiplos clientes:
 
-- **Backend**: `back/` — NestJS 8 + Prisma 4.8 + MySQL 8 + Bull/Redis
-- **Frontend (Angular)**: `front/` — Angular 20 (standalone) + Tailwind/Bootstrap + NgRx + Capacitor
-- **Frontend (React)**: `front-react/` — React 19 + Vite 6 + Redux Toolkit + React Router 7 + Tailwind/daisyUI + Capacitor
-- **Frontend (Flutter)**: `front-flutter/` — Flutter 3.44 / Dart 3.12 + Riverpod + go_router + dio + flutter_secure_storage (web + Android + iOS)
+- **Web Client** (`web-client/`) — NestJS 8 + Angular 20 (Docker)
+- **Local Client** (`local-client/`) — Python desktop (PySide6 + FastAPI + SQLite)
+- **MCP** (`mcp/`) — Servidores Model Context Protocol
+- **OpenCode Tools** (`.opencode/`) — Ferramentas customizadas para agentes
 
-> Os três frontends têm **paridade de funcionalidades** e consomem a mesma API. Ao alterar um contrato de dados, mantenha todos sincronizados (ou remova os que não for usar). Cada um tem seu guia específico: `front-react/CLAUDE.md` e `front-flutter/CLAUDE.md`.
+---
 
-Funcionalidades prontas: autenticação (JWT local + refresh, Google OAuth, reset de senha), usuários, créditos, configuração de app, fila assíncrona de exemplo (e-mail) e health check.
+## Estrutura do Repositório
+
+```
+agentic-dev-maestro/
+├── web-client/            # Cliente web (NestJS + Angular)
+│   ├── back/              # Backend NestJS 8 + Prisma 4.8 + MySQL 8
+│   ├── front/             # Frontend Angular 20 + Tailwind + Capacitor
+│   ├── docker-compose.yml # Docker Compose (MySQL, Redis, API, Frontend)
+│   └── .env.example       # Template de variáveis de ambiente
+│
+├── local-client/          # Cliente desktop Python
+│   ├── maestro_local/     # Código fonte Python
+│   ├── pyproject.toml     # Configuração do projeto Python
+│   └── run.sh             # Script de execução
+│
+├── .opencode/             # Ferramentas OpenCode para agentes
+│   ├── tools/             # Custom tools (TypeScript)
+│   ├── commands/          # Comandos customizados
+│   └── skills/            # Skills de uso da plataforma
+│
+├── mcp/                   # Servidores MCP
+├── docs/                  # Documentação e diagramas
+├── CLAUDE.md              # Este arquivo
+├── README.md              # Readme geral do projeto
+└── opencode.jsonc          # Config do OpenCode
+```
 
 ---
 
@@ -21,238 +46,114 @@ Funcionalidades prontas: autenticação (JWT local + refresh, Google OAuth, rese
 
 **Checklist para qualquer mudança de dados:**
 
-1. `back/prisma/schema.prisma` — adicionar/alterar campo
-2. `cd back && npx prisma migrate dev --name <descricao>` — cria a migration e regenera o client
-3. DTOs em `back/src/modules/<modulo>/dto/` — atualizar validação (class-validator)
-4. Repository em `back/src/modules/<modulo>/` — atualizar queries (controllers nunca acessam Prisma direto)
-5. Service e Controller do módulo — atualizar lógica/endpoints
-6. Frontend type/model — Angular: `front/src/app/models/`; React: `front-react/src/types/index.ts`; Flutter: `front-flutter/lib/models/models.dart`
-7. Frontend service/API — Angular: `front/src/app/services/`; React: `front-react/src/api/`; Flutter: `front-flutter/lib/features/*/<recurso>_api.dart`
-8. Frontend templates/páginas — exibir/editar o novo campo nos frontends que você mantiver
+1. `web-client/back/prisma/schema.prisma` — adicionar/alterar campo
+2. `cd web-client/back && npx prisma migrate dev --name <descricao>`
+3. DTOs em `web-client/back/src/modules/<modulo>/dto/`
+4. Repository em `web-client/back/src/modules/<modulo>/`
+5. Service e Controller do módulo
+6. Frontend model — `web-client/front/src/app/models/`
+7. Frontend service/API — `web-client/front/src/app/services/`
+8. Frontend templates/páginas
 
 ---
 
-## Arquitetura do Backend
+## Web Client (`web-client/`)
 
 ### Stack
 
-- **NestJS 8** com módulos por domínio
-- **Prisma 4.8** como ORM (MySQL 8)
-- **Bull + Redis** para filas de jobs assíncronos
-- **JWT + Passport** (local + refresh + Google OAuth)
-- **Nodemailer** para envio de e-mail (via fila Bull)
-- **Swagger** em `/api/docs`
+- **Backend**: NestJS 8 + Prisma 4.8 + MySQL 8 + Bull/Redis
+- **Frontend**: Angular 20 (standalone) + Tailwind + NgRx + Capacitor
 
-### Estrutura de Diretórios
+### Funcionalidades
 
-```text
-back/src/
-├── modules/
-│   ├── auth/             # JWT (local + refresh), Google OAuth, reset de senha
-│   ├── user/             # CRUD e perfil de usuário
-│   ├── credit-account/   # Saldo de créditos por usuário
-│   ├── credit-transaction/ # Histórico de movimentações
-│   ├── email/            # Fila Bull de exemplo (reset de senha)
-│   ├── app-config/       # Configurações chave/valor
-│   ├── health/           # Health check
-│   └── base/             # Service/controller base (CRUD + paginação)
-├── database/             # Configuração Prisma
-├── decorators/           # Decorators customizados (ex: @unprotected)
-├── enums/                # Role, Gender, TransactionType
-├── filters/              # Exception filters
-└── main.ts               # Bootstrap (prefixo /api, porta 5000, Swagger)
-```
+- Autenticação (JWT local + refresh, Google OAuth, reset de senha)
+- CRUD de projetos com kanban board
+- Tasks com prioridade, tipo, labels, checklist, dependências
+- Módulo de estudos (planos, tópicos, sessões)
+- Comentários (markdown, code reviews)
+- Documentos e atividade
+- Dashboard e métricas
 
-### Padrão de Módulo
-
-`auth` é o módulo de referência: controller fino, service com a lógica, repository encapsulando Prisma, DTOs com class-validator. O módulo `base` oferece CRUD genérico com paginação para reaproveitar em novos módulos.
-
-### Autenticação
-
-- Guard JWT global via `APP_GUARD`. Rotas públicas usam o decorator `@unprotected()`.
-- Access + refresh token (`AT_SECRET` / `RT_SECRET`).
-- Google OAuth: rota de callback `GET /api/auth/accounts/google/redirect` (configure `GOOGLE_CALLBACK_URL`).
-- Reset de senha: enfileira job na fila `email` (Bull/Redis), processado em `email.processor.ts`.
-
-### Banco de Dados
-
-- MySQL via Docker (porta 3309 no host por padrão).
-- **Migrations são reais e versionadas** em `back/prisma/migrations/` (`0_init` cria todas as tabelas).
-- Aplicar migrations: `npx prisma migrate deploy` (produção) ou `npx prisma migrate dev` (desenvolvimento).
-- Seed: `npm run prisma:seed` (cria `admin@template.com` / `Admin@123` e `user@template.com` / `User@123`).
-- No Docker, migrations + seed rodam automaticamente via `back/docker-entrypoint.sh`.
-
----
-
-## Arquitetura do Frontend
-
-Há três frontends com paridade. O guia detalhado de cada um está no respectivo `CLAUDE.md` (`front/CLAUDE.md`, `front-react/CLAUDE.md`, `front-flutter/CLAUDE.md`).
-
-### Frontend Angular (`front/`)
-
-- **Angular 20** com standalone components
-- **Tailwind CSS** + **Bootstrap 5** para estilos
-- **NgRx** para state management (auth)
-- **SweetAlert2** para modais/feedback (`Swal.fire()` direto)
-- **Capacitor** para empacotamento PWA / mobile
-
-```text
-front/src/app/
-├── pages/        # auth, home, user, credit, settings, not-found
-├── components/   # Componentes reutilizáveis (navbar, mobile-bottom-nav, etc.)
-├── services/     # Services HTTP e utilitários
-├── models/       # Interfaces TypeScript
-├── state/        # NgRx store (auth, roles)
-├── routes/       # Rotas
-└── modules/      # data-service (base com auth headers) + interceptors (JWT)
-```
-
-### Frontend React (`front-react/`)
-
-- **React 19 + Vite 6** (SPA)
-- **Redux Toolkit + React Redux** para state management (auth)
-- **React Router 7** para rotas + guards (`ProtectedRoute`, `RoleRoute`)
-- **axios** com refresh single-flight em 401 (`src/api/client.ts`)
-- **Tailwind CSS + daisyUI**, **SweetAlert2**, **Capacitor**
-
-```text
-front-react/src/
-├── api/          # client axios + módulos por recurso
-├── components/   # Layout, Navbar, ProtectedRoute, RoleRoute
-├── config/       # loadConfig() — config.json em runtime
-├── lib/          # alerts (SweetAlert2), capacitor
-├── pages/        # auth/, user/, Home, Settings, NotFound
-├── routes/       # paths.ts
-├── store/        # Redux Toolkit (store, authSlice, tokenStore, hooks)
-└── types/        # interfaces TypeScript
-```
-
-### Frontend Flutter (`front-flutter/`)
-
-- **Flutter 3.44 / Dart 3.12** (web + Android + iOS)
-- **Riverpod** para estado (config, token storage, auth `NotifierProvider`)
-- **go_router** para rotas + guards (auth e role) via `refreshListenable`
-- **dio** com refresh single-flight em 401 (`lib/core/api_client.dart`)
-- **flutter_secure_storage** para tokens (cache em memória p/ leitura síncrona no interceptor)
-
-```text
-front-flutter/lib/
-├── config/        # app_config.dart (configProvider), config_service.dart
-├── core/          # api_client.dart (Dio+refresh), token_storage.dart, api_exception.dart
-├── models/        # models.dart — User, CreditAccount, AuthTokens, Paginated<T>
-├── features/      # auth/, home/, user/, credits/, transactions/, settings/, shell/
-├── routing/       # paths.dart, app_router.dart (go_router + guards)
-├── shared/        # theme.dart, alerts.dart, external_link.dart
-├── app.dart       # MaterialApp.router
-└── main.dart      # carrega config + storage, ProviderScope overrides, runApp
-```
-
-### Configuração em Runtime
-
-Os frontends carregam a config em runtime (não em build):
-
-- `apiUrl` — URL da API (default: `http://localhost:5000/api`)
-- `app` — nome, versão, tema, deep link host
-- Angular: `front/public/config.example.json`. React: `front-react/public/config.json`. Flutter: `front-flutter/assets/config.json` (empacotado) + override web em `front-flutter/web/config.json`.
-
----
-
-## Convenções de Desenvolvimento
-
-### Geral
-
-- Commits e nomes de branches em português
-- Código em inglês (variáveis, classes); textos da UI em português brasileiro
-- Sem emojis no código, salvo se pedido
-- **Nunca** commitar `.env` real — apenas `.env.example`
-
-### Backend
-
-- Um módulo NestJS por domínio (controller + service + repository + DTOs)
-- Repository pattern — controllers nunca acessam Prisma diretamente
-- DTOs com class-validator
-- Erros via exceptions do NestJS (NotFoundException, ForbiddenException, etc.)
-
-### Frontend
-
-- Standalone components (sem NgModules)
-- Services injetáveis para HTTP
-- NgRx para estado global (auth)
-- SweetAlert2 para feedback ao usuário
-- Tailwind para estilos utilitários, SCSS para animações/media queries
-
----
-
-## Comandos Úteis
-
-### Subir tudo (Docker)
+### Executar com Docker
 
 ```bash
-cp back/.env.example back/.env
+cd web-client
+cp .env.example .env
 docker compose up --build
-# front Angular :4200 · front React :4300 · front Flutter :4400 · api :5000/api · swagger :5000/api/docs
+# Frontend: :4200 · API: :5000/api · Swagger: :5000/api/docs
 ```
 
-### Backend
+### Executar localmente
 
 ```bash
-cd back
+cd web-client/back
 npm install --legacy-peer-deps
 npx prisma generate
-npx prisma migrate deploy     # aplicar migrations
-npm run prisma:seed           # usuários iniciais
-npm run start:dev             # http://localhost:5000
-npm run build                 # build de produção (dist/main.js)
-npx tsc --noEmit              # checar tipos
-```
+npx prisma migrate deploy
+npm run prisma:seed
+npm run start:dev
 
-### Frontend (Angular)
-
-```bash
-cd front
+cd web-client/front
 npm install --legacy-peer-deps
-npm start                     # ng serve — http://localhost:4200
-npm run build                 # ng build
+npm start
 ```
-
-### Frontend (React)
-
-```bash
-cd front-react
-npm install --legacy-peer-deps
-npm run dev                   # vite — http://localhost:4200 (Docker: :4300)
-npm run build                 # tsc --noEmit && vite build
-```
-
-### Frontend (Flutter)
-
-```bash
-cd front-flutter
-flutter pub get
-flutter run -d chrome --web-port 4400   # web (Docker: :4400)
-flutter analyze               # lint/análise estática
-flutter test                  # testes unitários
-flutter build web --release   # build de produção (build/web/)
-```
-
-> Os installs usam `--legacy-peer-deps` por conflitos de peer-deps nos toolchains do NestJS 8, Angular 20 e React 19.
 
 ---
 
-## Troubleshooting
+## Local Client (`local-client/`)
 
-### `npm install` falha com erro de peer dependency
+### Stack
 
-Use `npm install --legacy-peer-deps` (NestJS 8 / Angular 20 têm conflitos de peer-deps esperados).
+- Python 3.10+ com PySide6 (Qt 6) para GUI desktop
+- FastAPI + uvicorn para API REST embutida
+- SQLAlchemy 2.0 + SQLite para banco local
 
-### Tabelas não existem / erro de conexão Prisma
+### Executar
 
-Rode `npx prisma migrate deploy` com o MySQL no ar. No Docker isso é automático no boot da API.
+```bash
+cd local-client
+python -m venv .venv
+source .venv/bin/activate
+pip install -e .
+python -m maestro_local          # porta 9777
+```
 
-### Fila travada / e-mail não envia
+### API local
 
-A fila Bull precisa de Redis no ar. Verifique `REDIS_HOST`/`REDIS_PORT` e o serviço `redis` no compose. O envio de e-mail exige `EMAIL_USER`/`EMAIL_PASSWORD`.
+Endpoints sem autenticação em `http://127.0.0.1:9777/api`:
+- `GET/POST /api/projects` — CRUD de projetos
+- `GET /api/projects/{id}/board` — board kanban
+- `GET/POST /api/tasks` — CRUD de tarefas
+- `POST/GET /api/study/plans` — planos de estudo
+- `POST/GET /api/study/sessions` — sessões de estudo
+- `GET /api/study/stats` — estatísticas
 
-### Google OAuth não funciona
+---
 
-Confira `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` e `GOOGLE_CALLBACK_URL` (deve apontar para `/api/auth/accounts/google/redirect`).
+## OpenCode Tools (`.opencode/`)
+
+Ferramentas customizadas para agentes de IA interagirem com a plataforma via terminal.
+
+### Ferramentas disponíveis
+
+- `maestro_board` — Consultar board kanban
+- `maestro_createTask` / `maestro_updateTask` / `maestro_deleteTask` — CRUD de tarefas
+- `maestro_addComment` — Postar comentários (markdown, code reviews)
+- `maestro_getFlow` — Exportar fluxo em mermaid
+- `maestro_createDocument` — Criar documentos
+- `maestro_addSubtask` — Adicionar subtarefas
+
+### Comandos
+
+- `/review <task>` — Code review de uma tarefa
+- `/decompose <task>` — Decompor em subtarefas
+
+---
+
+## Convenções
+
+- Commits e branches em português
+- Código em inglês; UI em português brasileiro
+- Nunca commitar `.env` real
+- Backend: controller fino, service com lógica, repository com queries
+- Frontend: standalone components, services injetáveis, NgRx para auth

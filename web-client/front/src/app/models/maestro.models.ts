@@ -196,3 +196,69 @@ export interface ActivityItem {
   createdAt: string;
   changes?: Record<string, unknown> | null;
 }
+
+// ---- Módulo de Estudos ----
+
+export interface StudyPlan {
+  id: number;
+  title: string;
+  description?: string;
+  category: StudyCategory;
+  status: StudyPlanStatus;
+  startDate?: string;
+  targetDate?: string;
+  resources?: StudyResource[];
+  progress: number;
+  totalTopics: number;
+  doneTopics: number;
+  topics?: StudyTopic[];
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface StudyTopic {
+  id: number;
+  planId: number;
+  parentId?: number;
+  title: string;
+  description?: string;
+  sortOrder: number;
+  status: StudyTopicStatus;
+  weight: number;
+  estimateHours?: number;
+  loggedHours: number;
+  notes?: string;
+  resources?: StudyResource[];
+  children?: StudyTopic[];
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface StudySession {
+  id: number;
+  planId: number;
+  topicId: number;
+  topic?: { id: number; title: string };
+  startedAt: string;
+  endedAt?: string;
+  durationMin?: number;
+  notes?: string;
+  confidence?: number;
+  createdAt: string;
+}
+
+export interface StudyResource {
+  title: string;
+  url: string;
+  type: 'link' | 'video' | 'book' | 'curso';
+}
+
+export interface StudyStats {
+  totalHours: number;
+  activePlans: number;
+  totalPlans: number;
+}
+
+export type StudyPlanStatus = 'PLANEJADO' | 'EM_ANDAMENTO' | 'PAUSADO' | 'CONCLUIDO' | 'ABANDONADO';
+export type StudyTopicStatus = 'PENDENTE' | 'ESTUDANDO' | 'REVISAO' | 'CONCLUIDO' | 'PULADO';
+export type StudyCategory = 'LINGUAGEM' | 'FRAMEWORK' | 'CERTIFICACAO' | 'CONCEITO' | 'CURSO' | 'LIVRO';

@@ -106,4 +106,21 @@ export class MaestroApiService {
 
   // ---- auditoria ----
   listActivity(filters: { entityType?: string; entityId?: number; limit?: number } = {}) { return this.get<M.ActivityItem[]>('/activity' + this.qs(filters)); }
+
+  // ---- estudos ----
+  listStudyPlans(filters?: { status?: string; category?: string }) { return this.get<M.StudyPlan[]>('/study/plans' + this.qs(filters ?? {})); }
+  getStudyPlan(id: number) { return this.get<M.StudyPlan>('/study/plans/' + id); }
+  createStudyPlan(b: { title: string; category: string; description?: string; startDate?: string; targetDate?: string }) { return this.post<M.StudyPlan>('/study/plans', b); }
+  updateStudyPlan(id: number, b: Partial<M.StudyPlan>) { return this.patch<M.StudyPlan>('/study/plans/' + id, b); }
+  deleteStudyPlan(id: number) { return this.del<{ deleted: boolean }>('/study/plans/' + id); }
+
+  listStudyTopics(planId: number) { return this.get<M.StudyTopic[]>('/study/plans/' + planId + '/topics'); }
+  createStudyTopic(planId: number, b: { title: string; description?: string; parentId?: number; weight?: number; estimateHours?: number }) { return this.post<M.StudyTopic>('/study/plans/' + planId + '/topics', b); }
+  updateStudyTopic(id: number, b: Partial<M.StudyTopic>) { return this.patch<M.StudyTopic>('/study/topics/' + id, b); }
+  deleteStudyTopic(id: number) { return this.del<{ deleted: boolean }>('/study/topics/' + id); }
+  reorderTopics(planId: number, ids: number[]) { return this.patch<unknown>('/study/plans/' + planId + '/topics/reorder', { ids }); }
+
+  createStudySession(b: { topicId: number; startedAt: string; endedAt?: string; durationMin?: number; notes?: string; confidence?: number }) { return this.post<M.StudySession>('/study/sessions', b); }
+
+  getStudyStats() { return this.get<M.StudyStats>('/study/stats'); }
 }
