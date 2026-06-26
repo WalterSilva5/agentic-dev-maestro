@@ -1,10 +1,10 @@
 # Maestro Local
 
-Cliente desktop do Agentic Dev Maestro. Organiza tarefas, diario de trabalho e estudos, com API REST embutida para integracao com agentes de IA.
+Cliente desktop do Agentic Dev Maestro. Organiza tarefas, diário de trabalho e estudos, com API REST embutida para integração com agentes de IA.
 
-## Instalacao e execucao
+## Instalação e execução
 
-### Rapido (recomendado)
+### Rápido (recomendado)
 
 ```bash
 ./install.sh    # cria venv, instala deps, valida
@@ -20,28 +20,28 @@ pip install -e .
 python -m maestro_local
 ```
 
-### Opcoes
+### Opções
 
 ```bash
-./run.sh --port 8888    # porta customizada (padrao: 9777)
+./run.sh --port 8888    # porta customizada (padrão: 9777)
 ```
 
 ### Entry point global
 
-Apos `pip install -e .`, o comando `maestro` fica disponivel no PATH do venv:
+Após `pip install -e .`, o comando `maestro` fica disponível no PATH do venv:
 
 ```bash
-maestro              # porta padrao
+maestro              # porta padrão
 maestro --port 8888  # porta customizada
 ```
 
-## O que a aplicacao faz
+## O que a aplicação faz
 
 Ao iniciar, o Maestro abre:
-1. **GUI desktop** (PySide6/Qt 6) — interface grafica com 9 telas
+1. **GUI desktop** (PySide6/Qt 6) — interface gráfica com 9 telas
 2. **API REST** (FastAPI/uvicorn) — `http://127.0.0.1:9777/api` em thread daemon
 
-A tela inicial e **Meu Dia**, que funciona como home da aplicacao.
+A tela inicial é **Meu Dia**, que funciona como home da aplicação.
 
 ## Telas
 
@@ -49,49 +49,49 @@ A tela inicial e **Meu Dia**, que funciona como home da aplicacao.
 
 Tela principal do dia de trabalho:
 
-- **Obsidian Vault**: selecionar vault por projeto/workspace, sincronizar notas e tarefas com o Obsidian. Sync automatico a cada 5 minutos
-- **Notas do dia**: editor markdown com template pre-configurado, preview renderizado, botao para inserir template padrao (Foco do Dia, Tarefas, Blockers, Notas Tecnicas)
-- **Gerar Relatorio**: gera relatorio automatico com lista de tarefas trabalhadas, atividades do dia e resumo
-- **Dica IA**: ao lado do relatorio gerado, botao com prompt sugerido para pedir a um agente de IA que resuma o dia usando a skill `maestro-daily-report`
-- **Atividade do dia**: timeline com todas as acoes do dia (tasks criadas, movidas, comentadas)
-- **Backup do Banco**: exportar copia do banco SQLite
+- **Obsidian Vault**: selecionar vault por projeto/workspace, sincronizar notas e tarefas com o Obsidian. Sync automático a cada 5 minutos
+- **Notas do dia**: editor markdown com template pre-configurado, preview renderizado, botão para inserir template padrão (Foco do Dia, Tarefas, Blockers, Notas Técnicas)
+- **Gerar Relatório**: gera relatório automático com lista de tarefas trabalhadas, atividades do dia e resumo
+- **Dica IA**: ao lado do relatório gerado, botão com prompt sugerido para pedir a um agente de IA que resuma o dia usando a skill `maestro-daily-report`
+- **Atividade do dia**: timeline com todas as ações do dia (tasks criadas, movidas, comentadas)
+- **Backup do Banco**: exportar cópia do banco SQLite
 
 ### Dashboard (Alt+1)
 
-Visao geral do workspace:
+Visão geral do workspace:
 
-- **Cards de resumo**: tarefas ativas, concluidas (7 dias), vencidas, em progresso
-- **Tarefas vencidas**: lista clicavel que abre o detalhe da tarefa
-- **Atividade recente**: timeline das ultimas 15 acoes agrupadas por dia
+- **Cards de resumo**: tarefas ativas, concluídas (7 dias), vencidas, em progresso
+- **Tarefas vencidas**: lista clicável que abre o detalhe da tarefa
+- **Atividade recente**: timeline das últimas 15 ações agrupadas por dia
 - **Projetos**: progresso de cada projeto com barra e contagem por coluna
 
 ### Estudos (Alt+3)
 
-Modulo de aprendizado:
+Módulo de aprendizado:
 
-- **Planos de estudo**: criar planos com nome, categoria (Linguagem, Framework, Certificacao, Conceito, Curso, Livro) e status (Nao Iniciado, Em Progresso, Concluido, Pausado)
-- **Topicos**: adicionar topicos com peso e estimativa de horas. Marcar como concluido
-- **Roadmap visual**: barra de progresso calculada pelo peso dos topicos concluidos
-- **Sessoes de estudo**: registrar tempo de estudo com notas e nivel de confianca (1-5)
-- **Estatisticas**: horas totais, sessoes por semana, planos ativos
+- **Planos de estudo**: criar planos com nome, categoria (Linguagem, Framework, Certificação, Conceito, Curso, Livro) e status (Não Iniciado, Em Progresso, Concluído, Pausado)
+- **Tópicos**: adicionar tópicos com peso e estimativa de horas. Marcar como concluído
+- **Roadmap visual**: barra de progresso calculada pelo peso dos tópicos concluídos
+- **Sessões de estudo**: registrar tempo de estudo com notas e nível de confiança (1-5)
+- **Estatísticas**: horas totais, sessões por semana, planos ativos
 
 ### Board Kanban (Alt+4)
 
 Board de tarefas por projeto:
 
-- **Colunas**: customizaveis por projeto (ex: Backlog, A Fazer, Fazendo, Revisao, Concluido)
+- **Colunas**: customizáveis por projeto (ex: Backlog, A Fazer, Fazendo, Revisão, Concluído)
 - **Drag-and-drop**: arrastar cards entre colunas
-- **Quick-move**: botao para avancar tarefa para proxima coluna sem arrastar
-- **Filtros**: por tipo (Feature, Bug, Tech Debt, Improvement, Chore), prioridade (Low, Medium, High, Urgent), responsavel e label
+- **Quick-move**: botão para avançar tarefa para próxima coluna sem arrastar
+- **Filtros**: por tipo (Feature, Bug, Tech Debt, Improvement, Chore), prioridade (Low, Medium, High, Urgent), responsável e label
 - **WIP limits**: limite de tarefas por coluna
 - **Cards**: mostram tipo, prioridade, labels, due date, assignee, indicador de bloqueio e checklist progress
-- **Task detail**: dialog completo com titulo, descricao, tipo, prioridade, assignee, due date, labels, checklist (Definition of Done), dependencias, comentarios com markdown
+- **Task detail**: dialog completo com título, descrição, tipo, prioridade, assignee, due date, labels, checklist (Definition of Done), dependências, comentários com markdown
 
 ### Projetos (Alt+5)
 
-- Criar projetos com nome, chave unica (ex: DEMO, PROJ) e descricao
-- Cada projeto gera automaticamente colunas padrao no board
-- Visao de lista com link para o board
+- Criar projetos com nome, chave única (ex: DEMO, PROJ) e descrição
+- Cada projeto gera automaticamente colunas padrão no board
+- Visão de lista com link para o board
 
 ### Labels (Alt+6)
 
@@ -99,12 +99,12 @@ Board de tarefas por projeto:
 - Aplicar labels em tarefas para categorizar e filtrar
 - Labels compartilhadas entre projetos do mesmo workspace
 
-### Metricas (Alt+7)
+### Métricas (Alt+7)
 
-Dashboard analitico:
+Dashboard analítico:
 
-- **Cards**: total de tarefas, concluidas (7 e 30 dias), lead time medio, cycle time
-- **Throughput semanal**: grafico de barras das ultimas 8 semanas
+- **Cards**: total de tarefas, concluídas (7 e 30 dias), lead time médio, cycle time
+- **Throughput semanal**: gráfico de barras das últimas 8 semanas
 - **Por tipo**: breakdown Feature/Bug/Tech Debt/Improvement/Chore com percentual
 - **Por prioridade**: breakdown Low/Medium/High/Urgent com percentual
 - **Por projeto**: progresso de cada projeto com barra
@@ -115,50 +115,50 @@ Biblioteca de skills para agentes de IA:
 
 - **11 skills** com prefixo `maestro-` organizadas por categoria (Setup, Agente, Fluxo de Trabalho, Planejamento, Qualidade, Registro)
 - **Instalar**: um clique instala o arquivo SKILL.md em `.claude/skills/` do projeto alvo
-- **Instalar todas**: botao para instalar todas as skills de uma vez
-- **Preview**: ver o conteudo da skill antes de instalar
-- **Diretorio destino**: selecionar o projeto onde instalar as skills
+- **Instalar todas**: botão para instalar todas as skills de uma vez
+- **Preview**: ver o conteúdo da skill antes de instalar
+- **Diretório destino**: selecionar o projeto onde instalar as skills
 
-### Instrucoes (Alt+9)
+### Instruções (Alt+9)
 
-Guia de uso com explicacoes de cada tela e fluxo de trabalho.
+Guia de uso com explicações de cada tela e fluxo de trabalho.
 
 ## Recursos gerais
 
-| Recurso | Descricao |
+| Recurso | Descrição |
 |---|---|
 | **Tema dark/light** | Toggle na sidebar, aplica em todas as telas |
 | **Pomodoro** | Timer de 25 min na sidebar com play/pause e reset |
-| **Busca global** | `Ctrl+K` abre busca por titulo ou codigo de tarefa |
-| **Workspaces** | Isolamento completo com banco separado, emoji, cor e descricao customizaveis |
-| **Obsidian sync** | Auto-sync a cada 5 min, vault configuravel por workspace/projeto |
+| **Busca global** | `Ctrl+K` abre busca por título ou código de tarefa |
+| **Workspaces** | Isolamento completo com banco separado, emoji, cor e descrição customizáveis |
+| **Obsidian sync** | Auto-sync a cada 5 min, vault configurável por workspace/projeto |
 | **Backup** | Exportar banco SQLite a qualquer momento |
 | **Atalhos** | `Alt+1` a `Alt+9` para navegar entre telas, `Ctrl+K` para busca |
 
 ## API REST
 
-A API roda em `http://127.0.0.1:9777/api` sem autenticacao. Todos os endpoints retornam JSON.
+A API roda em `http://127.0.0.1:9777/api` sem autenticação. Todos os endpoints retornam JSON.
 
 ### Endpoints
 
-| Recurso | Metodo | Endpoint | Descricao |
+| Recurso | Método | Endpoint | Descrição |
 |---|---|---|---|
 | Health | GET | `/api/health` | Status da API |
 | Projetos | POST | `/api/projects` | Criar projeto |
 | Projetos | GET | `/api/projects` | Listar projetos |
-| Projetos | GET | `/api/projects/metrics` | Metricas por projeto |
+| Projetos | GET | `/api/projects/metrics` | Métricas por projeto |
 | Projetos | GET | `/api/projects/{id}/board` | Board completo do projeto |
 | Tarefas | POST | `/api/tasks` | Criar tarefa |
 | Tarefas | GET | `/api/tasks` | Listar tarefas (filtros: project_id, column_id, type, priority) |
-| Tarefas | GET | `/api/tasks/{code}` | Detalhe da tarefa por codigo (ex: DEMO-1) |
+| Tarefas | GET | `/api/tasks/{code}` | Detalhe da tarefa por código (ex: DEMO-1) |
 | Tarefas | PATCH | `/api/tasks/{code}` | Atualizar tarefa |
 | Tarefas | DELETE | `/api/tasks/{code}` | Soft-delete da tarefa |
 | Tarefas | POST | `/api/tasks/{code}/move` | Mover para coluna (body: {column_id}) |
 | Checklist | POST | `/api/tasks/{code}/checklist` | Adicionar item de checklist |
 | Checklist | PATCH | `/api/tasks/checklist/{id}/toggle` | Toggle checked |
 | Checklist | DELETE | `/api/tasks/checklist/{id}` | Remover item |
-| Dependencias | POST | `/api/tasks/{code}/dependencies` | Adicionar dependencia |
-| Dependencias | DELETE | `/api/tasks/{code}/dependencies/{id}` | Remover dependencia |
+| Dependências | POST | `/api/tasks/{code}/dependencies` | Adicionar dependência |
+| Dependências | DELETE | `/api/tasks/{code}/dependencies/{id}` | Remover dependência |
 | Context | GET | `/api/tasks/{code}/context` | Contexto completo da tarefa |
 | Context | GET | `/api/tasks/{code}/flow` | Fluxo de trabalho da tarefa |
 | Labels | POST | `/api/labels` | Criar label |
@@ -166,10 +166,10 @@ A API roda em `http://127.0.0.1:9777/api` sem autenticacao. Todos os endpoints r
 | Labels | DELETE | `/api/labels/{id}` | Remover label |
 | Labels | POST | `/api/labels/{id}/tasks/{task_id}` | Aplicar label em tarefa |
 | Labels | DELETE | `/api/labels/{id}/tasks/{task_id}` | Remover label de tarefa |
-| Comentarios | POST | `/api/comments` | Criar comentario |
-| Comentarios | GET | `/api/comments` | Listar comentarios (filtro: task_id) |
-| Comentarios | PATCH | `/api/comments/{id}` | Editar comentario |
-| Comentarios | DELETE | `/api/comments/{id}` | Remover comentario |
+| Comentários | POST | `/api/comments` | Criar comentário |
+| Comentários | GET | `/api/comments` | Listar comentários (filtro: task_id) |
+| Comentários | PATCH | `/api/comments/{id}` | Editar comentário |
+| Comentários | DELETE | `/api/comments/{id}` | Remover comentário |
 | Documentos | POST | `/api/documents` | Criar documento |
 | Documentos | GET | `/api/documents` | Listar documentos |
 | Documentos | PUT | `/api/documents/{id}` | Atualizar documento |
@@ -177,19 +177,19 @@ A API roda em `http://127.0.0.1:9777/api` sem autenticacao. Todos os endpoints r
 | Atividade | GET | `/api/activity` | Log de atividades |
 | Diario | GET | `/api/daily/{date}` | Nota do dia (YYYY-MM-DD) |
 | Diario | POST | `/api/daily/{date}` | Criar/atualizar nota do dia |
-| Diario | PATCH | `/api/daily/{date}/report` | Append ao relatorio do dia |
+| Diario | PATCH | `/api/daily/{date}/report` | Append ao relatório do dia |
 | Estudos | POST | `/api/study/plans` | Criar plano de estudo |
 | Estudos | GET | `/api/study/plans` | Listar planos |
 | Estudos | GET | `/api/study/plans/{id}` | Detalhe do plano |
 | Estudos | PATCH | `/api/study/plans/{id}` | Atualizar plano |
 | Estudos | DELETE | `/api/study/plans/{id}` | Remover plano |
-| Topicos | POST | `/api/study/plans/{id}/topics` | Adicionar topico |
-| Topicos | GET | `/api/study/plans/{id}/topics` | Listar topicos |
-| Topicos | PATCH | `/api/study/topics/{id}` | Atualizar topico |
-| Topicos | DELETE | `/api/study/topics/{id}` | Remover topico |
-| Sessoes | POST | `/api/study/sessions` | Registrar sessao de estudo |
-| Sessoes | GET | `/api/study/sessions` | Listar sessoes (filtro: date) |
-| Stats | GET | `/api/study/stats` | Estatisticas de estudo |
+| Tópicos | POST | `/api/study/plans/{id}/topics` | Adicionar tópico |
+| Tópicos | GET | `/api/study/plans/{id}/topics` | Listar tópicos |
+| Tópicos | PATCH | `/api/study/topics/{id}` | Atualizar tópico |
+| Tópicos | DELETE | `/api/study/topics/{id}` | Remover tópico |
+| Sessões | POST | `/api/study/sessions` | Registrar sessão de estudo |
+| Sessões | GET | `/api/study/sessions` | Listar sessões (filtro: date) |
+| Stats | GET | `/api/study/stats` | Estatísticas de estudo |
 
 ### Exemplo: criar tarefa via curl
 
@@ -214,34 +214,34 @@ curl -X POST http://127.0.0.1:9777/api/tasks/MP-1/move \
 
 | Skill | Categoria | O que faz |
 |---|---|---|
-| `maestro-run` | Setup | Iniciar a aplicacao (GUI + API) |
+| `maestro-run` | Setup | Iniciar a aplicação (GUI + API) |
 | `maestro-api-agent` | Agente | Ensina o agente a interagir com a API REST |
 | `maestro-task-workflow` | Fluxo | Fluxo completo: pegar task, implementar, mover, documentar |
-| `maestro-project-setup` | Setup | Criar projeto com colunas e labels padrao |
-| `maestro-sprint-planning` | Planejamento | Planejar sprint com estimativas e priorizacao |
-| `maestro-code-review-log` | Qualidade | Registrar code reviews como comentarios |
-| `maestro-bug-triage` | Qualidade | Triagem de bugs com prioridade e reproducao |
-| `maestro-daily-standup` | Registro | Gerar relatorio de standup automatico |
-| `maestro-tech-debt-tracker` | Qualidade | Registrar e priorizar divida tecnica |
-| `maestro-documentation-writer` | Registro | Gerar documentacao a partir do codigo |
-| `maestro-daily-report` | Registro | Relatorio diario com notas, atividade e resumo em bullet list |
+| `maestro-project-setup` | Setup | Criar projeto com colunas e labels padrão |
+| `maestro-sprint-planning` | Planejamento | Planejar sprint com estimativas e priorização |
+| `maestro-code-review-log` | Qualidade | Registrar code reviews como comentários |
+| `maestro-bug-triage` | Qualidade | Triagem de bugs com prioridade e reprodução |
+| `maestro-daily-standup` | Registro | Gerar relatório de standup automático |
+| `maestro-tech-debt-tracker` | Qualidade | Registrar e priorizar dívida técnica |
+| `maestro-documentation-writer` | Registro | Gerar documentação a partir do código |
+| `maestro-daily-report` | Registro | Relatório diário com notas, atividade e resumo em bullet list |
 
 ## Tipos de tarefa
 
 | Tipo | Uso |
 |---|---|
 | `FEATURE` | Nova funcionalidade |
-| `BUG` | Correcao de bug |
-| `TECH_DEBT` | Divida tecnica |
+| `BUG` | Correção de bug |
+| `TECH_DEBT` | Dívida técnica |
 | `IMPROVEMENT` | Melhoria em funcionalidade existente |
 | `CHORE` | Tarefa operacional |
 
 ## Prioridades
 
-| Prioridade | Nivel |
+| Prioridade | Nível |
 |---|---|
 | `LOW` | Baixa |
-| `MEDIUM` | Media |
+| `MEDIUM` | Média |
 | `HIGH` | Alta |
 | `URGENT` | Urgente |
 
@@ -253,13 +253,13 @@ SQLite local com isolamento por workspace:
 ~/.maestro-local/
 ├── config.json                     # Workspaces, vaults, tema
 └── workspaces/
-    ├── default/maestro.db          # Workspace padrao
+    ├── default/maestro.db          # Workspace padrão
     └── {workspace-id}/maestro.db   # Workspaces adicionais
 ```
 
-O banco e criado automaticamente na primeira execucao. Cada workspace tem seu proprio arquivo, garantindo isolamento total dos dados.
+O banco é criado automaticamente na primeira execução. Cada workspace tem seu próprio arquivo, garantindo isolamento total dos dados.
 
-## Estrutura do codigo
+## Estrutura do código
 
 ```
 maestro_local/
@@ -273,20 +273,20 @@ maestro_local/
 ├── gui/
 │   ├── theme.py             # ThemeColors dataclass + dark/light + stylesheet
 │   ├── main_window.py       # MainWindow + sidebar + pomodoro + workspace selector
-│   ├── workspace_selector.py # Seletor de workspace com emoji/cor/descricao
+│   ├── workspace_selector.py # Seletor de workspace com emoji/cor/descrição
 │   └── views/
-│       ├── daily_view.py        # Meu Dia + Obsidian sync + relatorio
+│       ├── daily_view.py        # Meu Dia + Obsidian sync + relatório
 │       ├── dashboard_view.py    # Dashboard com resumo e atividade
-│       ├── study_view.py        # Planos de estudo + topicos + sessoes
+│       ├── study_view.py        # Planos de estudo + tópicos + sessões
 │       ├── board_view.py        # Kanban board + TaskCard + filtros
 │       ├── task_detail_dialog.py # Dialog completo de tarefa
-│       ├── projects_view.py     # Lista/criacao de projetos
+│       ├── projects_view.py     # Lista/criação de projetos
 │       ├── labels_view.py       # CRUD de labels com paleta
-│       ├── metrics_view.py      # Dashboard de metricas
+│       ├── metrics_view.py      # Dashboard de métricas
 │       ├── skills_view.py       # Skills para agentes de IA
-│       └── guide_view.py        # Instrucoes de uso
+│       └── guide_view.py        # Instruções de uso
 └── skills/
-    └── catalog.py           # Catalogo de 11 skills com conteudo SKILL.md
+    └── catalog.py           # Catálogo de 11 skills com conteúdo SKILL.md
 ```
 
 ## Requisitos

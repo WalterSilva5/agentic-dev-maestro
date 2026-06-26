@@ -33,7 +33,7 @@ MIME_TYPE = "application/x-maestro-task"
 PRIORITY_FILTER_MAP = {
     "Todas": None,
     "Baixa": "LOW",
-    "Media": "MEDIUM",
+    "Média": "MEDIUM",
     "Alta": "HIGH",
     "Urgente": "URGENT",
 }
@@ -229,7 +229,7 @@ class TaskCard(QFrame):
         move_btn = QPushButton("Mover →")
         move_btn.setProperty("class", "quickMove")
         move_btn.setCursor(Qt.PointingHandCursor)
-        move_btn.setToolTip("Mover para proxima coluna")
+        move_btn.setToolTip("Mover para próxima coluna")
         move_btn.clicked.connect(lambda: self.move_next.emit(self.task_id))
         layout.addWidget(move_btn, alignment=Qt.AlignRight)
 
@@ -588,7 +588,7 @@ class FilterBar(QWidget):
 
         # Search input
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("\U0001f50d Buscar por titulo ou codigo...")
+        self.search_input.setPlaceholderText("\U0001f50d Buscar por título ou código...")
         self.search_input.setFixedWidth(280)
         self.search_input.textChanged.connect(self._emit_changed)
         layout.addWidget(self.search_input)
@@ -614,7 +614,7 @@ class FilterBar(QWidget):
         layout.addWidget(self.priority_combo)
 
         # Assignee filter
-        assignee_label = QLabel("Responsavel:")
+        assignee_label = QLabel("Responsável:")
         assignee_label.setProperty("class", "sectionLabel")
         layout.addWidget(assignee_label)
         self.assignee_combo = QComboBox()
@@ -646,7 +646,7 @@ class FilterBar(QWidget):
         text = self.assignee_combo.currentText()
         if text == "Todos":
             return None
-        if text == "Sem responsavel":
+        if text == "Sem responsável":
             return "__none__"
         return text
 
@@ -655,7 +655,7 @@ class FilterBar(QWidget):
         self.assignee_combo.blockSignals(True)
         self.assignee_combo.clear()
         self.assignee_combo.addItem("Todos")
-        self.assignee_combo.addItem("Sem responsavel")
+        self.assignee_combo.addItem("Sem responsável")
         for a in sorted(set(assignees)):
             self.assignee_combo.addItem(a)
         idx = self.assignee_combo.findText(current)

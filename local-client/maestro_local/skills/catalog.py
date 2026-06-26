@@ -797,11 +797,168 @@ via `PATCH /api/daily/{date}` — adicionado ao final do body existente.
 - O resumo final e obrigatorio — nao encerre sem gera-lo
 """,
     },
+    {
+        "id": "maestro-context-loader",
+        "name": "Context Loader",
+        "category": "agent",
+        "description": "Carregar contexto completo dos projetos, boards e tarefas para continuar de onde parou",
+        "tags": ["context", "board", "project", "resume", "continuidade"],
+        "filename": "maestro-context-loader",
+        "content": """---
+description: Load full workspace context - projects, boards, tasks, activity - to resume work from where you left off
+---
+
+# Context Loader — Retomar Contexto do Workspace
+
+Use esta skill no inicio de cada sessao para entender o estado atual do
+workspace e continuar o trabalho de onde parou.
+
+## OBJETIVO
+
+Antes de executar qualquer tarefa, o agente DEVE conhecer:
+- Quais projetos existem e seus boards
+- Quais tarefas estao em andamento, bloqueadas ou pendentes
+- O que foi feito recentemente (atividade)
+- Notas e relatorio do dia
+
+Com esse contexto, o agente pode tomar decisoes informadas e
+continuar de pontos anteriores sem perder historico.
+
+## PASSO 1 — Verificar conexao
+
+```bash
+curl -s http://127.0.0.1:9777/api/health | jq .
+```
+
+## PASSO 2 — Listar todos os projetos
+
+```bash
+curl -s http://127.0.0.1:9777/api/projects | jq '.[] | {id, name, key, description}'
+```
+
+Armazene os IDs e keys dos projetos para os proximos passos.
+
+## PASSO 3 — Carregar board de cada projeto
+
+Para cada projeto retornado no passo 2:
+
+```bash
+curl -s http://127.0.0.1:9777/api/projects/{PROJECT_ID}/board | jq '{
+  project: .project.name,
+  columns: [.columns[] | {
+    name: .name,
+    position: .position,
+    wipLimit: .wipLimit,
+    tasks: [.tasks[] | {
+      code: .code,
+      title: .title,
+      type: .type,
+      priority: .priority,
+      assignee: .assignee,
+      dueDate: .dueDate,
+      blocked: .blocked,
+      requiresHuman: .requiresHuman,
+      labels: [.labels[]?.name]
+    }]
+  }]
+}'
+```
+
+### O que observar no board
+
+- **Tarefas em "Fazendo"**: trabalho em andamento — verifique se deve continuar
+- **Tarefas bloqueadas** (`blocked: true`): identificar o motivo e se pode desbloquear
+- **Tarefas vencidas** (`dueDate` no passado): prioridade alta
+- **Tarefas com `requiresHuman: true`**: NAO tocar, sao exclusivas do dev
+- **WIP limits**: respeitar o limite de tarefas por coluna
+
+## PASSO 4 — Metricas dos projetos
+
+```bash
+curl -s http://127.0.0.1:9777/api/projects/metrics | jq '.[] | {
+  project: .name,
+  total: .total,
+  done: .done,
+  inProgress: .inProgress,
+  overdue: .overdue
+}'
+```
+
+## PASSO 5 — Atividade recente
+
+```bash
+curl -s http://127.0.0.1:9777/api/activity?limit=20 | jq '.[] | {
+  action: .action,
+  entity: .entityType,
+  detail: .detail,
+  timestamp: .createdAt
+}'
+```
+
+A atividade mostra o que foi feito recentemente: tarefas criadas,
+movidas, comentadas, concluidas. Use para entender o ritmo e o
+contexto do trabalho em andamento.
+
+## PASSO 6 — Notas e relatorio do dia
+
+```bash
+# Nota de hoje
+curl -s http://127.0.0.1:9777/api/daily/$(date +%F) | jq '{notes: .notes, report: .report}'
+
+# Atividade do dia
+curl -s http://127.0.0.1:9777/api/daily/$(date +%F)/activity | jq .
+```
+
+As notas do dia contem o foco planejado, bloqueios e decisoes.
+O relatorio contem o resumo do que foi feito.
+
+## PASSO 7 — Contexto de tarefas especificas
+
+Para qualquer tarefa que precise de mais detalhes:
+
+```bash
+# Contexto completo (tarefa + comentarios + docs + atividade)
+curl -s http://127.0.0.1:9777/api/tasks/{CODE}/context | jq .
+
+# Fluxo da tarefa (historico de movimentacoes entre colunas)
+curl -s http://127.0.0.1:9777/api/tasks/{CODE}/flow | jq .
+```
+
+## PASSO 8 — Labels disponiveis
+
+```bash
+curl -s http://127.0.0.1:9777/api/labels | jq '.[] | {id, name, color}'
+```
+
+## RESUMO DO CONTEXTO
+
+Apos executar os passos acima, o agente deve montar mentalmente:
+
+1. **Mapa do workspace**: projetos → colunas → tarefas
+2. **Trabalho em andamento**: tarefas em "Fazendo" e quem esta nelas
+3. **Proximas tarefas**: o que esta em "A Fazer" ou "Backlog" com maior prioridade
+4. **Bloqueios**: tarefas bloqueadas e seus motivos
+5. **Historico recente**: ultimas acoes para entender o fluxo
+6. **Foco do dia**: notas e planejamento do dev
+
+Com esse mapa, o agente pode:
+- Continuar uma tarefa em andamento
+- Pegar a proxima tarefa mais prioritaria
+- Desbloquear tarefas pendentes
+- Reportar o estado atual ao dev
+
+## DICA
+
+Execute esta skill sempre que iniciar uma nova conversa ou
+quando mudar de workspace. O contexto muda frequentemente
+e o agente deve estar sempre atualizado.
+""",
+    },
 ]
 
 CATEGORIES = {
     "setup": "Setup",
     "agent": "Agente",
     "workflow": "Fluxo de Trabalho",
-    "management": "Gestao",
+    "management": "Gestão",
 }

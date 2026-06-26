@@ -1,6 +1,6 @@
 #!/bin/bash
 # Maestro Local — instalação completa
-# Cria venv, instala dependencias e valida a instalação
+# Cria venv, instala dependências e valida a instalação
 
 set -e
 cd "$(dirname "$0")"
@@ -31,19 +31,19 @@ if [ ! -d ".venv" ]; then
     echo "Criando ambiente virtual..."
     $PYTHON -m venv .venv
 else
-    echo "Ambiente virtual ja existe."
+    echo "Ambiente virtual já existe."
 fi
 
 source .venv/bin/activate
 echo "Venv: $(which python)"
 
 # Dependencias
-echo "Instalando dependencias..."
+echo "Instalando dependências..."
 pip install -e . --quiet
 
 # Validação
 echo ""
-echo "Validando instalacao..."
+echo "Validando instalação..."
 python -c "
 import maestro_local
 from PySide6.QtWidgets import QApplication
@@ -54,7 +54,7 @@ print('  FastAPI: OK')
 "
 
 echo ""
-echo "=== Instalacao concluida ==="
+echo "=== Instalação concluída ==="
 echo ""
 echo "Para executar:"
 echo "  ./run.sh"

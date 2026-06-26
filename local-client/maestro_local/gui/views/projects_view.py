@@ -86,7 +86,7 @@ class ProjectCard(QFrame):
         stats_row = QHBoxLayout()
         stats_row.setSpacing(8)
 
-        stats_lbl = QLabel(f"{done}/{total} tarefas concluidas")
+        stats_lbl = QLabel(f"{done}/{total} tarefas concluídas")
         stats_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 11px; border: none;")
         stats_row.addWidget(stats_lbl)
 
@@ -159,8 +159,8 @@ class ProjectsView(QWidget):
         form_layout.addRow("Nome:", self.name_input)
 
         self.desc_input = QLineEdit()
-        self.desc_input.setPlaceholderText("Descricao breve (opcional)")
-        form_layout.addRow("Descricao:", self.desc_input)
+        self.desc_input.setPlaceholderText("Descrição breve (opcional)")
+        form_layout.addRow("Descrição:", self.desc_input)
 
         self.key_input = QLineEdit()
         self.key_input.setPlaceholderText("KEY")
@@ -226,7 +226,7 @@ class ProjectsView(QWidget):
                 )
                 empty_l.addWidget(empty_title)
 
-                empty_sub = QLabel("Crie seu primeiro projeto para comecar")
+                empty_sub = QLabel("Crie seu primeiro projeto para começar")
                 empty_sub.setAlignment(Qt.AlignCenter)
                 empty_sub.setStyleSheet(f"color: {t.text_muted}; font-size: 13px;")
                 empty_l.addWidget(empty_sub)
@@ -298,8 +298,8 @@ class ProjectsView(QWidget):
     def _delete(self, project_id):
         reply = QMessageBox.question(
             self,
-            "Confirmar exclusao",
-            "Tem certeza? Todas as tarefas do projeto serao excluidas.",
+            "Confirmar exclusão",
+            "Tem certeza? Todas as tarefas do projeto serão excluídas.",
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No,
         )

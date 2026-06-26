@@ -73,7 +73,7 @@ class SkillCard(QFrame):
         layout.addLayout(tags_row)
 
         actions = QHBoxLayout()
-        preview_btn = QPushButton("Ver conteudo")
+        preview_btn = QPushButton("Ver conteúdo")
         preview_btn.setProperty("flat", True)
         preview_btn.setFixedHeight(28)
         sid = skill["id"]
@@ -115,20 +115,20 @@ class SkillsView(QWidget):
         main_layout.addWidget(title)
 
         subtitle = QLabel(
-            "Skills sao instrucoes que ensinam agentes de IA a interagir com o Maestro. "
-            "Instale no diretorio .claude/skills/ do seu projeto."
+            "Skills são instruções que ensinam agentes de IA a interagir com o Maestro. "
+            "Instale no diretório .claude/skills/ do seu projeto."
         )
         subtitle.setWordWrap(True)
         subtitle.setObjectName("subtitle")
         main_layout.addWidget(subtitle)
 
         dir_row = QHBoxLayout()
-        dir_label = QLabel("Diretorio destino:")
+        dir_label = QLabel("Diretório destino:")
         dir_label.setProperty("class", "sectionLabel")
         dir_row.addWidget(dir_label)
 
         self.dir_input = QLineEdit()
-        self.dir_input.setPlaceholderText("Selecione o diretorio do projeto...")
+        self.dir_input.setPlaceholderText("Selecione o diretório do projeto...")
         self.dir_input.setReadOnly(True)
         if self._target_dir:
             self.dir_input.setText(self._target_dir)
@@ -178,7 +178,7 @@ class SkillsView(QWidget):
         self.refresh()
 
     def _browse_dir(self):
-        d = QFileDialog.getExistingDirectory(self, "Selecionar diretorio do projeto")
+        d = QFileDialog.getExistingDirectory(self, "Selecionar diretório do projeto")
         if d:
             self._target_dir = d
             self.dir_input.setText(d)

@@ -16,8 +16,8 @@ SECTIONS = [
         "title": "Crie um projeto",
         "body": (
             "Acesse a aba Projetos e crie um novo projeto com nome e chave (ex: MEU-PROJ). "
-            "O board sera criado automaticamente com as colunas: "
-            "Backlog, A fazer, Fazendo, Revisao e Concluido."
+            "O board será criado automaticamente com as colunas: "
+            "Backlog, A fazer, Fazendo, Revisão e Concluído."
         ),
     },
     {
@@ -26,15 +26,15 @@ SECTIONS = [
         "body": (
             "No Board, use o campo de texto na parte inferior de cada coluna para criar "
             "tarefas rapidamente. Clique em uma tarefa para abrir o detalhe e preencher "
-            "descricao, prioridade, tipo, checklist e labels."
+            "descrição, prioridade, tipo, checklist e labels."
         ),
     },
     {
         "icon": "3",
         "title": "Instale skills no seu projeto",
         "body": (
-            "Acesse a aba Skills, selecione o diretorio do seu projeto e instale as skills "
-            "desejadas. Elas serao salvas em .claude/skills/ e ensinam agentes de IA a "
+            "Acesse a aba Skills, selecione o diretório do seu projeto e instale as skills "
+            "desejadas. Elas serão salvas em .claude/skills/ e ensinam agentes de IA a "
             "interagir com o Maestro via API."
         ),
     },
@@ -45,8 +45,8 @@ SECTIONS = [
             "Com as skills instaladas, agentes de IA (como o Claude Code) podem:\n"
             "- Listar e pegar tarefas do backlog\n"
             "- Mover tarefas entre colunas\n"
-            "- Registrar progresso com comentarios\n"
-            "- Criar code reviews antes de enviar para revisao\n\n"
+            "- Registrar progresso com comentários\n"
+            "- Criar code reviews antes de enviar para revisão\n\n"
             "A API roda em http://127.0.0.1:9777/api enquanto o app estiver aberto."
         ),
     },
@@ -54,16 +54,16 @@ SECTIONS = [
         "icon": "5",
         "title": "Fluxo de trabalho com agentes",
         "body": (
-            "O fluxo padrao e:\n"
+            "O fluxo padrão é:\n"
             "1. Agente pega uma tarefa do Backlog ou A fazer\n"
-            "2. Move para Fazendo e implementa o codigo\n"
-            "3. Documenta o progresso com comentarios\n"
+            "2. Move para Fazendo e implementa o código\n"
+            "3. Documenta o progresso com comentários\n"
             "4. Cria um Code Review detalhado\n"
-            "5. Move para Revisao (exige code review)\n"
+            "5. Move para Revisão (exige code review)\n"
             "6. Informa o desenvolvedor sobre o que foi feito\n"
             "7. O desenvolvedor revisa, testa, faz commit e push\n\n"
             "IMPORTANTE: Agentes nunca fazem commits ou pushs. "
-            "Essa responsabilidade e exclusiva do desenvolvedor."
+            "Essa responsabilidade é exclusiva do desenvolvedor."
         ),
     },
     {
@@ -71,19 +71,19 @@ SECTIONS = [
         "title": "Tarefas exclusivas de desenvolvedor",
         "body": (
             "Marque tarefas como 'Requer desenvolvedor' no detalhe da tarefa. "
-            "Essas tarefas aparecem com badge DEV no board e sao ignoradas "
+            "Essas tarefas aparecem com badge DEV no board e são ignoradas "
             "automaticamente pelos agentes."
         ),
     },
     {
         "icon": "7",
-        "title": "Acompanhe metricas",
+        "title": "Acompanhe métricas",
         "body": (
-            "A aba Metricas mostra:\n"
+            "A aba Métricas mostra:\n"
             "- Total de tarefas e progresso\n"
-            "- Throughput semanal (tarefas concluidas por semana)\n"
-            "- Lead time e cycle time medios\n"
-            "- Distribuicao por tipo e prioridade\n"
+            "- Throughput semanal (tarefas concluídas por semana)\n"
+            "- Lead time e cycle time médios\n"
+            "- Distribuição por tipo e prioridade\n"
             "- Alertas de tarefas com prazo vencido"
         ),
     },
@@ -95,9 +95,9 @@ SECTIONS = [
             "- Alt+1 — Board\n"
             "- Alt+2 — Projetos\n"
             "- Alt+3 — Labels\n"
-            "- Alt+4 — Metricas\n"
+            "- Alt+4 — Métricas\n"
             "- Alt+5 — Skills\n"
-            "- Alt+6 — Instrucoes (esta tela)\n"
+            "- Alt+6 — Instruções (esta tela)\n"
             "- Escape — Fechar busca"
         ),
     },

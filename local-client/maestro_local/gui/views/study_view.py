@@ -24,7 +24,7 @@ from maestro_local.gui.theme import current_theme
 CATEGORIES = [
     ("LINGUAGEM", "Linguagem"),
     ("FRAMEWORK", "Framework"),
-    ("CERTIFICACAO", "Certificacao"),
+    ("CERTIFICACAO", "Certificação"),
     ("CONCEITO", "Conceito"),
     ("CURSO", "Curso"),
     ("LIVRO", "Livro"),
@@ -34,15 +34,15 @@ PLAN_STATUSES = [
     ("PLANEJADO", "Planejado"),
     ("EM_ANDAMENTO", "Em andamento"),
     ("PAUSADO", "Pausado"),
-    ("CONCLUIDO", "Concluido"),
+    ("CONCLUIDO", "Concluído"),
     ("ABANDONADO", "Abandonado"),
 ]
 
 TOPIC_STATUSES = [
     ("PENDENTE", "Pendente"),
     ("ESTUDANDO", "Estudando"),
-    ("REVISAO", "Revisao"),
-    ("CONCLUIDO", "Concluido"),
+    ("REVISAO", "Revisão"),
+    ("CONCLUIDO", "Concluído"),
     ("PULADO", "Pulado"),
 ]
 
@@ -234,14 +234,14 @@ class StudyView(QWidget):
         inputs.setSpacing(8)
         self.title_input = QLineEdit()
         self.title_input.setPlaceholderText("Ex: Aprender Rust")
-        inputs.addRow("Titulo:", self.title_input)
+        inputs.addRow("Título:", self.title_input)
         self.category_combo = QComboBox()
         for val, label in CATEGORIES:
             self.category_combo.addItem(label, val)
         inputs.addRow("Categoria:", self.category_combo)
         self.desc_input = QLineEdit()
-        self.desc_input.setPlaceholderText("Descricao breve (opcional)")
-        inputs.addRow("Descricao:", self.desc_input)
+        self.desc_input.setPlaceholderText("Descrição breve (opcional)")
+        inputs.addRow("Descrição:", self.desc_input)
         form_layout.addLayout(inputs)
 
         btn_row = QHBoxLayout()
@@ -308,14 +308,14 @@ class StudyView(QWidget):
         status_row.addStretch()
         layout.addLayout(status_row)
 
-        topics_title = QLabel("Topicos")
+        topics_title = QLabel("Tópicos")
         topics_title.setStyleSheet("font-size: 16px; font-weight: 600; margin-top: 12px;")
         layout.addWidget(topics_title)
 
         add_form = QHBoxLayout()
         add_form.setSpacing(8)
         self.topic_input = QLineEdit()
-        self.topic_input.setPlaceholderText("Titulo do topico...")
+        self.topic_input.setPlaceholderText("Título do tópico...")
         self.topic_input.returnPressed.connect(self._add_topic)
         add_form.addWidget(self.topic_input, 1)
         self.topic_weight = QSpinBox()
@@ -400,7 +400,7 @@ class StudyView(QWidget):
             self.plan_progress_bar.setValue(progress)
             not_skipped = len([t for t in p.topics if t.status != "PULADO" and t.parent_id is None])
             done_count = len([t for t in p.topics if t.status == "CONCLUIDO" and t.parent_id is None])
-            self.plan_progress_lbl.setText(f"{progress}%  ({done_count}/{not_skipped} topicos)")
+            self.plan_progress_lbl.setText(f"{progress}%  ({done_count}/{not_skipped} tópicos)")
             idx = self.plan_status_combo.findData(p.status)
             if idx >= 0:
                 self.plan_status_combo.blockSignals(True)
@@ -457,8 +457,8 @@ class StudyView(QWidget):
 
     def _delete_plan(self, plan_id):
         reply = QMessageBox.question(
-            self, "Confirmar exclusao",
-            "Tem certeza? Todos os topicos e sessoes serao excluidos.",
+            self, "Confirmar exclusão",
+            "Tem certeza? Todos os tópicos e sessões serão excluídos.",
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
         )
         if reply != QMessageBox.Yes:

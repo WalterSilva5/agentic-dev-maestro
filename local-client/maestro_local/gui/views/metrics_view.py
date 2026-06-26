@@ -76,7 +76,7 @@ class MetricsView(QWidget):
         self.main_layout.setContentsMargins(14, 14, 14, 14)
         self.main_layout.setSpacing(10)
 
-        title = QLabel("Metricas")
+        title = QLabel("Métricas")
         title.setObjectName("sectionTitle")
         self.main_layout.addWidget(title)
 
@@ -127,7 +127,7 @@ class MetricsView(QWidget):
                 )
                 empty_l.addWidget(empty_title)
 
-                empty_sub = QLabel("Crie tarefas nos seus projetos para ver metricas")
+                empty_sub = QLabel("Crie tarefas nos seus projetos para ver métricas")
                 empty_sub.setAlignment(Qt.AlignCenter)
                 empty_sub.setStyleSheet(f"color: {t.text_muted}; font-size: 13px;")
                 empty_l.addWidget(empty_sub)
@@ -188,14 +188,14 @@ class MetricsView(QWidget):
             cards_row = QHBoxLayout(cards_widget)
             cards_row.setContentsMargins(0, 0, 0, 0)
             cards_row.setSpacing(8)
-            cards_row.addWidget(MetricCard("Total de Tarefas", total, f"{done} concluidas"))
-            cards_row.addWidget(MetricCard("Ultimos 7 dias", last_7d, "tarefas concluidas"))
+            cards_row.addWidget(MetricCard("Total de Tarefas", total, f"{done} concluídas"))
+            cards_row.addWidget(MetricCard("Últimos 7 dias", last_7d, "tarefas concluídas"))
             cards_row.addWidget(
-                MetricCard("Lead Time Medio", fmt_hours(avg_lead), "criacao -> conclusao")
+                MetricCard("Lead Time Médio", fmt_hours(avg_lead), "criação -> conclusão")
             )
-            cards_row.addWidget(MetricCard("Ultimos 30 dias", last_30d, "tarefas concluidas"))
+            cards_row.addWidget(MetricCard("Últimos 30 dias", last_30d, "tarefas concluídas"))
             cards_row.addWidget(
-                MetricCard("Cycle Time", fmt_hours(avg_cycle), "inicio -> conclusao")
+                MetricCard("Cycle Time", fmt_hours(avg_cycle), "início -> conclusão")
             )
             cards_widget.adjustSize()
             cards_scroll.setWidget(cards_widget)

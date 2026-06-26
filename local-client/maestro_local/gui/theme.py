@@ -380,7 +380,7 @@ QFrame[class="card"] {{
     background: {t.bg_card};
     border: 1px solid {t.border_light};
     border-radius: 8px;
-    padding: 10px;
+    padding: 6px;
 }}
 QLabel[class="cardTitle"] {{
     font-weight: 700;
