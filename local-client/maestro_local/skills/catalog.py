@@ -658,8 +658,83 @@ description: Generate daily report - create notes, track activity, generate summ
 # Daily Report
 
 Fluxo para o agente criar e gerar o relatorio diario do usuario.
+Suporta dois modos: **parcial** (status do dia ate agora) e **completo** (fechamento do dia).
 
-## IMPORTANTE: A nota do dia e o conteudo PRINCIPAL do relatorio
+## Detectar modo de uso
+
+O agente deve identificar qual modo usar com base no pedido do usuario:
+
+| Pedido do usuario | Modo |
+|---|---|
+| "como esta meu dia", "status do dia", "o que fiz hoje", "resumo parcial" | **Parcial** |
+| "gerar relatorio do dia", "fechar o dia", "relatorio final", "resumo do dia" | **Completo** |
+
+Se o pedido for ambiguo, pergunte: "Quer um status parcial de como esta o dia ate agora, ou o relatorio completo de fechamento?"
+
+---
+
+## MODO PARCIAL — Status do dia ate agora
+
+Use quando o usuario quer apenas verificar como esta o dia, sem fechar.
+NAO gera relatorio formal nem resumo final. Apenas apresenta o estado atual.
+
+### Passo 1 — Coletar dados
+
+```bash
+# Data de hoje
+DATE=$(date +%F)
+
+# Nota do dia (foco planejado, bloqueios, anotacoes)
+curl -s http://127.0.0.1:9777/api/daily/$DATE | jq '{notes: .notes, report: .report}'
+
+# Atividade no board hoje
+curl -s http://127.0.0.1:9777/api/daily/$DATE/activity | jq .
+
+# Atividade recente geral
+curl -s http://127.0.0.1:9777/api/activity?limit=15 | jq '.[] | {action, detail, createdAt}'
+
+# Tarefas em andamento (coluna "Fazendo")
+curl -s http://127.0.0.1:9777/api/tasks?status=Fazendo | jq '.[] | {code, title, type, priority}'
+```
+
+### Passo 2 — Apresentar status
+
+Apresente ao usuario de forma conversacional:
+
+```
+Status do dia — YYYY-MM-DD
+
+Foco planejado: (extrair da nota do dia, se existir)
+- ...
+
+Em andamento agora:
+- PROJ-1: Titulo da tarefa (tipo, prioridade)
+- ...
+
+Feito ate agora:
+- Descricao curta da atividade
+- ...
+
+Bloqueios: (extrair da nota ou inferir de tarefas bloqueadas)
+- ...
+```
+
+### Regras do modo parcial
+
+- NAO chamar `POST /api/daily/{date}/report` (nao gerar relatorio formal)
+- NAO salvar resumo na nota do dia
+- NAO adicionar secao de analise
+- Apresentar de forma leve e conversacional
+- Se nao houver nota do dia, informar e sugerir criar uma
+- Se nao houver atividade, informar que o dia esta vazio ate agora
+
+---
+
+## MODO COMPLETO — Relatorio de fechamento do dia
+
+Use quando o usuario quer gerar o relatorio final.
+
+### IMPORTANTE: A nota do dia e o conteudo PRINCIPAL do relatorio
 
 O relatorio e gerado a partir da nota do dia (body da DailyNote). O conteudo
 da nota aparece INTEIRO no topo do relatorio, preservando todas as secoes.
@@ -667,7 +742,7 @@ da nota aparece INTEIRO no topo do relatorio, preservando todas as secoes.
 As atividades do board e timeline sao COMPLEMENTARES — aparecem abaixo da
 nota do dia como "Tarefas do Board" e "Timeline de Atividades".
 
-## Template de nota diaria
+### Template de nota diaria
 
 O template padrao e simples — apenas checklist:
 
@@ -682,45 +757,45 @@ O template padrao e simples — apenas checklist:
 - ...
 ```
 
-## 1. Verificar nota existente do dia
+### 1. Verificar nota existente do dia
 
 ```bash
-curl -s http://127.0.0.1:9777/api/daily/2026-06-25
+curl -s http://127.0.0.1:9777/api/daily/$(date +%F)
 ```
 
 Se a nota ja existe, leia o body para entender o contexto do dia.
 
-## 2. Criar nota do dia (se nao existe)
+### 2. Criar nota do dia (se nao existe)
 
 ```bash
-curl -X PUT http://127.0.0.1:9777/api/daily/2026-06-25 \\
+curl -X PUT http://127.0.0.1:9777/api/daily/$(date +%F) \\
   -H 'Content-Type: application/json' \\
   -d '{"body":"## Foco do Dia\\n- [ ] Implementar modulo X\\n..."}'
 ```
 
-## 3. Atualizar nota do dia
+### 3. Atualizar nota do dia
 
 ```bash
-curl -X PATCH http://127.0.0.1:9777/api/daily/2026-06-25 \\
+curl -X PATCH http://127.0.0.1:9777/api/daily/$(date +%F) \\
   -H 'Content-Type: application/json' \\
   -d '{"body":"## Foco do Dia\\n- [x] Implementar modulo X\\n- [ ] Modulo Y\\n..."}'
 ```
 
 Use PATCH para atualizar secoes especificas sem perder o que ja existe.
 
-## 4. Ver atividade do dia (complementar)
+### 4. Ver atividade do dia (complementar)
 
 ```bash
-curl -s http://127.0.0.1:9777/api/daily/2026-06-25/activity
+curl -s http://127.0.0.1:9777/api/daily/$(date +%F)/activity
 ```
 
 Retorna tarefas que tiveram atividade no board.
 Use para ENRIQUECER a nota — adicione itens nos checkpoints.
 
-## 5. Gerar relatorio base do dia
+### 5. Gerar relatorio base do dia
 
 ```bash
-curl -X POST http://127.0.0.1:9777/api/daily/2026-06-25/report
+curl -X POST http://127.0.0.1:9777/api/daily/$(date +%F)/report
 ```
 
 O relatorio inclui:
@@ -729,31 +804,31 @@ O relatorio inclui:
 3. Timeline de atividades
 4. Resumo automatico
 
-## 6. Adicionar analise ao relatorio
+### 6. Adicionar analise ao relatorio
 
 ```bash
-curl -X PATCH http://127.0.0.1:9777/api/daily/2026-06-25/report \\
+curl -X PATCH http://127.0.0.1:9777/api/daily/$(date +%F)/report \\
   -H 'Content-Type: application/json' \\
   -d '{"content":"## Analise\\n- ..."}'
 ```
 
-## Fluxo recomendado
+### Fluxo recomendado (completo)
 
 1. Verificar se ja existe nota (`GET /api/daily/{date}`)
 2. Se existe: ler o body
 3. Se nao existe: criar com template (`PUT /api/daily/{date}`)
 4. Verificar atividade do board (`GET /api/daily/{date}/activity`)
 5. Atualizar nota com informacoes novas (`PATCH /api/daily/{date}`)
-6. Gerar relatorio quando solicitado (`POST /api/daily/{date}/report`)
+6. Gerar relatorio (`POST /api/daily/{date}/report`)
 7. **Gerar resumo final** (ver secao abaixo)
 
-## 7. Resumo final para registro de trabalho
+### 7. Resumo final para registro de trabalho
 
 Ao final do fluxo, SEMPRE gere um resumo simples para registro de trabalho.
 O resumo deve ser uma bullet list direta, sem codigo, sem detalhes tecnicos,
 sem explicacoes longas — apenas o que foi feito no dia.
 
-### Formato obrigatorio
+#### Formato obrigatorio
 
 ```markdown
 ## Resumo do dia — YYYY-MM-DD
@@ -763,7 +838,7 @@ sem explicacoes longas — apenas o que foi feito no dia.
 - ...
 ```
 
-### Exemplo
+#### Exemplo
 
 ```markdown
 ## Resumo do dia — 2026-06-26
@@ -775,7 +850,7 @@ sem explicacoes longas — apenas o que foi feito no dia.
 - Atualizacao da documentacao da API
 ```
 
-### Regras do resumo
+#### Regras do resumo
 
 - Uma linha por item, comecando com `-`
 - Linguagem simples e direta (sem jargao tecnico desnecessario)
@@ -788,13 +863,17 @@ sem explicacoes longas — apenas o que foi feito no dia.
 O resumo deve ser exibido ao usuario no final da conversa E salvo na nota do dia
 via `PATCH /api/daily/{date}` — adicionado ao final do body existente.
 
-## Dicas
+---
+
+## Dicas gerais
 
 - A nota do dia e a FONTE PRINCIPAL do relatorio
 - O relatorio preserva o conteudo da nota inteiro no topo
 - Use `GET /api/daily/{date}/activity` para complementar
 - A data sempre no formato ISO: YYYY-MM-DD
-- O resumo final e obrigatorio — nao encerre sem gera-lo
+- No modo completo, o resumo final e obrigatorio — nao encerre sem gera-lo
+- No modo parcial, NAO salve nada — apenas apresente o status
+- Use `$(date +%F)` para obter a data atual automaticamente
 """,
     },
     {
@@ -920,11 +999,59 @@ Para qualquer tarefa que precise de mais detalhes:
 # Contexto completo (tarefa + comentarios + docs + atividade)
 curl -s http://127.0.0.1:9777/api/tasks/{CODE}/context | jq .
 
-# Fluxo da tarefa (historico de movimentacoes entre colunas)
+# Fluxo da tarefa (grafo de dependencias)
 curl -s http://127.0.0.1:9777/api/tasks/{CODE}/flow | jq .
 ```
 
-## PASSO 8 — Labels disponiveis
+## PASSO 8 — Historico de desenvolvimento por tarefa
+
+O endpoint `/history` retorna a timeline estruturada de uma tarefa:
+transicoes de coluna, comentarios, code reviews, progresso do checklist.
+Use para entender o historico completo de uma tarefa antes de continuar.
+
+```bash
+curl -s http://127.0.0.1:9777/api/tasks/{CODE}/history | jq '{
+  task: .task.code,
+  status: .currentStatus,
+  columnFlow: .columnFlow,
+  checklist: .checklist,
+  hasCodeReview: .hasCodeReview,
+  commentCount: .commentCount,
+  timeline: [.timeline[] | {type, action, detail, timestamp}]
+}'
+```
+
+### O que observar no historico
+
+- **columnFlow**: sequencia de transicoes (ex: "Backlog -> A Fazer -> Fazendo")
+- **hasCodeReview**: se ja tem code review registrado
+- **checklist**: progresso do Definition of Done
+- **timeline**: todos os eventos em ordem cronologica
+
+## PASSO 9 — Changelog do projeto
+
+O endpoint `/changelog` retorna o historico agregado de um projeto
+nos ultimos N dias (padrao: 7). Use para entender o ritmo do projeto.
+
+```bash
+curl -s "http://127.0.0.1:9777/api/projects/{PROJECT_ID}/changelog?days=7" | jq '{
+  project: .project.name,
+  summary: .summary,
+  completed: [.completed[] | {code, title, type}],
+  inProgress: [.inProgress[] | {code, title, assignee}],
+  recentComments: [.recentComments[:5][] | {taskCode, type, body}]
+}'
+```
+
+### O que observar no changelog
+
+- **summary.completedInPeriod**: velocidade de entrega
+- **summary.inProgress**: trabalho ativo
+- **completed**: o que foi entregue — contexto para continuar
+- **inProgress**: tarefas em andamento — verificar se precisa ajuda
+- **activityByDay**: ritmo diario de atividade
+
+## PASSO 10 — Labels disponiveis
 
 ```bash
 curl -s http://127.0.0.1:9777/api/labels | jq '.[] | {id, name, color}'
@@ -940,18 +1067,24 @@ Apos executar os passos acima, o agente deve montar mentalmente:
 4. **Bloqueios**: tarefas bloqueadas e seus motivos
 5. **Historico recente**: ultimas acoes para entender o fluxo
 6. **Foco do dia**: notas e planejamento do dev
+7. **Historico de tarefas ativas**: timeline de cada tarefa em andamento
+8. **Changelog do projeto**: o que foi feito nos ultimos dias
 
 Com esse mapa, o agente pode:
-- Continuar uma tarefa em andamento
+- Continuar uma tarefa em andamento de onde parou
 - Pegar a proxima tarefa mais prioritaria
 - Desbloquear tarefas pendentes
 - Reportar o estado atual ao dev
+- Revisar o que foi feito antes de avancar
 
 ## DICA
 
 Execute esta skill sempre que iniciar uma nova conversa ou
 quando mudar de workspace. O contexto muda frequentemente
 e o agente deve estar sempre atualizado.
+
+Para revisao de contexto rapida, use apenas os passos 8 e 9
+(historico da tarefa + changelog do projeto).
 """,
     },
 ]

@@ -2,10 +2,12 @@ import shutil
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QSize, QTimer
+from PySide6.QtCore import Qt, QDate, QSize, QTimer
 from PySide6.QtGui import QFont  # noqa: F401
 from PySide6.QtWidgets import (
+    QCalendarWidget,
     QComboBox,
+    QDateEdit,
     QFileDialog,
     QFrame,
     QHBoxLayout,
@@ -57,11 +59,15 @@ class DailyView(QWidget):
         header.addWidget(title)
         header.addStretch()
 
-        # Date selector
-        self.date_combo = QComboBox()
-        self.date_combo.setFixedWidth(140)
-        self.date_combo.currentTextChanged.connect(self._on_date_changed)
-        header.addWidget(self.date_combo)
+        # Date picker
+        self.date_edit = QDateEdit()
+        self.date_edit.setCalendarPopup(True)
+        self.date_edit.setDisplayFormat("yyyy-MM-dd")
+        self.date_edit.setDate(QDate.currentDate())
+        self.date_edit.setFixedWidth(140)
+        self.date_edit.setFixedHeight(28)
+        self.date_edit.dateChanged.connect(self._on_date_changed)
+        header.addWidget(self.date_edit)
 
         main.addLayout(header)
 
@@ -340,27 +346,14 @@ class DailyView(QWidget):
         self._refresh_obs_projects()
 
     def _populate_dates(self):
-        self.date_combo.blockSignals(True)
-        self.date_combo.clear()
-        today = date.today()
-        for i in range(30):
-            d = today - timedelta(days=i)
-            self.date_combo.addItem(d.isoformat())
-        s = get_session()
-        try:
-            notes = s.query(DailyNote.date).order_by(DailyNote.date.desc()).all()
-            existing = {n.date for n in notes}
-            combo_dates = {self.date_combo.itemText(i) for i in range(self.date_combo.count())}
-            for d in sorted(existing - combo_dates, reverse=True):
-                self.date_combo.addItem(d)
-        finally:
-            s.close()
-        idx = self.date_combo.findText(self._today)
-        if idx >= 0:
-            self.date_combo.setCurrentIndex(idx)
-        self.date_combo.blockSignals(False)
+        self.date_edit.blockSignals(True)
+        qd = QDate.fromString(self._today, "yyyy-MM-dd")
+        if qd.isValid():
+            self.date_edit.setDate(qd)
+        self.date_edit.blockSignals(False)
 
-    def _on_date_changed(self, text):
+    def _on_date_changed(self, qdate):
+        text = qdate.toString("yyyy-MM-dd")
         if text:
             self._today = text
             self._load_day(text)

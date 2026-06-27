@@ -893,6 +893,172 @@ def task_context(code: str, s: Session = Depends(db)):
 
 
 # ---------------------------------------------------------------------------
+# Task History / Project Changelog
+# ---------------------------------------------------------------------------
+
+
+@app.get("/api/tasks/{code}/history")
+def task_history(code: str, s: Session = Depends(db)):
+    """Structured development history for a task — review context."""
+    task = _resolve_task(code, s)
+
+    # Column transitions from activity log
+    moves = (
+        s.query(ActivityLog)
+        .filter(ActivityLog.entity_type == "task", ActivityLog.entity_id == task.id, ActivityLog.action == "moved")
+        .order_by(ActivityLog.created_at)
+        .all()
+    )
+
+    # All activity
+    activity = (
+        s.query(ActivityLog)
+        .filter(ActivityLog.entity_type == "task", ActivityLog.entity_id == task.id)
+        .order_by(ActivityLog.created_at)
+        .all()
+    )
+
+    # Comments (code reviews, commit refs, etc)
+    comments = (
+        s.query(Comment)
+        .filter(Comment.task_id == task.id)
+        .order_by(Comment.created_at)
+        .all()
+    )
+
+    # Checklist progress
+    checklist = task.checklist
+    done_count = sum(1 for c in checklist if c.checked)
+    total_count = len(checklist)
+
+    # Build unified timeline
+    timeline = []
+    for a in activity:
+        timeline.append({
+            "type": "activity",
+            "action": a.action,
+            "detail": a.detail,
+            "timestamp": a.created_at.isoformat() if a.created_at else None,
+        })
+    for c in comments:
+        timeline.append({
+            "type": "comment",
+            "commentType": c.type,
+            "author": c.author,
+            "body": c.body[:200] + "..." if len(c.body) > 200 else c.body,
+            "timestamp": c.created_at.isoformat() if c.created_at else None,
+        })
+    timeline.sort(key=lambda x: x.get("timestamp") or "")
+
+    # Column flow (ordered transitions)
+    column_flow = []
+    for m in moves:
+        column_flow.append({
+            "transition": m.detail,
+            "timestamp": m.created_at.isoformat() if m.created_at else None,
+        })
+
+    # Time in current status
+    last_move = moves[-1] if moves else None
+
+    return {
+        "task": _task_brief(task),
+        "currentStatus": task.status,
+        "columnFlow": column_flow,
+        "lastMoveAt": last_move.created_at.isoformat() if last_move and last_move.created_at else task.created_at.isoformat() if task.created_at else None,
+        "checklist": {
+            "done": done_count,
+            "total": total_count,
+            "items": [{"title": c.title, "checked": c.checked} for c in checklist],
+        },
+        "timeline": timeline,
+        "commentCount": len(comments),
+        "hasCodeReview": any(c.type == "CODE_REVIEW" for c in comments),
+    }
+
+
+@app.get("/api/projects/{project_id}/changelog")
+def project_changelog(project_id: int, days: int = 7, s: Session = Depends(db)):
+    """Project changelog — structured history for review context."""
+    project = s.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(404, "Project not found")
+
+    since = datetime.utcnow() - timedelta(days=days)
+
+    # All tasks in this project
+    tasks = (
+        s.query(Task)
+        .filter(Task.project_id == project_id, Task.deleted_at.is_(None))
+        .all()
+    )
+    task_ids = [t.id for t in tasks]
+
+    # Activity in the period
+    activity = (
+        s.query(ActivityLog)
+        .filter(
+            ActivityLog.entity_type == "task",
+            ActivityLog.entity_id.in_(task_ids),
+            ActivityLog.created_at >= since,
+        )
+        .order_by(ActivityLog.created_at.desc())
+        .all()
+    ) if task_ids else []
+
+    # Comments in the period
+    comments = (
+        s.query(Comment)
+        .filter(
+            Comment.task_id.in_(task_ids),
+            Comment.created_at >= since,
+        )
+        .order_by(Comment.created_at.desc())
+        .all()
+    ) if task_ids else []
+
+    # Tasks completed in period (moved to done column)
+    done_columns = s.query(BoardColumn).filter(BoardColumn.project_id == project_id, BoardColumn.is_done == True).all()
+    done_col_ids = [c.id for c in done_columns]
+    completed = [t for t in tasks if t.column_id in done_col_ids and t.updated_at and t.updated_at >= since]
+
+    # Tasks currently in progress
+    in_progress = [t for t in tasks if t.column and t.column.name.lower() in ("fazendo", "doing", "in progress")]
+
+    # Group activity by day
+    from collections import defaultdict
+    by_day = defaultdict(list)
+    for a in activity:
+        day = a.created_at.strftime("%Y-%m-%d") if a.created_at else "unknown"
+        by_day[day].append(_activity_dict(a))
+
+    return {
+        "project": {"id": project.id, "name": project.name, "key": project.key},
+        "period": {"days": days, "since": since.isoformat()},
+        "summary": {
+            "totalTasks": len(tasks),
+            "completedInPeriod": len(completed),
+            "inProgress": len(in_progress),
+            "commentsInPeriod": len(comments),
+            "activityCount": len(activity),
+        },
+        "completed": [_task_brief(t) for t in completed],
+        "inProgress": [_task_brief(t) for t in in_progress],
+        "recentComments": [
+            {
+                "taskCode": c.task.code if c.task else "?",
+                "type": c.type,
+                "author": c.author,
+                "body": c.body[:200] + "..." if len(c.body) > 200 else c.body,
+                "createdAt": c.created_at.isoformat() if c.created_at else None,
+            }
+            for c in comments[:20]
+        ],
+        "activityByDay": dict(by_day),
+    }
+
+
+# ---------------------------------------------------------------------------
 # Labels
 # ---------------------------------------------------------------------------
 
