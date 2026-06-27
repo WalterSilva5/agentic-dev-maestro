@@ -126,14 +126,16 @@ O agente **NUNCA** deve executar `git commit`, `git push`, ou qualquer
 operacao de versionamento por conta propria. Commits e pushs so devem
 ser feitos quando o desenvolvedor **explicitamente** pedir.
 
-O papel do agente e:
-1. **Implementar** o codigo da tarefa
+O agente e um auxiliar do desenvolvedor. Seu papel e:
+1. **Auxiliar** na implementacao do codigo da tarefa
 2. **Documentar** o que foi feito (comentarios, code review, docs)
-3. **Informar o desenvolvedor** sobre o estado e proximo passo
-4. **Aguardar** a decisao do dev sobre commit/push
+3. **Criar tarefa de revisao** para o desenvolvedor validar as alteracoes
+4. **Informar o desenvolvedor** sobre o estado e proximo passo
+5. **Aguardar** a decisao do dev sobre commit/push
 
-Ao terminar uma implementacao, o agente deve:
+Ao terminar uma implementacao, o agente DEVE:
 - Criar o code review como comentario na tarefa
+- Criar uma TAREFA DE REVISAO para o desenvolvedor (ver passo 7)
 - Informar ao dev: quais arquivos foram alterados, o que testar
 - Perguntar ao dev se deseja fazer commit e push
 
@@ -229,16 +231,43 @@ curl -X POST http://127.0.0.1:9777/api/tasks/{CODE}/move \\
 
 **NAO mova para Revisao sem o CODE_REVIEW.** A API bloqueia essa acao.
 
-## 7. Informar o desenvolvedor
+## 7. Criar tarefa de revisao para o desenvolvedor (OBRIGATORIO)
 
-Apos mover para Revisao, o agente deve informar o desenvolvedor:
+**SEMPRE** crie uma tarefa de revisao para o desenvolvedor validar o trabalho.
+Essa tarefa garante que nenhum codigo vai para producao sem revisao humana.
+
+```bash
+curl -X POST http://127.0.0.1:9777/api/tasks \\
+  -H 'Content-Type: application/json' \\
+  -d '{
+    "projectId": PROJECT_ID,
+    "title": "Revisar: TITULO_DA_TAREFA_ORIGINAL",
+    "description": "## Tarefa original\\nCodigo: TASK_CODE\\n\\n## Resumo das alteracoes\\n- Descricao do que foi feito\\n\\n## Arquivos modificados\\n- path/to/file1\\n- path/to/file2\\n\\n## O que testar\\n- Verificar X\\n- Testar Y no browser\\n\\n## Pontos de atencao\\n- Nenhum risco identificado\\n\\n## Apos revisao\\n- Fazer commit e push se aprovado",
+    "type": "CHORE",
+    "priority": "HIGH",
+    "requiresHuman": true
+  }'
+```
+
+### Regras da tarefa de revisao
+
+- Tipo: **CHORE** com prioridade **HIGH**
+- Flag `requiresHuman: true` — garante que outro agente nao pegue
+- Titulo: "Revisar: [titulo da tarefa original]"
+- Descricao deve conter: resumo, arquivos, o que testar, pontos de atencao
+- Criar SEMPRE, mesmo para alteracoes pequenas
+
+## 8. Informar o desenvolvedor
+
+Apos mover para Revisao e criar a tarefa de revisao, o agente deve informar:
 
 - Resumo do que foi implementado
 - Lista de arquivos modificados
+- Codigo da tarefa de revisao criada
 - O que o dev precisa testar/validar
 - Lembrar que commits e pushs sao responsabilidade do dev
 
-**O agente NAO faz commit. O agente NAO faz push. O agente documenta e informa.**
+**O agente NAO faz commit. O agente NAO faz push. O agente documenta, cria tarefa de revisao e informa.**
 """,
     },
     {

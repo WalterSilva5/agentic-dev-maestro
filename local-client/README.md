@@ -52,6 +52,7 @@ Tela principal do dia de trabalho:
 - **Obsidian Vault**: selecionar vault por projeto/workspace, sincronizar notas e tarefas com o Obsidian. Sync automático a cada 5 minutos
 - **Notas do dia**: editor markdown com template pre-configurado, preview renderizado, botão para inserir template padrão (Foco do Dia, Tarefas, Blockers, Notas Técnicas)
 - **Gerar Relatório**: gera relatório automático com lista de tarefas trabalhadas, atividades do dia e resumo
+- **Date picker**: calendário popup para navegar entre dias (substituiu o combo de datas)
 - **Dica IA**: ao lado do relatório gerado, botão com prompt sugerido para pedir a um agente de IA que resuma o dia usando a skill `maestro-daily-report`
 - **Atividade do dia**: timeline com todas as ações do dia (tasks criadas, movidas, comentadas)
 - **Backup do Banco**: exportar cópia do banco SQLite
@@ -86,6 +87,7 @@ Board de tarefas por projeto:
 - **WIP limits**: limite de tarefas por coluna
 - **Cards**: mostram tipo, prioridade, labels, due date, assignee, indicador de bloqueio e checklist progress
 - **Task detail**: dialog completo com título, descrição, tipo, prioridade, assignee, due date, labels, checklist (Definition of Done), dependências, comentários com markdown
+- **Tarefas de revisão**: agentes sempre criam tarefas com `requiresHuman: true` para o desenvolvedor validar alterações
 
 ### Projetos (Alt+5)
 
@@ -113,7 +115,7 @@ Dashboard analítico:
 
 Biblioteca de skills para agentes de IA:
 
-- **11 skills** com prefixo `maestro-` organizadas por categoria (Setup, Agente, Fluxo de Trabalho, Planejamento, Qualidade, Registro)
+- **12 skills** com prefixo `maestro-` organizadas por categoria (Setup, Agente, Fluxo de Trabalho, Planejamento, Qualidade, Registro)
 - **Instalar**: um clique instala o arquivo SKILL.md em `.claude/skills/` do projeto alvo
 - **Instalar todas**: botão para instalar todas as skills de uma vez
 - **Preview**: ver o conteúdo da skill antes de instalar
@@ -121,7 +123,7 @@ Biblioteca de skills para agentes de IA:
 
 ### Instruções (Alt+9)
 
-Guia de uso com explicações de cada tela e fluxo de trabalho.
+Guia de uso reestruturado com 10 seções, incluindo explicações de cada tela, fluxo de trabalho, o papel dos agentes e tarefas de revisão.
 
 ## Recursos gerais
 
@@ -161,6 +163,8 @@ A API roda em `http://127.0.0.1:9777/api` sem autenticação. Todos os endpoints
 | Dependências | DELETE | `/api/tasks/{code}/dependencies/{id}` | Remover dependência |
 | Context | GET | `/api/tasks/{code}/context` | Contexto completo da tarefa |
 | Context | GET | `/api/tasks/{code}/flow` | Fluxo de trabalho da tarefa |
+| Histórico | GET | `/api/tasks/{code}/history` | Timeline estruturada de desenvolvimento (transições, comentários, code reviews, checklist) |
+| Changelog | GET | `/api/projects/{project_id}/changelog?days=7` | Changelog agregado do projeto (tarefas concluídas, em andamento, atividade por dia) |
 | Labels | POST | `/api/labels` | Criar label |
 | Labels | GET | `/api/labels` | Listar labels |
 | Labels | DELETE | `/api/labels/{id}` | Remover label |
@@ -224,7 +228,8 @@ curl -X POST http://127.0.0.1:9777/api/tasks/MP-1/move \
 | `maestro-daily-standup` | Registro | Gerar relatório de standup automático |
 | `maestro-tech-debt-tracker` | Qualidade | Registrar e priorizar dívida técnica |
 | `maestro-documentation-writer` | Registro | Gerar documentação a partir do código |
-| `maestro-daily-report` | Registro | Relatório diário com notas, atividade e resumo em bullet list |
+| `maestro-daily-report` | Registro | Relatório diário com notas, atividade e resumo em bullet list (suporta modo parcial) |
+| `maestro-context-loader` | Agente | Carregar contexto completo do workspace para retomar trabalho de onde parou |
 
 ## Tipos de tarefa
 
@@ -286,7 +291,7 @@ maestro_local/
 │       ├── skills_view.py       # Skills para agentes de IA
 │       └── guide_view.py        # Instruções de uso
 └── skills/
-    └── catalog.py           # Catálogo de 11 skills com conteúdo SKILL.md
+    └── catalog.py           # Catálogo de 12 skills com conteúdo SKILL.md
 ```
 
 ## Requisitos

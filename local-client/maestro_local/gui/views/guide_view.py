@@ -12,6 +12,25 @@ from maestro_local.gui.theme import current_theme
 
 SECTIONS = [
     {
+        "icon": "🎯",
+        "title": "O papel dos agentes",
+        "body": (
+            "Agentes de IA são auxiliares dos desenvolvedores. Eles não substituem "
+            "o desenvolvedor — ajudam a acelerar o trabalho repetitivo, documentar "
+            "progresso e preparar código para revisão humana.\n\n"
+            "O que agentes fazem:\n"
+            "- Auxiliam na implementação de tarefas\n"
+            "- Documentam progresso com comentários estruturados\n"
+            "- Criam code reviews detalhados\n"
+            "- Criam tarefas de revisão para o desenvolvedor validar\n"
+            "- Geram relatórios e resumos do dia\n\n"
+            "O que agentes NUNCA fazem:\n"
+            "- Commits ou pushs (responsabilidade exclusiva do dev)\n"
+            "- Tocar em tarefas marcadas como 'Requer desenvolvedor'\n"
+            "- Tomar decisões de arquitetura sem consultar o dev"
+        ),
+    },
+    {
         "icon": "1",
         "title": "Crie um projeto",
         "body": (
@@ -35,35 +54,40 @@ SECTIONS = [
         "body": (
             "Acesse a aba Skills, selecione o diretório do seu projeto e instale as skills "
             "desejadas. Elas serão salvas em .claude/skills/ e ensinam agentes de IA a "
-            "interagir com o Maestro via API."
+            "interagir com o Maestro via API.\n\n"
+            "As skills orientam os agentes sobre como usar a API, seguir o fluxo de "
+            "trabalho, criar tarefas de revisão e respeitar as regras do projeto."
         ),
     },
     {
         "icon": "4",
-        "title": "Agentes trabalham via API",
+        "title": "Fluxo de trabalho: dev + agente",
         "body": (
-            "Com as skills instaladas, agentes de IA (como o Claude Code) podem:\n"
-            "- Listar e pegar tarefas do backlog\n"
-            "- Mover tarefas entre colunas\n"
-            "- Registrar progresso com comentários\n"
-            "- Criar code reviews antes de enviar para revisão\n\n"
-            "A API roda em http://127.0.0.1:9777/api enquanto o app estiver aberto."
+            "O desenvolvedor lidera, o agente auxilia:\n\n"
+            "1. Dev cria tarefas no board com descrição e critérios\n"
+            "2. Agente pega uma tarefa e move para Fazendo\n"
+            "3. Agente auxilia na implementação e documenta progresso\n"
+            "4. Agente cria Code Review detalhado na tarefa\n"
+            "5. Agente SEMPRE cria uma tarefa de revisão para o dev\n"
+            "6. Agente move para Revisão (exige code review)\n"
+            "7. Dev revisa as alterações, testa e faz commit/push\n"
+            "8. Dev move para Concluído após validar\n\n"
+            "A tarefa de revisão garante que o desenvolvedor sempre "
+            "valide o trabalho do agente antes de ir para produção."
         ),
     },
     {
         "icon": "5",
-        "title": "Fluxo de trabalho com agentes",
+        "title": "Tarefas de revisão",
         "body": (
-            "O fluxo padrão é:\n"
-            "1. Agente pega uma tarefa do Backlog ou A fazer\n"
-            "2. Move para Fazendo e implementa o código\n"
-            "3. Documenta o progresso com comentários\n"
-            "4. Cria um Code Review detalhado\n"
-            "5. Move para Revisão (exige code review)\n"
-            "6. Informa o desenvolvedor sobre o que foi feito\n"
-            "7. O desenvolvedor revisa, testa, faz commit e push\n\n"
-            "IMPORTANTE: Agentes nunca fazem commits ou pushs. "
-            "Essa responsabilidade é exclusiva do desenvolvedor."
+            "Ao concluir qualquer implementação, o agente DEVE criar uma tarefa "
+            "de revisão para o desenvolvedor. Essa tarefa inclui:\n"
+            "- Resumo do que foi feito\n"
+            "- Arquivos alterados\n"
+            "- O que testar\n"
+            "- Pontos de atenção\n\n"
+            "Isso cria um histórico estruturado de revisões que serve como "
+            "contexto para futuras sessões e garante qualidade no código."
         ),
     },
     {
@@ -72,7 +96,8 @@ SECTIONS = [
         "body": (
             "Marque tarefas como 'Requer desenvolvedor' no detalhe da tarefa. "
             "Essas tarefas aparecem com badge DEV no board e são ignoradas "
-            "automaticamente pelos agentes."
+            "automaticamente pelos agentes. Use para tarefas que exigem "
+            "decisão humana, acesso a sistemas externos ou revisão crítica."
         ),
     },
     {
@@ -88,16 +113,31 @@ SECTIONS = [
         ),
     },
     {
+        "icon": "8",
+        "title": "Meu Dia e relatórios",
+        "body": (
+            "A tela Meu Dia é o ponto central do dia de trabalho:\n"
+            "- Notas do dia com template de foco, tarefas e bloqueios\n"
+            "- Geração de relatório com resumo de atividades\n"
+            "- Dica IA com prompt para o agente gerar o resumo\n"
+            "- Timeline de atividade do dia\n"
+            "- Sincronização com vault do Obsidian"
+        ),
+    },
+    {
         "icon": "?",
         "title": "Atalhos de teclado",
         "body": (
             "- Ctrl+K — Busca global de tarefas\n"
-            "- Alt+1 — Board\n"
-            "- Alt+2 — Projetos\n"
-            "- Alt+3 — Labels\n"
-            "- Alt+4 — Métricas\n"
-            "- Alt+5 — Skills\n"
-            "- Alt+6 — Instruções (esta tela)\n"
+            "- Alt+1 — Dashboard\n"
+            "- Alt+2 — Meu Dia\n"
+            "- Alt+3 — Estudos\n"
+            "- Alt+4 — Board\n"
+            "- Alt+5 — Projetos\n"
+            "- Alt+6 — Labels\n"
+            "- Alt+7 — Métricas\n"
+            "- Alt+8 — Skills\n"
+            "- Alt+9 — Instruções (esta tela)\n"
             "- Escape — Fechar busca"
         ),
     },
@@ -116,8 +156,9 @@ class GuideView(QWidget):
         main_layout.addWidget(title)
 
         subtitle = QLabel(
-            "Gerencie tarefas com um board kanban e deixe agentes de IA "
-            "ajudarem no desenvolvimento via API REST."
+            "Gerencie tarefas com um board kanban e use agentes de IA como "
+            "auxiliares dos desenvolvedores — eles ajudam a implementar, "
+            "documentar e preparar código para revisão humana via API REST."
         )
         subtitle.setWordWrap(True)
         subtitle.setObjectName("subtitle")

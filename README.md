@@ -12,7 +12,7 @@ O Maestro é uma ferramenta local para desenvolvedores que querem organizar seu 
 
 - **Tudo local**: dados em SQLite, GUI desktop nativa, sem cloud
 - **API para agentes**: agentes de IA criam tarefas, movem no board, registram code reviews e geram relatórios — tudo via REST
-- **Skills prontas**: 11 skills instaláveis que ensinam agentes a usar o Maestro
+- **Skills prontas**: 12 skills instaláveis que ensinam agentes a usar o Maestro
 - **Workspaces isolados**: cada workspace tem seu próprio banco, permitindo separar projetos pessoais de profissionais
 - **Obsidian sync**: sincroniza notas diárias e tarefas com seu vault do Obsidian
 - **Pomodoro integrado**: timer na sidebar para sessões de foco
@@ -48,13 +48,13 @@ A aplicação abre com:
 ## Funcionalidades
 
 ### Meu Dia (home)
-Tela principal com notas diárias em markdown, template pre-configurado, geração de relatório automático com resumo de atividades, e sincronização com Obsidian vault. Inclui dica de prompt para que agentes de IA gerem o resumo via skill.
+Tela principal com notas diárias em markdown, template pre-configurado, geração de relatório automático com resumo de atividades, e sincronização com Obsidian vault. Date picker com calendário popup para navegar entre dias. Inclui dica de prompt para que agentes de IA gerem o resumo via skill.
 
 ### Dashboard
 Visão geral com cards de resumo (tarefas ativas, concluídas, vencidas, em progresso), lista de tarefas vencidas clicáveis, atividade recente com timeline, e progresso por projeto.
 
 ### Board Kanban
-Board com drag-and-drop, colunas customizáveis por projeto, filtros por tipo/prioridade/responsável, botão quick-move para avançar tarefas, WIP limits e indicador de code review obrigatório.
+Board com drag-and-drop, colunas customizáveis por projeto, filtros por tipo/prioridade/responsável, botão quick-move para avançar tarefas, WIP limits e indicador de code review obrigatório. Agentes sempre criam tarefas de revisão (`requiresHuman: true`) para o desenvolvedor validar alterações.
 
 ### Projetos
 Criar e gerenciar projetos com chave única (ex: DEMO). Cada projeto tem suas colunas de board, tarefas, labels e métricas próprias.
@@ -69,10 +69,10 @@ Dashboard com total de tarefas, concluídas (7 e 30 dias), lead time médio, cyc
 Planos de estudo com roadmap visual, categorias (Linguagem, Framework, Certificação, Conceito, Curso, Livro), tópicos ponderados, sessões com tracking de horas e nível de confiança (1-5).
 
 ### Skills
-Biblioteca de 11 skills para agentes de IA. Cada skill é um arquivo SKILL.md que pode ser instalado no diretório `.claude/skills/` do projeto. Botão "Instalar todas" para setup rápido.
+Biblioteca de 12 skills para agentes de IA. Cada skill é um arquivo SKILL.md que pode ser instalado no diretório `.claude/skills/` do projeto. Botão "Instalar todas" para setup rápido.
 
 ### Instruções
-Guia de uso da aplicação com explicações de cada tela e fluxo.
+Guia de uso da aplicação com 10 seções, incluindo explicações de cada tela, fluxo de trabalho, o papel dos agentes e tarefas de revisão.
 
 ### Recursos gerais
 - Tema dark/light com toggle na sidebar
@@ -97,6 +97,8 @@ A API roda em `http://127.0.0.1:9777/api` sem autenticação. Endpoints principa
 | Comentários | `GET/POST /api/comments`, `PATCH/DELETE /api/comments/{id}` |
 | Diario | `GET/POST /api/daily/{date}`, `PATCH /api/daily/{date}/report` |
 | Estudos | `POST/GET /api/study/plans`, `PATCH/DELETE /api/study/plans/{id}` |
+| Histórico | `GET /api/tasks/{code}/history` |
+| Changelog | `GET /api/projects/{project_id}/changelog?days=7` |
 | Atividade | `GET /api/activity` |
 
 ## Skills para agentes de IA
@@ -113,7 +115,8 @@ A API roda em `http://127.0.0.1:9777/api` sem autenticação. Endpoints principa
 | `maestro-daily-standup` | Gerar relatório de standup automático |
 | `maestro-tech-debt-tracker` | Registrar e priorizar dívida técnica |
 | `maestro-documentation-writer` | Gerar documentação a partir do código |
-| `maestro-daily-report` | Relatório diário com notas, atividade e resumo |
+| `maestro-daily-report` | Relatório diário com notas, atividade e resumo (suporta modo parcial) |
+| `maestro-context-loader` | Carregar contexto completo do workspace para retomar trabalho de onde parou |
 
 ## Screenshots
 
@@ -133,7 +136,7 @@ agentic-dev-maestro/
 │   │   ├── gui/views/         # 9 telas da interface
 │   │   ├── api/               # FastAPI endpoints
 │   │   ├── db/                # SQLAlchemy models + SQLite
-│   │   └── skills/            # Catálogo de 11 skills
+│   │   └── skills/            # Catálogo de 12 skills
 │   ├── install.sh             # Script de instalação
 │   ├── run.sh                 # Script de execução
 │   ├── pyproject.toml         # Dependências Python
