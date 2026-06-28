@@ -5,6 +5,14 @@
 set -e
 cd "$(dirname "$0")"
 
+# Garante modo UTF-8 (evita UnicodeDecodeError na transcrição quando
+# iniciado em ambientes com locale ascii, como autostart)
+export PYTHONUTF8=1
+case "${LANG}${LC_ALL}" in
+    *[Uu][Tt][Ff]*) : ;;                 # já é UTF-8, mantém
+    *) export LANG=C.UTF-8 LC_ALL=C.UTF-8 ;;
+esac
+
 if [ ! -d ".venv" ]; then
     echo "Criando ambiente virtual..."
     python3 -m venv .venv
