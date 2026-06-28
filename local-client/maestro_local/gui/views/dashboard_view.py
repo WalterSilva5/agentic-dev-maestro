@@ -8,6 +8,8 @@ from PySide6.QtWidgets import (
     QProgressBar,
     QScrollArea,
     QSizePolicy,
+    QSplitter,
+    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
@@ -20,6 +22,9 @@ from maestro_local.db.models import (
     get_session,
 )
 from maestro_local.gui.theme import current_theme
+from maestro_local.gui.views.labels_view import LabelsView
+from maestro_local.gui.views.metrics_view import MetricsView
+from maestro_local.gui.views.todos_view import TodosView
 from maestro_local.gui.widgets.pomodoro import PomodoroWidget
 
 
@@ -40,7 +45,6 @@ class DashboardView(QWidget):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.NoFrame)
-        root.addWidget(scroll, 1)
 
         container = QWidget()
         scroll.setWidget(container)
@@ -113,6 +117,33 @@ class DashboardView(QWidget):
 
         self._layout.addStretch()
 
+        # Abas com ferramentas que deixaram de ser página própria
+        self._tabs = QTabWidget()
+        self._tab_metrics = MetricsView()
+        self._tab_todos = TodosView()
+        self._tab_labels = LabelsView()
+        self._tabs.addTab(self._tab_metrics, "Métricas")
+        self._tabs.addTab(self._tab_todos, "TODOs")
+        self._tabs.addTab(self._tab_labels, "Labels")
+        self._tabs.currentChanged.connect(self._on_tab_changed)
+
+        # Dashboard fixo no topo, abas abaixo (redimensionável)
+        splitter = QSplitter(Qt.Vertical)
+        splitter.addWidget(scroll)
+        splitter.addWidget(self._tabs)
+        splitter.setStretchFactor(0, 3)
+        splitter.setStretchFactor(1, 2)
+        splitter.setSizes([420, 340])
+        root.addWidget(splitter, 1)
+
+    def _on_tab_changed(self, _index):
+        self._refresh_active_tab()
+
+    def _refresh_active_tab(self):
+        w = self._tabs.currentWidget()
+        if w and hasattr(w, "refresh"):
+            w.refresh()
+
     def _make_summary_card(self, label_text):
         frame = QFrame()
         frame.setProperty("class", "card")
@@ -141,6 +172,7 @@ class DashboardView(QWidget):
             self._refresh_projects(s)
         finally:
             s.close()
+        self._refresh_active_tab()
 
     def _refresh_summary(self, s):
         active_tasks = (

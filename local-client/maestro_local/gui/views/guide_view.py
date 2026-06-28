@@ -160,18 +160,17 @@ SECTIONS = [
         "title": "Atalhos de teclado",
         "body": (
             "- Ctrl+K — Busca global de tarefas\n"
-            "- Alt+1 — Dashboard\n"
+            "- Alt+1 — Dashboard (Métricas, TODOs e Labels ficam aqui em abas)\n"
             "- Alt+2 — Meu Dia\n"
-            "- Alt+3 — TODOs\n"
-            "- Alt+4 — Estudos\n"
-            "- Alt+5 — Board\n"
-            "- Alt+6 — Chat estratégico\n"
-            "- Alt+7 — Cronista\n"
-            "- Alt+8 — Projetos\n"
-            "- Alt+9 — Labels\n"
-            "- Alt+0 — Métricas\n"
+            "- Alt+3 — Estudos\n"
+            "- Alt+4 — Board\n"
+            "- Alt+5 — Chat estratégico\n"
+            "- Alt+6 — Cronista\n"
+            "- Alt+7 — Projetos\n"
+            "- Alt+8 — Skills\n"
+            "- Alt+9 — Instruções (esta tela)\n"
+            "- Alt+0 — Configurações\n"
             "- Ctrl+Shift+R — Iniciar/parar gravação (global)\n"
-            "- Skills, Instruções e Configurações — pela barra lateral\n"
             "- Escape — Fechar busca"
         ),
     },

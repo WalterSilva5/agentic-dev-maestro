@@ -38,7 +38,7 @@ maestro --port 8888  # porta customizada
 ## O que a aplicação faz
 
 Ao iniciar, o Maestro abre:
-1. **GUI desktop** (PySide6/Qt 6) — interface gráfica com 13 telas
+1. **GUI desktop** (PySide6/Qt 6) — interface gráfica com 10 telas no menu (+ Métricas, TODOs e Labels como abas do Dashboard)
 2. **API REST** (FastAPI/uvicorn) — `http://127.0.0.1:9777/api` em thread daemon
 
 A tela inicial é **Meu Dia**, que funciona como home da aplicação.
@@ -57,7 +57,7 @@ Tela principal do dia de trabalho:
 - **Atividade do dia**: timeline com todas as ações do dia (tasks criadas, movidas, comentadas)
 - **Backup do Banco**: exportar cópia do banco SQLite
 
-### TODOs (Alt+3)
+### TODOs (aba do Dashboard)
 
 Lista rápida de pendências, separada do board:
 
@@ -69,15 +69,17 @@ Lista rápida de pendências, separada do board:
 
 ### Dashboard (Alt+1)
 
-Visão geral do workspace:
+Hub central do workspace. No topo (fixo): 
 
-- **Pomodoro**: timer de foco em destaque no topo
+- **Pomodoro**: timer de foco em destaque
 - **Cards de resumo**: tarefas ativas, concluídas (7 dias), vencidas, em progresso
 - **Tarefas vencidas**: lista clicável que abre o detalhe da tarefa
 - **Atividade recente**: timeline das últimas 15 ações agrupadas por dia
 - **Projetos**: progresso de cada projeto com barra e contagem por coluna
 
-### Estudos (Alt+4)
+Abaixo, em **abas** (antes eram páginas próprias): **Métricas**, **TODOs** e **Labels**.
+
+### Estudos (Alt+3)
 
 Módulo de aprendizado:
 
@@ -87,7 +89,7 @@ Módulo de aprendizado:
 - **Sessões de estudo**: registrar tempo de estudo com notas e nível de confiança (1-5)
 - **Estatísticas**: horas totais, sessões por semana, planos ativos
 
-### Board Kanban (Alt+5)
+### Board Kanban (Alt+4)
 
 Board de tarefas por projeto:
 
@@ -100,7 +102,7 @@ Board de tarefas por projeto:
 - **Task detail**: dialog completo com título, descrição, tipo, prioridade, assignee, due date, labels, checklist (Definition of Done), dependências, comentários com markdown
 - **Tarefas de revisão**: agentes sempre criam tarefas com `requiresHuman: true` para o desenvolvedor validar alterações
 
-### Chat estratégico (Alt+6)
+### Chat estratégico (Alt+5)
 
 Assistente de IA interno que roda com seu próprio provedor:
 
@@ -109,7 +111,7 @@ Assistente de IA interno que roda com seu próprio provedor:
 - **Execução assíncrona**: roda em thread separada, sem travar a interface
 - **Configuração**: provedor ativo definido em Configurações → Provedores de IA (Base URL, API Key e Modelo)
 
-### Cronista (Alt+7)
+### Cronista (Alt+6)
 
 Gravação, transcrição e resumo de reuniões e estudos (migrado do projeto wsi-cronista):
 
@@ -123,19 +125,19 @@ Gravação, transcrição e resumo de reuniões e estudos (migrado do projeto ws
 - **Atalho global**: `Ctrl+Shift+R` inicia/para a gravação (best-effort; pode não funcionar em Wayland)
 - **Acesso rápido**: widget na sidebar inicia a gravação em 1 clique e mostra o tempo decorrido
 
-### Projetos (Alt+8)
+### Projetos (Alt+7)
 
 - Criar projetos com nome, chave única (ex: DEMO, PROJ) e descrição
 - Cada projeto gera automaticamente colunas padrão no board
 - Visão de lista com link para o board
 
-### Labels (Alt+9)
+### Labels (aba do Dashboard)
 
 - Criar labels com nome e cor (paleta de 12 cores)
 - Aplicar labels em tarefas para categorizar e filtrar
 - Labels compartilhadas entre projetos do mesmo workspace
 
-### Métricas (Alt+0)
+### Métricas (aba do Dashboard)
 
 Dashboard analítico:
 
@@ -145,7 +147,7 @@ Dashboard analítico:
 - **Por prioridade**: breakdown Low/Medium/High/Urgent com percentual
 - **Por projeto**: progresso de cada projeto com barra
 
-### Skills
+### Skills (Alt+8)
 
 Biblioteca de skills para agentes de IA:
 
@@ -155,11 +157,11 @@ Biblioteca de skills para agentes de IA:
 - **Preview**: ver o conteúdo da skill antes de instalar
 - **Diretório destino**: selecionar o projeto onde instalar as skills
 
-### Instruções
+### Instruções (Alt+9)
 
 Guia de uso reestruturado com 12 seções, incluindo explicações de cada tela, fluxo de trabalho, o papel dos agentes e tarefas de revisão.
 
-### Configurações
+### Configurações (Alt+0)
 
 Tela de configurações gerais:
 
@@ -179,7 +181,7 @@ Tela de configurações gerais:
 | **Workspaces** | Isolamento completo com banco separado, emoji, cor e descrição customizáveis |
 | **Obsidian sync** | Auto-sync a cada 5 min, vault configurável por workspace/projeto |
 | **Backup** | Exportar banco SQLite a qualquer momento |
-| **Atalhos** | `Alt+1` a `Alt+9` + `Alt+0` (10 primeiras telas), `Ctrl+K` busca, `Ctrl+Shift+R` gravação |
+| **Atalhos** | `Alt+1` a `Alt+9` + `Alt+0` para as 10 telas do menu, `Ctrl+K` busca, `Ctrl+Shift+R` gravação |
 
 ## API REST
 

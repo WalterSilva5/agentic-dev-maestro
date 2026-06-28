@@ -34,9 +34,6 @@ from maestro_local.gui.views.chat_view import ChatView
 from maestro_local.gui.views.cronista_view import CronistaView
 from maestro_local.gui.views.guide_view import GuideView
 from maestro_local.gui.views.settings_view import SettingsView
-from maestro_local.gui.views.todos_view import TodosView
-from maestro_local.gui.views.labels_view import LabelsView
-from maestro_local.gui.views.metrics_view import MetricsView
 from maestro_local.gui.views.projects_view import ProjectsView
 from maestro_local.gui.views.skills_view import SkillsView
 from maestro_local.gui.views.study_view import StudyView
@@ -129,14 +126,11 @@ class MainWindow(QMainWindow):
         nav_items = [
             ("Dashboard", "dashboard"),
             ("Meu Dia", "daily"),
-            ("TODOs", "todos"),
             ("Estudos", "study"),
             ("Board", "board"),
             ("Chat", "chat"),
             ("Cronista", "cronista"),
             ("Projetos", "projects"),
-            ("Labels", "labels"),
-            ("Métricas", "metrics"),
             ("Skills", "skills"),
             ("Instruções", "guide"),
             ("Configurações", "settings"),
@@ -153,7 +147,7 @@ class MainWindow(QMainWindow):
         # Cronista — acesso rápido à gravação
         self.cronista_quick = CronistaQuickWidget()
         self.cronista_quick.toggle_requested.connect(self._cronista_quick_toggle)
-        self.cronista_quick.open_requested.connect(lambda: self.nav_list.setCurrentRow(6))
+        self.cronista_quick.open_requested.connect(lambda: self.nav_list.setCurrentRow(5))
         sb_layout.addWidget(self.cronista_quick)
 
         sb_layout.addSpacing(12)
@@ -208,14 +202,11 @@ class MainWindow(QMainWindow):
         self.stack = QStackedWidget()
         self.dashboard_view = DashboardView()
         self.daily_view = DailyView()
-        self.todos_view = TodosView()
         self.study_view = StudyView()
         self.board_view = BoardView()
         self.chat_view = ChatView()
         self.cronista_view = CronistaView()
         self.projects_view = ProjectsView()
-        self.labels_view = LabelsView()
-        self.metrics_view = MetricsView()
         self.skills_view = SkillsView()
         self.guide_view = GuideView()
         self.settings_view = SettingsView()
@@ -224,14 +215,11 @@ class MainWindow(QMainWindow):
 
         self.stack.addWidget(self.dashboard_view)
         self.stack.addWidget(self.daily_view)
-        self.stack.addWidget(self.todos_view)
         self.stack.addWidget(self.study_view)
         self.stack.addWidget(self.board_view)
         self.stack.addWidget(self.chat_view)
         self.stack.addWidget(self.cronista_view)
         self.stack.addWidget(self.projects_view)
-        self.stack.addWidget(self.labels_view)
-        self.stack.addWidget(self.metrics_view)
         self.stack.addWidget(self.skills_view)
         self.stack.addWidget(self.guide_view)
         self.stack.addWidget(self.settings_view)
@@ -283,7 +271,7 @@ class MainWindow(QMainWindow):
         self._apply_theme()
 
     def _cronista_quick_toggle(self):
-        self.nav_list.setCurrentRow(6)
+        self.nav_list.setCurrentRow(5)
         self.cronista_view.toggle_record_external()
 
     def _update_cronista_quick(self):
@@ -408,7 +396,7 @@ class MainWindow(QMainWindow):
 
     def _open_board(self, project_id):
         self.board_view.set_project(project_id)
-        self.nav_list.setCurrentRow(4)
+        self.nav_list.setCurrentRow(3)
 
     def _open_task_from_dashboard(self, task_id):
         from maestro_local.gui.views.task_detail_dialog import TaskDetailDialog
@@ -500,7 +488,7 @@ class MainWindow(QMainWindow):
         self._close_search()
         if task and hasattr(self.board_view, "open_task_detail"):
             self.board_view.open_task_detail(task)
-            self.nav_list.setCurrentRow(4)
+            self.nav_list.setCurrentRow(3)
 
     # --- Notifications ---
 
