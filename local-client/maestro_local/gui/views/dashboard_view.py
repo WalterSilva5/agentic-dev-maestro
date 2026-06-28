@@ -8,7 +8,6 @@ from PySide6.QtWidgets import (
     QProgressBar,
     QScrollArea,
     QSizePolicy,
-    QSplitter,
     QTabWidget,
     QVBoxLayout,
     QWidget,
@@ -117,31 +116,27 @@ class DashboardView(QWidget):
 
         self._layout.addStretch()
 
-        # Abas com ferramentas que deixaram de ser página própria
+        # Tudo em abas: a própria visão geral é a primeira aba
+        self._overview_tab = scroll
         self._tabs = QTabWidget()
         self._tab_metrics = MetricsView()
         self._tab_todos = TodosView()
         self._tab_labels = LabelsView()
+        self._tabs.addTab(self._overview_tab, "Visão geral")
         self._tabs.addTab(self._tab_metrics, "Métricas")
         self._tabs.addTab(self._tab_todos, "TODOs")
         self._tabs.addTab(self._tab_labels, "Labels")
         self._tabs.currentChanged.connect(self._on_tab_changed)
-
-        # Dashboard fixo no topo, abas abaixo (redimensionável)
-        splitter = QSplitter(Qt.Vertical)
-        splitter.addWidget(scroll)
-        splitter.addWidget(self._tabs)
-        splitter.setStretchFactor(0, 3)
-        splitter.setStretchFactor(1, 2)
-        splitter.setSizes([420, 340])
-        root.addWidget(splitter, 1)
+        root.addWidget(self._tabs, 1)
 
     def _on_tab_changed(self, _index):
         self._refresh_active_tab()
 
     def _refresh_active_tab(self):
         w = self._tabs.currentWidget()
-        if w and hasattr(w, "refresh"):
+        if w is self._overview_tab:
+            self._refresh_overview()
+        elif w and hasattr(w, "refresh"):
             w.refresh()
 
     def _make_summary_card(self, label_text):
@@ -164,6 +159,9 @@ class DashboardView(QWidget):
         return {"frame": frame, "value": value_label}
 
     def refresh(self):
+        self._refresh_active_tab()
+
+    def _refresh_overview(self):
         s = get_session()
         try:
             self._refresh_summary(s)
@@ -172,7 +170,6 @@ class DashboardView(QWidget):
             self._refresh_projects(s)
         finally:
             s.close()
-        self._refresh_active_tab()
 
     def _refresh_summary(self, s):
         active_tasks = (

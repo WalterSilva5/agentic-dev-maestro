@@ -69,15 +69,10 @@ Lista rápida de pendências, separada do board:
 
 ### Dashboard (Alt+1)
 
-Hub central do workspace. No topo (fixo): 
+Hub central do workspace, organizado em **abas**:
 
-- **Pomodoro**: timer de foco em destaque
-- **Cards de resumo**: tarefas ativas, concluídas (7 dias), vencidas, em progresso
-- **Tarefas vencidas**: lista clicável que abre o detalhe da tarefa
-- **Atividade recente**: timeline das últimas 15 ações agrupadas por dia
-- **Projetos**: progresso de cada projeto com barra e contagem por coluna
-
-Abaixo, em **abas** (antes eram páginas próprias): **Métricas**, **TODOs** e **Labels**.
+- **Visão geral**: Pomodoro em destaque, cards de resumo (tarefas ativas, concluídas, vencidas, em progresso), tarefas vencidas clicáveis, atividade recente e progresso por projeto
+- **Métricas**, **TODOs** e **Labels** (antes eram páginas próprias)
 
 ### Estudos (Alt+3)
 
