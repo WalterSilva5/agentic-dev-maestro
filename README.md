@@ -12,6 +12,7 @@ O Maestro é uma ferramenta local para desenvolvedores que querem organizar seu 
 
 - **Tudo local**: dados em SQLite, GUI desktop nativa, sem cloud
 - **Chat estratégico**: assistente de IA interno (LangGraph) com provedor configurável (LM Studio, opencode) que age sobre o board
+- **Cronista**: grava reuniões/estudos, transcreve local com Whisper e resume com IA (ex-projeto wsi-cronista integrado)
 - **API para agentes**: agentes de IA criam tarefas, movem no board, registram code reviews e geram relatórios — tudo via REST
 - **Skills prontas**: 12 skills instaláveis que ensinam agentes a usar o Maestro
 - **Workspaces isolados**: cada workspace tem seu próprio banco, permitindo separar projetos pessoais de profissionais
@@ -50,6 +51,9 @@ Board com drag-and-drop, colunas customizáveis por projeto, filtros por tipo/pr
 ### Chat estratégico
 Assistente de IA interno que roda com seu próprio provedor (LM Studio local, opencode ou qualquer API compatível com OpenAI). Ele lê o board, sugere prioridades, solicita revisões de tarefas, cria TODOs e comenta tarefas — tudo dentro da aplicação. Construído com LangGraph e ferramentas internas. Configurável em Configurações → Provedores de IA.
 
+### Cronista
+Grava reuniões e sessões de estudo (microfone e/ou áudio do sistema via PipeWire/PulseAudio), transcreve localmente com faster-whisper e gera resumos estruturados com IA: reuniões viram pontos-chave/decisões/ações; estudos viram conceitos/exercícios/tópicos relacionados. Histórico pesquisável, atalho global Ctrl+Shift+R e botão para salvar o resumo no Meu Dia. Funcionalidades migradas do projeto wsi-cronista.
+
 ### Projetos
 Criar e gerenciar projetos com chave única (ex: DEMO). Cada projeto tem suas colunas de board, tarefas, labels e métricas próprias.
 
@@ -66,7 +70,7 @@ Planos de estudo com roadmap visual, categorias (Linguagem, Framework, Certifica
 Biblioteca de 12 skills para agentes de IA. Cada skill é um arquivo SKILL.md que pode ser instalado no diretório `.claude/skills/` do projeto. Botão "Instalar todas" para setup rápido.
 
 ### Instruções
-Guia de uso da aplicação com 11 seções, incluindo explicações de cada tela, fluxo de trabalho, o papel dos agentes e tarefas de revisão.
+Guia de uso da aplicação com 12 seções, incluindo explicações de cada tela, fluxo de trabalho, o papel dos agentes e tarefas de revisão.
 
 ### Configurações
 Tela de configurações gerais com:
@@ -103,7 +107,7 @@ python -m maestro_local
 ```
 
 A aplicação abre com:
-- **GUI desktop** — interface completa com 12 telas (atalhos Alt+1 a Alt+9, Alt+0)
+- **GUI desktop** — interface completa com 13 telas (atalhos Alt+1 a Alt+9, Alt+0)
 - **API REST** — `http://127.0.0.1:9777/api` para agentes de IA
 
 ### Porta customizada
@@ -154,6 +158,7 @@ A API roda em `http://127.0.0.1:9777/api` sem autenticação. Endpoints principa
 ![Meu Dia](local-client/docs/screenshots/meudia-light.png)
 ![Board](local-client/docs/screenshots/board-light.png)
 ![Chat estratégico](local-client/docs/screenshots/chat-light.png)
+![Cronista](local-client/docs/screenshots/cronista-light.png)
 ![Skills](local-client/docs/screenshots/skills-light.png)
 ![Métricas](local-client/docs/screenshots/metricas-light.png)
 ![TODOs](local-client/docs/screenshots/todos-light.png)
@@ -166,7 +171,7 @@ A API roda em `http://127.0.0.1:9777/api` sem autenticação. Endpoints principa
 agentic-dev-maestro/
 ├── local-client/              # App principal (Python/PySide6)
 │   ├── maestro_local/         # Código fonte
-│   │   ├── gui/views/         # 12 telas da interface
+│   │   ├── gui/views/         # 13 telas da interface
 │   │   ├── api/               # FastAPI endpoints
 │   │   ├── db/                # SQLAlchemy models + SQLite
 │   │   └── skills/            # Catálogo de 12 skills

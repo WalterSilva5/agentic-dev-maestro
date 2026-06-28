@@ -31,6 +31,7 @@ from maestro_local.gui.views.board_view import BoardView
 from maestro_local.gui.views.daily_view import DailyView
 from maestro_local.gui.views.dashboard_view import DashboardView
 from maestro_local.gui.views.chat_view import ChatView
+from maestro_local.gui.views.cronista_view import CronistaView
 from maestro_local.gui.views.guide_view import GuideView
 from maestro_local.gui.views.settings_view import SettingsView
 from maestro_local.gui.views.todos_view import TodosView
@@ -235,6 +236,7 @@ class MainWindow(QMainWindow):
             ("Estudos", "study"),
             ("Board", "board"),
             ("Chat", "chat"),
+            ("Cronista", "cronista"),
             ("Projetos", "projects"),
             ("Labels", "labels"),
             ("Métricas", "metrics"),
@@ -311,6 +313,7 @@ class MainWindow(QMainWindow):
         self.study_view = StudyView()
         self.board_view = BoardView()
         self.chat_view = ChatView()
+        self.cronista_view = CronistaView()
         self.projects_view = ProjectsView()
         self.labels_view = LabelsView()
         self.metrics_view = MetricsView()
@@ -326,6 +329,7 @@ class MainWindow(QMainWindow):
         self.stack.addWidget(self.study_view)
         self.stack.addWidget(self.board_view)
         self.stack.addWidget(self.chat_view)
+        self.stack.addWidget(self.cronista_view)
         self.stack.addWidget(self.projects_view)
         self.stack.addWidget(self.labels_view)
         self.stack.addWidget(self.metrics_view)
@@ -369,7 +373,20 @@ class MainWindow(QMainWindow):
         self._notif_timer.timeout.connect(self._send_notification)
         self._setup_notification_timer()
 
+        self._setup_global_hotkeys()
+
         self._apply_theme()
+
+    def _setup_global_hotkeys(self):
+        try:
+            from maestro_local.cronista.constants import HOTKEY_TOGGLE_RECORDING
+            from maestro_local.cronista.hotkeys import GlobalHotkeys
+            self._hotkeys = GlobalHotkeys()
+            self._hotkeys.start({
+                HOTKEY_TOGGLE_RECORDING: self.cronista_view.toggle_record_external,
+            })
+        except Exception:  # noqa: BLE001
+            self._hotkeys = None
 
     def _apply_theme(self):
         t = current_theme()

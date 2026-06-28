@@ -38,7 +38,7 @@ maestro --port 8888  # porta customizada
 ## O que a aplicação faz
 
 Ao iniciar, o Maestro abre:
-1. **GUI desktop** (PySide6/Qt 6) — interface gráfica com 12 telas
+1. **GUI desktop** (PySide6/Qt 6) — interface gráfica com 13 telas
 2. **API REST** (FastAPI/uvicorn) — `http://127.0.0.1:9777/api` em thread daemon
 
 A tela inicial é **Meu Dia**, que funciona como home da aplicação.
@@ -108,19 +108,32 @@ Assistente de IA interno que roda com seu próprio provedor:
 - **Execução assíncrona**: roda em thread separada, sem travar a interface
 - **Configuração**: provedor ativo definido em Configurações → Provedores de IA (Base URL, API Key e Modelo)
 
-### Projetos (Alt+7)
+### Cronista (Alt+7)
+
+Gravação, transcrição e resumo de reuniões e estudos (migrado do projeto wsi-cronista):
+
+- **Captura de áudio (Linux)**: microfone e/ou áudio do sistema via PipeWire/PulseAudio (`parec`); fontes `.monitor` para loopback
+- **Transcrição local**: faster-whisper, modelo configurável (tiny → large-v3), roda offline em QThread
+- **Assistente de reunião**: extrai título, pontos-chave, decisões, ações (com responsável) e perguntas em aberto
+- **Assistente de estudo**: gera resumo, conceitos-chave, exercícios práticos, tópicos relacionados e recursos
+- **IA reusada**: a análise usa o provedor configurado em Provedores de IA (LM Studio/opencode)
+- **Histórico**: gravações salvas no banco do workspace, com busca por texto
+- **Integração**: botão "Salvar no Meu Dia" anexa o resumo ao relatório do dia
+- **Atalho global**: `Ctrl+Shift+R` inicia/para a gravação (best-effort; pode não funcionar em Wayland)
+
+### Projetos (Alt+8)
 
 - Criar projetos com nome, chave única (ex: DEMO, PROJ) e descrição
 - Cada projeto gera automaticamente colunas padrão no board
 - Visão de lista com link para o board
 
-### Labels (Alt+8)
+### Labels (Alt+9)
 
 - Criar labels com nome e cor (paleta de 12 cores)
 - Aplicar labels em tarefas para categorizar e filtrar
 - Labels compartilhadas entre projetos do mesmo workspace
 
-### Métricas (Alt+9)
+### Métricas (Alt+0)
 
 Dashboard analítico:
 
@@ -130,7 +143,7 @@ Dashboard analítico:
 - **Por prioridade**: breakdown Low/Medium/High/Urgent com percentual
 - **Por projeto**: progresso de cada projeto com barra
 
-### Skills (Alt+0)
+### Skills
 
 Biblioteca de skills para agentes de IA:
 
@@ -142,13 +155,14 @@ Biblioteca de skills para agentes de IA:
 
 ### Instruções
 
-Guia de uso reestruturado com 11 seções, incluindo explicações de cada tela, fluxo de trabalho, o papel dos agentes e tarefas de revisão.
+Guia de uso reestruturado com 12 seções, incluindo explicações de cada tela, fluxo de trabalho, o papel dos agentes e tarefas de revisão.
 
 ### Configurações
 
 Tela de configurações gerais:
 
-- **Provedores de IA**: cadastrar e selecionar provedores compatíveis com OpenAI (LM Studio, opencode) usados pelo Chat estratégico. Campos de Base URL, API Key e Modelo, com botão de testar conexão e adicionar novos provedores
+- **Provedores de IA**: cadastrar e selecionar provedores compatíveis com OpenAI (LM Studio, opencode) usados pelo Chat estratégico e pelo Cronista. Campos de Base URL, API Key e Modelo, com botão de testar conexão e adicionar novos provedores
+- **Cronista (transcrição)**: modelo do Whisper (tiny → large-v3) e idioma usados na transcrição local
 - **Pomodoro**: duração da sessão configurável (1-120 minutos), atualiza o timer da sidebar em tempo real
 - **Notificações push**: notificações periódicas na área de trabalho com mensagem personalizada, intervalo configurável (1-480 min) e toggle de ativação. Desabilitado por padrão. Usa `QSystemTrayIcon` com fallback para `notify-send`
 
@@ -163,7 +177,7 @@ Tela de configurações gerais:
 | **Workspaces** | Isolamento completo com banco separado, emoji, cor e descrição customizáveis |
 | **Obsidian sync** | Auto-sync a cada 5 min, vault configurável por workspace/projeto |
 | **Backup** | Exportar banco SQLite a qualquer momento |
-| **Atalhos** | `Alt+1` a `Alt+9` + `Alt+0` para navegar entre as 10 primeiras telas, `Ctrl+K` para busca |
+| **Atalhos** | `Alt+1` a `Alt+9` + `Alt+0` (10 primeiras telas), `Ctrl+K` busca, `Ctrl+Shift+R` gravação |
 
 ## API REST
 
@@ -315,6 +329,7 @@ maestro_local/
 │       ├── daily_view.py        # Meu Dia + Obsidian sync + relatório
 │       ├── todos_view.py        # Lista simples de TODOs
 │       ├── chat_view.py         # Chat estratégico (agente interno)
+│       ├── cronista_view.py     # Cronista (gravação + transcrição)
 │       ├── settings_view.py     # Configurações (IA, pomodoro, notificações)
 │       ├── dashboard_view.py    # Dashboard com resumo e atividade
 │       ├── study_view.py        # Planos de estudo + tópicos + sessões
@@ -329,6 +344,13 @@ maestro_local/
 │   ├── providers.py         # Provedores OpenAI-compatíveis + teste de conexão
 │   ├── tools.py             # Ferramentas internas do agente (board, revisão, TODOs)
 │   └── agent.py             # Agente estratégico (LangGraph ReAct)
+├── cronista/
+│   ├── audio.py             # Captura de áudio Linux (parec/PipeWire)
+│   ├── transcriber.py       # faster-whisper em QThread
+│   ├── summarizer.py        # Sumarização via provedor do Maestro
+│   ├── assistants.py        # Assistentes de reunião e estudo
+│   ├── markdown_gen.py      # Geração de markdown dos resumos
+│   └── hotkeys.py           # Atalhos globais (pynput)
 └── skills/
     └── catalog.py           # Catálogo de 12 skills com conteúdo SKILL.md
 ```
@@ -338,5 +360,6 @@ maestro_local/
 - Python 3.10+
 - Qt 6 (instalado automaticamente com PySide6)
 - `langgraph` + `langchain-openai` (instalados automaticamente; usados pelo Chat estratégico)
-- Para o Chat: um provedor de IA compatível com OpenAI (LM Studio local, opencode, etc.)
+- Para o Chat e a análise do Cronista: um provedor de IA compatível com OpenAI (LM Studio local, opencode, etc.)
+- Para o Cronista (gravação no Linux): `pulseaudio-utils` (`parec`/`pactl`) e PipeWire/PulseAudio; `faster-whisper` para transcrição (instalado automaticamente)
 - Linux, macOS ou Windows

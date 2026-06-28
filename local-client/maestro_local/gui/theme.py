@@ -504,6 +504,7 @@ NAV_ICONS = {
     "metrics": "◧",
     "skills": "⚙",
     "chat": "✦",
+    "cronista": "🎙",
     "guide": "?",
     "settings": "⚡",
 }

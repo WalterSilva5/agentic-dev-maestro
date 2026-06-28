@@ -202,6 +202,24 @@ class Todo(Base):
     completed_at = Column(DateTime)
 
 
+class Recording(Base):
+    """Sessão do Cronista: gravação + transcrição + resumo de reunião/estudo."""
+    __tablename__ = "recordings"
+
+    id = Column(Integer, primary_key=True)
+    kind = Column(String(20), default="meeting")  # meeting | study
+    title = Column(String(255), default="")
+    topic = Column(String(255), default="")
+    transcript = Column(Text, default="")
+    summary_json = Column(Text, default="")  # JSON estruturado do assistente
+    markdown = Column(Text, default="")
+    duration = Column(Float, default=0.0)
+    language = Column(String(20), default="")
+    audio_path = Column(String(500), default="")
+    tags = Column(Text, default="[]")  # JSON list
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 Index("ix_tasks_project_column", Task.project_id, Task.column_id)
 Index("ix_tasks_deleted_at", Task.deleted_at)
 Index("ix_activity_entity", ActivityLog.entity_type, ActivityLog.entity_id)

@@ -68,6 +68,7 @@ class SettingsView(QWidget):
         self.cards_layout.setSpacing(12)
 
         self._build_ai_section()
+        self._build_cronista_section()
         self._build_pomodoro_section()
         self._build_notification_section()
 
@@ -266,6 +267,36 @@ class SettingsView(QWidget):
         self.ai_status.setStyleSheet(f"color: {color}; font-size: 12px;")
         self.ai_test_btn.setEnabled(True)
 
+    def _build_cronista_section(self):
+        card, layout = self._make_card("🎙", "Cronista (transcrição)")
+
+        desc = QLabel(
+            "Modelo do Whisper usado para transcrever gravações localmente. "
+            "Modelos maiores são mais precisos, porém mais lentos."
+        )
+        desc.setWordWrap(True)
+        desc.setProperty("class", "hint")
+        layout.addWidget(desc)
+
+        row = QHBoxLayout()
+        row.setSpacing(8)
+        row.addWidget(QLabel("Modelo Whisper:"))
+        self.whisper_model = QComboBox()
+        from maestro_local.cronista.constants import WHISPER_SUPPORTED_MODELS
+        self.whisper_model.addItems(WHISPER_SUPPORTED_MODELS)
+        self.whisper_model.currentIndexChanged.connect(self._save_settings)
+        row.addWidget(self.whisper_model)
+
+        row.addSpacing(12)
+        row.addWidget(QLabel("Idioma:"))
+        self.whisper_lang = QLineEdit()
+        self.whisper_lang.setPlaceholderText("pt, en... (vazio = auto)")
+        self.whisper_lang.setFixedWidth(120)
+        self.whisper_lang.textChanged.connect(self._save_settings)
+        row.addWidget(self.whisper_lang)
+        row.addStretch()
+        layout.addLayout(row)
+
     def _build_pomodoro_section(self):
         card, layout = self._make_card("🍅", "Pomodoro")
 
@@ -343,6 +374,14 @@ class SettingsView(QWidget):
         msg = notif.get("message", "Hora de verificar suas tarefas no Maestro!")
         self.notif_message.setText(msg)
         self.notif_settings_frame.setVisible(self.notif_enabled.isChecked())
+
+        cron = settings.get("cronista", {})
+        from maestro_local.cronista.constants import WHISPER_DEFAULT_LANGUAGE, WHISPER_DEFAULT_MODEL
+        wm = cron.get("whisper_model", WHISPER_DEFAULT_MODEL)
+        idx = self.whisper_model.findText(wm)
+        if idx >= 0:
+            self.whisper_model.setCurrentIndex(idx)
+        self.whisper_lang.setText(cron.get("whisper_language", WHISPER_DEFAULT_LANGUAGE))
         self._loading = False
 
         self._load_ai_section()
@@ -357,6 +396,10 @@ class SettingsView(QWidget):
                 "enabled": self.notif_enabled.isChecked(),
                 "interval_minutes": self.notif_interval.value(),
                 "message": self.notif_message.text(),
+            },
+            "cronista": {
+                "whisper_model": self.whisper_model.currentText(),
+                "whisper_language": self.whisper_lang.text().strip(),
             },
         }
         save_config(cfg)
