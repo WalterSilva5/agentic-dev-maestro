@@ -249,10 +249,10 @@ class CronistaView(QWidget):
                 f"border-radius: 8px; padding: 8px 12px; font-size: 12px;"
             )
             self.banner.setVisible(True)
-            self.analyze_btn.setEnabled(bool(provider and provider.get("model")))
         else:
             self.banner.setVisible(False)
-            self.analyze_btn.setEnabled(True)
+        # Botão sempre habilitado: ao clicar sem modelo, mostra orientação clara
+        self.analyze_btn.setEnabled(True)
 
     def _populate_devices(self):
         self.mic_combo.clear()
@@ -305,6 +305,11 @@ class CronistaView(QWidget):
             self.status_label.setText(f"Erro ao iniciar gravação: {e}")
             self._session = None
             return
+        # Nova gravação: zera o estado para criar um novo registro
+        self._current = {"transcript": "", "duration": 0.0, "language": "", "audio_path": ""}
+        self.result_edit.clear()
+        self.result_edit.setVisible(False)
+        self.save_day_btn.setEnabled(False)
         self._elapsed = 0
         self.timer_label.setText("00:00")
         self._tick.start()
@@ -353,9 +358,38 @@ class CronistaView(QWidget):
         self._current["language"] = result.language
         self._current["duration"] = result.duration or self._current["duration"]
         self.transcript_edit.setPlainText(result.text)
+        # Permite salvar/enviar ao Meu Dia mesmo sem análise de IA
+        self.save_day_btn.setEnabled(bool(result.text.strip()))
+        self._persist_recording()
         self.status_label.setText(
-            f"Transcrição concluída ({result.language}, {len(result.segments)} segmentos)."
+            f"Transcrição concluída ({result.language}, {len(result.segments)} segmentos). "
+            f"Salva no histórico."
         )
+        self._load_history()
+
+    def _persist_recording(self):
+        """Cria/atualiza o Recording atual no banco (transcrição e, se houver, resumo)."""
+        s = get_session()
+        try:
+            rec_id = self._current.get("rec_id")
+            rec = s.query(Recording).get(rec_id) if rec_id else None
+            if rec is None:
+                rec = Recording()
+                s.add(rec)
+            rec.kind = self.kind_combo.currentData()
+            rec.title = self._current.get("title") or rec.title or ""
+            rec.topic = self.topic_input.text().strip()
+            rec.transcript = self.transcript_edit.toPlainText().strip()
+            rec.summary_json = self._current.get("summary_json", rec.summary_json or "")
+            rec.markdown = self._current.get("markdown", rec.markdown or "")
+            rec.duration = self._current.get("duration", 0.0)
+            rec.language = self._current.get("language", "")
+            rec.audio_path = self._current.get("audio_path", "")
+            rec.tags = json.dumps(self._current.get("tags", []), ensure_ascii=False)
+            s.commit()
+            self._current["rec_id"] = rec.id
+        finally:
+            s.close()
 
     def _on_transcribe_error(self, err):
         self.progress.setVisible(False)
@@ -369,7 +403,11 @@ class CronistaView(QWidget):
             return
         provider = get_active_ai_provider()
         if not provider or not provider.get("model"):
-            self.status_label.setText("Configure um provedor de IA primeiro.")
+            name = provider.get("name") if provider else "nenhum"
+            self.status_label.setText(
+                f"O provedor de IA ativo ({name}) está sem modelo definido. "
+                f"Configure em Configurações → Provedores de IA (Base URL, API Key e Modelo)."
+            )
             return
         kind = self.kind_combo.currentData()
         self.analyze_btn.setEnabled(False)
@@ -388,27 +426,12 @@ class CronistaView(QWidget):
         self.result_edit.setVisible(True)
         self.result_edit.setPlainText(md)
         self.save_day_btn.setEnabled(True)
-        self._current.update({"markdown": md, "title": title, "tags": tags})
-
-        # Persiste no banco
-        s = get_session()
-        try:
-            rec = Recording(
-                kind=self.kind_combo.currentData(),
-                title=title,
-                topic=self.topic_input.text().strip(),
-                transcript=self.transcript_edit.toPlainText().strip(),
-                summary_json=json.dumps(summary, ensure_ascii=False),
-                markdown=md,
-                duration=duration,
-                language=language,
-                audio_path=self._current.get("audio_path", ""),
-                tags=json.dumps(tags or [], ensure_ascii=False),
-            )
-            s.add(rec)
-            s.commit()
-        finally:
-            s.close()
+        self._current.update({
+            "markdown": md, "title": title, "tags": tags,
+            "summary_json": json.dumps(summary, ensure_ascii=False),
+            "duration": duration, "language": language,
+        })
+        self._persist_recording()  # atualiza o registro já criado na transcrição
         self.status_label.setText("Análise concluída e salva no histórico.")
         self._load_history()
 
@@ -418,9 +441,18 @@ class CronistaView(QWidget):
 
     # ------------------------- Meu Dia -------------------------
     def _save_to_day(self):
+        # Usa o resumo de IA se houver; senão, salva a própria transcrição
         md = self.result_edit.toPlainText().strip()
         if not md:
-            return
+            transcript = self.transcript_edit.toPlainText().strip()
+            if not transcript:
+                self.status_label.setText("Nada para salvar — grave e transcreva primeiro.")
+                return
+            kind_label = "Estudo" if self.kind_combo.currentData() == "study" else "Reunião"
+            topic = self.topic_input.text().strip()
+            header = f"## {kind_label}" + (f": {topic}" if topic else "")
+            hora = datetime.now().strftime("%H:%M")
+            md = f"{header} ({hora})\n\n{transcript}"
         from maestro_local.db.models import DailyNote
         today = datetime.now().strftime("%Y-%m-%d")
         s = get_session()
