@@ -6,7 +6,7 @@ import logging
 
 from maestro_local.ai.providers import build_chat_model
 
-logger = logging.getLogger("maestro.cronista.ai")
+logger = logging.getLogger("maestro.transcricoes.ai")
 
 MAX_CHUNK_WORDS = 2000
 OVERLAP_WORDS = 200

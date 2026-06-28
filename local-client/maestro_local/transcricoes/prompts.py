@@ -1,4 +1,4 @@
-"""Prompts para os assistentes de reunião e estudo (portados do cronista)."""
+"""Prompts para os assistentes de reunião e estudo (portados do projeto cronista)."""
 
 MEETING_SYSTEM_PROMPT = """Você é um analista de reuniões especializado. Sua tarefa é analisar transcrições de reuniões e extrair informações estruturadas.
 

@@ -142,17 +142,17 @@ SECTIONS = [
     },
     {
         "icon": "10",
-        "title": "Cronista (gravações)",
+        "title": "Transcrições (gravações)",
         "body": (
-            "O Cronista grava reuniões e sessões de estudo, transcreve localmente "
-            "com Whisper e gera resumos estruturados com IA:\n"
+            "A tela de Transcrições grava reuniões e sessões de estudo, transcreve "
+            "localmente com Whisper e gera resumos estruturados com IA:\n"
             "- Captura microfone e/ou áudio do sistema (PipeWire/PulseAudio)\n"
             "- Transcrição offline com faster-whisper (modelo configurável)\n"
             "- Resumo de reunião: pontos-chave, decisões, ações\n"
             "- Resumo de estudo: conceitos, exercícios, tópicos relacionados\n"
             "- Histórico pesquisável e botão 'Salvar no Meu Dia'\n\n"
             "Atalho global Ctrl+Shift+R inicia/para a gravação. O modelo do "
-            "Whisper é configurável em Configurações → Cronista."
+            "Whisper é configurável em Configurações → Transcrições."
         ),
     },
     {
@@ -165,7 +165,7 @@ SECTIONS = [
             "- Alt+3 — Estudos\n"
             "- Alt+4 — Board\n"
             "- Alt+5 — Chat estratégico\n"
-            "- Alt+6 — Cronista\n"
+            "- Alt+6 — Transcrições\n"
             "- Alt+7 — Projetos\n"
             "- Alt+8 — Skills\n"
             "- Alt+9 — Instruções (esta tela)\n"

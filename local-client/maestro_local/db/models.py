@@ -203,7 +203,7 @@ class Todo(Base):
 
 
 class Recording(Base):
-    """Sessão do Cronista: gravação + transcrição + resumo de reunião/estudo."""
+    """Sessão de Transcrições: gravação + transcrição + resumo de reunião/estudo."""
     __tablename__ = "recordings"
 
     id = Column(Integer, primary_key=True)

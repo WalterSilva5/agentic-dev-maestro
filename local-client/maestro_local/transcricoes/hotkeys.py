@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 
-logger = logging.getLogger("maestro.cronista.hotkeys")
+logger = logging.getLogger("maestro.transcricoes.hotkeys")
 
 
 class GlobalHotkeys:

@@ -31,13 +31,13 @@ from maestro_local.gui.views.board_view import BoardView
 from maestro_local.gui.views.daily_view import DailyView
 from maestro_local.gui.views.dashboard_view import DashboardView
 from maestro_local.gui.views.chat_view import ChatView
-from maestro_local.gui.views.cronista_view import CronistaView
+from maestro_local.gui.views.transcricoes_view import TranscricoesView
 from maestro_local.gui.views.guide_view import GuideView
 from maestro_local.gui.views.settings_view import SettingsView
 from maestro_local.gui.views.projects_view import ProjectsView
 from maestro_local.gui.views.skills_view import SkillsView
 from maestro_local.gui.views.study_view import StudyView
-from maestro_local.gui.widgets.cronista_quick import CronistaQuickWidget
+from maestro_local.gui.widgets.transcricoes_quick import TranscricoesQuickWidget
 from maestro_local.gui.workspace_selector import WorkspaceSelectorButton
 
 
@@ -129,7 +129,7 @@ class MainWindow(QMainWindow):
             ("Estudos", "study"),
             ("Board", "board"),
             ("Chat", "chat"),
-            ("Cronista", "cronista"),
+            ("Transcrições", "transcricoes"),
             ("Projetos", "projects"),
             ("Skills", "skills"),
             ("Instruções", "guide"),
@@ -144,11 +144,11 @@ class MainWindow(QMainWindow):
         self.nav_list.currentRowChanged.connect(self._on_nav)
         sb_layout.addWidget(self.nav_list)
 
-        # Cronista — acesso rápido à gravação
-        self.cronista_quick = CronistaQuickWidget()
-        self.cronista_quick.toggle_requested.connect(self._cronista_quick_toggle)
-        self.cronista_quick.open_requested.connect(lambda: self.nav_list.setCurrentRow(5))
-        sb_layout.addWidget(self.cronista_quick)
+        # Transcrições — acesso rápido à gravação
+        self.transcricoes_quick = TranscricoesQuickWidget()
+        self.transcricoes_quick.toggle_requested.connect(self._transcricoes_quick_toggle)
+        self.transcricoes_quick.open_requested.connect(lambda: self.nav_list.setCurrentRow(5))
+        sb_layout.addWidget(self.transcricoes_quick)
 
         sb_layout.addSpacing(12)
 
@@ -205,7 +205,7 @@ class MainWindow(QMainWindow):
         self.study_view = StudyView()
         self.board_view = BoardView()
         self.chat_view = ChatView()
-        self.cronista_view = CronistaView()
+        self.transcricoes_view = TranscricoesView()
         self.projects_view = ProjectsView()
         self.skills_view = SkillsView()
         self.guide_view = GuideView()
@@ -218,7 +218,7 @@ class MainWindow(QMainWindow):
         self.stack.addWidget(self.study_view)
         self.stack.addWidget(self.board_view)
         self.stack.addWidget(self.chat_view)
-        self.stack.addWidget(self.cronista_view)
+        self.stack.addWidget(self.transcricoes_view)
         self.stack.addWidget(self.projects_view)
         self.stack.addWidget(self.skills_view)
         self.stack.addWidget(self.guide_view)
@@ -262,29 +262,29 @@ class MainWindow(QMainWindow):
 
         self._setup_global_hotkeys()
 
-        # Atualiza o widget rápido do Cronista (estado de gravação)
-        self._cronista_poll = QTimer(self)
-        self._cronista_poll.setInterval(500)
-        self._cronista_poll.timeout.connect(self._update_cronista_quick)
-        self._cronista_poll.start()
+        # Atualiza o widget rápido de Transcrições (estado de gravação)
+        self._transcricoes_poll = QTimer(self)
+        self._transcricoes_poll.setInterval(500)
+        self._transcricoes_poll.timeout.connect(self._update_transcricoes_quick)
+        self._transcricoes_poll.start()
 
         self._apply_theme()
 
-    def _cronista_quick_toggle(self):
+    def _transcricoes_quick_toggle(self):
         self.nav_list.setCurrentRow(5)
-        self.cronista_view.toggle_record_external()
+        self.transcricoes_view.toggle_record_external()
 
-    def _update_cronista_quick(self):
-        rec = self.cronista_view.is_recording()
-        self.cronista_quick.set_recording(rec, self.cronista_view.elapsed_seconds())
+    def _update_transcricoes_quick(self):
+        rec = self.transcricoes_view.is_recording()
+        self.transcricoes_quick.set_recording(rec, self.transcricoes_view.elapsed_seconds())
 
     def _setup_global_hotkeys(self):
         try:
-            from maestro_local.cronista.constants import HOTKEY_TOGGLE_RECORDING
-            from maestro_local.cronista.hotkeys import GlobalHotkeys
+            from maestro_local.transcricoes.constants import HOTKEY_TOGGLE_RECORDING
+            from maestro_local.transcricoes.hotkeys import GlobalHotkeys
             self._hotkeys = GlobalHotkeys()
             self._hotkeys.start({
-                HOTKEY_TOGGLE_RECORDING: self.cronista_view.toggle_record_external,
+                HOTKEY_TOGGLE_RECORDING: self.transcricoes_view.toggle_record_external,
             })
         except Exception:  # noqa: BLE001
             self._hotkeys = None
@@ -333,7 +333,7 @@ class MainWindow(QMainWindow):
                 background-color: {t.bg_hover};
             }}
         """)
-        self.cronista_quick.apply_theme(t)
+        self.transcricoes_quick.apply_theme(t)
         self.dashboard_view.pomodoro.apply_theme(t)
         theme_icon = "☾" if not is_dark() else "☀"
         self.theme_btn.setText(f"  {theme_icon}   {'Tema escuro' if not is_dark() else 'Tema claro'}")

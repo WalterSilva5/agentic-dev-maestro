@@ -2,8 +2,8 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QVBoxLayout
 
 
-class CronistaQuickWidget(QFrame):
-    """Acesso rápido ao Cronista na sidebar: inicia/para gravação em 1 clique."""
+class TranscricoesQuickWidget(QFrame):
+    """Acesso rápido às Transcrições na sidebar: inicia/para gravação em 1 clique."""
 
     toggle_requested = Signal()
     open_requested = Signal()
@@ -21,7 +21,7 @@ class CronistaQuickWidget(QFrame):
         self._icon = QLabel("🎙")
         self._icon.setFixedWidth(16)
         title_row.addWidget(self._icon)
-        self._title = QLabel("Cronista")
+        self._title = QLabel("Transcrições")
         title_row.addWidget(self._title)
         title_row.addStretch()
         self._open_btn = QPushButton("abrir")
@@ -63,7 +63,7 @@ class CronistaQuickWidget(QFrame):
     def apply_theme(self, t):
         self._t = t
         self.setStyleSheet(
-            f"CronistaQuickWidget {{ background: {t.bg_card}; "
+            f"TranscricoesQuickWidget {{ background: {t.bg_card}; "
             f"border: 1px solid {t.border}; border-radius: 8px; }}"
         )
         self._title.setStyleSheet(

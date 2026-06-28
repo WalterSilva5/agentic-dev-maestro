@@ -1,4 +1,4 @@
-"""Constantes do módulo Cronista (gravação + transcrição)."""
+"""Constantes do módulo de Transcrições (gravação + transcrição)."""
 
 SAMPLE_RATE = 16000  # ótimo para Whisper
 CHANNELS = 1

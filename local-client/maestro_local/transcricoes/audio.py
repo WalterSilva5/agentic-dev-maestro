@@ -2,7 +2,7 @@
 
 Captura microfone e/ou áudio do sistema (fontes .monitor) com `parec`,
 lendo PCM s16le 16kHz mono direto para numpy. Substitui o backend WASAPI
-do cronista (que era exclusivo do Windows).
+do projeto cronista (que era exclusivo do Windows).
 """
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ import numpy as np
 
 from .constants import CHANNELS, SAMPLE_RATE
 
-logger = logging.getLogger("maestro.cronista.audio")
+logger = logging.getLogger("maestro.transcricoes.audio")
 
 
 @dataclass

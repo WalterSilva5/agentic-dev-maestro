@@ -9,7 +9,7 @@ from PySide6.QtCore import QThread, Signal
 
 from .constants import WHISPER_COMPUTE_TYPE, WHISPER_DEFAULT_MODEL, WHISPER_SUPPORTED_MODELS
 
-logger = logging.getLogger("maestro.cronista.transcription")
+logger = logging.getLogger("maestro.transcricoes.transcription")
 
 _cached_model = None
 _cached_size = None

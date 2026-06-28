@@ -1,4 +1,4 @@
-"""Cronista: grava reuniões/estudos, transcreve e resume com IA."""
+"""Transcrições: grava reuniões/estudos, transcreve e resume com IA."""
 from __future__ import annotations
 
 import json
@@ -26,14 +26,14 @@ from maestro_local.config import (
     get_active_workspace_id,
     load_config,
 )
-from maestro_local.cronista import audio as audio_backend
-from maestro_local.cronista.constants import WHISPER_DEFAULT_LANGUAGE, WHISPER_DEFAULT_MODEL
+from maestro_local.transcricoes import audio as audio_backend
+from maestro_local.transcricoes.constants import WHISPER_DEFAULT_LANGUAGE, WHISPER_DEFAULT_MODEL
 from maestro_local.db.models import DATA_DIR, Recording, get_session
 from maestro_local.gui.theme import current_theme
 
 
 def _whisper_settings():
-    cfg = load_config().get("settings", {}).get("cronista", {})
+    cfg = load_config().get("settings", {}).get("transcricoes", {})
     return (
         cfg.get("whisper_model", WHISPER_DEFAULT_MODEL),
         cfg.get("whisper_language", WHISPER_DEFAULT_LANGUAGE),
@@ -58,7 +58,7 @@ class AnalyzeWorker(QThread):
 
     def run(self):
         try:
-            from maestro_local.cronista import assistants, markdown_gen
+            from maestro_local.transcricoes import assistants, markdown_gen
             date_str = datetime.now().strftime("%Y-%m-%d %H:%M")
             if self.kind == "study":
                 notes = assistants.analyze_study(self.transcript, self.topic, self.duration)
@@ -82,7 +82,7 @@ class AnalyzeWorker(QThread):
             self.failed.emit(str(e))
 
 
-class CronistaView(QWidget):
+class TranscricoesView(QWidget):
     def __init__(self):
         super().__init__()
         self._session = None
@@ -119,7 +119,7 @@ class CronistaView(QWidget):
         right = QVBoxLayout()
         right.setSpacing(10)
 
-        title = QLabel("Cronista")
+        title = QLabel("Transcrições")
         title.setObjectName("sectionTitle")
         right.addWidget(title)
 
@@ -341,7 +341,7 @@ class CronistaView(QWidget):
 
     # ------------------------- Transcrição -------------------------
     def _transcribe(self, audio_path: Path):
-        from maestro_local.cronista.transcriber import TranscriberWorker
+        from maestro_local.transcricoes.transcriber import TranscriberWorker
         model, lang = _whisper_settings()
         self.progress.setVisible(True)
         self.progress.setValue(0)

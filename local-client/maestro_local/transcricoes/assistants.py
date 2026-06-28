@@ -12,7 +12,7 @@ from .prompts import (
 )
 from .summarizer import summarize
 
-logger = logging.getLogger("maestro.cronista.assistants")
+logger = logging.getLogger("maestro.transcricoes.assistants")
 
 
 # --------------------------- Reunião ---------------------------

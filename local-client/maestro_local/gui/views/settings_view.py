@@ -68,7 +68,7 @@ class SettingsView(QWidget):
         self.cards_layout.setSpacing(12)
 
         self._build_ai_section()
-        self._build_cronista_section()
+        self._build_transcricoes_section()
         self._build_pomodoro_section()
         self._build_notification_section()
 
@@ -272,8 +272,8 @@ class SettingsView(QWidget):
         self.ai_status.setStyleSheet(f"color: {color}; font-size: 12px;")
         self.ai_test_btn.setEnabled(True)
 
-    def _build_cronista_section(self):
-        card, layout = self._make_card("🎙", "Cronista (transcrição)")
+    def _build_transcricoes_section(self):
+        card, layout = self._make_card("🎙", "Transcrições")
 
         desc = QLabel(
             "Modelo do Whisper usado para transcrever gravações localmente. "
@@ -287,7 +287,7 @@ class SettingsView(QWidget):
         row.setSpacing(8)
         row.addWidget(QLabel("Modelo Whisper:"))
         self.whisper_model = QComboBox()
-        from maestro_local.cronista.constants import WHISPER_SUPPORTED_MODELS
+        from maestro_local.transcricoes.constants import WHISPER_SUPPORTED_MODELS
         self.whisper_model.addItems(WHISPER_SUPPORTED_MODELS)
         self.whisper_model.currentIndexChanged.connect(self._save_settings)
         row.addWidget(self.whisper_model)
@@ -380,8 +380,8 @@ class SettingsView(QWidget):
         self.notif_message.setText(msg)
         self.notif_settings_frame.setVisible(self.notif_enabled.isChecked())
 
-        cron = settings.get("cronista", {})
-        from maestro_local.cronista.constants import WHISPER_DEFAULT_LANGUAGE, WHISPER_DEFAULT_MODEL
+        cron = settings.get("transcricoes", {})
+        from maestro_local.transcricoes.constants import WHISPER_DEFAULT_LANGUAGE, WHISPER_DEFAULT_MODEL
         wm = cron.get("whisper_model", WHISPER_DEFAULT_MODEL)
         idx = self.whisper_model.findText(wm)
         if idx >= 0:
@@ -402,7 +402,7 @@ class SettingsView(QWidget):
                 "interval_minutes": self.notif_interval.value(),
                 "message": self.notif_message.text(),
             },
-            "cronista": {
+            "transcricoes": {
                 "whisper_model": self.whisper_model.currentText(),
                 "whisper_language": self.whisper_lang.text().strip(),
             },

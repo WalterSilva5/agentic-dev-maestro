@@ -48,7 +48,7 @@ Board com drag-and-drop, colunas customizáveis por projeto, filtros por tipo/pr
 ### Chat estratégico
 Assistente de IA interno que roda com seu próprio provedor (LM Studio local, opencode ou qualquer API compatível com OpenAI). Ele lê o board, sugere prioridades, solicita revisões de tarefas, cria TODOs e comenta tarefas — tudo dentro da aplicação. Construído com LangGraph e ferramentas internas. Configurável em Configurações → Provedores de IA.
 
-### Cronista
+### Transcrições
 Grava reuniões e sessões de estudo (microfone e/ou áudio do sistema via PipeWire/PulseAudio), transcreve localmente com faster-whisper e gera resumos estruturados com IA: reuniões viram pontos-chave/decisões/ações; estudos viram conceitos/exercícios/tópicos relacionados. Histórico pesquisável, atalho global Ctrl+Shift+R e botão para salvar o resumo no Meu Dia. Funcionalidades migradas do projeto wsi-cronista.
 
 ### Projetos
@@ -78,7 +78,7 @@ Tela de configurações gerais com:
 ### Recursos gerais
 - Tema dark/light com toggle na sidebar
 - Pomodoro timer configurável no Dashboard
-- Acesso rápido ao Cronista na sidebar (gravar em 1 clique)
+- Acesso rápido às Transcrições na sidebar (gravar em 1 clique)
 - Notificações push periódicas com mensagem customizada
 - Busca global de tarefas (Ctrl+K)
 - Workspaces isolados com bancos separados, emojis e cores customizáveis
@@ -156,7 +156,7 @@ A API roda em `http://127.0.0.1:9777/api` sem autenticação. Endpoints principa
 ![Meu Dia](local-client/docs/screenshots/meudia-light.png)
 ![Board](local-client/docs/screenshots/board-light.png)
 ![Chat estratégico](local-client/docs/screenshots/chat-light.png)
-![Cronista](local-client/docs/screenshots/cronista-light.png)
+![Transcrições](local-client/docs/screenshots/transcricoes-light.png)
 ![Skills](local-client/docs/screenshots/skills-light.png)
 ![Instruções](local-client/docs/screenshots/instrucoes-light.png)
 ![Configurações](local-client/docs/screenshots/configuracoes-light.png)
