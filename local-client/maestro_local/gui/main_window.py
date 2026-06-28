@@ -40,111 +40,8 @@ from maestro_local.gui.views.metrics_view import MetricsView
 from maestro_local.gui.views.projects_view import ProjectsView
 from maestro_local.gui.views.skills_view import SkillsView
 from maestro_local.gui.views.study_view import StudyView
+from maestro_local.gui.widgets.cronista_quick import CronistaQuickWidget
 from maestro_local.gui.workspace_selector import WorkspaceSelectorButton
-
-
-class PomodoroWidget(QFrame):
-    def __init__(self):
-        super().__init__()
-        self._duration = 25 * 60
-        self._remaining = self._duration
-        self._running = False
-
-        outer = QVBoxLayout(self)
-        outer.setContentsMargins(8, 8, 8, 8)
-        outer.setSpacing(6)
-
-        title_row = QHBoxLayout()
-        title_row.setSpacing(4)
-        self._icon = QLabel("🍅")
-        self._icon.setFixedWidth(16)
-        title_row.addWidget(self._icon)
-        self._title = QLabel("Pomodoro")
-        title_row.addWidget(self._title)
-        title_row.addStretch()
-        outer.addLayout(title_row)
-
-        self._time_label = QLabel(self._fmt(self._remaining))
-        self._time_label.setAlignment(Qt.AlignCenter)
-        outer.addWidget(self._time_label)
-
-        btn_row = QHBoxLayout()
-        btn_row.setSpacing(6)
-
-        self._btn = QPushButton("▶  Iniciar")
-        self._btn.setFixedHeight(26)
-        self._btn.setCursor(Qt.PointingHandCursor)
-        self._btn.clicked.connect(self._toggle)
-        btn_row.addWidget(self._btn, 1)
-
-        self._reset_btn = QPushButton("↺")
-        self._reset_btn.setFixedSize(26, 26)
-        self._reset_btn.setCursor(Qt.PointingHandCursor)
-        self._reset_btn.clicked.connect(self._reset)
-        btn_row.addWidget(self._reset_btn)
-
-        outer.addLayout(btn_row)
-
-        self._timer = QTimer(self)
-        self._timer.setInterval(1000)
-        self._timer.timeout.connect(self._tick)
-
-    def _fmt(self, secs):
-        return f"{secs // 60:02d}:{secs % 60:02d}"
-
-    def _toggle(self):
-        if self._running:
-            self._timer.stop()
-            self._running = False
-            self._btn.setText("▶  Iniciar")
-        else:
-            self._timer.start()
-            self._running = True
-            self._btn.setText("⏸  Pausar")
-
-    def _reset(self):
-        self._timer.stop()
-        self._running = False
-        self._remaining = self._duration
-        self._time_label.setText(self._fmt(self._remaining))
-        self._btn.setText("▶  Iniciar")
-
-    def _tick(self):
-        self._remaining -= 1
-        if self._remaining <= 0:
-            self._timer.stop()
-            self._running = False
-            self._remaining = 0
-            self._btn.setText("▶  Iniciar")
-            self._time_label.setText("00:00")
-            return
-        self._time_label.setText(self._fmt(self._remaining))
-
-    def apply_theme(self, t):
-        self.setStyleSheet(
-            f"PomodoroWidget {{ background: {t.bg_card}; "
-            f"border: 1px solid {t.border}; border-radius: 8px; }}"
-        )
-        self._title.setStyleSheet(
-            f"color: {t.text_muted}; font-size: 10px; font-weight: 600; "
-            f"text-transform: uppercase; letter-spacing: 1px; background: transparent; border: none;"
-        )
-        self._icon.setStyleSheet("background: transparent; border: none;")
-        self._time_label.setStyleSheet(
-            f"color: {t.text_primary}; font-size: 22px; font-weight: 700; "
-            f"font-family: monospace; background: transparent; border: none;"
-        )
-        btn_style = (
-            f"background: {t.accent}; color: white; "
-            f"border: none; border-radius: 6px; "
-            f"font-size: 11px; font-weight: 600; padding: 0 8px;"
-        )
-        self._btn.setStyleSheet(btn_style)
-        self._reset_btn.setStyleSheet(
-            f"background: {t.bg_badge}; color: {t.text_secondary}; "
-            f"border: 1px solid {t.border}; border-radius: 6px; "
-            f"font-size: 12px; padding: 0;"
-        )
 
 
 class ToastWidget(QLabel):
@@ -253,9 +150,11 @@ class MainWindow(QMainWindow):
         self.nav_list.currentRowChanged.connect(self._on_nav)
         sb_layout.addWidget(self.nav_list)
 
-        # Pomodoro timer
-        self.pomodoro = PomodoroWidget()
-        sb_layout.addWidget(self.pomodoro)
+        # Cronista — acesso rápido à gravação
+        self.cronista_quick = CronistaQuickWidget()
+        self.cronista_quick.toggle_requested.connect(self._cronista_quick_toggle)
+        self.cronista_quick.open_requested.connect(lambda: self.nav_list.setCurrentRow(6))
+        sb_layout.addWidget(self.cronista_quick)
 
         sb_layout.addSpacing(12)
 
@@ -375,7 +274,21 @@ class MainWindow(QMainWindow):
 
         self._setup_global_hotkeys()
 
+        # Atualiza o widget rápido do Cronista (estado de gravação)
+        self._cronista_poll = QTimer(self)
+        self._cronista_poll.setInterval(500)
+        self._cronista_poll.timeout.connect(self._update_cronista_quick)
+        self._cronista_poll.start()
+
         self._apply_theme()
+
+    def _cronista_quick_toggle(self):
+        self.nav_list.setCurrentRow(6)
+        self.cronista_view.toggle_record_external()
+
+    def _update_cronista_quick(self):
+        rec = self.cronista_view.is_recording()
+        self.cronista_quick.set_recording(rec, self.cronista_view.elapsed_seconds())
 
     def _setup_global_hotkeys(self):
         try:
@@ -432,7 +345,8 @@ class MainWindow(QMainWindow):
                 background-color: {t.bg_hover};
             }}
         """)
-        self.pomodoro.apply_theme(t)
+        self.cronista_quick.apply_theme(t)
+        self.dashboard_view.pomodoro.apply_theme(t)
         theme_icon = "☾" if not is_dark() else "☀"
         self.theme_btn.setText(f"  {theme_icon}   {'Tema escuro' if not is_dark() else 'Tema claro'}")
         self.theme_btn.setStyleSheet(
@@ -596,10 +510,7 @@ class MainWindow(QMainWindow):
         if settings["enabled"] and settings["interval_minutes"] > 0:
             self._notif_timer.start(settings["interval_minutes"] * 60 * 1000)
         pomodoro_mins = self.settings_view.pomodoro_duration.value()
-        self.pomodoro._duration = pomodoro_mins * 60
-        if not self.pomodoro._running:
-            self.pomodoro._remaining = self.pomodoro._duration
-            self.pomodoro._time_label.setText(self.pomodoro._fmt(self.pomodoro._remaining))
+        self.dashboard_view.pomodoro.set_duration_minutes(pomodoro_mins)
 
     def _send_notification(self):
         settings = self.settings_view.get_notification_settings()

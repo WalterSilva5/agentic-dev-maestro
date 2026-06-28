@@ -271,8 +271,14 @@ class CronistaView(QWidget):
         self.topic_input.setVisible(self.kind_combo.currentData() == "study")
 
     # ------------------------- Gravação -------------------------
+    def is_recording(self) -> bool:
+        return bool(self._session and self._session.is_recording)
+
+    def elapsed_seconds(self) -> int:
+        return self._elapsed
+
     def toggle_record_external(self):
-        """Chamado por atalho global (thread-safe via QTimer)."""
+        """Chamado por atalho global ou pelo widget rápido (thread-safe)."""
         QTimer.singleShot(0, self._toggle_record)
 
     def _toggle_record(self):

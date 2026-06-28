@@ -19,6 +19,8 @@ from maestro_local.db.models import (
     Task,
     get_session,
 )
+from maestro_local.gui.theme import current_theme
+from maestro_local.gui.widgets.pomodoro import PomodoroWidget
 
 
 class DashboardView(QWidget):
@@ -45,6 +47,15 @@ class DashboardView(QWidget):
         self._layout = QVBoxLayout(container)
         self._layout.setContentsMargins(14, 14, 14, 14)
         self._layout.setSpacing(12)
+
+        # Pomodoro em destaque no topo
+        pomo_row = QHBoxLayout()
+        self.pomodoro = PomodoroWidget()
+        self.pomodoro.setMaximumWidth(260)
+        self.pomodoro.apply_theme(current_theme())
+        pomo_row.addWidget(self.pomodoro)
+        pomo_row.addStretch()
+        self._layout.addLayout(pomo_row)
 
         self._cards_row = QHBoxLayout()
         self._cards_row.setSpacing(10)

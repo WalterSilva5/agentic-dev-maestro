@@ -71,6 +71,7 @@ Lista rápida de pendências, separada do board:
 
 Visão geral do workspace:
 
+- **Pomodoro**: timer de foco em destaque no topo
 - **Cards de resumo**: tarefas ativas, concluídas (7 dias), vencidas, em progresso
 - **Tarefas vencidas**: lista clicável que abre o detalhe da tarefa
 - **Atividade recente**: timeline das últimas 15 ações agrupadas por dia
@@ -120,6 +121,7 @@ Gravação, transcrição e resumo de reuniões e estudos (migrado do projeto ws
 - **Histórico**: gravações salvas no banco do workspace, com busca por texto
 - **Integração**: botão "Salvar no Meu Dia" anexa o resumo ao relatório do dia
 - **Atalho global**: `Ctrl+Shift+R` inicia/para a gravação (best-effort; pode não funcionar em Wayland)
+- **Acesso rápido**: widget na sidebar inicia a gravação em 1 clique e mostra o tempo decorrido
 
 ### Projetos (Alt+8)
 
@@ -171,7 +173,7 @@ Tela de configurações gerais:
 | Recurso | Descrição |
 |---|---|
 | **Tema dark/light** | Toggle na sidebar, aplica em todas as telas |
-| **Pomodoro** | Timer configurável na sidebar com play/pause e reset |
+| **Pomodoro** | Timer configurável no Dashboard com play/pause e reset |
 | **Notificações push** | Lembretes periódicos na área de trabalho com mensagem e intervalo customizáveis |
 | **Busca global** | `Ctrl+K` abre busca por título ou código de tarefa |
 | **Workspaces** | Isolamento completo com banco separado, emoji, cor e descrição customizáveis |

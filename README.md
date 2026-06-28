@@ -17,7 +17,7 @@ O Maestro é uma ferramenta local para desenvolvedores que querem organizar seu 
 - **Skills prontas**: 12 skills instaláveis que ensinam agentes a usar o Maestro
 - **Workspaces isolados**: cada workspace tem seu próprio banco, permitindo separar projetos pessoais de profissionais
 - **Obsidian sync**: sincroniza notas diárias e tarefas com seu vault do Obsidian
-- **Pomodoro integrado**: timer na sidebar para sessões de foco
+- **Pomodoro integrado**: timer no Dashboard para sessões de foco
 
 ## Instalação com agente de IA
 
@@ -43,7 +43,7 @@ Tela principal com notas diárias em markdown, template pre-configurado, geraç�
 Lista rápida de pendências, sem board nem colunas. Adicionar, marcar como concluído, remover e limpar concluídos. Acessível também via API (`/api/todos`) para os agentes gerenciarem.
 
 ### Dashboard
-Visão geral com cards de resumo (tarefas ativas, concluídas, vencidas, em progresso), lista de tarefas vencidas clicáveis, atividade recente com timeline, e progresso por projeto.
+Visão geral com Pomodoro em destaque, cards de resumo (tarefas ativas, concluídas, vencidas, em progresso), lista de tarefas vencidas clicáveis, atividade recente com timeline, e progresso por projeto.
 
 ### Board Kanban
 Board com drag-and-drop, colunas customizáveis por projeto, filtros por tipo/prioridade/responsável, botão quick-move para avançar tarefas, WIP limits e indicador de code review obrigatório. Agentes sempre criam tarefas de revisão (`requiresHuman: true`) para o desenvolvedor validar alterações.
@@ -80,7 +80,8 @@ Tela de configurações gerais com:
 
 ### Recursos gerais
 - Tema dark/light com toggle na sidebar
-- Pomodoro timer configurável na sidebar
+- Pomodoro timer configurável no Dashboard
+- Acesso rápido ao Cronista na sidebar (gravar em 1 clique)
 - Notificações push periódicas com mensagem customizada
 - Busca global de tarefas (Ctrl+K)
 - Workspaces isolados com bancos separados, emojis e cores customizáveis
