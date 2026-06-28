@@ -13,11 +13,19 @@ def _ensure_utf8():
 
     if sys.flags.utf8_mode or os.environ.get("MAESTRO_UTF8_REEXEC") == "1":
         return
+    import codecs
     import locale
-    enc = (locale.getpreferredencoding(False) or "").lower().replace("-", "")
-    fs_enc = (sys.getfilesystemencoding() or "").lower().replace("-", "")
-    ascii_like = {"ascii", "ansix3.41968", "usascii", ""}
-    if enc not in ascii_like and fs_enc not in ascii_like:
+
+    def _is_ascii(enc: str) -> bool:
+        if not enc:
+            return True
+        try:
+            return codecs.lookup(enc).name == "ascii"
+        except LookupError:
+            return True
+
+    pref = locale.getpreferredencoding(False)
+    if not _is_ascii(pref) and not _is_ascii(sys.getfilesystemencoding()):
         return
     os.environ["MAESTRO_UTF8_REEXEC"] = "1"
     os.environ["PYTHONUTF8"] = "1"
