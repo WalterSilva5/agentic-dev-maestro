@@ -74,7 +74,7 @@ Guia de uso da aplicação com 12 seções, incluindo explicações de cada tela
 
 ### Configurações
 Tela de configurações gerais com:
-- **Provedores de IA**: cadastrar/selecionar provedores compatíveis com OpenAI (LM Studio, opencode), com teste de conexão. Usado pelo Chat estratégico
+- **Provedores de IA**: cadastrar/selecionar provedores compatíveis com OpenAI (LM Studio, Ollama, OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Gemini, Together, opencode), com teste de conexão. Usado pelo Chat estratégico
 - **Pomodoro**: duração da sessão configurável (1-120 min)
 - **Notificações push**: notificações periódicas na área de trabalho com mensagem personalizada, intervalo configurável e ativação/desativação
 

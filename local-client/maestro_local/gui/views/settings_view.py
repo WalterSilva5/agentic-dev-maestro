@@ -167,11 +167,16 @@ class SettingsView(QWidget):
         layout.addWidget(self.ai_status)
 
     def _current_providers(self):
+        from maestro_local.ai.providers import DEFAULT_PROVIDERS, merge_missing_defaults
         providers = list_ai_providers()
         if not providers:
-            from maestro_local.ai.providers import DEFAULT_PROVIDERS
             providers = [dict(p) for p in DEFAULT_PROVIDERS]
             save_ai_providers(providers, active_id=providers[0]["id"])
+            return providers
+        merged = merge_missing_defaults(providers)
+        if len(merged) != len(providers):
+            save_ai_providers(merged)
+            providers = merged
         return providers
 
     def _load_ai_section(self):

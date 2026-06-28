@@ -7,7 +7,8 @@ from __future__ import annotations
 
 from maestro_local.config import get_active_ai_provider
 
-# Provedores padrão sugeridos na primeira execução. api_key vazio = o usuário preenche.
+# Provedores padrão sugeridos (todos compatíveis com OpenAI).
+# api_key vazio = o usuário preenche; model vazio = o usuário define.
 DEFAULT_PROVIDERS = [
     {
         "id": "lmstudio",
@@ -17,13 +18,80 @@ DEFAULT_PROVIDERS = [
         "model": "",
     },
     {
+        "id": "ollama",
+        "name": "Ollama (local)",
+        "base_url": "http://localhost:11434/v1",
+        "api_key": "ollama",
+        "model": "",
+    },
+    {
         "id": "opencode",
         "name": "opencode",
         "base_url": "https://api.opencode.ai/v1",
         "api_key": "",
         "model": "",
     },
+    {
+        "id": "openai",
+        "name": "OpenAI",
+        "base_url": "https://api.openai.com/v1",
+        "api_key": "",
+        "model": "gpt-4o-mini",
+    },
+    {
+        "id": "openrouter",
+        "name": "OpenRouter",
+        "base_url": "https://openrouter.ai/api/v1",
+        "api_key": "",
+        "model": "",
+    },
+    {
+        "id": "groq",
+        "name": "Groq",
+        "base_url": "https://api.groq.com/openai/v1",
+        "api_key": "",
+        "model": "llama-3.3-70b-versatile",
+    },
+    {
+        "id": "deepseek",
+        "name": "DeepSeek",
+        "base_url": "https://api.deepseek.com/v1",
+        "api_key": "",
+        "model": "deepseek-chat",
+    },
+    {
+        "id": "mistral",
+        "name": "Mistral",
+        "base_url": "https://api.mistral.ai/v1",
+        "api_key": "",
+        "model": "mistral-large-latest",
+    },
+    {
+        "id": "gemini",
+        "name": "Google Gemini",
+        "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
+        "api_key": "",
+        "model": "gemini-2.0-flash",
+    },
+    {
+        "id": "together",
+        "name": "Together AI",
+        "base_url": "https://api.together.xyz/v1",
+        "api_key": "",
+        "model": "",
+    },
 ]
+
+
+def merge_missing_defaults(providers: list[dict]) -> list[dict]:
+    """Adiciona provedores padrão que ainda não existem (por id), sem
+    sobrescrever os que o usuário já configurou."""
+    existing_ids = {p.get("id") for p in providers}
+    merged = list(providers)
+    for d in DEFAULT_PROVIDERS:
+        if d["id"] not in existing_ids:
+            merged.append(dict(d))
+    return merged
 
 
 class ProviderNotConfigured(Exception):

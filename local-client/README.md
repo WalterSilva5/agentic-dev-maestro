@@ -161,7 +161,7 @@ Guia de uso reestruturado com 12 seções, incluindo explicações de cada tela,
 
 Tela de configurações gerais:
 
-- **Provedores de IA**: cadastrar e selecionar provedores compatíveis com OpenAI (LM Studio, opencode) usados pelo Chat estratégico e pelo Cronista. Campos de Base URL, API Key e Modelo, com botão de testar conexão e adicionar novos provedores
+- **Provedores de IA**: cadastrar e selecionar provedores compatíveis com OpenAI (LM Studio, Ollama, OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Gemini, Together, opencode) usados pelo Chat estratégico e pelo Cronista. Campos de Base URL, API Key e Modelo, com botão de testar conexão e adicionar novos provedores
 - **Cronista (transcrição)**: modelo do Whisper (tiny → large-v3) e idioma usados na transcrição local
 - **Pomodoro**: duração da sessão configurável (1-120 minutos), atualiza o timer da sidebar em tempo real
 - **Notificações push**: notificações periódicas na área de trabalho com mensagem personalizada, intervalo configurável (1-480 min) e toggle de ativação. Desabilitado por padrão. Usa `QSystemTrayIcon` com fallback para `notify-send`
