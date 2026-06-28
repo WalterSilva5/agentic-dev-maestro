@@ -29,10 +29,12 @@ def _ensure_utf8():
         return
     os.environ["MAESTRO_UTF8_REEXEC"] = "1"
     os.environ["PYTHONUTF8"] = "1"
+    sys.stderr.write("maestro: locale ascii detectado, reiniciando em modo UTF-8...\n")
+    sys.stderr.flush()
     try:
         os.execv(sys.executable, [sys.executable, "-X", "utf8", "-m", "maestro_local", *sys.argv[1:]])
-    except Exception:  # noqa: BLE001 - se falhar, segue sem re-exec
-        pass
+    except Exception as e:  # noqa: BLE001
+        sys.stderr.write(f"maestro: falha ao reiniciar em UTF-8 ({e}); seguindo mesmo assim\n")
 
 
 _ensure_utf8()
