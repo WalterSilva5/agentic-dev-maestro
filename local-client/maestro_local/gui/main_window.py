@@ -30,6 +30,7 @@ from maestro_local.db.models import switch_db
 from maestro_local.gui.views.board_view import BoardView
 from maestro_local.gui.views.daily_view import DailyView
 from maestro_local.gui.views.dashboard_view import DashboardView
+from maestro_local.gui.views.chat_view import ChatView
 from maestro_local.gui.views.guide_view import GuideView
 from maestro_local.gui.views.settings_view import SettingsView
 from maestro_local.gui.views.todos_view import TodosView
@@ -233,6 +234,7 @@ class MainWindow(QMainWindow):
             ("TODOs", "todos"),
             ("Estudos", "study"),
             ("Board", "board"),
+            ("Chat", "chat"),
             ("Projetos", "projects"),
             ("Labels", "labels"),
             ("Métricas", "metrics"),
@@ -308,6 +310,7 @@ class MainWindow(QMainWindow):
         self.todos_view = TodosView()
         self.study_view = StudyView()
         self.board_view = BoardView()
+        self.chat_view = ChatView()
         self.projects_view = ProjectsView()
         self.labels_view = LabelsView()
         self.metrics_view = MetricsView()
@@ -315,12 +318,14 @@ class MainWindow(QMainWindow):
         self.guide_view = GuideView()
         self.settings_view = SettingsView()
         self.settings_view.notification_changed.connect(self._setup_notification_timer)
+        self.settings_view.ai_provider_changed.connect(self.chat_view.refresh)
 
         self.stack.addWidget(self.dashboard_view)
         self.stack.addWidget(self.daily_view)
         self.stack.addWidget(self.todos_view)
         self.stack.addWidget(self.study_view)
         self.stack.addWidget(self.board_view)
+        self.stack.addWidget(self.chat_view)
         self.stack.addWidget(self.projects_view)
         self.stack.addWidget(self.labels_view)
         self.stack.addWidget(self.metrics_view)

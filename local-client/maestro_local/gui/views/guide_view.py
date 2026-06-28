@@ -125,6 +125,22 @@ SECTIONS = [
         ),
     },
     {
+        "icon": "9",
+        "title": "Chat estratégico",
+        "body": (
+            "O Chat estratégico é um assistente de IA interno que roda com seu "
+            "próprio provedor (LM Studio local, opencode, etc.). Diferente dos "
+            "agentes externos, ele age dentro da aplicação:\n"
+            "- Lê o board e resume o estado do trabalho\n"
+            "- Sugere prioridades para o dia\n"
+            "- Solicita revisões de tarefas (cria tarefa requer-dev)\n"
+            "- Cria TODOs e comenta tarefas\n\n"
+            "Configure o provedor em Configurações → Provedores de IA. "
+            "É necessário definir a Base URL e o Modelo; a API Key fica em "
+            "branco para provedores locais."
+        ),
+    },
+    {
         "icon": "?",
         "title": "Atalhos de teclado",
         "body": (
@@ -134,12 +150,12 @@ SECTIONS = [
             "- Alt+3 — TODOs\n"
             "- Alt+4 — Estudos\n"
             "- Alt+5 — Board\n"
-            "- Alt+6 — Projetos\n"
-            "- Alt+7 — Labels\n"
-            "- Alt+8 — Métricas\n"
-            "- Alt+9 — Skills\n"
-            "- Alt+0 — Instruções (esta tela)\n"
-            "- Configurações — pela barra lateral\n"
+            "- Alt+6 — Chat estratégico\n"
+            "- Alt+7 — Projetos\n"
+            "- Alt+8 — Labels\n"
+            "- Alt+9 — Métricas\n"
+            "- Alt+0 — Skills\n"
+            "- Instruções e Configurações — pela barra lateral\n"
             "- Escape — Fechar busca"
         ),
     },

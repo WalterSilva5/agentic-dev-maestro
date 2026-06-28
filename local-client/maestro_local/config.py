@@ -120,6 +120,43 @@ def rename_workspace(ws_id: str, new_name: str, new_icon: str | None = None):
     update_workspace(ws_id, name=new_name, icon=new_icon)
 
 
+# ---------------------------------------------------------------------------
+# AI providers (OpenAI-compatible: LM Studio, opencode, etc.)
+# ---------------------------------------------------------------------------
+
+def list_ai_providers() -> list[dict]:
+    cfg = load_config()
+    return cfg.get("ai_providers", [])
+
+
+def get_active_ai_provider() -> dict | None:
+    cfg = load_config()
+    active_id = cfg.get("active_ai_provider")
+    for p in cfg.get("ai_providers", []):
+        if p.get("id") == active_id:
+            return p
+    providers = cfg.get("ai_providers", [])
+    return providers[0] if providers else None
+
+
+def save_ai_providers(providers: list[dict], active_id: str | None = None):
+    cfg = load_config()
+    cfg["ai_providers"] = providers
+    if active_id is not None:
+        cfg["active_ai_provider"] = active_id
+    elif active_id is None and not any(
+        p.get("id") == cfg.get("active_ai_provider") for p in providers
+    ):
+        cfg["active_ai_provider"] = providers[0]["id"] if providers else None
+    save_config(cfg)
+
+
+def set_active_ai_provider(provider_id: str):
+    cfg = load_config()
+    cfg["active_ai_provider"] = provider_id
+    save_config(cfg)
+
+
 def delete_workspace(ws_id: str) -> bool:
     cfg = load_config()
     ws_list = cfg.get("workspaces", [])

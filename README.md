@@ -11,6 +11,7 @@ O Maestro é uma ferramenta local para desenvolvedores que querem organizar seu 
 ### Principais diferenciais
 
 - **Tudo local**: dados em SQLite, GUI desktop nativa, sem cloud
+- **Chat estratégico**: assistente de IA interno (LangGraph) com provedor configurável (LM Studio, opencode) que age sobre o board
 - **API para agentes**: agentes de IA criam tarefas, movem no board, registram code reviews e geram relatórios — tudo via REST
 - **Skills prontas**: 12 skills instaláveis que ensinam agentes a usar o Maestro
 - **Workspaces isolados**: cada workspace tem seu próprio banco, permitindo separar projetos pessoais de profissionais
@@ -46,6 +47,9 @@ Visão geral com cards de resumo (tarefas ativas, concluídas, vencidas, em prog
 ### Board Kanban
 Board com drag-and-drop, colunas customizáveis por projeto, filtros por tipo/prioridade/responsável, botão quick-move para avançar tarefas, WIP limits e indicador de code review obrigatório. Agentes sempre criam tarefas de revisão (`requiresHuman: true`) para o desenvolvedor validar alterações.
 
+### Chat estratégico
+Assistente de IA interno que roda com seu próprio provedor (LM Studio local, opencode ou qualquer API compatível com OpenAI). Ele lê o board, sugere prioridades, solicita revisões de tarefas, cria TODOs e comenta tarefas — tudo dentro da aplicação. Construído com LangGraph e ferramentas internas. Configurável em Configurações → Provedores de IA.
+
 ### Projetos
 Criar e gerenciar projetos com chave única (ex: DEMO). Cada projeto tem suas colunas de board, tarefas, labels e métricas próprias.
 
@@ -62,10 +66,11 @@ Planos de estudo com roadmap visual, categorias (Linguagem, Framework, Certifica
 Biblioteca de 12 skills para agentes de IA. Cada skill é um arquivo SKILL.md que pode ser instalado no diretório `.claude/skills/` do projeto. Botão "Instalar todas" para setup rápido.
 
 ### Instruções
-Guia de uso da aplicação com 10 seções, incluindo explicações de cada tela, fluxo de trabalho, o papel dos agentes e tarefas de revisão.
+Guia de uso da aplicação com 11 seções, incluindo explicações de cada tela, fluxo de trabalho, o papel dos agentes e tarefas de revisão.
 
 ### Configurações
 Tela de configurações gerais com:
+- **Provedores de IA**: cadastrar/selecionar provedores compatíveis com OpenAI (LM Studio, opencode), com teste de conexão. Usado pelo Chat estratégico
 - **Pomodoro**: duração da sessão configurável (1-120 min)
 - **Notificações push**: notificações periódicas na área de trabalho com mensagem personalizada, intervalo configurável e ativação/desativação
 
@@ -98,7 +103,7 @@ python -m maestro_local
 ```
 
 A aplicação abre com:
-- **GUI desktop** — interface completa com 11 telas (atalhos Alt+1 a Alt+9, Alt+0)
+- **GUI desktop** — interface completa com 12 telas (atalhos Alt+1 a Alt+9, Alt+0)
 - **API REST** — `http://127.0.0.1:9777/api` para agentes de IA
 
 ### Porta customizada
@@ -148,6 +153,7 @@ A API roda em `http://127.0.0.1:9777/api` sem autenticação. Endpoints principa
 ![Dashboard](local-client/docs/screenshots/dashboard-light.png)
 ![Meu Dia](local-client/docs/screenshots/meudia-light.png)
 ![Board](local-client/docs/screenshots/board-light.png)
+![Chat estratégico](local-client/docs/screenshots/chat-light.png)
 ![Skills](local-client/docs/screenshots/skills-light.png)
 ![Métricas](local-client/docs/screenshots/metricas-light.png)
 ![TODOs](local-client/docs/screenshots/todos-light.png)
@@ -160,7 +166,7 @@ A API roda em `http://127.0.0.1:9777/api` sem autenticação. Endpoints principa
 agentic-dev-maestro/
 ├── local-client/              # App principal (Python/PySide6)
 │   ├── maestro_local/         # Código fonte
-│   │   ├── gui/views/         # 11 telas da interface
+│   │   ├── gui/views/         # 12 telas da interface
 │   │   ├── api/               # FastAPI endpoints
 │   │   ├── db/                # SQLAlchemy models + SQLite
 │   │   └── skills/            # Catálogo de 12 skills

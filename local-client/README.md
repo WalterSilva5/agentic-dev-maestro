@@ -38,7 +38,7 @@ maestro --port 8888  # porta customizada
 ## O que a aplicação faz
 
 Ao iniciar, o Maestro abre:
-1. **GUI desktop** (PySide6/Qt 6) — interface gráfica com 11 telas
+1. **GUI desktop** (PySide6/Qt 6) — interface gráfica com 12 telas
 2. **API REST** (FastAPI/uvicorn) — `http://127.0.0.1:9777/api` em thread daemon
 
 A tela inicial é **Meu Dia**, que funciona como home da aplicação.
@@ -99,19 +99,28 @@ Board de tarefas por projeto:
 - **Task detail**: dialog completo com título, descrição, tipo, prioridade, assignee, due date, labels, checklist (Definition of Done), dependências, comentários com markdown
 - **Tarefas de revisão**: agentes sempre criam tarefas com `requiresHuman: true` para o desenvolvedor validar alterações
 
-### Projetos (Alt+6)
+### Chat estratégico (Alt+6)
+
+Assistente de IA interno que roda com seu próprio provedor:
+
+- **Provedores compatíveis com OpenAI**: LM Studio local, opencode ou qualquer API no formato `/v1/chat/completions`
+- **Ferramentas internas** (LangGraph): lê o board, lista tarefas, solicita revisão (cria tarefa requer-dev), comenta tarefas, cria TODOs e resume a atividade recente
+- **Execução assíncrona**: roda em thread separada, sem travar a interface
+- **Configuração**: provedor ativo definido em Configurações → Provedores de IA (Base URL, API Key e Modelo)
+
+### Projetos (Alt+7)
 
 - Criar projetos com nome, chave única (ex: DEMO, PROJ) e descrição
 - Cada projeto gera automaticamente colunas padrão no board
 - Visão de lista com link para o board
 
-### Labels (Alt+7)
+### Labels (Alt+8)
 
 - Criar labels com nome e cor (paleta de 12 cores)
 - Aplicar labels em tarefas para categorizar e filtrar
 - Labels compartilhadas entre projetos do mesmo workspace
 
-### Métricas (Alt+8)
+### Métricas (Alt+9)
 
 Dashboard analítico:
 
@@ -121,7 +130,7 @@ Dashboard analítico:
 - **Por prioridade**: breakdown Low/Medium/High/Urgent com percentual
 - **Por projeto**: progresso de cada projeto com barra
 
-### Skills (Alt+9)
+### Skills (Alt+0)
 
 Biblioteca de skills para agentes de IA:
 
@@ -131,14 +140,15 @@ Biblioteca de skills para agentes de IA:
 - **Preview**: ver o conteúdo da skill antes de instalar
 - **Diretório destino**: selecionar o projeto onde instalar as skills
 
-### Instruções (Alt+0)
+### Instruções
 
-Guia de uso reestruturado com 10 seções, incluindo explicações de cada tela, fluxo de trabalho, o papel dos agentes e tarefas de revisão.
+Guia de uso reestruturado com 11 seções, incluindo explicações de cada tela, fluxo de trabalho, o papel dos agentes e tarefas de revisão.
 
 ### Configurações
 
 Tela de configurações gerais:
 
+- **Provedores de IA**: cadastrar e selecionar provedores compatíveis com OpenAI (LM Studio, opencode) usados pelo Chat estratégico. Campos de Base URL, API Key e Modelo, com botão de testar conexão e adicionar novos provedores
 - **Pomodoro**: duração da sessão configurável (1-120 minutos), atualiza o timer da sidebar em tempo real
 - **Notificações push**: notificações periódicas na área de trabalho com mensagem personalizada, intervalo configurável (1-480 min) e toggle de ativação. Desabilitado por padrão. Usa `QSystemTrayIcon` com fallback para `notify-send`
 
@@ -153,7 +163,7 @@ Tela de configurações gerais:
 | **Workspaces** | Isolamento completo com banco separado, emoji, cor e descrição customizáveis |
 | **Obsidian sync** | Auto-sync a cada 5 min, vault configurável por workspace/projeto |
 | **Backup** | Exportar banco SQLite a qualquer momento |
-| **Atalhos** | `Alt+1` a `Alt+9` + `Alt+0` para navegar entre telas, `Ctrl+K` para busca |
+| **Atalhos** | `Alt+1` a `Alt+9` + `Alt+0` para navegar entre as 10 primeiras telas, `Ctrl+K` para busca |
 
 ## API REST
 
@@ -304,6 +314,8 @@ maestro_local/
 │   └── views/
 │       ├── daily_view.py        # Meu Dia + Obsidian sync + relatório
 │       ├── todos_view.py        # Lista simples de TODOs
+│       ├── chat_view.py         # Chat estratégico (agente interno)
+│       ├── settings_view.py     # Configurações (IA, pomodoro, notificações)
 │       ├── dashboard_view.py    # Dashboard com resumo e atividade
 │       ├── study_view.py        # Planos de estudo + tópicos + sessões
 │       ├── board_view.py        # Kanban board + TaskCard + filtros
@@ -312,8 +324,11 @@ maestro_local/
 │       ├── labels_view.py       # CRUD de labels com paleta
 │       ├── metrics_view.py      # Dashboard de métricas
 │       ├── skills_view.py       # Skills para agentes de IA
-│       ├── guide_view.py        # Instruções de uso
-│       └── settings_view.py    # Configurações (pomodoro, notificações)
+│       └── guide_view.py        # Instruções de uso
+├── ai/
+│   ├── providers.py         # Provedores OpenAI-compatíveis + teste de conexão
+│   ├── tools.py             # Ferramentas internas do agente (board, revisão, TODOs)
+│   └── agent.py             # Agente estratégico (LangGraph ReAct)
 └── skills/
     └── catalog.py           # Catálogo de 12 skills com conteúdo SKILL.md
 ```
@@ -322,4 +337,6 @@ maestro_local/
 
 - Python 3.10+
 - Qt 6 (instalado automaticamente com PySide6)
+- `langgraph` + `langchain-openai` (instalados automaticamente; usados pelo Chat estratégico)
+- Para o Chat: um provedor de IA compatível com OpenAI (LM Studio local, opencode, etc.)
 - Linux, macOS ou Windows

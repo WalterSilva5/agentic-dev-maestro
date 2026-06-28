@@ -503,6 +503,7 @@ NAV_ICONS = {
     "labels": "◉",
     "metrics": "◧",
     "skills": "⚙",
+    "chat": "✦",
     "guide": "?",
     "settings": "⚡",
 }

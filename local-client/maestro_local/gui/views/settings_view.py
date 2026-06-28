@@ -1,22 +1,43 @@
-from PySide6.QtCore import Qt, QTimer, Signal
+from PySide6.QtCore import Qt, QThread, QTimer, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
+    QComboBox,
     QFrame,
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QPushButton,
     QScrollArea,
     QSpinBox,
     QVBoxLayout,
     QWidget,
 )
 
-from maestro_local.config import load_config, save_config
+from maestro_local.config import (
+    list_ai_providers,
+    load_config,
+    save_ai_providers,
+    save_config,
+)
 from maestro_local.gui.theme import current_theme
+
+
+class ConnTestWorker(QThread):
+    done = Signal(bool, str)
+
+    def __init__(self, provider):
+        super().__init__()
+        self._provider = provider
+
+    def run(self):
+        from maestro_local.ai.providers import test_connection
+        ok, msg = test_connection(self._provider)
+        self.done.emit(ok, msg)
 
 
 class SettingsView(QWidget):
     notification_changed = Signal()
+    ai_provider_changed = Signal()
 
     def __init__(self):
         super().__init__()
@@ -46,6 +67,7 @@ class SettingsView(QWidget):
         self.cards_layout.setContentsMargins(0, 0, 0, 0)
         self.cards_layout.setSpacing(12)
 
+        self._build_ai_section()
         self._build_pomodoro_section()
         self._build_notification_section()
 
@@ -83,6 +105,166 @@ class SettingsView(QWidget):
         layout.addLayout(header)
         self.cards_layout.addWidget(card)
         return card, layout
+
+    def _build_ai_section(self):
+        card, layout = self._make_card("✦", "Provedores de IA")
+
+        desc = QLabel(
+            "Configure provedores compatíveis com OpenAI (LM Studio local, opencode, etc.). "
+            "O provedor ativo é usado pelo Chat estratégico."
+        )
+        desc.setWordWrap(True)
+        desc.setProperty("class", "hint")
+        layout.addWidget(desc)
+
+        sel_row = QHBoxLayout()
+        sel_row.setSpacing(8)
+        sel_row.addWidget(QLabel("Provedor ativo:"))
+        self.ai_combo = QComboBox()
+        self.ai_combo.currentIndexChanged.connect(self._on_provider_selected)
+        sel_row.addWidget(self.ai_combo, 1)
+        layout.addLayout(sel_row)
+
+        def field(label_text, placeholder, password=False):
+            row = QVBoxLayout()
+            row.setSpacing(2)
+            row.addWidget(QLabel(label_text))
+            edit = QLineEdit()
+            edit.setPlaceholderText(placeholder)
+            if password:
+                edit.setEchoMode(QLineEdit.Password)
+            edit.textChanged.connect(self._on_ai_field_changed)
+            row.addWidget(edit)
+            layout.addLayout(row)
+            return edit
+
+        self.ai_name = field("Nome", "Ex: LM Studio local")
+        self.ai_base_url = field("Base URL", "http://localhost:1234/v1")
+        self.ai_api_key = field("API Key", "deixe em branco se local", password=True)
+        self.ai_model = field("Modelo", "ex: qwen2.5-coder-7b-instruct")
+
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(8)
+        self.ai_test_btn = QPushButton("Testar conexão")
+        self.ai_test_btn.setFixedHeight(30)
+        self.ai_test_btn.setCursor(Qt.PointingHandCursor)
+        self.ai_test_btn.clicked.connect(self._test_ai_connection)
+        btn_row.addWidget(self.ai_test_btn)
+
+        self.ai_new_btn = QPushButton("Novo provedor")
+        self.ai_new_btn.setFixedHeight(30)
+        self.ai_new_btn.setCursor(Qt.PointingHandCursor)
+        self.ai_new_btn.clicked.connect(self._new_provider)
+        btn_row.addWidget(self.ai_new_btn)
+
+        btn_row.addStretch()
+        layout.addLayout(btn_row)
+
+        self.ai_status = QLabel("")
+        self.ai_status.setWordWrap(True)
+        self.ai_status.setProperty("class", "hint")
+        layout.addWidget(self.ai_status)
+
+    def _current_providers(self):
+        providers = list_ai_providers()
+        if not providers:
+            from maestro_local.ai.providers import DEFAULT_PROVIDERS
+            providers = [dict(p) for p in DEFAULT_PROVIDERS]
+            save_ai_providers(providers, active_id=providers[0]["id"])
+        return providers
+
+    def _load_ai_section(self):
+        self._loading = True
+        providers = self._current_providers()
+        from maestro_local.config import get_active_ai_provider
+        active = get_active_ai_provider()
+        active_id = active["id"] if active else providers[0]["id"]
+
+        self.ai_combo.clear()
+        for p in providers:
+            self.ai_combo.addItem(p["name"], p["id"])
+        idx = next((i for i, p in enumerate(providers) if p["id"] == active_id), 0)
+        self.ai_combo.setCurrentIndex(idx)
+        self._fill_provider_fields(providers[idx])
+        self._loading = False
+
+    def _fill_provider_fields(self, p):
+        self.ai_name.setText(p.get("name", ""))
+        self.ai_base_url.setText(p.get("base_url", ""))
+        self.ai_api_key.setText(p.get("api_key", ""))
+        self.ai_model.setText(p.get("model", ""))
+
+    def _on_provider_selected(self, index):
+        if self._loading or index < 0:
+            return
+        providers = self._current_providers()
+        pid = self.ai_combo.itemData(index)
+        from maestro_local.config import set_active_ai_provider
+        set_active_ai_provider(pid)
+        p = next((x for x in providers if x["id"] == pid), None)
+        if p:
+            self._loading = True
+            self._fill_provider_fields(p)
+            self._loading = False
+        self.ai_status.setText("")
+        self.ai_provider_changed.emit()
+
+    def _on_ai_field_changed(self):
+        if self._loading:
+            return
+        providers = self._current_providers()
+        pid = self.ai_combo.currentData()
+        for p in providers:
+            if p["id"] == pid:
+                p["name"] = self.ai_name.text().strip() or p["name"]
+                p["base_url"] = self.ai_base_url.text().strip()
+                p["api_key"] = self.ai_api_key.text().strip()
+                p["model"] = self.ai_model.text().strip()
+                break
+        save_ai_providers(providers, active_id=pid)
+        # atualiza o rótulo no combo se o nome mudou
+        i = self.ai_combo.currentIndex()
+        if i >= 0:
+            self._loading = True
+            self.ai_combo.setItemText(i, self.ai_name.text().strip() or self.ai_combo.itemText(i))
+            self._loading = False
+        self.ai_provider_changed.emit()
+
+    def _new_provider(self):
+        providers = self._current_providers()
+        existing = {p["id"] for p in providers}
+        n = 1
+        new_id = "custom-1"
+        while new_id in existing:
+            n += 1
+            new_id = f"custom-{n}"
+        providers.append({
+            "id": new_id, "name": f"Novo provedor {n}",
+            "base_url": "http://localhost:1234/v1", "api_key": "", "model": "",
+        })
+        save_ai_providers(providers, active_id=new_id)
+        self._load_ai_section()
+        self.ai_provider_changed.emit()
+
+    def _test_ai_connection(self):
+        provider = {
+            "base_url": self.ai_base_url.text().strip(),
+            "api_key": self.ai_api_key.text().strip(),
+            "model": self.ai_model.text().strip(),
+        }
+        self.ai_status.setText("Testando...")
+        self.ai_test_btn.setEnabled(False)
+        self._conn_worker = ConnTestWorker(provider)
+        self._conn_worker.done.connect(self._on_conn_tested)
+        self._conn_worker.start()
+
+    def _on_conn_tested(self, ok, msg):
+        t = current_theme()
+        color = t.text_secondary if ok else getattr(t, "danger", "#D32F2F")
+        prefix = "✓ " if ok else "✕ "
+        self.ai_status.setText(prefix + msg)
+        self.ai_status.setStyleSheet(f"color: {color}; font-size: 12px;")
+        self.ai_test_btn.setEnabled(True)
 
     def _build_pomodoro_section(self):
         card, layout = self._make_card("🍅", "Pomodoro")
@@ -162,6 +344,8 @@ class SettingsView(QWidget):
         self.notif_message.setText(msg)
         self.notif_settings_frame.setVisible(self.notif_enabled.isChecked())
         self._loading = False
+
+        self._load_ai_section()
 
     def _save_settings(self):
         if self._loading:
