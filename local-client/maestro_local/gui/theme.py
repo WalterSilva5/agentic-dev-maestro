@@ -496,6 +496,7 @@ PRIORITY_LABELS = {
 NAV_ICONS = {
     "dashboard": "◱",
     "daily": "◰",
+    "todos": "✓",
     "study": "📚",
     "board": "◫",
     "projects": "◈",

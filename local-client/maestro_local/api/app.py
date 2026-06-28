@@ -28,6 +28,7 @@ from maestro_local.db.models import (
     Task,
     TaskChecklist,
     TaskDependency,
+    Todo,
     get_session,
     task_labels,
     DEFAULT_COLUMNS,
@@ -1249,6 +1250,75 @@ def list_activity(
         q = q.filter(ActivityLog.entity_id == entityId)
     entries = q.order_by(ActivityLog.created_at.desc()).limit(limit).all()
     return [_activity_dict(a) for a in entries]
+
+
+# ============================= TODOS =======================================
+
+
+class TodoCreate(BaseModel):
+    text: str
+
+
+class TodoUpdate(BaseModel):
+    text: Optional[str] = None
+    done: Optional[bool] = None
+
+
+def _todo_dict(t: Todo) -> dict:
+    return {
+        "id": t.id,
+        "text": t.text,
+        "done": t.done,
+        "sortOrder": t.sort_order,
+        "createdAt": t.created_at.isoformat() if t.created_at else None,
+        "completedAt": t.completed_at.isoformat() if t.completed_at else None,
+    }
+
+
+@app.get("/api/todos")
+def list_todos(done: Optional[bool] = None, s: Session = Depends(db)):
+    q = s.query(Todo)
+    if done is not None:
+        q = q.filter(Todo.done.is_(done))
+    todos = q.order_by(Todo.done, Todo.sort_order, Todo.id).all()
+    return [_todo_dict(t) for t in todos]
+
+
+@app.post("/api/todos")
+def create_todo(body: TodoCreate, s: Session = Depends(db)):
+    text = body.text.strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="text é obrigatório")
+    t = Todo(text=text, sort_order=s.query(Todo).count())
+    s.add(t)
+    s.commit()
+    s.refresh(t)
+    return _todo_dict(t)
+
+
+@app.patch("/api/todos/{todo_id}")
+def update_todo(todo_id: int, body: TodoUpdate, s: Session = Depends(db)):
+    t = s.query(Todo).get(todo_id)
+    if not t:
+        raise HTTPException(status_code=404, detail="TODO não encontrado")
+    if body.text is not None:
+        t.text = body.text.strip()
+    if body.done is not None:
+        t.done = body.done
+        t.completed_at = datetime.utcnow() if body.done else None
+    s.commit()
+    s.refresh(t)
+    return _todo_dict(t)
+
+
+@app.delete("/api/todos/{todo_id}")
+def delete_todo(todo_id: int, s: Session = Depends(db)):
+    t = s.query(Todo).get(todo_id)
+    if not t:
+        raise HTTPException(status_code=404, detail="TODO não encontrado")
+    s.delete(t)
+    s.commit()
+    return {"ok": True}
 
 
 # ============================= STUDY =======================================

@@ -191,6 +191,17 @@ class ActivityLog(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class Todo(Base):
+    __tablename__ = "todos"
+
+    id = Column(Integer, primary_key=True)
+    text = Column(String(500), nullable=False)
+    done = Column(Boolean, default=False, nullable=False)
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    completed_at = Column(DateTime)
+
+
 Index("ix_tasks_project_column", Task.project_id, Task.column_id)
 Index("ix_tasks_deleted_at", Task.deleted_at)
 Index("ix_activity_entity", ActivityLog.entity_type, ActivityLog.entity_id)

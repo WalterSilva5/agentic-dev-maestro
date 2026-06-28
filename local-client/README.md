@@ -38,7 +38,7 @@ maestro --port 8888  # porta customizada
 ## O que a aplicação faz
 
 Ao iniciar, o Maestro abre:
-1. **GUI desktop** (PySide6/Qt 6) — interface gráfica com 10 telas
+1. **GUI desktop** (PySide6/Qt 6) — interface gráfica com 11 telas
 2. **API REST** (FastAPI/uvicorn) — `http://127.0.0.1:9777/api` em thread daemon
 
 A tela inicial é **Meu Dia**, que funciona como home da aplicação.
@@ -57,6 +57,16 @@ Tela principal do dia de trabalho:
 - **Atividade do dia**: timeline com todas as ações do dia (tasks criadas, movidas, comentadas)
 - **Backup do Banco**: exportar cópia do banco SQLite
 
+### TODOs (Alt+3)
+
+Lista rápida de pendências, separada do board:
+
+- **Lista simples**: sem colunas, sem projeto, sem fluxo de status
+- **Adicionar/concluir/remover**: campo de texto com Enter, checkbox por item (riscado quando concluído), botão de remover
+- **Organização**: pendentes no topo, concluídos embaixo, com contador
+- **Limpar concluídos**: botão para remover de uma vez todos os itens marcados
+- **API**: gerenciável via `/api/todos`, então agentes também conseguem criar e fechar TODOs
+
 ### Dashboard (Alt+1)
 
 Visão geral do workspace:
@@ -66,7 +76,7 @@ Visão geral do workspace:
 - **Atividade recente**: timeline das últimas 15 ações agrupadas por dia
 - **Projetos**: progresso de cada projeto com barra e contagem por coluna
 
-### Estudos (Alt+3)
+### Estudos (Alt+4)
 
 Módulo de aprendizado:
 
@@ -76,7 +86,7 @@ Módulo de aprendizado:
 - **Sessões de estudo**: registrar tempo de estudo com notas e nível de confiança (1-5)
 - **Estatísticas**: horas totais, sessões por semana, planos ativos
 
-### Board Kanban (Alt+4)
+### Board Kanban (Alt+5)
 
 Board de tarefas por projeto:
 
@@ -89,19 +99,19 @@ Board de tarefas por projeto:
 - **Task detail**: dialog completo com título, descrição, tipo, prioridade, assignee, due date, labels, checklist (Definition of Done), dependências, comentários com markdown
 - **Tarefas de revisão**: agentes sempre criam tarefas com `requiresHuman: true` para o desenvolvedor validar alterações
 
-### Projetos (Alt+5)
+### Projetos (Alt+6)
 
 - Criar projetos com nome, chave única (ex: DEMO, PROJ) e descrição
 - Cada projeto gera automaticamente colunas padrão no board
 - Visão de lista com link para o board
 
-### Labels (Alt+6)
+### Labels (Alt+7)
 
 - Criar labels com nome e cor (paleta de 12 cores)
 - Aplicar labels em tarefas para categorizar e filtrar
 - Labels compartilhadas entre projetos do mesmo workspace
 
-### Métricas (Alt+7)
+### Métricas (Alt+8)
 
 Dashboard analítico:
 
@@ -111,7 +121,7 @@ Dashboard analítico:
 - **Por prioridade**: breakdown Low/Medium/High/Urgent com percentual
 - **Por projeto**: progresso de cada projeto com barra
 
-### Skills (Alt+8)
+### Skills (Alt+9)
 
 Biblioteca de skills para agentes de IA:
 
@@ -121,11 +131,11 @@ Biblioteca de skills para agentes de IA:
 - **Preview**: ver o conteúdo da skill antes de instalar
 - **Diretório destino**: selecionar o projeto onde instalar as skills
 
-### Instruções (Alt+9)
+### Instruções (Alt+0)
 
 Guia de uso reestruturado com 10 seções, incluindo explicações de cada tela, fluxo de trabalho, o papel dos agentes e tarefas de revisão.
 
-### Configurações (Alt+0)
+### Configurações
 
 Tela de configurações gerais:
 
@@ -190,6 +200,10 @@ A API roda em `http://127.0.0.1:9777/api` sem autenticação. Todos os endpoints
 | Diario | GET | `/api/daily/{date}` | Nota do dia (YYYY-MM-DD) |
 | Diario | POST | `/api/daily/{date}` | Criar/atualizar nota do dia |
 | Diario | PATCH | `/api/daily/{date}/report` | Append ao relatório do dia |
+| TODOs | GET | `/api/todos` | Listar TODOs (filtro: done) |
+| TODOs | POST | `/api/todos` | Criar TODO |
+| TODOs | PATCH | `/api/todos/{id}` | Atualizar texto ou marcar como concluído |
+| TODOs | DELETE | `/api/todos/{id}` | Remover TODO |
 | Estudos | POST | `/api/study/plans` | Criar plano de estudo |
 | Estudos | GET | `/api/study/plans` | Listar planos |
 | Estudos | GET | `/api/study/plans/{id}` | Detalhe do plano |
@@ -289,6 +303,7 @@ maestro_local/
 │   ├── workspace_selector.py # Seletor de workspace com emoji/cor/descrição
 │   └── views/
 │       ├── daily_view.py        # Meu Dia + Obsidian sync + relatório
+│       ├── todos_view.py        # Lista simples de TODOs
 │       ├── dashboard_view.py    # Dashboard com resumo e atividade
 │       ├── study_view.py        # Planos de estudo + tópicos + sessões
 │       ├── board_view.py        # Kanban board + TaskCard + filtros

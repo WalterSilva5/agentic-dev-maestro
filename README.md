@@ -37,6 +37,9 @@ Após a instalação, abra o Maestro pelo atalho ou execute `local-client/run.sh
 ### Meu Dia (home)
 Tela principal com notas diárias em markdown, template pre-configurado, geração de relatório automático com resumo de atividades, e sincronização com Obsidian vault. Date picker com calendário popup para navegar entre dias. Inclui dica de prompt para que agentes de IA gerem o resumo via skill.
 
+### TODOs
+Lista rápida de pendências, sem board nem colunas. Adicionar, marcar como concluído, remover e limpar concluídos. Acessível também via API (`/api/todos`) para os agentes gerenciarem.
+
 ### Dashboard
 Visão geral com cards de resumo (tarefas ativas, concluídas, vencidas, em progresso), lista de tarefas vencidas clicáveis, atividade recente com timeline, e progresso por projeto.
 
@@ -95,7 +98,7 @@ python -m maestro_local
 ```
 
 A aplicação abre com:
-- **GUI desktop** — interface completa com 10 telas (atalhos Alt+1 a Alt+9, Alt+0)
+- **GUI desktop** — interface completa com 11 telas (atalhos Alt+1 a Alt+9, Alt+0)
 - **API REST** — `http://127.0.0.1:9777/api` para agentes de IA
 
 ### Porta customizada
@@ -117,6 +120,7 @@ A API roda em `http://127.0.0.1:9777/api` sem autenticação. Endpoints principa
 | Labels | `POST/GET /api/labels`, `POST/DELETE /api/labels/{id}/tasks/{task_id}` |
 | Comentários | `GET/POST /api/comments`, `PATCH/DELETE /api/comments/{id}` |
 | Diario | `GET/POST /api/daily/{date}`, `PATCH /api/daily/{date}/report` |
+| TODOs | `GET/POST /api/todos`, `PATCH/DELETE /api/todos/{id}` |
 | Estudos | `POST/GET /api/study/plans`, `PATCH/DELETE /api/study/plans/{id}` |
 | Histórico | `GET /api/tasks/{code}/history` |
 | Changelog | `GET /api/projects/{project_id}/changelog?days=7` |
@@ -146,6 +150,7 @@ A API roda em `http://127.0.0.1:9777/api` sem autenticação. Endpoints principa
 ![Board](local-client/docs/screenshots/board-light.png)
 ![Skills](local-client/docs/screenshots/skills-light.png)
 ![Métricas](local-client/docs/screenshots/metricas-light.png)
+![TODOs](local-client/docs/screenshots/todos-light.png)
 ![Instruções](local-client/docs/screenshots/instrucoes-light.png)
 ![Configurações](local-client/docs/screenshots/configuracoes-light.png)
 
@@ -155,7 +160,7 @@ A API roda em `http://127.0.0.1:9777/api` sem autenticação. Endpoints principa
 agentic-dev-maestro/
 ├── local-client/              # App principal (Python/PySide6)
 │   ├── maestro_local/         # Código fonte
-│   │   ├── gui/views/         # 10 telas da interface
+│   │   ├── gui/views/         # 11 telas da interface
 │   │   ├── api/               # FastAPI endpoints
 │   │   ├── db/                # SQLAlchemy models + SQLite
 │   │   └── skills/            # Catálogo de 12 skills

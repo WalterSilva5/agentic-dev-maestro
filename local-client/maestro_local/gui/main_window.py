@@ -32,6 +32,7 @@ from maestro_local.gui.views.daily_view import DailyView
 from maestro_local.gui.views.dashboard_view import DashboardView
 from maestro_local.gui.views.guide_view import GuideView
 from maestro_local.gui.views.settings_view import SettingsView
+from maestro_local.gui.views.todos_view import TodosView
 from maestro_local.gui.views.labels_view import LabelsView
 from maestro_local.gui.views.metrics_view import MetricsView
 from maestro_local.gui.views.projects_view import ProjectsView
@@ -229,6 +230,7 @@ class MainWindow(QMainWindow):
         nav_items = [
             ("Dashboard", "dashboard"),
             ("Meu Dia", "daily"),
+            ("TODOs", "todos"),
             ("Estudos", "study"),
             ("Board", "board"),
             ("Projetos", "projects"),
@@ -303,6 +305,7 @@ class MainWindow(QMainWindow):
         self.stack = QStackedWidget()
         self.dashboard_view = DashboardView()
         self.daily_view = DailyView()
+        self.todos_view = TodosView()
         self.study_view = StudyView()
         self.board_view = BoardView()
         self.projects_view = ProjectsView()
@@ -315,6 +318,7 @@ class MainWindow(QMainWindow):
 
         self.stack.addWidget(self.dashboard_view)
         self.stack.addWidget(self.daily_view)
+        self.stack.addWidget(self.todos_view)
         self.stack.addWidget(self.study_view)
         self.stack.addWidget(self.board_view)
         self.stack.addWidget(self.projects_view)
@@ -468,7 +472,7 @@ class MainWindow(QMainWindow):
 
     def _open_board(self, project_id):
         self.board_view.set_project(project_id)
-        self.nav_list.setCurrentRow(3)
+        self.nav_list.setCurrentRow(4)
 
     def _open_task_from_dashboard(self, task_id):
         from maestro_local.gui.views.task_detail_dialog import TaskDetailDialog
@@ -560,7 +564,7 @@ class MainWindow(QMainWindow):
         self._close_search()
         if task and hasattr(self.board_view, "open_task_detail"):
             self.board_view.open_task_detail(task)
-            self.nav_list.setCurrentRow(3)
+            self.nav_list.setCurrentRow(4)
 
     # --- Notifications ---
 
