@@ -15,6 +15,24 @@ _cached_model = None
 _cached_size = None
 
 
+def _force_c_utf8_locale() -> None:
+    """Força um locale com mensagens ASCII + ctype UTF-8.
+
+    O QApplication do Qt reseta o LC_CTYPE para ascii. Quando o PyAV
+    (usado pelo faster-whisper no resample) chama os.strerror() e o locale
+    de mensagens é pt_BR, a mensagem vem acentuada e a decodificação ascii
+    quebra. C.UTF-8 dá mensagens em inglês ASCII e ctype UTF-8, evitando o
+    problema. Roda dentro da QThread de transcrição (à prova de reset do Qt).
+    """
+    import locale
+    for loc in ("C.UTF-8", "C.utf8", "en_US.UTF-8"):
+        try:
+            locale.setlocale(locale.LC_ALL, loc)
+            return
+        except locale.Error:
+            continue
+
+
 def get_model(model_size: str = WHISPER_DEFAULT_MODEL, compute_type: str = WHISPER_COMPUTE_TYPE):
     global _cached_model, _cached_size
     if model_size not in WHISPER_SUPPORTED_MODELS:
@@ -57,6 +75,7 @@ class TranscriberWorker(QThread):
 
     def run(self) -> None:
         try:
+            _force_c_utf8_locale()
             model = get_model(self.model_size)
             language = self.language or None
             segments_iter, info = model.transcribe(

@@ -1,47 +1,29 @@
 import sys
 
-
-def _ensure_utf8():
-    """Garante modo UTF-8 do interpretador.
-
-    Quando o app é iniciado num ambiente com locale ascii (comum em
-    autostart/sessões mínimas), o default encoding vira ascii e a
-    transcrição (faster-whisper) quebra com UnicodeDecodeError ao ler
-    arquivos do modelo com acentos. Re-executa em modo UTF-8 só nesse caso.
-    """
-    import os
-
-    if sys.flags.utf8_mode or os.environ.get("MAESTRO_UTF8_REEXEC") == "1":
-        return
-    import codecs
-    import locale
-
-    def _is_ascii(enc: str) -> bool:
-        if not enc:
-            return True
-        try:
-            return codecs.lookup(enc).name == "ascii"
-        except LookupError:
-            return True
-
-    pref = locale.getpreferredencoding(False)
-    if not _is_ascii(pref) and not _is_ascii(sys.getfilesystemencoding()):
-        return
-    os.environ["MAESTRO_UTF8_REEXEC"] = "1"
-    os.environ["PYTHONUTF8"] = "1"
-    sys.stderr.write("maestro: locale ascii detectado, reiniciando em modo UTF-8...\n")
-    sys.stderr.flush()
-    try:
-        os.execv(sys.executable, [sys.executable, "-X", "utf8", "-m", "maestro_local", *sys.argv[1:]])
-    except Exception as e:  # noqa: BLE001
-        sys.stderr.write(f"maestro: falha ao reiniciar em UTF-8 ({e}); seguindo mesmo assim\n")
-
-
-_ensure_utf8()
-
 from maestro_local.config import get_active_workspace_id, get_workspace_db_path
 from maestro_local.db.models import init_db
 from maestro_local.api.server import start_api
+
+
+def _restore_utf8_locale():
+    """Restaura um locale UTF-8 no nível do C.
+
+    O QApplication do Qt reseta o locale C (LC_CTYPE) ao iniciar. Isso faz o
+    ctranslate2/faster-whisper decodificarem os arquivos do modelo em ascii e
+    quebrarem com \"'ascii' codec can't decode byte 0xc3\" durante a
+    transcrição (que roda em QThread). Restaurar um locale UTF-8 aqui corrige.
+    """
+    import locale
+
+    # Mensagens ASCII (LC_MESSAGES=C) + ctype UTF-8. Evita que os.strerror()
+    # do PyAV retorne mensagens acentuadas (pt_BR) que quebram a decodificação
+    # quando o Qt reseta o LC_CTYPE para ascii.
+    for loc in ("C.UTF-8", "C.utf8", "en_US.UTF-8"):
+        try:
+            locale.setlocale(locale.LC_ALL, loc)
+            return
+        except locale.Error:
+            continue
 
 
 def main():
@@ -59,6 +41,7 @@ def main():
     from maestro_local.gui.main_window import MainWindow
 
     app = QApplication(sys.argv)
+    _restore_utf8_locale()  # Qt zera o locale ao criar o QApplication
     app.setApplicationName("Maestro Local")
     window = MainWindow(api_port=port)
     window.show()
