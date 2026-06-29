@@ -26,5 +26,12 @@ Thumbs.db
 # Config local do Claude
 .claude/
 
+# Config local de editores/IDE
+.vscode/
+.idea/
+
+# Arquivos soltos não relacionados ao projeto (só na raiz)
+/*.pdf
+
 # Cache de build TS
 *.tsbuildinfo
