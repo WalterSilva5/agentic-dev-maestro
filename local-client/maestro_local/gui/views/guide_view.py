@@ -126,7 +126,7 @@ SECTIONS = [
     },
     {
         "icon": "9",
-        "title": "Chat estratégico",
+        "title": "Assistente",
         "body": (
             "O Chat estratégico é um assistente de IA interno que roda com seu "
             "próprio provedor (LM Studio local, opencode, etc.). Diferente dos "
@@ -164,7 +164,7 @@ SECTIONS = [
             "- Alt+2 — Meu Dia\n"
             "- Alt+3 — Estudos\n"
             "- Alt+4 — Board\n"
-            "- Alt+5 — Chat estratégico\n"
+            "- Alt+5 — Assistente\n"
             "- Alt+6 — Transcrições\n"
             "- Alt+7 — Projetos\n"
             "- Alt+8 — Skills\n"

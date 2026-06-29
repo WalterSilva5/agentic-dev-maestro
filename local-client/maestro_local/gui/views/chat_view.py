@@ -77,7 +77,7 @@ class ChatView(QWidget):
         layout.setContentsMargins(14, 14, 14, 14)
         layout.setSpacing(10)
 
-        title = QLabel("Chat estratégico")
+        title = QLabel("Assistente")
         title.setObjectName("sectionTitle")
         layout.addWidget(title)
 

@@ -128,7 +128,7 @@ class MainWindow(QMainWindow):
             ("Meu Dia", "daily"),
             ("Estudos", "study"),
             ("Board", "board"),
-            ("Chat", "chat"),
+            ("Assistente", "chat"),
             ("Transcrições", "transcricoes"),
             ("Projetos", "projects"),
             ("Skills", "skills"),

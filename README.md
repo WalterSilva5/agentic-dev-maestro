@@ -45,7 +45,7 @@ Hub central organizado em abas: **Visão geral** (Pomodoro, cards de resumo, tar
 ### Board Kanban
 Board com drag-and-drop, colunas customizáveis por projeto, filtros por tipo/prioridade/responsável, botão quick-move para avançar tarefas, WIP limits e indicador de code review obrigatório. Agentes sempre criam tarefas de revisão (`requiresHuman: true`) para o desenvolvedor validar alterações.
 
-### Chat estratégico
+### Assistente
 Assistente de IA interno que roda com seu próprio provedor (LM Studio local, opencode ou qualquer API compatível com OpenAI). Ele lê o board, sugere prioridades, solicita revisões de tarefas, cria TODOs e comenta tarefas — tudo dentro da aplicação. Construído com LangGraph e ferramentas internas. Configurável em Configurações → Provedores de IA.
 
 ### Transcrições
@@ -155,7 +155,7 @@ A API roda em `http://127.0.0.1:9777/api` sem autenticação. Endpoints principa
 ![Dashboard](local-client/docs/screenshots/dashboard-light.png)
 ![Meu Dia](local-client/docs/screenshots/meudia-light.png)
 ![Board](local-client/docs/screenshots/board-light.png)
-![Chat estratégico](local-client/docs/screenshots/chat-light.png)
+![Assistente](local-client/docs/screenshots/chat-light.png)
 ![Transcrições](local-client/docs/screenshots/transcricoes-light.png)
 ![Skills](local-client/docs/screenshots/skills-light.png)
 ![Instruções](local-client/docs/screenshots/instrucoes-light.png)

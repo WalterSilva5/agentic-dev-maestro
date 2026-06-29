@@ -97,7 +97,7 @@ Board de tarefas por projeto:
 - **Task detail**: dialog completo com título, descrição, tipo, prioridade, assignee, due date, labels, checklist (Definition of Done), dependências, comentários com markdown
 - **Tarefas de revisão**: agentes sempre criam tarefas com `requiresHuman: true` para o desenvolvedor validar alterações
 
-### Chat estratégico (Alt+5)
+### Assistente (Alt+5)
 
 Assistente de IA interno que roda com seu próprio provedor:
 
