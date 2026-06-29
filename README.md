@@ -11,7 +11,7 @@ O Maestro é uma ferramenta local para desenvolvedores que querem organizar seu 
 ### Principais diferenciais
 
 - **Tudo local**: dados em SQLite, GUI desktop nativa, sem cloud
-- **Chat estratégico**: assistente de IA interno (LangGraph) com provedor configurável (LM Studio, opencode) que age sobre o board
+- **Assistente**: agente de IA interno (LangGraph) com provedor configurável (LM Studio, opencode) que age sobre o board
 - **Cronista**: grava reuniões/estudos, transcreve local com Whisper e resume com IA (ex-projeto wsi-cronista integrado)
 - **API para agentes**: agentes de IA criam tarefas, movem no board, registram code reviews e geram relatórios — tudo via REST
 - **Skills prontas**: 12 skills instaláveis que ensinam agentes a usar o Maestro
@@ -71,7 +71,7 @@ Guia de uso da aplicação com 12 seções, incluindo explicações de cada tela
 
 ### Configurações
 Tela de configurações gerais com:
-- **Provedores de IA**: cadastrar/selecionar provedores compatíveis com OpenAI (LM Studio, Ollama, OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Gemini, Together, opencode), com teste de conexão. Usado pelo Chat estratégico
+- **Provedores de IA**: cadastrar/selecionar provedores compatíveis com OpenAI (LM Studio, Ollama, OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Gemini, Together, opencode), com teste de conexão. Usado pelo Assistente
 - **Pomodoro**: duração da sessão configurável (1-120 min)
 - **Notificações push**: notificações periódicas na área de trabalho com mensagem personalizada, intervalo configurável e ativação/desativação
 

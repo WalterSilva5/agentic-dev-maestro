@@ -18,10 +18,13 @@ agentic-dev-maestro/
 │   ├── maestro_local/     # Código fonte Python
 │   │   ├── api/app.py     # FastAPI — todos os endpoints
 │   │   ├── db/models.py   # SQLAlchemy — modelos de dados
+│   │   ├── ai/            # Assistente interno (LangGraph + provedores IA)
+│   │   ├── transcricoes/  # Gravação + transcrição (Whisper) + resumo IA
 │   │   ├── gui/           # Interface desktop (PySide6)
 │   │   │   ├── main_window.py
 │   │   │   ├── theme.py   # Tema dark/light
-│   │   │   └── views/     # Board, Tasks, Estudos, Métricas...
+│   │   │   ├── widgets/   # Pomodoro, acesso rápido às Transcrições
+│   │   │   └── views/     # Dashboard(abas), Board, Assistente, Transcrições, Estudos...
 │   │   └── skills/        # Skills para agentes
 │   ├── pyproject.toml
 │   └── run.sh

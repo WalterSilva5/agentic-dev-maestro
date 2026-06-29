@@ -160,7 +160,7 @@ Guia de uso reestruturado com 12 seções, incluindo explicações de cada tela,
 
 Tela de configurações gerais:
 
-- **Provedores de IA**: cadastrar e selecionar provedores compatíveis com OpenAI (LM Studio, Ollama, OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Gemini, Together, opencode) usados pelo Chat estratégico e pelas Transcrições. Campos de Base URL, API Key e Modelo, com botão de testar conexão e adicionar novos provedores
+- **Provedores de IA**: cadastrar e selecionar provedores compatíveis com OpenAI (LM Studio, Ollama, OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Gemini, Together, opencode) usados pelo Assistente e pelas Transcrições. Campos de Base URL, API Key e Modelo, com botão de testar conexão e adicionar novos provedores
 - **Transcrições**: modelo do Whisper (tiny → large-v3) e idioma usados na transcrição local
 - **Pomodoro**: duração da sessão configurável (1-120 minutos), atualiza o timer da sidebar em tempo real
 - **Notificações push**: notificações periódicas na área de trabalho com mensagem personalizada, intervalo configurável (1-480 min) e toggle de ativação. Desabilitado por padrão. Usa `QSystemTrayIcon` com fallback para `notify-send`
@@ -327,7 +327,7 @@ maestro_local/
 │   └── views/
 │       ├── daily_view.py        # Meu Dia + Obsidian sync + relatório
 │       ├── todos_view.py        # Lista simples de TODOs
-│       ├── chat_view.py         # Chat estratégico (agente interno)
+│       ├── chat_view.py         # Assistente (agente interno)
 │       ├── transcricoes_view.py # Transcrições (gravação + transcrição)
 │       ├── settings_view.py     # Configurações (IA, pomodoro, notificações)
 │       ├── dashboard_view.py    # Dashboard com resumo e atividade
@@ -358,7 +358,7 @@ maestro_local/
 
 - Python 3.10+
 - Qt 6 (instalado automaticamente com PySide6)
-- `langgraph` + `langchain-openai` (instalados automaticamente; usados pelo Chat estratégico)
+- `langgraph` + `langchain-openai` (instalados automaticamente; usados pelo Assistente)
 - Para o Chat e a análise das Transcrições: um provedor de IA compatível com OpenAI (LM Studio local, opencode, etc.)
 - Para as Transcrições (gravação no Linux): `pulseaudio-utils` (`parec`/`pactl`) e PipeWire/PulseAudio; `faster-whisper` para transcrição (instalado automaticamente)
 - Linux, macOS ou Windows
