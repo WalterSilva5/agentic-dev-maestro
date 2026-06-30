@@ -26,10 +26,10 @@ DEFAULT_PROVIDERS = [
     },
     {
         "id": "opencode",
-        "name": "opencode",
-        "base_url": "https://api.opencode.ai/v1",
+        "name": "opencode (Zen Go)",
+        "base_url": "https://opencode.ai/zen/go/v1",
         "api_key": "",
-        "model": "",
+        "model": "deepseek-v4-pro",
     },
     {
         "id": "openai",
@@ -135,8 +135,12 @@ def test_connection(provider: dict) -> tuple[bool, str]:
     if not base:
         return False, "base_url vazia"
     url = f"{base}/models"
+    # User-Agent de navegador: alguns provedores (ex.: opencode/Cloudflare)
+    # bloqueiam o UA padrão do urllib com erro 403/1010.
     req = urllib.request.Request(url, headers={
         "Authorization": f"Bearer {provider.get('api_key') or 'x'}",
+        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) Maestro/1.0",
+        "Accept": "application/json",
     })
     try:
         with urllib.request.urlopen(req, timeout=8) as resp:
