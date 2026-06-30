@@ -9,12 +9,13 @@ from PySide6.QtWidgets import (
 )
 
 from maestro_local.gui.theme import current_theme
+from maestro_local.i18n import t as _t
 
 SECTIONS = [
     {
         "icon": "🎯",
-        "title": "O papel dos agentes",
-        "body": (
+        "title": _t("O papel dos agentes"),
+        "body": _t(
             "Agentes de IA são auxiliares dos desenvolvedores. "
             "Ajudam a acelerar o trabalho repetitivo, documentar "
             "progresso e preparar código para revisão humana.\n\n"
@@ -32,8 +33,8 @@ SECTIONS = [
     },
     {
         "icon": "1",
-        "title": "Crie um projeto",
-        "body": (
+        "title": _t("Crie um projeto"),
+        "body": _t(
             "Acesse a aba Projetos e crie um novo projeto com nome e chave (ex: MEU-PROJ). "
             "O board será criado automaticamente com as colunas: "
             "Backlog, A fazer, Fazendo, Revisão e Concluído."
@@ -41,8 +42,8 @@ SECTIONS = [
     },
     {
         "icon": "2",
-        "title": "Adicione tarefas ao board",
-        "body": (
+        "title": _t("Adicione tarefas ao board"),
+        "body": _t(
             "No Board, use o campo de texto na parte inferior de cada coluna para criar "
             "tarefas rapidamente. Clique em uma tarefa para abrir o detalhe e preencher "
             "descrição, prioridade, tipo, checklist e labels."
@@ -50,8 +51,8 @@ SECTIONS = [
     },
     {
         "icon": "3",
-        "title": "Instale skills no seu projeto",
-        "body": (
+        "title": _t("Instale skills no seu projeto"),
+        "body": _t(
             "Acesse a aba Skills, selecione o diretório do seu projeto e instale as skills "
             "desejadas. Elas serão salvas em .claude/skills/ e ensinam agentes de IA a "
             "interagir com o Maestro via API.\n\n"
@@ -61,8 +62,8 @@ SECTIONS = [
     },
     {
         "icon": "4",
-        "title": "Fluxo de trabalho: dev + agente",
-        "body": (
+        "title": _t("Fluxo de trabalho: dev + agente"),
+        "body": _t(
             "O desenvolvedor lidera, o agente auxilia:\n\n"
             "1. Dev cria tarefas no board com descrição e critérios\n"
             "2. Agente pega uma tarefa e move para Fazendo\n"
@@ -78,8 +79,8 @@ SECTIONS = [
     },
     {
         "icon": "5",
-        "title": "Tarefas de revisão",
-        "body": (
+        "title": _t("Tarefas de revisão"),
+        "body": _t(
             "Ao concluir qualquer implementação, o agente DEVE criar uma tarefa "
             "de revisão para o desenvolvedor. Essa tarefa inclui:\n"
             "- Resumo do que foi feito\n"
@@ -92,8 +93,8 @@ SECTIONS = [
     },
     {
         "icon": "6",
-        "title": "Tarefas exclusivas de desenvolvedor",
-        "body": (
+        "title": _t("Tarefas exclusivas de desenvolvedor"),
+        "body": _t(
             "Marque tarefas como 'Requer desenvolvedor' no detalhe da tarefa. "
             "Essas tarefas aparecem com badge DEV no board e são ignoradas "
             "automaticamente pelos agentes. Use para tarefas que exigem "
@@ -102,8 +103,8 @@ SECTIONS = [
     },
     {
         "icon": "7",
-        "title": "Acompanhe métricas",
-        "body": (
+        "title": _t("Acompanhe métricas"),
+        "body": _t(
             "A aba Métricas mostra:\n"
             "- Total de tarefas e progresso\n"
             "- Throughput semanal (tarefas concluídas por semana)\n"
@@ -114,8 +115,8 @@ SECTIONS = [
     },
     {
         "icon": "8",
-        "title": "Meu Dia e relatórios",
-        "body": (
+        "title": _t("Meu Dia e relatórios"),
+        "body": _t(
             "A tela Meu Dia é o ponto central do dia de trabalho:\n"
             "- Notas do dia com template de foco, tarefas e bloqueios\n"
             "- Geração de relatório com resumo de atividades\n"
@@ -126,8 +127,8 @@ SECTIONS = [
     },
     {
         "icon": "9",
-        "title": "Assistente",
-        "body": (
+        "title": _t("Assistente"),
+        "body": _t(
             "O Chat estratégico é um assistente de IA interno que roda com seu "
             "próprio provedor (LM Studio local, opencode, etc.). Diferente dos "
             "agentes externos, ele age dentro da aplicação:\n"
@@ -142,8 +143,8 @@ SECTIONS = [
     },
     {
         "icon": "10",
-        "title": "Transcrições (gravações)",
-        "body": (
+        "title": _t("Transcrições (gravações)"),
+        "body": _t(
             "A tela de Transcrições grava reuniões e sessões de estudo, transcreve "
             "localmente com Whisper e gera resumos estruturados com IA:\n"
             "- Captura microfone e/ou áudio do sistema (PipeWire/PulseAudio)\n"
@@ -157,8 +158,8 @@ SECTIONS = [
     },
     {
         "icon": "?",
-        "title": "Atalhos de teclado",
-        "body": (
+        "title": _t("Atalhos de teclado"),
+        "body": _t(
             "- Ctrl+K — Busca global de tarefas\n"
             "- Alt+1 — Dashboard (Métricas, TODOs e Labels ficam aqui em abas)\n"
             "- Alt+2 — Meu Dia\n"
@@ -184,14 +185,16 @@ class GuideView(QWidget):
         main_layout.setContentsMargins(14, 14, 14, 14)
         main_layout.setSpacing(10)
 
-        title = QLabel("Como usar o Agentic Dev Maestro")
+        title = QLabel(_t("Como usar o Agentic Dev Maestro"))
         title.setObjectName("sectionTitle")
         main_layout.addWidget(title)
 
         subtitle = QLabel(
-            "Gerencie tarefas com um board kanban e use agentes de IA como "
-            "auxiliares dos desenvolvedores — eles ajudam a implementar, "
-            "documentar e preparar código para revisão humana via API REST."
+            _t(
+                "Gerencie tarefas com um board kanban e use agentes de IA como "
+                "auxiliares dos desenvolvedores — eles ajudam a implementar, "
+                "documentar e preparar código para revisão humana via API REST."
+            )
         )
         subtitle.setWordWrap(True)
         subtitle.setObjectName("subtitle")

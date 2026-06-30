@@ -32,6 +32,9 @@ def main():
         if arg in ("--port", "-p") and i < len(sys.argv) - 1:
             port = int(sys.argv[i + 1])
 
+    from maestro_local.i18n import init_language
+    init_language()
+
     ws_id = get_active_workspace_id()
     db_path = get_workspace_db_path(ws_id)
     init_db(db_path)

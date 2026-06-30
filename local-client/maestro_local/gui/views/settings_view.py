@@ -20,6 +20,7 @@ from maestro_local.config import (
     save_config,
 )
 from maestro_local.gui.theme import current_theme
+from maestro_local.i18n import t
 
 
 class ConnTestWorker(QThread):
@@ -47,12 +48,12 @@ class SettingsView(QWidget):
         main_layout.setContentsMargins(14, 14, 14, 14)
         main_layout.setSpacing(10)
 
-        title = QLabel("Configurações")
+        title = QLabel(t("Configurações"))
         title.setObjectName("sectionTitle")
         main_layout.addWidget(title)
 
         subtitle = QLabel(
-            "Configurações gerais da aplicação — pomodoro, notificações e preferências."
+            t("Configurações gerais da aplicação — pomodoro, notificações e preferências.")
         )
         subtitle.setWordWrap(True)
         subtitle.setObjectName("subtitle")
@@ -67,6 +68,7 @@ class SettingsView(QWidget):
         self.cards_layout.setContentsMargins(0, 0, 0, 0)
         self.cards_layout.setSpacing(12)
 
+        self._build_language_section()
         self._build_ai_section()
         self._build_transcricoes_section()
         self._build_pomodoro_section()
@@ -91,9 +93,9 @@ class SettingsView(QWidget):
         badge = QLabel(icon)
         badge.setFixedSize(32, 32)
         badge.setAlignment(Qt.AlignCenter)
-        t = current_theme()
+        theme = current_theme()
         badge.setStyleSheet(
-            f"background: {t.accent}; color: {t.text_on_accent}; "
+            f"background: {theme.accent}; color: {theme.text_on_accent}; "
             f"border-radius: 16px; font-size: 14px; font-weight: 800; border: none;"
         )
         header.addWidget(badge)
@@ -107,12 +109,59 @@ class SettingsView(QWidget):
         self.cards_layout.addWidget(card)
         return card, layout
 
+    def _build_language_section(self):
+        from maestro_local.i18n import SUPPORTED, t
+        card, layout = self._make_card("🌐", t("Idioma"))
+
+        desc = QLabel(t("Idioma da interface. Trocar exige reiniciar o aplicativo."))
+        desc.setWordWrap(True)
+        desc.setProperty("class", "hint")
+        layout.addWidget(desc)
+
+        row = QHBoxLayout()
+        row.setSpacing(8)
+        row.addWidget(QLabel(t("Idioma:")))
+        self.lang_combo = QComboBox()
+        for code, name in SUPPORTED.items():
+            self.lang_combo.addItem(name, code)
+        self.lang_combo.currentIndexChanged.connect(self._on_language_changed)
+        row.addWidget(self.lang_combo)
+        row.addStretch()
+        layout.addLayout(row)
+
+    def _on_language_changed(self, _index):
+        if self._loading:
+            return
+        from maestro_local.config import get_language, set_language
+        from maestro_local.i18n import t
+        code = self.lang_combo.currentData()
+        if code == get_language():
+            return
+        set_language(code)
+
+        from PySide6.QtWidgets import QMessageBox
+        box = QMessageBox(self)
+        box.setWindowTitle(t("Idioma"))
+        box.setText(t("O idioma foi alterado. Reinicie o aplicativo para aplicar."))
+        restart_btn = box.addButton(t("Reiniciar agora"), QMessageBox.AcceptRole)
+        box.addButton(t("Depois"), QMessageBox.RejectRole)
+        box.exec()
+        if box.clickedButton() is restart_btn:
+            self._restart_app()
+
+    def _restart_app(self):
+        import os
+        import sys
+        from PySide6.QtWidgets import QApplication
+        QApplication.quit()
+        os.execv(sys.executable, [sys.executable, "-m", "maestro_local", *sys.argv[1:]])
+
     def _build_ai_section(self):
-        card, layout = self._make_card("✦", "Provedores de IA")
+        card, layout = self._make_card("✦", t("Provedores de IA"))
 
         desc = QLabel(
-            "Configure provedores compatíveis com OpenAI (LM Studio local, opencode, etc.). "
-            "O provedor ativo é usado pelo Chat estratégico."
+            t("Configure provedores compatíveis com OpenAI (LM Studio local, opencode, etc.). "
+              "O provedor ativo é usado pelo Chat estratégico.")
         )
         desc.setWordWrap(True)
         desc.setProperty("class", "hint")
@@ -120,7 +169,7 @@ class SettingsView(QWidget):
 
         sel_row = QHBoxLayout()
         sel_row.setSpacing(8)
-        sel_row.addWidget(QLabel("Provedor ativo:"))
+        sel_row.addWidget(QLabel(t("Provedor ativo:")))
         self.ai_combo = QComboBox()
         self.ai_combo.currentIndexChanged.connect(self._on_provider_selected)
         sel_row.addWidget(self.ai_combo, 1)
@@ -139,20 +188,20 @@ class SettingsView(QWidget):
             layout.addLayout(row)
             return edit
 
-        self.ai_name = field("Nome", "Ex: LM Studio local")
+        self.ai_name = field(t("Nome"), t("Ex: LM Studio local"))
         self.ai_base_url = field("Base URL", "http://localhost:1234/v1")
-        self.ai_api_key = field("API Key", "deixe em branco se local", password=True)
-        self.ai_model = field("Modelo", "ex: qwen2.5-coder-7b-instruct")
+        self.ai_api_key = field("API Key", t("deixe em branco se local"), password=True)
+        self.ai_model = field(t("Modelo"), t("ex: qwen2.5-coder-7b-instruct"))
 
         btn_row = QHBoxLayout()
         btn_row.setSpacing(8)
-        self.ai_test_btn = QPushButton("Testar conexão")
+        self.ai_test_btn = QPushButton(t("Testar conexão"))
         self.ai_test_btn.setFixedHeight(30)
         self.ai_test_btn.setCursor(Qt.PointingHandCursor)
         self.ai_test_btn.clicked.connect(self._test_ai_connection)
         btn_row.addWidget(self.ai_test_btn)
 
-        self.ai_new_btn = QPushButton("Novo provedor")
+        self.ai_new_btn = QPushButton(t("Novo provedor"))
         self.ai_new_btn.setFixedHeight(30)
         self.ai_new_btn.setCursor(Qt.PointingHandCursor)
         self.ai_new_btn.clicked.connect(self._new_provider)
@@ -245,7 +294,7 @@ class SettingsView(QWidget):
             n += 1
             new_id = f"custom-{n}"
         providers.append({
-            "id": new_id, "name": f"Novo provedor {n}",
+            "id": new_id, "name": t("Novo provedor {n}").format(n=n),
             "base_url": "http://localhost:1234/v1", "api_key": "", "model": "",
         })
         save_ai_providers(providers, active_id=new_id)
@@ -258,26 +307,26 @@ class SettingsView(QWidget):
             "api_key": self.ai_api_key.text().strip(),
             "model": self.ai_model.text().strip(),
         }
-        self.ai_status.setText("Testando...")
+        self.ai_status.setText(t("Testando..."))
         self.ai_test_btn.setEnabled(False)
         self._conn_worker = ConnTestWorker(provider)
         self._conn_worker.done.connect(self._on_conn_tested)
         self._conn_worker.start()
 
     def _on_conn_tested(self, ok, msg):
-        t = current_theme()
-        color = t.text_secondary if ok else getattr(t, "danger", "#D32F2F")
+        theme = current_theme()
+        color = theme.text_secondary if ok else getattr(theme, "danger", "#D32F2F")
         prefix = "✓ " if ok else "✕ "
         self.ai_status.setText(prefix + msg)
         self.ai_status.setStyleSheet(f"color: {color}; font-size: 12px;")
         self.ai_test_btn.setEnabled(True)
 
     def _build_transcricoes_section(self):
-        card, layout = self._make_card("🎙", "Transcrições")
+        card, layout = self._make_card("🎙", t("Transcrições"))
 
         desc = QLabel(
-            "Modelo do Whisper usado para transcrever gravações localmente. "
-            "Modelos maiores são mais precisos, porém mais lentos."
+            t("Modelo do Whisper usado para transcrever gravações localmente. "
+              "Modelos maiores são mais precisos, porém mais lentos.")
         )
         desc.setWordWrap(True)
         desc.setProperty("class", "hint")
@@ -285,7 +334,7 @@ class SettingsView(QWidget):
 
         row = QHBoxLayout()
         row.setSpacing(8)
-        row.addWidget(QLabel("Modelo Whisper:"))
+        row.addWidget(QLabel(t("Modelo Whisper:")))
         self.whisper_model = QComboBox()
         from maestro_local.transcricoes.constants import WHISPER_SUPPORTED_MODELS
         self.whisper_model.addItems(WHISPER_SUPPORTED_MODELS)
@@ -293,9 +342,9 @@ class SettingsView(QWidget):
         row.addWidget(self.whisper_model)
 
         row.addSpacing(12)
-        row.addWidget(QLabel("Idioma:"))
+        row.addWidget(QLabel(t("Idioma:")))
         self.whisper_lang = QLineEdit()
-        self.whisper_lang.setPlaceholderText("pt, en... (vazio = auto)")
+        self.whisper_lang.setPlaceholderText(t("pt, en... (vazio = auto)"))
         self.whisper_lang.setFixedWidth(120)
         self.whisper_lang.textChanged.connect(self._save_settings)
         row.addWidget(self.whisper_lang)
@@ -303,11 +352,11 @@ class SettingsView(QWidget):
         layout.addLayout(row)
 
     def _build_pomodoro_section(self):
-        card, layout = self._make_card("🍅", "Pomodoro")
+        card, layout = self._make_card("🍅", t("Pomodoro"))
 
         row = QHBoxLayout()
         row.setSpacing(8)
-        row.addWidget(QLabel("Duração da sessão (minutos):"))
+        row.addWidget(QLabel(t("Duração da sessão (minutos):")))
         self.pomodoro_duration = QSpinBox()
         self.pomodoro_duration.setRange(1, 120)
         self.pomodoro_duration.setValue(25)
@@ -318,17 +367,17 @@ class SettingsView(QWidget):
         layout.addLayout(row)
 
     def _build_notification_section(self):
-        card, layout = self._make_card("🔔", "Notificações push")
+        card, layout = self._make_card("🔔", t("Notificações push"))
 
         desc = QLabel(
-            "Envia notificações periódicas na área de trabalho com uma mensagem personalizada. "
-            "Útil para lembretes de pausas, check-ins ou qualquer lembrete recorrente."
+            t("Envia notificações periódicas na área de trabalho com uma mensagem personalizada. "
+              "Útil para lembretes de pausas, check-ins ou qualquer lembrete recorrente.")
         )
         desc.setWordWrap(True)
         desc.setProperty("class", "hint")
         layout.addWidget(desc)
 
-        self.notif_enabled = QCheckBox("Ativar notificações periódicas")
+        self.notif_enabled = QCheckBox(t("Ativar notificações periódicas"))
         self.notif_enabled.toggled.connect(self._on_notif_toggled)
         layout.addWidget(self.notif_enabled)
 
@@ -339,7 +388,7 @@ class SettingsView(QWidget):
 
         interval_row = QHBoxLayout()
         interval_row.setSpacing(8)
-        interval_row.addWidget(QLabel("Intervalo (minutos):"))
+        interval_row.addWidget(QLabel(t("Intervalo (minutos):")))
         self.notif_interval = QSpinBox()
         self.notif_interval.setRange(1, 480)
         self.notif_interval.setValue(30)
@@ -351,10 +400,10 @@ class SettingsView(QWidget):
 
         msg_row = QVBoxLayout()
         msg_row.setSpacing(4)
-        msg_row.addWidget(QLabel("Mensagem:"))
+        msg_row.addWidget(QLabel(t("Mensagem:")))
         self.notif_message = QLineEdit()
-        self.notif_message.setPlaceholderText("Ex: Hora de fazer um check-in no Maestro!")
-        self.notif_message.setText("Hora de verificar suas tarefas no Maestro!")
+        self.notif_message.setPlaceholderText(t("Ex: Hora de fazer um check-in no Maestro!"))
+        self.notif_message.setText(t("Hora de verificar suas tarefas no Maestro!"))
         self.notif_message.textChanged.connect(self._save_settings)
         msg_row.addWidget(self.notif_message)
         notif_inner.addLayout(msg_row)
@@ -371,12 +420,17 @@ class SettingsView(QWidget):
         cfg = load_config()
         settings = cfg.get("settings", {})
 
+        from maestro_local.config import get_language
+        li = self.lang_combo.findData(get_language())
+        if li >= 0:
+            self.lang_combo.setCurrentIndex(li)
+
         self.pomodoro_duration.setValue(settings.get("pomodoro_minutes", 25))
 
         notif = settings.get("notifications", {})
         self.notif_enabled.setChecked(notif.get("enabled", False))
         self.notif_interval.setValue(notif.get("interval_minutes", 30))
-        msg = notif.get("message", "Hora de verificar suas tarefas no Maestro!")
+        msg = notif.get("message", t("Hora de verificar suas tarefas no Maestro!"))
         self.notif_message.setText(msg)
         self.notif_settings_frame.setVisible(self.notif_enabled.isChecked())
 

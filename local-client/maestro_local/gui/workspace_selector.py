@@ -24,6 +24,7 @@ from maestro_local.config import (
     update_workspace,
 )
 from maestro_local.gui.theme import current_theme
+from maestro_local.i18n import t as _t
 
 WORKSPACE_COLORS = [
     "#4C5FD0", "#7B8DFF", "#2196F3", "#0097A7",
@@ -115,15 +116,15 @@ class _IconColorSection(QWidget):
 
     def __init__(self, initial_icon="W", initial_color=""):
         super().__init__()
-        t = current_theme()
+        theme = current_theme()
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(10)
 
         # --- Icon ---
         icon_header = QHBoxLayout()
-        icon_lbl = QLabel("Icone")
-        icon_lbl.setStyleSheet(f"font-size: 12px; color: {t.text_muted}; font-weight: 600;")
+        icon_lbl = QLabel(_t("Icone"))
+        icon_lbl.setStyleSheet(f"font-size: 12px; color: {theme.text_muted}; font-weight: 600;")
         icon_header.addWidget(icon_lbl)
 
         self.icon_input = QLineEdit()
@@ -142,17 +143,17 @@ class _IconColorSection(QWidget):
             btn.setFixedSize(32, 32)
             btn.setCursor(Qt.PointingHandCursor)
             btn.setStyleSheet(
-                f"QPushButton {{ background: {t.bg_input}; border: 1px solid {t.border_light}; "
+                f"QPushButton {{ background: {theme.bg_input}; border: 1px solid {theme.border_light}; "
                 f"border-radius: 6px; font-size: 15px; padding: 0; }}"
-                f"QPushButton:hover {{ background: {t.bg_hover}; border-color: {t.border}; }}"
+                f"QPushButton:hover {{ background: {theme.bg_hover}; border-color: {theme.border}; }}"
             )
             btn.clicked.connect(lambda _, e=emoji: self.icon_input.setText(e))
             emoji_grid.addWidget(btn, i // 8, i % 8)
         layout.addLayout(emoji_grid)
 
         # --- Color ---
-        color_lbl = QLabel("Cor do workspace")
-        color_lbl.setStyleSheet(f"font-size: 12px; color: {t.text_muted}; font-weight: 600;")
+        color_lbl = QLabel(_t("Cor do workspace"))
+        color_lbl.setStyleSheet(f"font-size: 12px; color: {theme.text_muted}; font-weight: 600;")
         layout.addWidget(color_lbl)
 
         self.selected_color = initial_color
@@ -193,38 +194,38 @@ class _IconColorSection(QWidget):
 class CreateWorkspaceDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Novo Workspace")
+        self.setWindowTitle(_t("Novo Workspace"))
         self.setMinimumSize(420, 460)
 
-        t = current_theme()
+        theme = current_theme()
         self.setStyleSheet(
-            f"QDialog {{ background: {t.bg_card}; color: {t.text_primary}; }}"
+            f"QDialog {{ background: {theme.bg_card}; color: {theme.text_primary}; }}"
         )
 
         layout = QVBoxLayout(self)
         layout.setSpacing(12)
         layout.setContentsMargins(20, 20, 20, 20)
 
-        title = QLabel("Criar novo workspace")
-        title.setStyleSheet(f"font-size: 16px; font-weight: 700; color: {t.text_primary};")
+        title = QLabel(_t("Criar novo workspace"))
+        title.setStyleSheet(f"font-size: 16px; font-weight: 700; color: {theme.text_primary};")
         layout.addWidget(title)
 
         # Name
-        name_label = QLabel("Nome")
-        name_label.setStyleSheet(f"font-size: 12px; color: {t.text_muted}; font-weight: 600;")
+        name_label = QLabel(_t("Nome"))
+        name_label.setStyleSheet(f"font-size: 12px; color: {theme.text_muted}; font-weight: 600;")
         layout.addWidget(name_label)
 
         self.name_input = QLineEdit()
-        self.name_input.setPlaceholderText("Ex: Trabalho, Estudos, Pessoal...")
+        self.name_input.setPlaceholderText(_t("Ex: Trabalho, Estudos, Pessoal..."))
         layout.addWidget(self.name_input)
 
         # Description
-        desc_label = QLabel("Descricao (opcional)")
-        desc_label.setStyleSheet(f"font-size: 12px; color: {t.text_muted}; font-weight: 600;")
+        desc_label = QLabel(_t("Descricao (opcional)"))
+        desc_label.setStyleSheet(f"font-size: 12px; color: {theme.text_muted}; font-weight: 600;")
         layout.addWidget(desc_label)
 
         self.desc_input = QLineEdit()
-        self.desc_input.setPlaceholderText("Descreva o proposito deste workspace...")
+        self.desc_input.setPlaceholderText(_t("Descreva o proposito deste workspace..."))
         layout.addWidget(self.desc_input)
 
         # Icon & Color
@@ -235,12 +236,12 @@ class CreateWorkspaceDialog(QDialog):
         btn_row = QHBoxLayout()
         btn_row.addStretch()
 
-        cancel_btn = QPushButton("Cancelar")
+        cancel_btn = QPushButton(_t("Cancelar"))
         cancel_btn.setProperty("flat", True)
         cancel_btn.clicked.connect(self.reject)
         btn_row.addWidget(cancel_btn)
 
-        create_btn = QPushButton("Criar")
+        create_btn = QPushButton(_t("Criar"))
         create_btn.clicked.connect(self._on_create)
         btn_row.addWidget(create_btn)
         layout.addLayout(btn_row)
@@ -262,25 +263,25 @@ class EditWorkspaceDialog(QDialog):
     def __init__(self, ws: dict, parent=None):
         super().__init__(parent)
         self._ws_id = ws["id"]
-        self.setWindowTitle(f"Editar — {ws['name']}")
+        self.setWindowTitle(_t("Editar — {name}").format(name=ws['name']))
         self.setMinimumSize(420, 500)
 
-        t = current_theme()
+        theme = current_theme()
         self.setStyleSheet(
-            f"QDialog {{ background: {t.bg_card}; color: {t.text_primary}; }}"
+            f"QDialog {{ background: {theme.bg_card}; color: {theme.text_primary}; }}"
         )
 
         layout = QVBoxLayout(self)
         layout.setSpacing(12)
         layout.setContentsMargins(20, 20, 20, 20)
 
-        title = QLabel("Editar workspace")
-        title.setStyleSheet(f"font-size: 16px; font-weight: 700; color: {t.text_primary};")
+        title = QLabel(_t("Editar workspace"))
+        title.setStyleSheet(f"font-size: 16px; font-weight: 700; color: {theme.text_primary};")
         layout.addWidget(title)
 
         # Name
-        name_label = QLabel("Nome")
-        name_label.setStyleSheet(f"font-size: 12px; color: {t.text_muted}; font-weight: 600;")
+        name_label = QLabel(_t("Nome"))
+        name_label.setStyleSheet(f"font-size: 12px; color: {theme.text_muted}; font-weight: 600;")
         layout.addWidget(name_label)
 
         self.name_input = QLineEdit()
@@ -288,12 +289,12 @@ class EditWorkspaceDialog(QDialog):
         layout.addWidget(self.name_input)
 
         # Description
-        desc_label = QLabel("Descricao")
-        desc_label.setStyleSheet(f"font-size: 12px; color: {t.text_muted}; font-weight: 600;")
+        desc_label = QLabel(_t("Descricao"))
+        desc_label.setStyleSheet(f"font-size: 12px; color: {theme.text_muted}; font-weight: 600;")
         layout.addWidget(desc_label)
 
         self.desc_input = QTextEdit()
-        self.desc_input.setPlaceholderText("Descreva o proposito deste workspace...")
+        self.desc_input.setPlaceholderText(_t("Descreva o proposito deste workspace..."))
         self.desc_input.setMaximumHeight(80)
         self.desc_input.setPlainText(ws.get("description", ""))
         layout.addWidget(self.desc_input)
@@ -307,11 +308,11 @@ class EditWorkspaceDialog(QDialog):
 
         # ID (read-only info)
         id_row = QHBoxLayout()
-        id_lbl = QLabel("ID:")
-        id_lbl.setStyleSheet(f"font-size: 11px; color: {t.text_muted};")
+        id_lbl = QLabel(_t("ID:"))
+        id_lbl.setStyleSheet(f"font-size: 11px; color: {theme.text_muted};")
         id_row.addWidget(id_lbl)
         id_val = QLabel(ws["id"])
-        id_val.setStyleSheet(f"font-size: 11px; color: {t.text_muted}; font-family: monospace;")
+        id_val.setStyleSheet(f"font-size: 11px; color: {theme.text_muted}; font-family: monospace;")
         id_row.addWidget(id_val)
         id_row.addStretch()
         layout.addLayout(id_row)
@@ -322,12 +323,12 @@ class EditWorkspaceDialog(QDialog):
         btn_row = QHBoxLayout()
         btn_row.addStretch()
 
-        cancel_btn = QPushButton("Cancelar")
+        cancel_btn = QPushButton(_t("Cancelar"))
         cancel_btn.setProperty("flat", True)
         cancel_btn.clicked.connect(self.reject)
         btn_row.addWidget(cancel_btn)
 
-        save_btn = QPushButton("Salvar")
+        save_btn = QPushButton(_t("Salvar"))
         save_btn.clicked.connect(self._on_save)
         btn_row.addWidget(save_btn)
         layout.addLayout(btn_row)
@@ -357,15 +358,15 @@ class WorkspaceSelectorPopup(QDialog):
         self.setWindowFlags(Qt.Popup | Qt.FramelessWindowHint)
         self.setAttribute(Qt.WA_TranslucentBackground)
 
-        t = current_theme()
+        theme = current_theme()
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
 
         container = QFrame()
         container.setStyleSheet(
-            f"QFrame#wsContainer {{ background: {t.bg_card}; "
-            f"border: 1px solid {t.border}; border-radius: 12px; }}"
+            f"QFrame#wsContainer {{ background: {theme.bg_card}; "
+            f"border: 1px solid {theme.border}; border-radius: 12px; }}"
         )
         container.setObjectName("wsContainer")
         self.container_layout = QVBoxLayout(container)
@@ -373,9 +374,9 @@ class WorkspaceSelectorPopup(QDialog):
         self.container_layout.setSpacing(4)
 
         # Header
-        header = QLabel("Workspaces")
+        header = QLabel(_t("Workspaces"))
         header.setStyleSheet(
-            f"font-weight: 700; font-size: 12px; color: {t.text_muted}; "
+            f"font-weight: 700; font-size: 12px; color: {theme.text_muted}; "
             f"letter-spacing: 1px; padding: 4px 8px; border: none;"
         )
         self.container_layout.addWidget(header)
@@ -388,29 +389,29 @@ class WorkspaceSelectorPopup(QDialog):
         # Separator
         sep = QFrame()
         sep.setFixedHeight(1)
-        sep.setStyleSheet(f"background: {t.border_light};")
+        sep.setStyleSheet(f"background: {theme.border_light};")
         self.container_layout.addWidget(sep)
 
         # Create button
-        create_btn = QPushButton("  +   Novo workspace")
+        create_btn = QPushButton("  +   " + _t("Novo workspace"))
         create_btn.setCursor(Qt.PointingHandCursor)
         create_btn.setStyleSheet(
-            f"QPushButton {{ background: transparent; color: {t.text_secondary}; "
+            f"QPushButton {{ background: transparent; color: {theme.text_secondary}; "
             f"border: none; border-radius: 8px; padding: 10px 10px; "
             f"font-size: 13px; text-align: left; }}"
-            f"QPushButton:hover {{ background: {t.bg_hover}; color: {t.text_primary}; }}"
+            f"QPushButton:hover {{ background: {theme.bg_hover}; color: {theme.text_primary}; }}"
         )
         create_btn.clicked.connect(self._create_workspace)
         self.container_layout.addWidget(create_btn)
 
         # Manage button
-        manage_btn = QPushButton("  ⚙   Gerenciar workspaces")
+        manage_btn = QPushButton("  ⚙   " + _t("Gerenciar workspaces"))
         manage_btn.setCursor(Qt.PointingHandCursor)
         manage_btn.setStyleSheet(
-            f"QPushButton {{ background: transparent; color: {t.text_muted}; "
+            f"QPushButton {{ background: transparent; color: {theme.text_muted}; "
             f"border: none; border-radius: 8px; padding: 8px 10px; "
             f"font-size: 12px; text-align: left; }}"
-            f"QPushButton:hover {{ background: {t.bg_hover}; color: {t.text_primary}; }}"
+            f"QPushButton:hover {{ background: {theme.bg_hover}; color: {theme.text_primary}; }}"
         )
         manage_btn.clicked.connect(self._manage_workspaces)
         self.container_layout.addWidget(manage_btn)
@@ -459,24 +460,24 @@ class ManageWorkspacesDialog(QDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Gerenciar Workspaces")
+        self.setWindowTitle(_t("Gerenciar Workspaces"))
         self.setMinimumSize(500, 400)
 
-        t = current_theme()
+        theme = current_theme()
         self.setStyleSheet(
-            f"QDialog {{ background: {t.bg_card}; color: {t.text_primary}; }}"
+            f"QDialog {{ background: {theme.bg_card}; color: {theme.text_primary}; }}"
         )
 
         layout = QVBoxLayout(self)
         layout.setSpacing(12)
         layout.setContentsMargins(20, 20, 20, 20)
 
-        title = QLabel("Gerenciar Workspaces")
+        title = QLabel(_t("Gerenciar Workspaces"))
         title.setStyleSheet(f"font-size: 16px; font-weight: 700;")
         layout.addWidget(title)
 
-        hint = QLabel("Cada workspace tem seu proprio banco de dados isolado.")
-        hint.setStyleSheet(f"color: {t.text_muted}; font-size: 12px;")
+        hint = QLabel(_t("Cada workspace tem seu proprio banco de dados isolado."))
+        hint.setStyleSheet(f"color: {theme.text_muted}; font-size: 12px;")
         hint.setWordWrap(True)
         layout.addWidget(hint)
 
@@ -490,7 +491,7 @@ class ManageWorkspacesDialog(QDialog):
         scroll.setWidget(scroll_content)
         layout.addWidget(scroll, 1)
 
-        close_btn = QPushButton("Fechar")
+        close_btn = QPushButton(_t("Fechar"))
         close_btn.clicked.connect(self.accept)
         layout.addWidget(close_btn, alignment=Qt.AlignRight)
 
@@ -502,16 +503,16 @@ class ManageWorkspacesDialog(QDialog):
             if item.widget():
                 item.widget().deleteLater()
 
-        t = current_theme()
+        theme = current_theme()
         active_id = get_active_workspace_id()
         workspaces = list_workspaces()
 
         for ws in workspaces:
-            ws_color = ws.get("color") or t.accent
+            ws_color = ws.get("color") or theme.accent
 
             card = QFrame()
             card.setStyleSheet(
-                f"QFrame {{ background: {t.bg_input}; border: 1px solid {t.border_light}; "
+                f"QFrame {{ background: {theme.bg_input}; border: 1px solid {theme.border_light}; "
                 f"border-left: 4px solid {ws_color}; border-radius: 8px; }}"
             )
             card_layout = QVBoxLayout(card)
@@ -526,7 +527,7 @@ class ManageWorkspacesDialog(QDialog):
             icon_lbl.setFixedSize(32, 32)
             icon_lbl.setAlignment(Qt.AlignCenter)
             icon_lbl.setStyleSheet(
-                f"background: {ws_color}; color: {t.text_on_accent}; "
+                f"background: {ws_color}; color: {theme.text_on_accent}; "
                 f"font-size: 14px; font-weight: 700; border-radius: 8px; border: none;"
             )
             top_row.addWidget(icon_lbl)
@@ -542,15 +543,15 @@ class ManageWorkspacesDialog(QDialog):
             desc = ws.get("description", "")
             if desc:
                 desc_lbl = QLabel(desc if len(desc) <= 60 else desc[:57] + "...")
-                desc_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 11px; border: none;")
+                desc_lbl.setStyleSheet(f"color: {theme.text_muted}; font-size: 11px; border: none;")
                 name_col.addWidget(desc_lbl)
 
             top_row.addLayout(name_col, 1)
 
             if ws["id"] == active_id:
-                active_badge = QLabel("ativo")
+                active_badge = QLabel(_t("ativo"))
                 active_badge.setStyleSheet(
-                    f"background: {t.success}; color: white; padding: 2px 8px; "
+                    f"background: {theme.success}; color: white; padding: 2px 8px; "
                     f"border-radius: 6px; font-size: 10px; font-weight: 600; border: none;"
                 )
                 top_row.addWidget(active_badge)
@@ -563,18 +564,18 @@ class ManageWorkspacesDialog(QDialog):
 
             id_lbl = QLabel(ws["id"])
             id_lbl.setStyleSheet(
-                f"font-family: monospace; font-size: 10px; color: {t.text_muted}; border: none;"
+                f"font-family: monospace; font-size: 10px; color: {theme.text_muted}; border: none;"
             )
             bottom_row.addWidget(id_lbl)
             bottom_row.addStretch()
 
-            edit_btn = QPushButton("Editar")
+            edit_btn = QPushButton(_t("Editar"))
             edit_btn.setFixedHeight(26)
             edit_btn.setStyleSheet(
-                f"QPushButton {{ background: {t.bg_badge}; color: {t.text_secondary}; "
-                f"border: 1px solid {t.border}; border-radius: 6px; padding: 3px 12px; "
+                f"QPushButton {{ background: {theme.bg_badge}; color: {theme.text_secondary}; "
+                f"border: 1px solid {theme.border}; border-radius: 6px; padding: 3px 12px; "
                 f"font-size: 11px; }}"
-                f"QPushButton:hover {{ background: {t.bg_hover}; }}"
+                f"QPushButton:hover {{ background: {theme.bg_hover}; }}"
             )
             ws_id = ws["id"]
             ws_copy = dict(ws)
@@ -582,13 +583,13 @@ class ManageWorkspacesDialog(QDialog):
             bottom_row.addWidget(edit_btn)
 
             if len(workspaces) > 1:
-                del_btn = QPushButton("Excluir")
+                del_btn = QPushButton(_t("Excluir"))
                 del_btn.setFixedHeight(26)
                 del_btn.setStyleSheet(
-                    f"QPushButton {{ background: transparent; color: {t.danger}; "
-                    f"border: 1px solid {t.danger}; border-radius: 6px; padding: 3px 10px; "
+                    f"QPushButton {{ background: transparent; color: {theme.danger}; "
+                    f"border: 1px solid {theme.danger}; border-radius: 6px; padding: 3px 10px; "
                     f"font-size: 11px; }}"
-                    f"QPushButton:hover {{ background: {t.danger}; color: white; }}"
+                    f"QPushButton:hover {{ background: {theme.danger}; color: white; }}"
                 )
                 ws_name = ws["name"]
                 del_btn.clicked.connect(lambda _, wid=ws_id, wname=ws_name: self._delete(wid, wname))
@@ -607,9 +608,9 @@ class ManageWorkspacesDialog(QDialog):
 
     def _delete(self, ws_id, name):
         r = QMessageBox.warning(
-            self, "Excluir workspace",
-            f'Tem certeza que deseja excluir "{name}"?\n\n'
-            f"Todos os dados (projetos, tarefas, notas) serao perdidos permanentemente.",
+            self, _t("Excluir workspace"),
+            _t('Tem certeza que deseja excluir "{name}"?\n\n'
+              "Todos os dados (projetos, tarefas, notas) serao perdidos permanentemente.").format(name=name),
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
         )
         if r == QMessageBox.Yes:

@@ -26,6 +26,7 @@ from maestro_local.gui.theme import (
     set_theme,
 )
 from maestro_local.config import get_active_workspace_id, get_workspace_db_path
+from maestro_local.i18n import t
 from maestro_local.db.models import switch_db
 from maestro_local.gui.views.board_view import BoardView
 from maestro_local.gui.views.daily_view import DailyView
@@ -117,23 +118,23 @@ class MainWindow(QMainWindow):
         sb_layout.addWidget(self.ws_selector)
 
         # Section label: workspace
-        self.section_label_work = QLabel("  WORKSPACE")
+        self.section_label_work = QLabel("  " + t("WORKSPACE"))
         sb_layout.addWidget(self.section_label_work)
 
         # Navigation list
         self.nav_list = QListWidget()
         self.nav_list.setObjectName("navList")
         nav_items = [
-            ("Dashboard", "dashboard"),
-            ("Meu Dia", "daily"),
-            ("Estudos", "study"),
-            ("Board", "board"),
-            ("Assistente", "chat"),
-            ("Transcrições", "transcricoes"),
-            ("Projetos", "projects"),
-            ("Skills", "skills"),
-            ("Instruções", "guide"),
-            ("Configurações", "settings"),
+            (t("Dashboard"), "dashboard"),
+            (t("Meu Dia"), "daily"),
+            (t("Estudos"), "study"),
+            (t("Board"), "board"),
+            (t("Assistente"), "chat"),
+            (t("Transcrições"), "transcricoes"),
+            (t("Projetos"), "projects"),
+            (t("Skills"), "skills"),
+            (t("Instruções"), "guide"),
+            (t("Configurações"), "settings"),
         ]
         for label, key in nav_items:
             icon = NAV_ICONS.get(key, "")
@@ -153,13 +154,13 @@ class MainWindow(QMainWindow):
         sb_layout.addSpacing(12)
 
         # Theme toggle
-        self.theme_btn = QPushButton("Tema escuro")
+        self.theme_btn = QPushButton(t("Tema escuro"))
         self.theme_btn.setCursor(Qt.PointingHandCursor)
         self.theme_btn.clicked.connect(self._toggle_theme)
         sb_layout.addWidget(self.theme_btn)
 
         # API label
-        self.api_label = QLabel(f"  API: localhost:{api_port}")
+        self.api_label = QLabel("  " + t("API: localhost:{port}").format(port=api_port))
         sb_layout.addWidget(self.api_label)
 
         # Version label
@@ -181,7 +182,7 @@ class MainWindow(QMainWindow):
         search_layout.setContentsMargins(16, 10, 16, 10)
 
         self.search_bar = QLineEdit()
-        self.search_bar.setPlaceholderText("Buscar tarefas... (Ctrl+K)")
+        self.search_bar.setPlaceholderText(t("Buscar tarefas... (Ctrl+K)"))
         self.search_bar.setObjectName("globalSearch")
         self.search_bar.textChanged.connect(self._on_search)
         self.search_bar.setVisible(False)
@@ -239,7 +240,7 @@ class MainWindow(QMainWindow):
 
         # Status bar
         self.status = QStatusBar()
-        self.status.showMessage(f"API rodando em http://127.0.0.1:{api_port}")
+        self.status.showMessage(t("API rodando em http://127.0.0.1:{port}").format(port=api_port))
         self.setStatusBar(self.status)
 
         # Toast notification
@@ -290,30 +291,30 @@ class MainWindow(QMainWindow):
             self._hotkeys = None
 
     def _apply_theme(self):
-        t = current_theme()
-        self.setStyleSheet(build_stylesheet(t))
+        theme = current_theme()
+        self.setStyleSheet(build_stylesheet(theme))
 
         self.sidebar.setStyleSheet(
-            f"background-color: {t.bg_sidebar}; border-right: 1px solid {t.border};"
+            f"background-color: {theme.bg_sidebar}; border-right: 1px solid {theme.border};"
         )
         self.logo_container.setStyleSheet(
-            f"background-color: {t.bg_sidebar}; "
-            f"border-bottom: 1px solid {t.border_light};"
+            f"background-color: {theme.bg_sidebar}; "
+            f"border-bottom: 1px solid {theme.border_light};"
         )
         self.logo_badge.setStyleSheet(
-            f"background-color: {t.accent}; color: {t.text_on_accent}; "
+            f"background-color: {theme.accent}; color: {theme.text_on_accent}; "
             f"font-size: 14px; font-weight: 800; border-radius: 7px;"
         )
         self.logo_text.setStyleSheet(
-            f"font-size: 13px; font-weight: 700; color: {t.text_primary}; "
+            f"font-size: 13px; font-weight: 700; color: {theme.text_primary}; "
             f"background: transparent; letter-spacing: 0.3px;"
         )
         self.logo_subtitle.setStyleSheet(
-            f"font-size: 10px; font-weight: 600; color: {t.accent}; "
+            f"font-size: 10px; font-weight: 600; color: {theme.accent}; "
             f"background: transparent; letter-spacing: 0.8px;"
         )
         self.section_label_work.setStyleSheet(
-            f"color: {t.text_muted}; font-size: 9px; font-weight: 700; "
+            f"color: {theme.text_muted}; font-size: 9px; font-weight: 700; "
             f"letter-spacing: 1.2px; padding: 6px 12px 2px 12px; background: transparent;"
         )
         self.nav_list.setStyleSheet(f"""
@@ -323,43 +324,43 @@ class MainWindow(QMainWindow):
             }}
             QListWidget::item {{
                 padding: 5px 10px; border-radius: 5px; margin: 1px 4px;
-                color: {t.text_secondary}; font-size: 12px;
+                color: {theme.text_secondary}; font-size: 12px;
             }}
             QListWidget::item:selected {{
-                background-color: {t.bg_selected}; color: {t.text_primary};
+                background-color: {theme.bg_selected}; color: {theme.text_primary};
                 font-weight: 600;
             }}
             QListWidget::item:hover:!selected {{
-                background-color: {t.bg_hover};
+                background-color: {theme.bg_hover};
             }}
         """)
-        self.transcricoes_quick.apply_theme(t)
-        self.dashboard_view.pomodoro.apply_theme(t)
+        self.transcricoes_quick.apply_theme(theme)
+        self.dashboard_view.pomodoro.apply_theme(theme)
         theme_icon = "☾" if not is_dark() else "☀"
-        self.theme_btn.setText(f"  {theme_icon}   {'Tema escuro' if not is_dark() else 'Tema claro'}")
+        self.theme_btn.setText(f"  {theme_icon}   {t('Tema escuro') if not is_dark() else t('Tema claro')}")
         self.theme_btn.setStyleSheet(
-            f"color: {t.text_muted}; font-size: 11px; padding: 4px 12px; "
-            f"text-align: left; border: 1px solid {t.border}; background: transparent; "
+            f"color: {theme.text_muted}; font-size: 11px; padding: 4px 12px; "
+            f"text-align: left; border: 1px solid {theme.border}; background: transparent; "
             f"border-radius: 6px; margin: 2px 4px;"
         )
         self.api_label.setStyleSheet(
-            f"color: {t.text_muted}; font-size: 9px; padding: 2px 12px; background: transparent;"
+            f"color: {theme.text_muted}; font-size: 9px; padding: 2px 12px; background: transparent;"
         )
         self.version_label.setStyleSheet(
-            f"color: {t.text_muted}; font-size: 9px; padding: 1px 12px 8px 12px; background: transparent;"
+            f"color: {theme.text_muted}; font-size: 9px; padding: 1px 12px 8px 12px; background: transparent;"
         )
         self.status.setStyleSheet(
-            f"background-color: {t.bg_sidebar}; color: {t.text_muted}; "
-            f"border-top: 1px solid {t.border}; font-size: 12px; padding: 2px 8px;"
+            f"background-color: {theme.bg_sidebar}; color: {theme.text_muted}; "
+            f"border-top: 1px solid {theme.border}; font-size: 12px; padding: 2px 8px;"
         )
         self.search_container.setStyleSheet(
-            f"background-color: {t.bg_primary}; "
-            f"border-bottom: 1px solid {t.border_light};"
+            f"background-color: {theme.bg_primary}; "
+            f"border-bottom: 1px solid {theme.border_light};"
         )
         self.search_results.setStyleSheet(f"""
             QListWidget {{
-                background-color: {t.bg_card};
-                border: 1px solid {t.border};
+                background-color: {theme.bg_card};
+                border: 1px solid {theme.border};
                 border-radius: 8px;
                 padding: 4px;
                 outline: none;
@@ -367,18 +368,18 @@ class MainWindow(QMainWindow):
             QListWidget::item {{
                 padding: 8px 12px;
                 border-radius: 4px;
-                color: {t.text_primary};
+                color: {theme.text_primary};
             }}
             QListWidget::item:selected {{
-                background-color: {t.bg_selected};
+                background-color: {theme.bg_selected};
             }}
             QListWidget::item:hover {{
-                background-color: {t.bg_hover};
+                background-color: {theme.bg_hover};
             }}
         """)
         self.toast.setStyleSheet(
-            f"background-color: {t.bg_card}; color: {t.text_primary}; "
-            f"border: 1px solid {t.border_light}; border-radius: 10px; "
+            f"background-color: {theme.bg_card}; color: {theme.text_primary}; "
+            f"border: 1px solid {theme.border_light}; border-radius: 10px; "
             f"padding: 10px 20px; font-size: 13px; font-weight: 500;"
         )
 
@@ -410,7 +411,7 @@ class MainWindow(QMainWindow):
         self.board_view.set_project(None)
         self._refresh_all()
         self.ws_selector.refresh_display()
-        self.show_toast(f"Workspace alterado")
+        self.show_toast(t("Workspace alterado"))
 
     def _refresh_all(self):
         for i in range(self.stack.count()):
@@ -504,7 +505,7 @@ class MainWindow(QMainWindow):
         settings = self.settings_view.get_notification_settings()
         if not settings["enabled"]:
             return
-        msg = settings["message"] or "Maestro — lembrete"
+        msg = settings["message"] or t("Maestro — lembrete")
         try:
             from PySide6.QtWidgets import QSystemTrayIcon
             from PySide6.QtGui import QIcon

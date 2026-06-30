@@ -27,6 +27,7 @@ from maestro_local.db.models import (
     get_session,
 )
 from maestro_local.gui.theme import PRIORITY_COLORS, TYPE_COLORS, TYPE_LABELS, current_theme
+from maestro_local.i18n import t as _t
 
 MIME_TYPE = "application/x-maestro-task"
 
@@ -95,7 +96,7 @@ class TaskCard(QFrame):
             blocked_bar.setStyleSheet(
                 f"background: {t.danger}; border-radius: 3px;"
             )
-            blocked_label = QLabel("BLOQUEADA")
+            blocked_label = QLabel(_t("BLOQUEADA"))
             blocked_label.setAlignment(Qt.AlignCenter)
             blocked_label.setStyleSheet(
                 "color: white; font-size: 10px; font-weight: 700; letter-spacing: 1px;"
@@ -161,7 +162,7 @@ class TaskCard(QFrame):
         if checklist:
             done = sum(1 for c in checklist if c.get("checked"))
             total = len(checklist)
-            cl_lbl = QLabel(f"[ok] {done}/{total}")
+            cl_lbl = QLabel(_t("[ok] {done}/{total}").format(done=done, total=total))
             cl_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 11px; border: none;")
             layout.addWidget(cl_lbl)
 
@@ -204,12 +205,12 @@ class TaskCard(QFrame):
 
         # Requires human badge
         if task_data.get("requires_human"):
-            human_badge = QLabel("DEV")
+            human_badge = QLabel(_t("DEV"))
             human_badge.setStyleSheet(
                 f"background: {t.warning}; color: white; padding: 1px 6px; "
                 f"border-radius: 3px; font-size: 9px; font-weight: 700; border: none;"
             )
-            human_badge.setToolTip("Requer desenvolvedor")
+            human_badge.setToolTip(_t("Requer desenvolvedor"))
             bottom.addWidget(human_badge)
             has_bottom = True
 
@@ -226,10 +227,10 @@ class TaskCard(QFrame):
             layout.addLayout(bottom)
 
         # -- Quick move button --
-        move_btn = QPushButton("Mover →")
+        move_btn = QPushButton(_t("Mover →"))
         move_btn.setProperty("class", "quickMove")
         move_btn.setCursor(Qt.PointingHandCursor)
-        move_btn.setToolTip("Mover para próxima coluna")
+        move_btn.setToolTip(_t("Mover para próxima coluna"))
         move_btn.clicked.connect(lambda: self.move_next.emit(self.task_id))
         layout.addWidget(move_btn, alignment=Qt.AlignRight)
 
@@ -422,7 +423,7 @@ class ColumnWidget(QWidget):
         add_row.addWidget(plus_icon)
 
         self.add_input = QLineEdit()
-        self.add_input.setPlaceholderText("Nova tarefa...")
+        self.add_input.setPlaceholderText(_t("Nova tarefa..."))
         self.add_input.setStyleSheet(
             f"QLineEdit {{ background: {t.bg_input}; border: 1px solid {t.border_light}; "
             f"border-radius: 4px; padding: 4px 8px; font-size: 12px; color: {t.text_primary}; }}"
@@ -477,9 +478,11 @@ class ColumnWidget(QWidget):
 
                     QMessageBox.warning(
                         self,
-                        "Code Review obrigatório",
-                        "Adicione um comentário de Code Review antes de mover para Revisão.\n\n"
-                        "Abra a tarefa e adicione um comentário do tipo CODE_REVIEW.",
+                        _t("Code Review obrigatório"),
+                        _t(
+                            "Adicione um comentário de Code Review antes de mover para Revisão.\n\n"
+                            "Abra a tarefa e adicione um comentário do tipo CODE_REVIEW."
+                        ),
                     )
                     return
             task.column_id = self.column_id
@@ -588,37 +591,39 @@ class FilterBar(QWidget):
 
         # Search input
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("\U0001f50d Buscar por título ou código...")
+        self.search_input.setPlaceholderText(_t("\U0001f50d Buscar por título ou código..."))
         self.search_input.setFixedWidth(280)
         self.search_input.textChanged.connect(self._emit_changed)
         layout.addWidget(self.search_input)
 
         # Type filter
-        type_label = QLabel("Tipo:")
+        type_label = QLabel(_t("Tipo:"))
         type_label.setProperty("class", "sectionLabel")
         layout.addWidget(type_label)
         self.type_combo = QComboBox()
-        self.type_combo.addItems(list(TYPE_FILTER_MAP.keys()))
+        for _key in TYPE_FILTER_MAP.keys():
+            self.type_combo.addItem(_t(_key), _key)
         self.type_combo.setFixedWidth(110)
         self.type_combo.currentIndexChanged.connect(self._emit_changed)
         layout.addWidget(self.type_combo)
 
         # Priority filter
-        pri_label = QLabel("Prioridade:")
+        pri_label = QLabel(_t("Prioridade:"))
         pri_label.setProperty("class", "sectionLabel")
         layout.addWidget(pri_label)
         self.priority_combo = QComboBox()
-        self.priority_combo.addItems(list(PRIORITY_FILTER_MAP.keys()))
+        for _key in PRIORITY_FILTER_MAP.keys():
+            self.priority_combo.addItem(_t(_key), _key)
         self.priority_combo.setFixedWidth(100)
         self.priority_combo.currentIndexChanged.connect(self._emit_changed)
         layout.addWidget(self.priority_combo)
 
         # Assignee filter
-        assignee_label = QLabel("Responsável:")
+        assignee_label = QLabel(_t("Responsável:"))
         assignee_label.setProperty("class", "sectionLabel")
         layout.addWidget(assignee_label)
         self.assignee_combo = QComboBox()
-        self.assignee_combo.addItem("Todos")
+        self.assignee_combo.addItem(_t("Todos"), "Todos")
         self.assignee_combo.setFixedWidth(130)
         self.assignee_combo.currentIndexChanged.connect(self._emit_changed)
         layout.addWidget(self.assignee_combo)
@@ -626,7 +631,7 @@ class FilterBar(QWidget):
         layout.addStretch()
 
         # Task count
-        self.count_label = QLabel("0 tarefas")
+        self.count_label = QLabel(_t("0 tarefas"))
         self.count_label.setProperty("class", "hint")
         layout.addWidget(self.count_label)
 
@@ -637,37 +642,39 @@ class FilterBar(QWidget):
         return self.search_input.text().strip().lower()
 
     def get_type_filter(self):
-        return TYPE_FILTER_MAP.get(self.type_combo.currentText())
+        return TYPE_FILTER_MAP.get(self.type_combo.currentData())
 
     def get_priority_filter(self):
-        return PRIORITY_FILTER_MAP.get(self.priority_combo.currentText())
+        return PRIORITY_FILTER_MAP.get(self.priority_combo.currentData())
 
     def get_assignee_filter(self):
-        text = self.assignee_combo.currentText()
-        if text == "Todos":
+        data = self.assignee_combo.currentData()
+        if data == "Todos":
             return None
-        if text == "Sem responsável":
+        if data == "Sem responsável":
             return "__none__"
-        return text
+        return data
 
     def load_assignees(self, assignees: list[str]):
-        current = self.assignee_combo.currentText()
+        current = self.assignee_combo.currentData()
         self.assignee_combo.blockSignals(True)
         self.assignee_combo.clear()
-        self.assignee_combo.addItem("Todos")
-        self.assignee_combo.addItem("Sem responsável")
+        self.assignee_combo.addItem(_t("Todos"), "Todos")
+        self.assignee_combo.addItem(_t("Sem responsável"), "Sem responsável")
         for a in sorted(set(assignees)):
-            self.assignee_combo.addItem(a)
-        idx = self.assignee_combo.findText(current)
+            self.assignee_combo.addItem(a, a)
+        idx = self.assignee_combo.findData(current)
         if idx >= 0:
             self.assignee_combo.setCurrentIndex(idx)
         self.assignee_combo.blockSignals(False)
 
     def set_count(self, visible: int, total: int):
         if visible == total:
-            self.count_label.setText(f"{total} tarefas")
+            self.count_label.setText(_t("{total} tarefas").format(total=total))
         else:
-            self.count_label.setText(f"{visible}/{total} tarefas")
+            self.count_label.setText(
+                _t("{visible}/{total} tarefas").format(visible=visible, total=total)
+            )
 
 
 # ────────────────────────────────────────────────────────────
@@ -696,7 +703,7 @@ class BoardView(QWidget):
         self.empty_layout.setAlignment(Qt.AlignCenter)
         self.empty_layout.setSpacing(10)
 
-        empty_title = QLabel("Selecione um projeto para ver o board")
+        empty_title = QLabel(_t("Selecione um projeto para ver o board"))
         empty_title.setAlignment(Qt.AlignCenter)
         empty_title.setObjectName("sectionTitle")
         self.empty_layout.addWidget(empty_title)
@@ -721,7 +728,7 @@ class BoardView(QWidget):
         header_row.addWidget(self.header)
         header_row.addStretch()
 
-        self.refresh_btn = QPushButton("Atualizar")
+        self.refresh_btn = QPushButton(_t("Atualizar"))
         self.refresh_btn.setProperty("flat", True)
         self.refresh_btn.setFixedHeight(28)
         self.refresh_btn.setCursor(Qt.PointingHandCursor)
@@ -779,7 +786,7 @@ class BoardView(QWidget):
         try:
             projects = s.query(Project).order_by(Project.created_at.desc()).all()
             if not projects:
-                empty_lbl = QLabel("Nenhum projeto criado ainda.\nCrie um em Projetos.")
+                empty_lbl = QLabel(_t("Nenhum projeto criado ainda.\nCrie um em Projetos."))
                 empty_lbl.setAlignment(Qt.AlignCenter)
                 empty_lbl.setStyleSheet(
                     f"color: {t.text_muted}; font-size: 14px; padding: 40px;"
@@ -794,7 +801,7 @@ class BoardView(QWidget):
                 )
                 row.addWidget(name_lbl, 1)
 
-                open_btn = QPushButton("Abrir Board")
+                open_btn = QPushButton(_t("Abrir Board"))
                 open_btn.setFixedSize(120, 32)
                 open_btn.setCursor(Qt.PointingHandCursor)
                 open_btn.setStyleSheet(
@@ -829,7 +836,7 @@ class BoardView(QWidget):
             project = s.query(Project).get(self.project_id)
             if not project:
                 return
-            self.header.setText(f"Board — {project.name}")
+            self.header.setText(_t("Board — {name}").format(name=project.name))
 
             columns = (
                 s.query(BoardColumn)

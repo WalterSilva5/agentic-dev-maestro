@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
 
 from maestro_local.config import get_active_ai_provider
 from maestro_local.gui.theme import current_theme
+from maestro_local.i18n import t
 
 SUGGESTIONS = [
     "Resuma o estado do board e o que priorizar hoje",
@@ -33,7 +34,7 @@ class AgentWorker(QThread):
         try:
             from maestro_local.ai.agent import run_agent
             reply = run_agent(self._history)
-            self.finished_ok.emit(reply or "(sem resposta)")
+            self.finished_ok.emit(reply or t("(sem resposta)"))
         except Exception as e:  # noqa: BLE001
             self.failed.emit(str(e))
 
@@ -41,19 +42,19 @@ class AgentWorker(QThread):
 class MessageBubble(QFrame):
     def __init__(self, role, text):
         super().__init__()
-        t = current_theme()
+        theme = current_theme()
         is_user = role == "user"
-        bg = t.accent if is_user else t.bg_card
-        fg = t.text_on_accent if is_user else t.text_primary
+        bg = theme.accent if is_user else theme.bg_card
+        fg = theme.text_on_accent if is_user else theme.text_primary
         self.setStyleSheet(
-            f"MessageBubble {{ background: {bg}; border: 1px solid {t.border_light}; "
+            f"MessageBubble {{ background: {bg}; border: 1px solid {theme.border_light}; "
             f"border-radius: 10px; }}"
         )
         lay = QVBoxLayout(self)
         lay.setContentsMargins(12, 8, 12, 8)
         lay.setSpacing(2)
 
-        who = QLabel("Você" if is_user else "Assistente")
+        who = QLabel(t("Você") if is_user else t("Assistente"))
         who.setStyleSheet(
             f"color: {fg}; font-size: 10px; font-weight: 700; opacity: 0.8; "
             f"background: transparent; border: none; text-transform: uppercase;"
@@ -77,13 +78,13 @@ class ChatView(QWidget):
         layout.setContentsMargins(14, 14, 14, 14)
         layout.setSpacing(10)
 
-        title = QLabel("Assistente")
+        title = QLabel(t("Assistente"))
         title.setObjectName("sectionTitle")
         layout.addWidget(title)
 
         self.subtitle = QLabel(
-            "Converse com o assistente interno: ele lê o board, sugere prioridades, "
-            "solicita revisões, cria TODOs e comenta tarefas."
+            t("Converse com o assistente interno: ele lê o board, sugere prioridades, "
+              "solicita revisões, cria TODOs e comenta tarefas.")
         )
         self.subtitle.setWordWrap(True)
         self.subtitle.setObjectName("subtitle")
@@ -110,18 +111,18 @@ class ChatView(QWidget):
         self.sug_row = QHBoxLayout()
         self.sug_row.setSpacing(6)
         for sug in SUGGESTIONS[:2]:
-            self.sug_row.addWidget(self._make_suggestion(sug))
+            self.sug_row.addWidget(self._make_suggestion(t(sug)))
         layout.addLayout(self.sug_row)
 
         # Input
         input_row = QHBoxLayout()
         input_row.setSpacing(8)
         self.input = QLineEdit()
-        self.input.setPlaceholderText("Pergunte algo ou peça uma ação...")
+        self.input.setPlaceholderText(t("Pergunte algo ou peça uma ação..."))
         self.input.returnPressed.connect(self._send)
         input_row.addWidget(self.input, 1)
 
-        self.send_btn = QPushButton("Enviar")
+        self.send_btn = QPushButton(t("Enviar"))
         self.send_btn.setFixedHeight(34)
         self.send_btn.setCursor(Qt.PointingHandCursor)
         self.send_btn.clicked.connect(self._send)
@@ -131,11 +132,11 @@ class ChatView(QWidget):
         self.refresh()
 
     def _make_suggestion(self, text):
-        t = current_theme()
+        theme = current_theme()
         btn = QPushButton(text)
         btn.setCursor(Qt.PointingHandCursor)
         btn.setStyleSheet(
-            f"background: {t.bg_badge}; color: {t.text_secondary}; border: 1px solid {t.border}; "
+            f"background: {theme.bg_badge}; color: {theme.text_secondary}; border: 1px solid {theme.border}; "
             f"border-radius: 14px; padding: 4px 10px; font-size: 11px; text-align: left;"
         )
         btn.clicked.connect(lambda: self._fill_and_send(text))
@@ -147,14 +148,14 @@ class ChatView(QWidget):
 
     def refresh(self):
         provider = get_active_ai_provider()
-        t = current_theme()
+        theme = current_theme()
         if not provider or not provider.get("model"):
             self.banner.setText(
-                "⚠ Nenhum provedor de IA configurado. Vá em Configurações → Provedores de IA "
-                "para definir o LM Studio ou outro provedor."
+                t("⚠ Nenhum provedor de IA configurado. Vá em Configurações → Provedores de IA "
+                  "para definir o LM Studio ou outro provedor.")
             )
             self.banner.setStyleSheet(
-                f"background: {t.bg_badge}; color: {t.text_secondary}; border: 1px solid {t.border}; "
+                f"background: {theme.bg_badge}; color: {theme.text_secondary}; border: 1px solid {theme.border}; "
                 f"border-radius: 8px; padding: 8px 12px; font-size: 12px;"
             )
             self.banner.setVisible(True)
@@ -165,7 +166,9 @@ class ChatView(QWidget):
             self.input.setEnabled(True)
             self.send_btn.setEnabled(True)
             self.subtitle.setText(
-                f"Provedor ativo: {provider['name']} · modelo {provider['model']}"
+                t("Provedor ativo: {name} · modelo {model}").format(
+                    name=provider['name'], model=provider['model']
+                )
             )
 
     def _add_bubble(self, role, text):
@@ -194,7 +197,7 @@ class ChatView(QWidget):
 
         self.send_btn.setEnabled(False)
         self.input.setEnabled(False)
-        self._add_bubble("assistant", "Pensando...")
+        self._add_bubble("assistant", t("Pensando..."))
         self._thinking_container = self.msgs_layout.itemAt(self.msgs_layout.count() - 2).widget()
 
         self._worker = AgentWorker(list(self._history))
@@ -218,6 +221,6 @@ class ChatView(QWidget):
 
     def _on_error(self, err):
         self._clear_thinking()
-        self._add_bubble("assistant", f"⚠ Erro ao consultar o provedor de IA:\n{err}")
+        self._add_bubble("assistant", t("⚠ Erro ao consultar o provedor de IA:\n{err}").format(err=err))
         self.send_btn.setEnabled(True)
         self.input.setEnabled(True)

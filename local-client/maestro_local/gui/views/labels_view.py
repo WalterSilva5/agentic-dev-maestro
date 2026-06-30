@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
 
 from maestro_local.db.models import Label, Task, get_session
 from maestro_local.gui.theme import current_theme
+from maestro_local.i18n import t as _t
 
 COLOR_PALETTE = [
     "#E03131", "#E8590C", "#2F9E44", "#1971C2", "#6741D9", "#C2255C",
@@ -47,12 +48,12 @@ class LabelCard(QFrame):
         name.setStyleSheet(f"font-weight: 600; font-size: 14px; color: {t.text_primary}; border: none;")
         info.addWidget(name)
 
-        usage = QLabel(f"{label_data['task_count']} tarefas")
+        usage = QLabel(_t("{count} tarefas").format(count=label_data['task_count']))
         usage.setStyleSheet(f"color: {t.text_muted}; font-size: 11px; border: none;")
         info.addWidget(usage)
         row.addLayout(info, 1)
 
-        del_btn = QPushButton("Excluir")
+        del_btn = QPushButton(_t("Excluir"))
         del_btn.setStyleSheet(
             f"background: transparent; color: {t.danger}; border: 1px solid {t.danger}; "
             f"border-radius: 4px; padding: 4px 12px; font-size: 12px;"
@@ -71,11 +72,11 @@ class LabelsView(QWidget):
         layout.setContentsMargins(14, 14, 14, 14)
         layout.setSpacing(10)
 
-        title = QLabel("Labels")
+        title = QLabel(_t("Labels"))
         title.setObjectName("sectionTitle")
         layout.addWidget(title)
 
-        subtitle = QLabel("Organize suas tarefas com labels coloridas")
+        subtitle = QLabel(_t("Organize suas tarefas com labels coloridas"))
         subtitle.setObjectName("subtitle")
         layout.addWidget(subtitle)
 
@@ -84,19 +85,19 @@ class LabelsView(QWidget):
         form_layout = QVBoxLayout(form_frame)
         form_layout.setSpacing(12)
 
-        form_title = QLabel("Nova label")
+        form_title = QLabel(_t("Nova label"))
         form_title.setProperty("class", "cardTitle")
         form_layout.addWidget(form_title)
 
         name_row = QHBoxLayout()
         self.name_input = QLineEdit()
-        self.name_input.setPlaceholderText("Nome da label")
+        self.name_input.setPlaceholderText(_t("Nome da label"))
         self.name_input.returnPressed.connect(self._create)
         name_row.addWidget(self.name_input, 1)
         form_layout.addLayout(name_row)
 
         colors_row = QHBoxLayout()
-        colors_lbl = QLabel("Cor:")
+        colors_lbl = QLabel(_t("Cor:"))
         colors_lbl.setProperty("class", "sectionLabel")
         colors_row.addWidget(colors_lbl)
 
@@ -115,7 +116,7 @@ class LabelsView(QWidget):
 
         colors_row.addStretch()
 
-        add_btn = QPushButton("Criar label")
+        add_btn = QPushButton(_t("Criar label"))
         add_btn.setFixedHeight(32)
         add_btn.clicked.connect(self._create)
         colors_row.addWidget(add_btn)
@@ -161,7 +162,7 @@ class LabelsView(QWidget):
 
             if not labels:
                 t = current_theme()
-                empty = QLabel("Nenhuma label criada")
+                empty = QLabel(_t("Nenhuma label criada"))
                 empty.setAlignment(Qt.AlignCenter)
                 empty.setStyleSheet(f"color: {t.text_muted}; font-size: 14px; padding: 40px;")
                 self.cards_layout.addWidget(empty)
@@ -198,8 +199,8 @@ class LabelsView(QWidget):
 
     def _delete(self, label_id):
         reply = QMessageBox.question(
-            self, "Confirmar exclusao",
-            "Tem certeza que deseja excluir esta label?",
+            self, _t("Confirmar exclusao"),
+            _t("Tem certeza que deseja excluir esta label?"),
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No,
         )

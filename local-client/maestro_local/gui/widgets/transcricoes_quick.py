@@ -1,6 +1,8 @@
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QVBoxLayout
 
+from maestro_local.i18n import t as _t
+
 
 class TranscricoesQuickWidget(QFrame):
     """Acesso rápido às Transcrições na sidebar: inicia/para gravação em 1 clique."""
@@ -21,10 +23,10 @@ class TranscricoesQuickWidget(QFrame):
         self._icon = QLabel("🎙")
         self._icon.setFixedWidth(16)
         title_row.addWidget(self._icon)
-        self._title = QLabel("Transcrições")
+        self._title = QLabel(_t("Transcrições"))
         title_row.addWidget(self._title)
         title_row.addStretch()
-        self._open_btn = QPushButton("abrir")
+        self._open_btn = QPushButton(_t("abrir"))
         self._open_btn.setCursor(Qt.PointingHandCursor)
         self._open_btn.clicked.connect(self.open_requested.emit)
         title_row.addWidget(self._open_btn)
@@ -34,7 +36,7 @@ class TranscricoesQuickWidget(QFrame):
         self._time_label.setAlignment(Qt.AlignCenter)
         outer.addWidget(self._time_label)
 
-        self._btn = QPushButton("●  Gravar")
+        self._btn = QPushButton("●  " + _t("Gravar"))
         self._btn.setFixedHeight(28)
         self._btn.setCursor(Qt.PointingHandCursor)
         self._btn.clicked.connect(self.toggle_requested.emit)
@@ -44,7 +46,7 @@ class TranscricoesQuickWidget(QFrame):
         self._recording = recording
         m, s = divmod(int(elapsed_seconds), 60)
         self._time_label.setText(f"{m:02d}:{s:02d}")
-        self._btn.setText("■  Parar" if recording else "●  Gravar")
+        self._btn.setText("■  " + _t("Parar") if recording else "●  " + _t("Gravar"))
         self._apply_btn_style()
 
     def _apply_btn_style(self):

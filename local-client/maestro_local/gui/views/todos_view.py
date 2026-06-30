@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 
 from maestro_local.db.models import Todo, get_session
 from maestro_local.gui.theme import current_theme
+from maestro_local.i18n import t as _t
 
 
 class TodoRow(QFrame):
@@ -69,22 +70,22 @@ class TodosView(QWidget):
         layout.setContentsMargins(14, 14, 14, 14)
         layout.setSpacing(10)
 
-        title = QLabel("TODOs")
+        title = QLabel(_t("TODOs"))
         title.setObjectName("sectionTitle")
         layout.addWidget(title)
 
-        subtitle = QLabel("Lista rápida de pendências, sem board nem colunas")
+        subtitle = QLabel(_t("Lista rápida de pendências, sem board nem colunas"))
         subtitle.setObjectName("subtitle")
         layout.addWidget(subtitle)
 
         add_row = QHBoxLayout()
         add_row.setSpacing(8)
         self.input = QLineEdit()
-        self.input.setPlaceholderText("Adicionar um TODO...")
+        self.input.setPlaceholderText(_t("Adicionar um TODO..."))
         self.input.returnPressed.connect(self._add)
         add_row.addWidget(self.input, 1)
 
-        add_btn = QPushButton("Adicionar")
+        add_btn = QPushButton(_t("Adicionar"))
         add_btn.setFixedHeight(32)
         add_btn.setCursor(Qt.PointingHandCursor)
         add_btn.clicked.connect(self._add)
@@ -107,7 +108,7 @@ class TodosView(QWidget):
 
         clear_row = QHBoxLayout()
         clear_row.addStretch()
-        self.clear_btn = QPushButton("Limpar concluídos")
+        self.clear_btn = QPushButton(_t("Limpar concluídos"))
         self.clear_btn.setFixedHeight(28)
         self.clear_btn.setCursor(Qt.PointingHandCursor)
         t = current_theme()
@@ -136,7 +137,7 @@ class TodosView(QWidget):
 
             if not todos:
                 t = current_theme()
-                empty = QLabel("Nenhum TODO ainda. Adicione um acima.")
+                empty = QLabel(_t("Nenhum TODO ainda. Adicione um acima."))
                 empty.setAlignment(Qt.AlignCenter)
                 empty.setStyleSheet(f"color: {t.text_muted}; font-size: 14px; padding: 40px;")
                 self.rows_layout.addWidget(empty)
@@ -145,7 +146,7 @@ class TodosView(QWidget):
                 for td in todos:
                     data = {"id": td.id, "text": td.text, "done": td.done}
                     self.rows_layout.addWidget(TodoRow(data, self._toggle, self._delete))
-                self.counter.setText(f"{done} de {total} concluídos")
+                self.counter.setText(_t("{done} de {total} concluídos").format(done=done, total=total))
 
             self.rows_layout.addStretch()
         finally:

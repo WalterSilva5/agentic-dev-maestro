@@ -23,6 +23,7 @@ from maestro_local.db.models import (
     get_session,
 )
 from maestro_local.gui.theme import current_theme
+from maestro_local.i18n import t as _t
 
 
 class ProjectCard(QFrame):
@@ -86,7 +87,7 @@ class ProjectCard(QFrame):
         stats_row = QHBoxLayout()
         stats_row.setSpacing(8)
 
-        stats_lbl = QLabel(f"{done}/{total} tarefas concluídas")
+        stats_lbl = QLabel(_t("{done}/{total} tarefas concluídas").format(done=done, total=total))
         stats_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 11px; border: none;")
         stats_row.addWidget(stats_lbl)
 
@@ -100,7 +101,7 @@ class ProjectCard(QFrame):
         stats_row.addStretch()
 
         # Action buttons
-        open_btn = QPushButton("Abrir Board")
+        open_btn = QPushButton(_t("Abrir Board"))
         open_btn.setFixedHeight(32)
         open_btn.setStyleSheet(
             f"QPushButton {{ background: {t.accent}; color: {t.text_on_accent}; "
@@ -111,7 +112,7 @@ class ProjectCard(QFrame):
         open_btn.clicked.connect(lambda: self.open_clicked.emit(project_id))
         stats_row.addWidget(open_btn)
 
-        del_btn = QPushButton("Excluir")
+        del_btn = QPushButton(_t("Excluir"))
         del_btn.setFixedHeight(28)
         del_btn.setStyleSheet(
             f"QPushButton {{ background: transparent; color: {t.danger}; "
@@ -135,7 +136,7 @@ class ProjectsView(QWidget):
         layout.setContentsMargins(14, 14, 14, 14)
         layout.setSpacing(10)
 
-        title = QLabel("Projetos")
+        title = QLabel(_t("Projetos"))
         title.setObjectName("sectionTitle")
         layout.addWidget(title)
 
@@ -146,7 +147,7 @@ class ProjectsView(QWidget):
         form_outer.setContentsMargins(10, 8, 10, 8)
         form_outer.setSpacing(10)
 
-        form_title = QLabel("Novo Projeto")
+        form_title = QLabel(_t("Novo Projeto"))
         form_title.setProperty("class", "cardTitle")
         form_outer.addWidget(form_title)
 
@@ -154,24 +155,24 @@ class ProjectsView(QWidget):
         form_layout.setSpacing(8)
 
         self.name_input = QLineEdit()
-        self.name_input.setPlaceholderText("Nome do projeto")
+        self.name_input.setPlaceholderText(_t("Nome do projeto"))
         self.name_input.textChanged.connect(self._auto_key)
-        form_layout.addRow("Nome:", self.name_input)
+        form_layout.addRow(_t("Nome:"), self.name_input)
 
         self.desc_input = QLineEdit()
-        self.desc_input.setPlaceholderText("Descrição breve (opcional)")
-        form_layout.addRow("Descrição:", self.desc_input)
+        self.desc_input.setPlaceholderText(_t("Descrição breve (opcional)"))
+        form_layout.addRow(_t("Descrição:"), self.desc_input)
 
         self.key_input = QLineEdit()
         self.key_input.setPlaceholderText("KEY")
         self.key_input.setMaximumWidth(120)
-        form_layout.addRow("Chave:", self.key_input)
+        form_layout.addRow(_t("Chave:"), self.key_input)
 
         form_outer.addLayout(form_layout)
 
         btn_row = QHBoxLayout()
         btn_row.addStretch()
-        add_btn = QPushButton("+ Criar Projeto")
+        add_btn = QPushButton(_t("+ Criar Projeto"))
         add_btn.setCursor(Qt.PointingHandCursor)
         add_btn.clicked.connect(self._create)
         btn_row.addWidget(add_btn)
@@ -219,14 +220,14 @@ class ProjectsView(QWidget):
                 empty_l.setAlignment(Qt.AlignCenter)
                 empty_l.setSpacing(8)
 
-                empty_title = QLabel("Nenhum projeto criado")
+                empty_title = QLabel(_t("Nenhum projeto criado"))
                 empty_title.setAlignment(Qt.AlignCenter)
                 empty_title.setStyleSheet(
                     f"color: {t.text_muted}; font-size: 16px; font-weight: 600;"
                 )
                 empty_l.addWidget(empty_title)
 
-                empty_sub = QLabel("Crie seu primeiro projeto para começar")
+                empty_sub = QLabel(_t("Crie seu primeiro projeto para começar"))
                 empty_sub.setAlignment(Qt.AlignCenter)
                 empty_sub.setStyleSheet(f"color: {t.text_muted}; font-size: 13px;")
                 empty_l.addWidget(empty_sub)
@@ -298,8 +299,8 @@ class ProjectsView(QWidget):
     def _delete(self, project_id):
         reply = QMessageBox.question(
             self,
-            "Confirmar exclusão",
-            "Tem certeza? Todas as tarefas do projeto serão excluídas.",
+            _t("Confirmar exclusão"),
+            _t("Tem certeza? Todas as tarefas do projeto serão excluídas."),
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No,
         )

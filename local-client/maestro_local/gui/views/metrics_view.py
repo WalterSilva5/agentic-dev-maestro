@@ -19,6 +19,7 @@ from maestro_local.gui.theme import (
     TYPE_LABELS,
     current_theme,
 )
+from maestro_local.i18n import t as _t
 
 
 class MetricCard(QFrame):
@@ -76,7 +77,7 @@ class MetricsView(QWidget):
         self.main_layout.setContentsMargins(14, 14, 14, 14)
         self.main_layout.setSpacing(10)
 
-        title = QLabel("Métricas")
+        title = QLabel(_t("Métricas"))
         title.setObjectName("sectionTitle")
         self.main_layout.addWidget(title)
 
@@ -120,14 +121,14 @@ class MetricsView(QWidget):
                 empty_l.setAlignment(Qt.AlignCenter)
                 empty_l.setSpacing(8)
 
-                empty_title = QLabel("Nenhuma tarefa encontrada")
+                empty_title = QLabel(_t("Nenhuma tarefa encontrada"))
                 empty_title.setAlignment(Qt.AlignCenter)
                 empty_title.setStyleSheet(
                     f"color: {t.text_muted}; font-size: 16px; font-weight: 600;"
                 )
                 empty_l.addWidget(empty_title)
 
-                empty_sub = QLabel("Crie tarefas nos seus projetos para ver métricas")
+                empty_sub = QLabel(_t("Crie tarefas nos seus projetos para ver métricas"))
                 empty_sub.setAlignment(Qt.AlignCenter)
                 empty_sub.setStyleSheet(f"color: {t.text_muted}; font-size: 13px;")
                 empty_l.addWidget(empty_sub)
@@ -170,13 +171,13 @@ class MetricsView(QWidget):
                 if h is None:
                     return "--"
                 if h < 1:
-                    return f"{int(h * 60)} min"
+                    return _t("{value} min").format(value=int(h * 60))
                 if h < 24:
-                    return f"{round(h, 1)} h"
-                return f"{round(h / 24, 1)} dias"
+                    return _t("{value} h").format(value=round(h, 1))
+                return _t("{value} dias").format(value=round(h / 24, 1))
 
             # ---- Summary section ----
-            self.content_layout.addWidget(_section_header("Resumo", t))
+            self.content_layout.addWidget(_section_header(_t("Resumo"), t))
 
             cards_scroll = QScrollArea()
             cards_scroll.setWidgetResizable(False)
@@ -188,14 +189,14 @@ class MetricsView(QWidget):
             cards_row = QHBoxLayout(cards_widget)
             cards_row.setContentsMargins(0, 0, 0, 0)
             cards_row.setSpacing(8)
-            cards_row.addWidget(MetricCard("Total de Tarefas", total, f"{done} concluídas"))
-            cards_row.addWidget(MetricCard("Últimos 7 dias", last_7d, "tarefas concluídas"))
+            cards_row.addWidget(MetricCard(_t("Total de Tarefas"), total, _t("{done} concluídas").format(done=done)))
+            cards_row.addWidget(MetricCard(_t("Últimos 7 dias"), last_7d, _t("tarefas concluídas")))
             cards_row.addWidget(
-                MetricCard("Lead Time Médio", fmt_hours(avg_lead), "criação -> conclusão")
+                MetricCard(_t("Lead Time Médio"), fmt_hours(avg_lead), _t("criação -> conclusão"))
             )
-            cards_row.addWidget(MetricCard("Últimos 30 dias", last_30d, "tarefas concluídas"))
+            cards_row.addWidget(MetricCard(_t("Últimos 30 dias"), last_30d, _t("tarefas concluídas")))
             cards_row.addWidget(
-                MetricCard("Cycle Time", fmt_hours(avg_cycle), "início -> conclusão")
+                MetricCard(_t("Cycle Time"), fmt_hours(avg_cycle), _t("início -> conclusão"))
             )
             cards_widget.adjustSize()
             cards_scroll.setWidget(cards_widget)
@@ -220,14 +221,18 @@ class MetricsView(QWidget):
                 )
                 oc_layout.addWidget(oc_icon)
 
-                oc_text = QLabel(f"{overdue} tarefa{'s' if overdue != 1 else ''} com prazo vencido")
+                oc_text = QLabel(
+                    _t("{count} tarefas com prazo vencido").format(count=overdue)
+                    if overdue != 1
+                    else _t("{count} tarefa com prazo vencido").format(count=overdue)
+                )
                 oc_text.setStyleSheet(f"color: {t.danger}; font-weight: 600; font-size: 13px;")
                 oc_layout.addWidget(oc_text, 1)
 
                 self.content_layout.addWidget(overdue_card)
 
             # ---- Weekly Throughput section ----
-            self.content_layout.addWidget(_section_header("Throughput Semanal", t))
+            self.content_layout.addWidget(_section_header(_t("Throughput Semanal"), t))
 
             throughput_frame = QFrame()
             card_style = (
@@ -277,7 +282,7 @@ class MetricsView(QWidget):
             self.content_layout.addWidget(throughput_frame)
 
             # ---- By Type section ----
-            self.content_layout.addWidget(_section_header("Por Tipo", t))
+            self.content_layout.addWidget(_section_header(_t("Por Tipo"), t))
 
             type_group = QFrame()
             type_group.setStyleSheet(card_style)
@@ -317,7 +322,7 @@ class MetricsView(QWidget):
             self.content_layout.addWidget(type_group)
 
             # ---- By Priority section ----
-            self.content_layout.addWidget(_section_header("Por Prioridade", t))
+            self.content_layout.addWidget(_section_header(_t("Por Prioridade"), t))
 
             prio_group = QFrame()
             prio_group.setStyleSheet(card_style)
@@ -362,7 +367,7 @@ class MetricsView(QWidget):
             self.content_layout.addWidget(prio_group)
 
             # ---- By Project section ----
-            self.content_layout.addWidget(_section_header("Por Projeto", t))
+            self.content_layout.addWidget(_section_header(_t("Por Projeto"), t))
 
             proj_group = QFrame()
             proj_group.setStyleSheet(card_style)

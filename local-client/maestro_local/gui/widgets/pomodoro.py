@@ -1,6 +1,8 @@
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QVBoxLayout
 
+from maestro_local.i18n import t
+
 
 class PomodoroWidget(QFrame):
     def __init__(self):
@@ -30,7 +32,7 @@ class PomodoroWidget(QFrame):
         btn_row = QHBoxLayout()
         btn_row.setSpacing(6)
 
-        self._btn = QPushButton("▶  Iniciar")
+        self._btn = QPushButton("▶  " + t("Iniciar"))
         self._btn.setFixedHeight(26)
         self._btn.setCursor(Qt.PointingHandCursor)
         self._btn.clicked.connect(self._toggle)
@@ -55,18 +57,18 @@ class PomodoroWidget(QFrame):
         if self._running:
             self._timer.stop()
             self._running = False
-            self._btn.setText("▶  Iniciar")
+            self._btn.setText("▶  " + t("Iniciar"))
         else:
             self._timer.start()
             self._running = True
-            self._btn.setText("⏸  Pausar")
+            self._btn.setText("⏸  " + t("Pausar"))
 
     def _reset(self):
         self._timer.stop()
         self._running = False
         self._remaining = self._duration
         self._time_label.setText(self._fmt(self._remaining))
-        self._btn.setText("▶  Iniciar")
+        self._btn.setText("▶  " + t("Iniciar"))
 
     def _tick(self):
         self._remaining -= 1
@@ -74,7 +76,7 @@ class PomodoroWidget(QFrame):
             self._timer.stop()
             self._running = False
             self._remaining = 0
-            self._btn.setText("▶  Iniciar")
+            self._btn.setText("▶  " + t("Iniciar"))
             self._time_label.setText("00:00")
             return
         self._time_label.setText(self._fmt(self._remaining))

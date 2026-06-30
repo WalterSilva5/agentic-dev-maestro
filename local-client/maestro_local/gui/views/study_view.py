@@ -20,30 +20,31 @@ from PySide6.QtWidgets import (
 
 from maestro_local.db.models import StudyPlan, StudyTopic, get_session
 from maestro_local.gui.theme import current_theme
+from maestro_local.i18n import t as _t
 
 CATEGORIES = [
-    ("LINGUAGEM", "Linguagem"),
-    ("FRAMEWORK", "Framework"),
-    ("CERTIFICACAO", "Certificação"),
-    ("CONCEITO", "Conceito"),
-    ("CURSO", "Curso"),
-    ("LIVRO", "Livro"),
+    ("LINGUAGEM", _t("Linguagem")),
+    ("FRAMEWORK", _t("Framework")),
+    ("CERTIFICACAO", _t("Certificação")),
+    ("CONCEITO", _t("Conceito")),
+    ("CURSO", _t("Curso")),
+    ("LIVRO", _t("Livro")),
 ]
 
 PLAN_STATUSES = [
-    ("PLANEJADO", "Planejado"),
-    ("EM_ANDAMENTO", "Em andamento"),
-    ("PAUSADO", "Pausado"),
-    ("CONCLUIDO", "Concluído"),
-    ("ABANDONADO", "Abandonado"),
+    ("PLANEJADO", _t("Planejado")),
+    ("EM_ANDAMENTO", _t("Em andamento")),
+    ("PAUSADO", _t("Pausado")),
+    ("CONCLUIDO", _t("Concluído")),
+    ("ABANDONADO", _t("Abandonado")),
 ]
 
 TOPIC_STATUSES = [
-    ("PENDENTE", "Pendente"),
-    ("ESTUDANDO", "Estudando"),
-    ("REVISAO", "Revisão"),
-    ("CONCLUIDO", "Concluído"),
-    ("PULADO", "Pulado"),
+    ("PENDENTE", _t("Pendente")),
+    ("ESTUDANDO", _t("Estudando")),
+    ("REVISAO", _t("Revisão")),
+    ("CONCLUIDO", _t("Concluído")),
+    ("PULADO", _t("Pulado")),
 ]
 
 
@@ -115,12 +116,12 @@ class StudyPlanCard(QFrame):
         bar.setFixedHeight(6)
         bar.setMaximumWidth(100)
         bottom.addWidget(bar)
-        pct_lbl = QLabel(f"{progress}%  ({done}/{total})")
+        pct_lbl = QLabel(_t("{progress}%  ({done}/{total})").format(progress=progress, done=done, total=total))
         pct_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 11px; border: none;")
         bottom.addWidget(pct_lbl)
         bottom.addStretch()
 
-        open_btn = QPushButton("Abrir")
+        open_btn = QPushButton(_t("Abrir"))
         open_btn.setFixedHeight(28)
         open_btn.setCursor(Qt.PointingHandCursor)
         open_btn.setStyleSheet(
@@ -131,7 +132,7 @@ class StudyPlanCard(QFrame):
         open_btn.clicked.connect(lambda: self.open_clicked.emit(plan_id))
         bottom.addWidget(open_btn)
 
-        del_btn = QPushButton("Excluir")
+        del_btn = QPushButton(_t("Excluir"))
         del_btn.setFixedHeight(28)
         del_btn.setCursor(Qt.PointingHandCursor)
         del_btn.setStyleSheet(
@@ -178,7 +179,7 @@ class TopicRow(QFrame):
         layout.addWidget(title_lbl, 1)
 
         if estimate_hours:
-            hrs_lbl = QLabel(f"{logged_hours:.1f}/{estimate_hours:.0f}h")
+            hrs_lbl = QLabel(_t("{logged}/{estimate}h").format(logged=f"{logged_hours:.1f}", estimate=f"{estimate_hours:.0f}"))
             hrs_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 11px; border: none;")
             layout.addWidget(hrs_lbl)
 
@@ -217,7 +218,7 @@ class StudyView(QWidget):
         layout = QVBoxLayout(page)
         layout.setContentsMargins(14, 14, 14, 14)
         layout.setSpacing(10)
-        title = QLabel("Estudos")
+        title = QLabel(_t("Estudos"))
         title.setObjectName("sectionTitle")
         layout.addWidget(title)
 
@@ -226,27 +227,27 @@ class StudyView(QWidget):
         form_layout = QVBoxLayout(form)
         form_layout.setContentsMargins(10, 8, 10, 8)
         form_layout.setSpacing(10)
-        form_title = QLabel("Novo Plano")
+        form_title = QLabel(_t("Novo Plano"))
         form_title.setProperty("class", "cardTitle")
         form_layout.addWidget(form_title)
 
         inputs = QFormLayout()
         inputs.setSpacing(8)
         self.title_input = QLineEdit()
-        self.title_input.setPlaceholderText("Ex: Aprender Rust")
-        inputs.addRow("Título:", self.title_input)
+        self.title_input.setPlaceholderText(_t("Ex: Aprender Rust"))
+        inputs.addRow(_t("Título:"), self.title_input)
         self.category_combo = QComboBox()
         for val, label in CATEGORIES:
             self.category_combo.addItem(label, val)
-        inputs.addRow("Categoria:", self.category_combo)
+        inputs.addRow(_t("Categoria:"), self.category_combo)
         self.desc_input = QLineEdit()
-        self.desc_input.setPlaceholderText("Descrição breve (opcional)")
-        inputs.addRow("Descrição:", self.desc_input)
+        self.desc_input.setPlaceholderText(_t("Descrição breve (opcional)"))
+        inputs.addRow(_t("Descrição:"), self.desc_input)
         form_layout.addLayout(inputs)
 
         btn_row = QHBoxLayout()
         btn_row.addStretch()
-        create_btn = QPushButton("+ Criar Plano")
+        create_btn = QPushButton(_t("+ Criar Plano"))
         create_btn.setCursor(Qt.PointingHandCursor)
         create_btn.clicked.connect(self._create_plan)
         btn_row.addWidget(create_btn)
@@ -275,7 +276,7 @@ class StudyView(QWidget):
         layout.setSpacing(10)
 
         header_row = QHBoxLayout()
-        back_btn = QPushButton("< Voltar")
+        back_btn = QPushButton(_t("< Voltar"))
         back_btn.setCursor(Qt.PointingHandCursor)
         back_btn.clicked.connect(self._back_to_list)
         header_row.addWidget(back_btn)
@@ -299,7 +300,7 @@ class StudyView(QWidget):
 
         status_row = QHBoxLayout()
         status_row.setSpacing(8)
-        status_row.addWidget(QLabel("Status do plano:"))
+        status_row.addWidget(QLabel(_t("Status do plano:")))
         self.plan_status_combo = QComboBox()
         for val, label in PLAN_STATUSES:
             self.plan_status_combo.addItem(label, val)
@@ -308,21 +309,21 @@ class StudyView(QWidget):
         status_row.addStretch()
         layout.addLayout(status_row)
 
-        topics_title = QLabel("Tópicos")
+        topics_title = QLabel(_t("Tópicos"))
         topics_title.setStyleSheet("font-size: 16px; font-weight: 600; margin-top: 12px;")
         layout.addWidget(topics_title)
 
         add_form = QHBoxLayout()
         add_form.setSpacing(8)
         self.topic_input = QLineEdit()
-        self.topic_input.setPlaceholderText("Título do tópico...")
+        self.topic_input.setPlaceholderText(_t("Título do tópico..."))
         self.topic_input.returnPressed.connect(self._add_topic)
         add_form.addWidget(self.topic_input, 1)
         self.topic_weight = QSpinBox()
         self.topic_weight.setRange(1, 10)
         self.topic_weight.setValue(1)
         self.topic_weight.setFixedWidth(60)
-        self.topic_weight.setToolTip("Peso")
+        self.topic_weight.setToolTip(_t("Peso"))
         add_form.addWidget(self.topic_weight)
         self.topic_hours = QSpinBox()
         self.topic_hours.setRange(0, 500)
@@ -330,7 +331,7 @@ class StudyView(QWidget):
         self.topic_hours.setFixedWidth(70)
         self.topic_hours.setSuffix("h")
         add_form.addWidget(self.topic_hours)
-        add_btn = QPushButton("+ Adicionar")
+        add_btn = QPushButton(_t("+ Adicionar"))
         add_btn.setCursor(Qt.PointingHandCursor)
         add_btn.clicked.connect(self._add_topic)
         add_form.addWidget(add_btn)
@@ -365,7 +366,7 @@ class StudyView(QWidget):
         try:
             plans = s.query(StudyPlan).order_by(StudyPlan.updated_at.desc()).all()
             if not plans:
-                empty = QLabel("Nenhum plano de estudo criado.\nCrie seu primeiro plano acima.")
+                empty = QLabel(_t("Nenhum plano de estudo criado.\nCrie seu primeiro plano acima."))
                 empty.setAlignment(Qt.AlignCenter)
                 empty.setStyleSheet(f"color: {t.text_muted}; font-size: 14px; padding: 40px;")
                 self.cards_layout.addWidget(empty, 1)
@@ -400,7 +401,7 @@ class StudyView(QWidget):
             self.plan_progress_bar.setValue(progress)
             not_skipped = len([t for t in p.topics if t.status != "PULADO" and t.parent_id is None])
             done_count = len([t for t in p.topics if t.status == "CONCLUIDO" and t.parent_id is None])
-            self.plan_progress_lbl.setText(f"{progress}%  ({done_count}/{not_skipped} tópicos)")
+            self.plan_progress_lbl.setText(_t("{progress}%  ({done}/{total} tópicos)").format(progress=progress, done=done_count, total=not_skipped))
             idx = self.plan_status_combo.findData(p.status)
             if idx >= 0:
                 self.plan_status_combo.blockSignals(True)
@@ -457,8 +458,8 @@ class StudyView(QWidget):
 
     def _delete_plan(self, plan_id):
         reply = QMessageBox.question(
-            self, "Confirmar exclusão",
-            "Tem certeza? Todos os tópicos e sessões serão excluídos.",
+            self, _t("Confirmar exclusão"),
+            _t("Tem certeza? Todos os tópicos e sessões serão excluídos."),
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
         )
         if reply != QMessageBox.Yes:

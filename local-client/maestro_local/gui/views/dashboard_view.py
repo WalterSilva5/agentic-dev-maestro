@@ -22,6 +22,7 @@ from maestro_local.db.models import (
 )
 from maestro_local.gui.theme import current_theme
 from maestro_local.gui.views.labels_view import LabelsView
+from maestro_local.i18n import t as _t
 from maestro_local.gui.views.metrics_view import MetricsView
 from maestro_local.gui.views.todos_view import TodosView
 from maestro_local.gui.widgets.pomodoro import PomodoroWidget
@@ -66,10 +67,10 @@ class DashboardView(QWidget):
 
         self._summary_cards = {}
         for key, label in [
-            ("total", "Tarefas ativas"),
-            ("done_7d", "Concluidas (7 dias)"),
-            ("overdue", "Vencidas"),
-            ("in_progress", "Em progresso"),
+            ("total", _t("Tarefas ativas")),
+            ("done_7d", _t("Concluidas (7 dias)")),
+            ("overdue", _t("Vencidas")),
+            ("in_progress", _t("Em progresso")),
         ]:
             card = self._make_summary_card(label)
             self._summary_cards[key] = card
@@ -80,7 +81,7 @@ class DashboardView(QWidget):
         self._overdue_layout = QVBoxLayout(self._overdue_section)
         self._overdue_layout.setContentsMargins(12, 10, 12, 10)
         self._overdue_layout.setSpacing(8)
-        overdue_title = QLabel("Tarefas vencidas")
+        overdue_title = QLabel(_t("Tarefas vencidas"))
         overdue_title.setProperty("class", "cardTitle")
         self._overdue_layout.addWidget(overdue_title)
         self._overdue_list = QVBoxLayout()
@@ -93,7 +94,7 @@ class DashboardView(QWidget):
         self._activity_layout = QVBoxLayout(self._activity_section)
         self._activity_layout.setContentsMargins(12, 10, 12, 10)
         self._activity_layout.setSpacing(8)
-        activity_title = QLabel("Atividade recente")
+        activity_title = QLabel(_t("Atividade recente"))
         activity_title.setProperty("class", "cardTitle")
         self._activity_layout.addWidget(activity_title)
         self._activity_list = QVBoxLayout()
@@ -106,7 +107,7 @@ class DashboardView(QWidget):
         self._projects_layout = QVBoxLayout(self._projects_section)
         self._projects_layout.setContentsMargins(12, 10, 12, 10)
         self._projects_layout.setSpacing(8)
-        projects_title = QLabel("Projetos")
+        projects_title = QLabel(_t("Projetos"))
         projects_title.setProperty("class", "cardTitle")
         self._projects_layout.addWidget(projects_title)
         self._projects_list = QVBoxLayout()
@@ -122,10 +123,10 @@ class DashboardView(QWidget):
         self._tab_metrics = MetricsView()
         self._tab_todos = TodosView()
         self._tab_labels = LabelsView()
-        self._tabs.addTab(self._overview_tab, "Visão geral")
-        self._tabs.addTab(self._tab_metrics, "Métricas")
-        self._tabs.addTab(self._tab_todos, "TODOs")
-        self._tabs.addTab(self._tab_labels, "Labels")
+        self._tabs.addTab(self._overview_tab, _t("Visão geral"))
+        self._tabs.addTab(self._tab_metrics, _t("Métricas"))
+        self._tabs.addTab(self._tab_todos, _t("TODOs"))
+        self._tabs.addTab(self._tab_labels, _t("Labels"))
         self._tabs.currentChanged.connect(self._on_tab_changed)
         root.addWidget(self._tabs, 1)
 
@@ -220,7 +221,7 @@ class DashboardView(QWidget):
         )
 
         if not overdue_tasks:
-            empty = QLabel("Nenhuma tarefa vencida")
+            empty = QLabel(_t("Nenhuma tarefa vencida"))
             empty.setProperty("class", "hint")
             self._overdue_list.addWidget(empty)
             return
@@ -274,7 +275,7 @@ class DashboardView(QWidget):
         )
 
         if not entries:
-            empty = QLabel("Nenhuma atividade registrada")
+            empty = QLabel(_t("Nenhuma atividade registrada"))
             empty.setProperty("class", "hint")
             self._activity_list.addWidget(empty)
             return
@@ -318,7 +319,7 @@ class DashboardView(QWidget):
         projects = s.query(Project).order_by(Project.name).all()
 
         if not projects:
-            empty = QLabel("Nenhum projeto")
+            empty = QLabel(_t("Nenhum projeto"))
             empty.setProperty("class", "hint")
             self._projects_list.addWidget(empty)
             return
@@ -331,7 +332,7 @@ class DashboardView(QWidget):
             vl.setSpacing(8)
 
             header = QHBoxLayout()
-            name_lbl = QLabel(f"{project.key} - {project.name}")
+            name_lbl = QLabel(_t("{key} - {name}").format(key=project.key, name=project.name))
             name_lbl.setProperty("class", "cardTitle")
             header.addWidget(name_lbl)
             header.addStretch()

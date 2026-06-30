@@ -121,6 +121,20 @@ def rename_workspace(ws_id: str, new_name: str, new_icon: str | None = None):
 
 
 # ---------------------------------------------------------------------------
+# Idioma da aplicação
+# ---------------------------------------------------------------------------
+
+def get_language() -> str:
+    return load_config().get("language", "pt")
+
+
+def set_language(code: str):
+    cfg = load_config()
+    cfg["language"] = code
+    save_config(cfg)
+
+
+# ---------------------------------------------------------------------------
 # AI providers (OpenAI-compatible: LM Studio, opencode, etc.)
 # ---------------------------------------------------------------------------
 

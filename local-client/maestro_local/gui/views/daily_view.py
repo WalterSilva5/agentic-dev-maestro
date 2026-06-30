@@ -37,6 +37,7 @@ from maestro_local.db.models import (
     get_session,
 )
 from maestro_local.gui.theme import current_theme
+from maestro_local.i18n import t as _t
 
 
 def _sanitize(name: str) -> str:
@@ -54,7 +55,7 @@ class DailyView(QWidget):
 
         # Header
         header = QHBoxLayout()
-        title = QLabel("Meu Dia")
+        title = QLabel(_t("Meu Dia"))
         title.setObjectName("sectionTitle")
         header.addWidget(title)
         header.addStretch()
@@ -92,7 +93,7 @@ class DailyView(QWidget):
         obs_layout.addWidget(self.obs_title)
 
         self.obs_hint = QLabel(
-            "Configure um vault do Obsidian por projeto para exportar dados como Markdown estruturado."
+            _t("Configure um vault do Obsidian por projeto para exportar dados como Markdown estruturado.")
         )
         self.obs_hint.setWordWrap(True)
         self.obs_hint.setProperty("class", "hint")
@@ -100,7 +101,7 @@ class DailyView(QWidget):
 
         obs_row1 = QHBoxLayout()
         obs_row1.setSpacing(6)
-        self.obs_proj_label = QLabel("Projeto:")
+        self.obs_proj_label = QLabel(_t("Projeto:"))
         self.obs_proj_label.setProperty("class", "sectionLabel")
         obs_row1.addWidget(self.obs_proj_label)
 
@@ -110,14 +111,14 @@ class DailyView(QWidget):
         self.obs_project_combo.currentIndexChanged.connect(self._on_obs_project_changed)
         obs_row1.addWidget(self.obs_project_combo, 1)
 
-        self.obs_browse = QPushButton("Vault...")
+        self.obs_browse = QPushButton(_t("Vault..."))
         self.obs_browse.setFixedHeight(24)
         self.obs_browse.setProperty("class", "secondary")
         self.obs_browse.setCursor(Qt.PointingHandCursor)
         self.obs_browse.clicked.connect(self._browse_vault)
         obs_row1.addWidget(self.obs_browse)
 
-        obs_sync = QPushButton("Sync")
+        obs_sync = QPushButton(_t("Sync"))
         obs_sync.setFixedHeight(24)
         obs_sync.setMinimumWidth(50)
         obs_sync.setCursor(Qt.PointingHandCursor)
@@ -126,7 +127,7 @@ class DailyView(QWidget):
 
         obs_layout.addLayout(obs_row1)
 
-        self.obs_path_input = QLabel("Nenhum vault configurado")
+        self.obs_path_input = QLabel(_t("Nenhum vault configurado"))
         self.obs_path_input.setProperty("class", "hint")
         obs_layout.addWidget(self.obs_path_input)
 
@@ -145,28 +146,28 @@ class DailyView(QWidget):
         notes_layout.setContentsMargins(6, 6, 6, 6)
 
         notes_header = QHBoxLayout()
-        self.notes_title = QLabel("Notas do dia")
+        self.notes_title = QLabel(_t("Notas do dia"))
         self.notes_title.setProperty("class", "cardTitle")
         notes_header.addWidget(self.notes_title)
         notes_header.addStretch()
 
         self._editor_mode = "edit"
 
-        self.toggle_btn = QPushButton("Preview")
+        self.toggle_btn = QPushButton(_t("Preview"))
         self.toggle_btn.setFixedHeight(24)
         self.toggle_btn.setProperty("class", "secondary")
         self.toggle_btn.setCursor(Qt.PointingHandCursor)
         self.toggle_btn.clicked.connect(self._toggle_preview)
         notes_header.addWidget(self.toggle_btn)
 
-        self.tmpl_btn = QPushButton("Template")
+        self.tmpl_btn = QPushButton(_t("Template"))
         self.tmpl_btn.setFixedHeight(24)
         self.tmpl_btn.setProperty("class", "secondary")
         self.tmpl_btn.setCursor(Qt.PointingHandCursor)
         self.tmpl_btn.clicked.connect(self._insert_template)
         notes_header.addWidget(self.tmpl_btn)
 
-        save_btn = QPushButton("Salvar")
+        save_btn = QPushButton(_t("Salvar"))
         save_btn.setFixedHeight(24)
         save_btn.setCursor(Qt.PointingHandCursor)
         save_btn.clicked.connect(self._save_notes)
@@ -181,26 +182,28 @@ class DailyView(QWidget):
         # --- Edit mode ---
         self.notes_edit = QTextEdit()
         self.notes_edit.setPlaceholderText(
-            "## Foco do Dia\n"
-            "- Objetivo principal:\n"
-            "- Prioridade máxima:\n\n"
-            "---\n\n"
-            "## Tarefas Planejadas\n"
-            "- [ ] ...\n\n"
-            "---\n\n"
-            "## Bloqueios / Problemas / Dúvidas\n"
-            "- Descrição do problema\n"
-            "- Dependência / quem pode ajudar\n\n"
-            "---\n\n"
-            "## Anotações Rápidas\n"
-            "- Ideias\n"
-            "- Decisões tomadas\n"
-            "- Links úteis\n\n"
-            "---\n\n"
-            "## Check-out do Dia\n"
-            "- O que foi concluído:\n"
-            "- O que ficou pendente:\n"
-            "- Próximo passo amanhã:"
+            _t(
+                "## Foco do Dia\n"
+                "- Objetivo principal:\n"
+                "- Prioridade máxima:\n\n"
+                "---\n\n"
+                "## Tarefas Planejadas\n"
+                "- [ ] ...\n\n"
+                "---\n\n"
+                "## Bloqueios / Problemas / Dúvidas\n"
+                "- Descrição do problema\n"
+                "- Dependência / quem pode ajudar\n\n"
+                "---\n\n"
+                "## Anotações Rápidas\n"
+                "- Ideias\n"
+                "- Decisões tomadas\n"
+                "- Links úteis\n\n"
+                "---\n\n"
+                "## Check-out do Dia\n"
+                "- O que foi concluído:\n"
+                "- O que ficou pendente:\n"
+                "- Próximo passo amanhã:"
+            )
         )
         self.notes_edit.setAcceptRichText(False)
         self.notes_edit.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -220,7 +223,7 @@ class DailyView(QWidget):
         # --- Generate report ---
         actions_row = QHBoxLayout()
 
-        gen_btn = QPushButton("Gerar Relatório do Dia")
+        gen_btn = QPushButton(_t("Gerar Relatório do Dia"))
         gen_btn.setFixedHeight(28)
         gen_btn.setCursor(Qt.PointingHandCursor)
         gen_btn.clicked.connect(self._generate_report)
@@ -228,11 +231,11 @@ class DailyView(QWidget):
 
         actions_row.addStretch()
 
-        self.backup_btn = QPushButton("Backup DB")
+        self.backup_btn = QPushButton(_t("Backup DB"))
         self.backup_btn.setFixedHeight(28)
         self.backup_btn.setProperty("class", "secondary")
         self.backup_btn.setCursor(Qt.PointingHandCursor)
-        self.backup_btn.setToolTip("Exportar backup do banco de dados SQLite")
+        self.backup_btn.setToolTip(_t("Exportar backup do banco de dados SQLite"))
         self.backup_btn.clicked.connect(self._backup_db)
         actions_row.addWidget(self.backup_btn)
 
@@ -253,20 +256,20 @@ class DailyView(QWidget):
         report_inner.setSpacing(4)
 
         report_header = QHBoxLayout()
-        self.report_title = QLabel("Relatório Gerado")
+        self.report_title = QLabel(_t("Relatório Gerado"))
         self.report_title.setProperty("class", "cardTitle")
         report_header.addWidget(self.report_title)
 
         report_header.addStretch()
 
-        hint_btn = QPushButton("Dica IA")
+        hint_btn = QPushButton(_t("Dica IA"))
         hint_btn.setFixedHeight(24)
         hint_btn.setProperty("class", "secondary")
         hint_btn.setCursor(Qt.PointingHandCursor)
         hint_btn.clicked.connect(self._toggle_report_hint)
         report_header.addWidget(hint_btn)
 
-        copy_btn = QPushButton("Copiar")
+        copy_btn = QPushButton(_t("Copiar"))
         copy_btn.setFixedHeight(24)
         copy_btn.setProperty("class", "secondary")
         copy_btn.setCursor(Qt.PointingHandCursor)
@@ -289,11 +292,11 @@ class DailyView(QWidget):
             if ws["id"] == ws_id:
                 ws_name = ws.get("name", ws_id)
                 break
-        self._hint_prompt = (
-            f"Gere o relatório diário de trabalho de hoje no workspace \"{ws_name}\" "
-            f"usando a skill maestro-daily-report. "
-            f"Consulte as atividades e notas do dia via API (porta 9777) e crie um resumo em bullet list."
-        )
+        self._hint_prompt = _t(
+            "Gere o relatório diário de trabalho de hoje no workspace \"{ws_name}\" "
+            "usando a skill maestro-daily-report. "
+            "Consulte as atividades e notas do dia via API (porta 9777) e crie um resumo em bullet list."
+        ).format(ws_name=ws_name)
         self.report_hint_frame = QFrame()
         self.report_hint_frame.setVisible(False)
         self.report_hint_frame.setStyleSheet(
@@ -304,17 +307,17 @@ class DailyView(QWidget):
         hint_inner.setContentsMargins(8, 6, 8, 6)
         hint_inner.setSpacing(4)
 
-        hint_text = QLabel(f"Dica: peça a um agente de IA para resumir o relatório do workspace \"{ws_name}\" usando a skill instalada.")
+        hint_text = QLabel(_t("Dica: peça a um agente de IA para resumir o relatório do workspace \"{ws_name}\" usando a skill instalada.").format(ws_name=ws_name))
         hint_text.setWordWrap(True)
         hint_text.setStyleSheet(f"color: {t.text_secondary}; font-size: 11px; background: transparent; border: none;")
         hint_inner.addWidget(hint_text)
 
-        hint_prompt_label = QLabel(f"Prompt sugerido:\n\"{self._hint_prompt}\"")
+        hint_prompt_label = QLabel(_t("Prompt sugerido:\n\"{prompt}\"").format(prompt=self._hint_prompt))
         hint_prompt_label.setWordWrap(True)
         hint_prompt_label.setStyleSheet(f"color: {t.text_primary}; font-size: 11px; font-style: italic; background: transparent; border: none;")
         hint_inner.addWidget(hint_prompt_label)
 
-        copy_hint_btn = QPushButton("Copiar prompt")
+        copy_hint_btn = QPushButton(_t("Copiar prompt"))
         copy_hint_btn.setFixedHeight(22)
         copy_hint_btn.setProperty("class", "secondary")
         copy_hint_btn.setCursor(Qt.PointingHandCursor)
@@ -380,14 +383,14 @@ class DailyView(QWidget):
             self._editor_mode = "preview"
             self._update_preview()
             self.editor_stack.setCurrentIndex(1)
-            self.toggle_btn.setText("Edit")
+            self.toggle_btn.setText(_t("Edit"))
             self.toggle_btn.setProperty("class", "")
             self.toggle_btn.style().unpolish(self.toggle_btn)
             self.toggle_btn.style().polish(self.toggle_btn)
         else:
             self._editor_mode = "edit"
             self.editor_stack.setCurrentIndex(0)
-            self.toggle_btn.setText("Preview")
+            self.toggle_btn.setText(_t("Preview"))
             self.toggle_btn.setProperty("class", "secondary")
             self.toggle_btn.style().unpolish(self.toggle_btn)
             self.toggle_btn.style().polish(self.toggle_btn)
@@ -503,32 +506,34 @@ class DailyView(QWidget):
         if self.notes_edit.toPlainText().strip():
             from PySide6.QtWidgets import QMessageBox
             r = QMessageBox.question(
-                self, "Substituir conteúdo?",
-                "Já existe conteúdo nas notas. Deseja substituir pelo template?",
+                self, _t("Substituir conteúdo?"),
+                _t("Já existe conteúdo nas notas. Deseja substituir pelo template?"),
             )
             if r != QMessageBox.Yes:
                 return
         self.notes_edit.setPlainText(
-            "## Foco do Dia\n"
-            "- Objetivo principal:\n"
-            "- Prioridade máxima:\n\n"
-            "---\n\n"
-            "## Tarefas Planejadas\n"
-            "- [ ] ...\n\n"
-            "---\n\n"
-            "## Bloqueios / Problemas / Dúvidas\n"
-            "- Descrição do problema\n"
-            "- Dependência / quem pode ajudar\n\n"
-            "---\n\n"
-            "## Anotações Rápidas\n"
-            "- Ideias\n"
-            "- Decisões tomadas\n"
-            "- Links úteis\n\n"
-            "---\n\n"
-            "## Check-out do Dia\n"
-            "- O que foi concluído:\n"
-            "- O que ficou pendente:\n"
-            "- Próximo passo amanhã:\n"
+            _t(
+                "## Foco do Dia\n"
+                "- Objetivo principal:\n"
+                "- Prioridade máxima:\n\n"
+                "---\n\n"
+                "## Tarefas Planejadas\n"
+                "- [ ] ...\n\n"
+                "---\n\n"
+                "## Bloqueios / Problemas / Dúvidas\n"
+                "- Descrição do problema\n"
+                "- Dependência / quem pode ajudar\n\n"
+                "---\n\n"
+                "## Anotações Rápidas\n"
+                "- Ideias\n"
+                "- Decisões tomadas\n"
+                "- Links úteis\n\n"
+                "---\n\n"
+                "## Check-out do Dia\n"
+                "- O que foi concluído:\n"
+                "- O que ficou pendente:\n"
+                "- Próximo passo amanhã:\n"
+            )
         )
 
     def _save_notes(self):
@@ -554,7 +559,7 @@ class DailyView(QWidget):
 
         t = current_theme()
 
-        act_title = QLabel("Atividade do dia")
+        act_title = QLabel(_t("Atividade do dia"))
         act_title.setStyleSheet(
             f"font-weight: 700; font-size: 14px; color: {t.text_primary}; border: none;"
         )
@@ -586,7 +591,7 @@ class DailyView(QWidget):
                 task_ids.add(c.task_id)
 
             if not task_ids:
-                empty = QLabel("Nenhuma atividade registrada neste dia")
+                empty = QLabel(_t("Nenhuma atividade registrada neste dia"))
                 empty.setStyleSheet(f"color: {t.text_muted}; font-size: 13px; border: none; padding: 8px 0;")
                 self.activity_layout.addWidget(empty)
                 return
@@ -656,11 +661,11 @@ class DailyView(QWidget):
             note = s.query(DailyNote).filter(DailyNote.date == self._today).first()
             user_notes = note.body if note else ""
 
-            lines = [f"# Relatório Diário — {self._today}", ""]
+            lines = [_t("# Relatório Diário — {date}").format(date=self._today), ""]
 
             # Tasks worked on
             if tasks:
-                lines.append("## Tarefas trabalhadas")
+                lines.append(_t("## Tarefas trabalhadas"))
                 lines.append("")
                 for task in tasks:
                     status = task.status
@@ -670,7 +675,7 @@ class DailyView(QWidget):
 
             # Activity timeline
             if activities:
-                lines.append("## Atividades")
+                lines.append(_t("## Atividades"))
                 lines.append("")
                 for a in activities:
                     time_str = a.created_at.strftime("%H:%M") if a.created_at else ""
@@ -680,7 +685,7 @@ class DailyView(QWidget):
             # Comments/reviews of the day
             reviews = [c for c in comments if c.type == "CODE_REVIEW"]
             if reviews:
-                lines.append("## Code Reviews")
+                lines.append(_t("## Code Reviews"))
                 lines.append("")
                 for r in reviews:
                     task = s.query(Task).get(r.task_id)
@@ -691,23 +696,23 @@ class DailyView(QWidget):
 
             # User notes
             if user_notes.strip():
-                lines.append("## Notas")
+                lines.append(_t("## Notas"))
                 lines.append("")
                 lines.append(user_notes.strip())
                 lines.append("")
 
             # Summary
-            lines.append("## Resumo")
+            lines.append(_t("## Resumo"))
             lines.append("")
-            lines.append(f"- **Tarefas tocadas**: {len(tasks)}")
-            lines.append(f"- **Atividades registradas**: {len(activities)}")
-            lines.append(f"- **Code reviews**: {len(reviews)}")
+            lines.append(_t("- **Tarefas tocadas**: {count}").format(count=len(tasks)))
+            lines.append(_t("- **Atividades registradas**: {count}").format(count=len(activities)))
+            lines.append(_t("- **Code reviews**: {count}").format(count=len(reviews)))
             done_today = sum(
                 1 for task in tasks
                 if s.query(BoardColumn).get(task.column_id)
                 and s.query(BoardColumn).get(task.column_id).is_done
             )
-            lines.append(f"- **Concluídas hoje**: {done_today}")
+            lines.append(_t("- **Concluídas hoje**: {count}").format(count=done_today))
 
             report = "\n".join(lines)
 
@@ -742,7 +747,7 @@ class DailyView(QWidget):
         if not text:
             return
         path, _ = QFileDialog.getSaveFileName(
-            self, "Exportar relatório", f"relatório-{self._today}.md", "Markdown (*.md)"
+            self, _t("Exportar relatório"), f"relatório-{self._today}.md", _t("Markdown (*.md)")
         )
         if path:
             Path(path).write_text(text, encoding="utf-8")
@@ -751,20 +756,20 @@ class DailyView(QWidget):
 
     def _backup_db(self):
         dest, _ = QFileDialog.getSaveFileName(
-            self, "Salvar backup",
+            self, _t("Salvar backup"),
             f"maestro-backup-{date.today().isoformat()}.db",
-            "SQLite Database (*.db)",
+            _t("SQLite Database (*.db)"),
         )
         if not dest:
             return
         try:
             shutil.copy2(DB_PATH, dest)
             QMessageBox.information(
-                self, "Backup concluído",
-                f"Banco de dados copiado para:\n{dest}",
+                self, _t("Backup concluído"),
+                _t("Banco de dados copiado para:\n{dest}").format(dest=dest),
             )
         except Exception as e:
-            QMessageBox.warning(self, "Erro no backup", str(e))
+            QMessageBox.warning(self, _t("Erro no backup"), str(e))
 
     # --- Obsidian ---
 
@@ -813,7 +818,7 @@ class DailyView(QWidget):
             self.obs_path_input.setText(vault_path)
             self.obs_path_input.setProperty("class", "sectionLabel")
         else:
-            self.obs_path_input.setText("Nenhum vault configurado")
+            self.obs_path_input.setText(_t("Nenhum vault configurado"))
             self.obs_path_input.setProperty("class", "hint")
         self.obs_path_input.style().unpolish(self.obs_path_input)
         self.obs_path_input.style().polish(self.obs_path_input)
@@ -822,7 +827,7 @@ class DailyView(QWidget):
         pid = self.obs_project_combo.currentData()
         if pid is None:
             return
-        d = QFileDialog.getExistingDirectory(self, "Selecionar pasta do Obsidian Vault")
+        d = QFileDialog.getExistingDirectory(self, _t("Selecionar pasta do Obsidian Vault"))
         if not d:
             return
         self._set_workspace_vault(str(pid), d)
@@ -845,7 +850,9 @@ class DailyView(QWidget):
                 synced += 1
             if synced:
                 now = datetime.now().strftime("%H:%M")
-                self.obs_status_label.setText(f"Auto-sync: {synced} projeto(s) sincronizado(s) às {now}")
+                self.obs_status_label.setText(
+                    _t("Auto-sync: {count} projeto(s) sincronizado(s) às {time}").format(count=synced, time=now)
+                )
         except Exception:
             pass
         finally:
@@ -967,7 +974,7 @@ class DailyView(QWidget):
         vaults = self._get_workspace_vaults()
         vault_path = vaults.get(str(pid))
         if not vault_path:
-            QMessageBox.warning(self, "Vault não configurado", "Selecione uma pasta de vault primeiro.")
+            QMessageBox.warning(self, _t("Vault não configurado"), _t("Selecione uma pasta de vault primeiro."))
             return
 
         s = get_session()
@@ -978,10 +985,10 @@ class DailyView(QWidget):
             self._sync_project_to_vault(s, project, vault_path)
             base = Path(vault_path) / _sanitize(project.name)
             QMessageBox.information(
-                self, "Sincronização concluída",
-                f"Dados exportados para:\n{base}",
+                self, _t("Sincronização concluída"),
+                _t("Dados exportados para:\n{base}").format(base=base),
             )
         except Exception as e:
-            QMessageBox.warning(self, "Erro na sincronização", str(e))
+            QMessageBox.warning(self, _t("Erro na sincronização"), str(e))
         finally:
             s.close()

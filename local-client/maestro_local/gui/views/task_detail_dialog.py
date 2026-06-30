@@ -34,6 +34,7 @@ from maestro_local.db.models import (
     get_session,
 )
 from maestro_local.gui.theme import TYPE_COLORS, TYPE_LABELS, current_theme
+from maestro_local.i18n import t as _t
 
 
 def _h_divider(theme):
@@ -51,7 +52,7 @@ class TaskDetailDialog(QDialog):
     def __init__(self, task_id: int, parent=None):
         super().__init__(parent)
         self.task_id = task_id
-        self.setWindowTitle("Detalhes da Tarefa")
+        self.setWindowTitle(_t("Detalhes da Tarefa"))
         self.resize(800, 700)
         self.setMinimumSize(600, 500)
 
@@ -65,7 +66,7 @@ class TaskDetailDialog(QDialog):
         try:
             task = s.query(Task).get(task_id)
             if not task:
-                layout.addWidget(QLabel("Tarefa nao encontrada"))
+                layout.addWidget(QLabel(_t("Tarefa nao encontrada")))
                 return
 
             # --- Header Row 1: Code, Type, Priority, Column ---
@@ -115,7 +116,7 @@ class TaskDetailDialog(QDialog):
             self.col_combo.currentIndexChanged.connect(
                 lambda: self._move(self.col_combo.currentData())
             )
-            col_label = QLabel("Coluna:")
+            col_label = QLabel(_t("Coluna:"))
             col_label.setStyleSheet(f"color: {t.text_secondary};")
             header1.addWidget(col_label)
             header1.addWidget(self.col_combo)
@@ -126,14 +127,14 @@ class TaskDetailDialog(QDialog):
             header2 = QHBoxLayout()
             header2.setSpacing(12)
 
-            due_label = QLabel("Prazo:")
+            due_label = QLabel(_t("Prazo:"))
             due_label.setStyleSheet(f"color: {t.text_secondary};")
             header2.addWidget(due_label)
 
             self.due_date_edit = QDateEdit()
             self.due_date_edit.setCalendarPopup(True)
             self.due_date_edit.setDisplayFormat("dd/MM/yyyy")
-            self.due_date_edit.setSpecialValueText("Sem data")
+            self.due_date_edit.setSpecialValueText(_t("Sem data"))
             if task.due_date:
                 self.due_date_edit.setDate(
                     QDate(task.due_date.year, task.due_date.month, task.due_date.day)
@@ -143,12 +144,12 @@ class TaskDetailDialog(QDialog):
             self.due_date_edit.dateChanged.connect(self._save_due_date)
             header2.addWidget(self.due_date_edit)
 
-            assignee_label = QLabel("Responsavel:")
+            assignee_label = QLabel(_t("Responsavel:"))
             assignee_label.setStyleSheet(f"color: {t.text_secondary};")
             header2.addWidget(assignee_label)
 
             self.assignee_input = QLineEdit(task.assignee or "")
-            self.assignee_input.setPlaceholderText("Responsavel...")
+            self.assignee_input.setPlaceholderText(_t("Responsavel..."))
             self.assignee_input.setMaximumWidth(150)
             self.assignee_input.editingFinished.connect(
                 lambda: self._save_field(
@@ -157,11 +158,13 @@ class TaskDetailDialog(QDialog):
             )
             header2.addWidget(self.assignee_input)
 
-            self.human_check = QCheckBox("Requer desenvolvedor")
+            self.human_check = QCheckBox(_t("Requer desenvolvedor"))
             self.human_check.setChecked(task.requires_human or False)
             self.human_check.setToolTip(
-                "Marque para tarefas que devem ser feitas por um desenvolvedor humano, "
-                "nao por agentes de IA"
+                _t(
+                    "Marque para tarefas que devem ser feitas por um desenvolvedor humano, "
+                    "nao por agentes de IA"
+                )
             )
             self.human_check.toggled.connect(
                 lambda val: self._save_field("requires_human", val)
@@ -204,7 +207,7 @@ class TaskDetailDialog(QDialog):
             info_layout.setSpacing(8)
             info_layout.setContentsMargins(8, 8, 8, 8)
 
-            desc_label = QLabel("Descricao:")
+            desc_label = QLabel(_t("Descricao:"))
             desc_label.setStyleSheet(f"color: {t.text_secondary}; font-weight: 600; font-size: 12px;")
             info_layout.addWidget(desc_label)
             self.desc_edit = QTextEdit(task.description or "")
@@ -212,7 +215,7 @@ class TaskDetailDialog(QDialog):
             self.desc_edit.textChanged.connect(lambda: self._auto_resize(self.desc_edit))
             info_layout.addWidget(self.desc_edit)
 
-            obj_label = QLabel("Objetivo:")
+            obj_label = QLabel(_t("Objetivo:"))
             obj_label.setStyleSheet(f"color: {t.text_secondary}; font-weight: 600; font-size: 12px;")
             info_layout.addWidget(obj_label)
             self.obj_edit = QTextEdit(task.objective or "")
@@ -220,7 +223,7 @@ class TaskDetailDialog(QDialog):
             self.obj_edit.textChanged.connect(lambda: self._auto_resize(self.obj_edit))
             info_layout.addWidget(self.obj_edit)
 
-            acc_label = QLabel("Aceite:")
+            acc_label = QLabel(_t("Aceite:"))
             acc_label.setStyleSheet(f"color: {t.text_secondary}; font-weight: 600; font-size: 12px;")
             info_layout.addWidget(acc_label)
             self.acc_edit = QTextEdit(task.acceptance or "")
@@ -229,37 +232,41 @@ class TaskDetailDialog(QDialog):
             info_layout.addWidget(self.acc_edit)
 
             est_row = QHBoxLayout()
-            est_label = QLabel("Estimativa:")
+            est_label = QLabel(_t("Estimativa:"))
             est_label.setStyleSheet(f"color: {t.text_secondary}; font-weight: 600; font-size: 12px;")
             est_row.addWidget(est_label)
             self.est_spin = QDoubleSpinBox()
             self.est_spin.setRange(0, 999)
             self.est_spin.setSingleStep(0.5)
-            self.est_spin.setSuffix(" homem-dia")
+            self.est_spin.setSuffix(_t(" homem-dia"))
             self.est_spin.setValue(task.estimate_md or 0)
             est_row.addWidget(self.est_spin)
             est_row.addStretch()
             info_layout.addLayout(est_row)
 
-            save_info = QPushButton("Salvar alteracoes")
+            save_info = QPushButton(_t("Salvar alteracoes"))
             save_info.clicked.connect(self._save_info)
             info_layout.addWidget(save_info)
 
             info_layout.addWidget(_h_divider(t))
             created_lbl = QLabel(
-                f"Criada em: {task.created_at.strftime('%d/%m/%Y %H:%M') if task.created_at else '--'}"
+                _t("Criada em: {date}").format(
+                    date=task.created_at.strftime('%d/%m/%Y %H:%M') if task.created_at else '--'
+                )
             )
             created_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 11px;")
             info_layout.addWidget(created_lbl)
             updated_lbl = QLabel(
-                f"Atualizada em: {task.updated_at.strftime('%d/%m/%Y %H:%M') if task.updated_at else '--'}"
+                _t("Atualizada em: {date}").format(
+                    date=task.updated_at.strftime('%d/%m/%Y %H:%M') if task.updated_at else '--'
+                )
             )
             updated_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 11px;")
             info_layout.addWidget(updated_lbl)
 
             info_layout.addStretch()
             info_scroll.setWidget(info_inner)
-            tabs.addTab(info_scroll, "Info")
+            tabs.addTab(info_scroll, _t("Info"))
 
             # Checklist
             cl_tab = QWidget()
@@ -277,7 +284,7 @@ class TaskDetailDialog(QDialog):
 
             add_cl = QHBoxLayout()
             self.cl_input = QLineEdit()
-            self.cl_input.setPlaceholderText("Novo item...")
+            self.cl_input.setPlaceholderText(_t("Novo item..."))
             self.cl_input.returnPressed.connect(self._add_checklist)
             cl_add_btn = QPushButton("+")
             cl_add_btn.setFixedWidth(40)
@@ -286,7 +293,7 @@ class TaskDetailDialog(QDialog):
             add_cl.addWidget(cl_add_btn)
             cl_layout.addLayout(add_cl)
 
-            tabs.addTab(cl_tab, "Checklist")
+            tabs.addTab(cl_tab, _t("Checklist"))
 
             # Comentarios
             comments_tab = QWidget()
@@ -304,20 +311,24 @@ class TaskDetailDialog(QDialog):
                     type_prefix = f"[{c.type}] "
                 author = c.author or "local"
                 dt = c.created_at.strftime("%d/%m %H:%M") if c.created_at else ""
-                self.comments_list.addItem(f"{dt} -- {author}: {type_prefix}{c.body}")
+                self.comments_list.addItem(
+                    _t("{dt} -- {author}: {prefix}{body}").format(
+                        dt=dt, author=author, prefix=type_prefix, body=c.body
+                    )
+                )
             cm_layout.addWidget(self.comments_list)
 
             cm_form = QHBoxLayout()
             self.comment_input = QLineEdit()
-            self.comment_input.setPlaceholderText("Comentario...")
+            self.comment_input.setPlaceholderText(_t("Comentario..."))
             self.comment_input.returnPressed.connect(self._add_comment)
-            cm_btn = QPushButton("Enviar")
+            cm_btn = QPushButton(_t("Enviar"))
             cm_btn.clicked.connect(self._add_comment)
             cm_form.addWidget(self.comment_input)
             cm_form.addWidget(cm_btn)
             cm_layout.addLayout(cm_form)
 
-            tabs.addTab(comments_tab, f"Comentarios ({len(comments)})")
+            tabs.addTab(comments_tab, _t("Comentarios ({count})").format(count=len(comments)))
 
             # Atividade
             act_tab = QWidget()
@@ -336,18 +347,19 @@ class TaskDetailDialog(QDialog):
             for a in activities:
                 dt = a.created_at.strftime("%d/%m %H:%M") if a.created_at else ""
                 act_list.addItem(
-                    f"{dt} -- {a.action}" + (f": {a.detail}" if a.detail else "")
+                    _t("{dt} -- {action}").format(dt=dt, action=a.action)
+                    + (_t(": {detail}").format(detail=a.detail) if a.detail else "")
                 )
             if not activities:
-                act_list.addItem("Nenhuma atividade registrada.")
+                act_list.addItem(_t("Nenhuma atividade registrada."))
             act_layout.addWidget(act_list)
-            tabs.addTab(act_tab, "Atividade")
+            tabs.addTab(act_tab, _t("Atividade"))
 
             # Dependencias
             dep_tab = QWidget()
             dep_layout = QVBoxLayout(dep_tab)
 
-            blocked_label = QLabel("Bloqueada por:")
+            blocked_label = QLabel(_t("Bloqueada por:"))
             blocked_label.setStyleSheet("font-weight: 600;")
             dep_layout.addWidget(blocked_label)
             self.blocked_by_list = QListWidget()
@@ -359,7 +371,7 @@ class TaskDetailDialog(QDialog):
                 self.blocked_by_list.addItem(list_item)
             dep_layout.addWidget(self.blocked_by_list)
 
-            blocking_label = QLabel("Bloqueia:")
+            blocking_label = QLabel(_t("Bloqueia:"))
             blocking_label.setStyleSheet("font-weight: 600;")
             dep_layout.addWidget(blocking_label)
             blocking_list = QListWidget()
@@ -370,19 +382,19 @@ class TaskDetailDialog(QDialog):
 
             add_dep = QHBoxLayout()
             self.dep_input = QLineEdit()
-            self.dep_input.setPlaceholderText("Codigo da tarefa bloqueadora (ex: DEMO-1)")
-            dep_btn = QPushButton("Adicionar")
+            self.dep_input.setPlaceholderText(_t("Codigo da tarefa bloqueadora (ex: DEMO-1)"))
+            dep_btn = QPushButton(_t("Adicionar"))
             dep_btn.clicked.connect(self._add_dep)
             add_dep.addWidget(self.dep_input)
             add_dep.addWidget(dep_btn)
             dep_layout.addLayout(add_dep)
 
-            rm_dep_btn = QPushButton("Remover selecionada")
+            rm_dep_btn = QPushButton(_t("Remover selecionada"))
             rm_dep_btn.setProperty("flat", True)
             rm_dep_btn.clicked.connect(self._remove_dep)
             dep_layout.addWidget(rm_dep_btn)
 
-            tabs.addTab(dep_tab, "Dependencias")
+            tabs.addTab(dep_tab, _t("Dependencias"))
 
             # Subtarefas
             subtasks_tab = QWidget()
@@ -412,19 +424,19 @@ class TaskDetailDialog(QDialog):
                 sub_layout.addLayout(row)
 
             if not subtasks:
-                empty = QLabel("Nenhuma subtarefa")
+                empty = QLabel(_t("Nenhuma subtarefa"))
                 empty.setStyleSheet(f"color: {t.text_muted};")
                 sub_layout.addWidget(empty)
 
             sub_layout.addStretch()
-            tabs.addTab(subtasks_tab, f"Subtarefas ({len(subtasks)})")
+            tabs.addTab(subtasks_tab, _t("Subtarefas ({count})").format(count=len(subtasks)))
 
             layout.addWidget(tabs, 1)
 
             # --- Bottom bar ---
             bottom = QHBoxLayout()
             bottom.addStretch()
-            del_btn = QPushButton("Excluir tarefa")
+            del_btn = QPushButton(_t("Excluir tarefa"))
             del_btn.setStyleSheet(f"background-color: {t.danger};")
             del_btn.clicked.connect(self._delete)
             bottom.addWidget(del_btn)
@@ -452,7 +464,7 @@ class TaskDetailDialog(QDialog):
         row_layout = QHBoxLayout(labels_row)
         row_layout.setContentsMargins(0, 0, 0, 0)
 
-        lbl_label = QLabel("Labels:")
+        lbl_label = QLabel(_t("Labels:"))
         lbl_label.setStyleSheet(f"color: {t.text_secondary};")
         row_layout.addWidget(lbl_label)
 
@@ -476,7 +488,7 @@ class TaskDetailDialog(QDialog):
                 row_layout.addWidget(chip)
 
             self.label_combo = QComboBox()
-            self.label_combo.addItem("+ Adicionar...", None)
+            self.label_combo.addItem(_t("+ Adicionar..."), None)
             all_labels = s.query(Label).order_by(Label.name).all()
             for l in all_labels:
                 if l.id not in applied_ids:
@@ -680,7 +692,9 @@ class TaskDetailDialog(QDialog):
             )
             s.commit()
             dt = c.created_at.strftime("%d/%m %H:%M") if c.created_at else ""
-            self.comments_list.addItem(f"{dt} -- local: {body}")
+            self.comments_list.addItem(
+                _t("{dt} -- local: {body}").format(dt=dt, body=body)
+            )
             self.comment_input.clear()
             self.task_updated.emit()
         finally:
@@ -807,8 +821,8 @@ class TaskDetailDialog(QDialog):
     def _delete(self):
         reply = QMessageBox.question(
             self,
-            "Confirmar exclusao",
-            "Tem certeza que deseja excluir esta tarefa?",
+            _t("Confirmar exclusao"),
+            _t("Tem certeza que deseja excluir esta tarefa?"),
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No,
         )

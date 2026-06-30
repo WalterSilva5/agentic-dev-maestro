@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
 
 from maestro_local.config import load_config, save_config
 from maestro_local.gui.theme import current_theme
+from maestro_local.i18n import t as _t
 from maestro_local.skills.catalog import CATEGORIES, SKILLS
 
 
@@ -47,7 +48,7 @@ class SkillCard(QFrame):
         top.addStretch()
 
         if installed:
-            badge = QLabel("Instalada")
+            badge = QLabel(_t("Instalada"))
             badge.setStyleSheet(
                 f"background: {t.success}; color: white; padding: 2px 8px; "
                 f"border-radius: 8px; font-size: 10px; font-weight: 600;"
@@ -73,7 +74,7 @@ class SkillCard(QFrame):
         layout.addLayout(tags_row)
 
         actions = QHBoxLayout()
-        preview_btn = QPushButton("Ver conteúdo")
+        preview_btn = QPushButton(_t("Ver conteúdo"))
         preview_btn.setProperty("flat", True)
         preview_btn.setFixedHeight(28)
         sid = skill["id"]
@@ -83,7 +84,7 @@ class SkillCard(QFrame):
         actions.addStretch()
 
         if installed:
-            rm_btn = QPushButton("Desinstalar")
+            rm_btn = QPushButton(_t("Desinstalar"))
             rm_btn.setStyleSheet(
                 f"background: transparent; color: {t.danger}; border: 1px solid {t.danger}; "
                 f"border-radius: 4px; padding: 4px 12px; font-size: 12px;"
@@ -92,7 +93,7 @@ class SkillCard(QFrame):
             rm_btn.clicked.connect(lambda: on_uninstall(sid))
             actions.addWidget(rm_btn)
         else:
-            inst_btn = QPushButton("Instalar")
+            inst_btn = QPushButton(_t("Instalar"))
             inst_btn.setFixedHeight(28)
             inst_btn.clicked.connect(lambda: on_install(sid))
             actions.addWidget(inst_btn)
@@ -110,42 +111,44 @@ class SkillsView(QWidget):
         main_layout.setContentsMargins(14, 14, 14, 14)
         main_layout.setSpacing(10)
 
-        title = QLabel("Skills")
+        title = QLabel(_t("Skills"))
         title.setObjectName("sectionTitle")
         main_layout.addWidget(title)
 
         subtitle = QLabel(
-            "Skills são instruções que ensinam agentes de IA a interagir com o Maestro. "
-            "Instale no diretório .claude/skills/ do seu projeto."
+            _t(
+                "Skills são instruções que ensinam agentes de IA a interagir com o Maestro. "
+                "Instale no diretório .claude/skills/ do seu projeto."
+            )
         )
         subtitle.setWordWrap(True)
         subtitle.setObjectName("subtitle")
         main_layout.addWidget(subtitle)
 
         dir_row = QHBoxLayout()
-        dir_label = QLabel("Diretório destino:")
+        dir_label = QLabel(_t("Diretório destino:"))
         dir_label.setProperty("class", "sectionLabel")
         dir_row.addWidget(dir_label)
 
         self.dir_input = QLineEdit()
-        self.dir_input.setPlaceholderText("Selecione o diretório do projeto...")
+        self.dir_input.setPlaceholderText(_t("Selecione o diretório do projeto..."))
         self.dir_input.setReadOnly(True)
         if self._target_dir:
             self.dir_input.setText(self._target_dir)
         dir_row.addWidget(self.dir_input, 1)
 
-        browse_btn = QPushButton("Selecionar")
+        browse_btn = QPushButton(_t("Selecionar"))
         browse_btn.clicked.connect(self._browse_dir)
         dir_row.addWidget(browse_btn)
         main_layout.addLayout(dir_row)
 
         search_row = QHBoxLayout()
         self.search = QLineEdit()
-        self.search.setPlaceholderText("Buscar skills...")
+        self.search.setPlaceholderText(_t("Buscar skills..."))
         self.search.textChanged.connect(lambda: self.refresh())
         search_row.addWidget(self.search, 1)
 
-        self.install_all_btn = QPushButton("Instalar todas")
+        self.install_all_btn = QPushButton(_t("Instalar todas"))
         self.install_all_btn.setFixedHeight(28)
         self.install_all_btn.setCursor(Qt.PointingHandCursor)
         self.install_all_btn.clicked.connect(self._install_all)
@@ -158,7 +161,7 @@ class SkillsView(QWidget):
         self.preview_area.setMaximumHeight(200)
         self.preview_area.setProperty("class", "mono")
 
-        self.preview_close = QPushButton("Fechar preview")
+        self.preview_close = QPushButton(_t("Fechar preview"))
         self.preview_close.setProperty("flat", True)
         self.preview_close.setVisible(False)
         self.preview_close.clicked.connect(self._close_preview)
@@ -178,7 +181,7 @@ class SkillsView(QWidget):
         self.refresh()
 
     def _browse_dir(self):
-        d = QFileDialog.getExistingDirectory(self, "Selecionar diretório do projeto")
+        d = QFileDialog.getExistingDirectory(self, _t("Selecionar diretório do projeto"))
         if d:
             self._target_dir = d
             self.dir_input.setText(d)

@@ -30,6 +30,7 @@ from maestro_local.transcricoes import audio as audio_backend
 from maestro_local.transcricoes.constants import WHISPER_DEFAULT_LANGUAGE, WHISPER_DEFAULT_MODEL
 from maestro_local.db.models import DATA_DIR, Recording, get_session
 from maestro_local.gui.theme import current_theme
+from maestro_local.i18n import t
 
 
 def _whisper_settings():
@@ -68,7 +69,7 @@ class AnalyzeWorker(QThread):
                     "key_concepts": [c.__dict__ for c in notes.key_concepts],
                     "exercises": [e.__dict__ for e in notes.practical_exercises],
                 }
-                self.done.emit((md, summary, notes.topic or "Estudo", notes.tags, self.duration, self.language))
+                self.done.emit((md, summary, notes.topic or t("Estudo"), notes.tags, self.duration, self.language))
             else:
                 s = assistants.analyze_meeting(self.transcript, self.duration, self.language)
                 md = markdown_gen.meeting_to_markdown(s, date_str)
@@ -77,7 +78,7 @@ class AnalyzeWorker(QThread):
                     "decisions": s.decisions,
                     "action_items": [a.__dict__ for a in s.action_items],
                 }
-                self.done.emit((md, summary, s.title or "Reunião", s.tags, self.duration, self.language))
+                self.done.emit((md, summary, s.title or t("Reunião"), s.tags, self.duration, self.language))
         except Exception as e:  # noqa: BLE001
             self.failed.emit(str(e))
 
@@ -102,11 +103,11 @@ class TranscricoesView(QWidget):
         # ---- Coluna esquerda: histórico ----
         left = QVBoxLayout()
         left.setSpacing(6)
-        htitle = QLabel("Histórico")
+        htitle = QLabel(t("Histórico"))
         htitle.setProperty("class", "cardTitle")
         left.addWidget(htitle)
         self.search = QLineEdit()
-        self.search.setPlaceholderText("Buscar nas gravações...")
+        self.search.setPlaceholderText(t("Buscar nas gravações..."))
         self.search.textChanged.connect(self._load_history)
         left.addWidget(self.search)
         self.history = QListWidget()
@@ -119,13 +120,13 @@ class TranscricoesView(QWidget):
         right = QVBoxLayout()
         right.setSpacing(10)
 
-        title = QLabel("Transcrições")
+        title = QLabel(t("Transcrições"))
         title.setObjectName("sectionTitle")
         right.addWidget(title)
 
         subtitle = QLabel(
-            "Grave reuniões e estudos, transcreva localmente com Whisper e gere "
-            "resumos estruturados com IA."
+            t("Grave reuniões e estudos, transcreva localmente com Whisper e gere "
+              "resumos estruturados com IA.")
         )
         subtitle.setWordWrap(True)
         subtitle.setObjectName("subtitle")
@@ -145,35 +146,35 @@ class TranscricoesView(QWidget):
 
         row1 = QHBoxLayout()
         row1.setSpacing(8)
-        row1.addWidget(QLabel("Tipo:"))
+        row1.addWidget(QLabel(t("Tipo:")))
         self.kind_combo = QComboBox()
-        self.kind_combo.addItem("Reunião", "meeting")
-        self.kind_combo.addItem("Estudo", "study")
+        self.kind_combo.addItem(t("Reunião"), "meeting")
+        self.kind_combo.addItem(t("Estudo"), "study")
         self.kind_combo.currentIndexChanged.connect(self._on_kind_changed)
         row1.addWidget(self.kind_combo)
         self.topic_input = QLineEdit()
-        self.topic_input.setPlaceholderText("Tópico do estudo")
+        self.topic_input.setPlaceholderText(t("Tópico do estudo"))
         self.topic_input.setVisible(False)
         row1.addWidget(self.topic_input, 1)
         cl.addLayout(row1)
 
         row2 = QHBoxLayout()
         row2.setSpacing(8)
-        row2.addWidget(QLabel("Microfone:"))
+        row2.addWidget(QLabel(t("Microfone:")))
         self.mic_combo = QComboBox()
         row2.addWidget(self.mic_combo, 1)
         cl.addLayout(row2)
 
         row3 = QHBoxLayout()
         row3.setSpacing(8)
-        row3.addWidget(QLabel("Áudio do sistema:"))
+        row3.addWidget(QLabel(t("Áudio do sistema:")))
         self.monitor_combo = QComboBox()
         row3.addWidget(self.monitor_combo, 1)
         cl.addLayout(row3)
 
         row4 = QHBoxLayout()
         row4.setSpacing(8)
-        self.record_btn = QPushButton("● Gravar")
+        self.record_btn = QPushButton(t("● Gravar"))
         self.record_btn.setFixedHeight(34)
         self.record_btn.setCursor(Qt.PointingHandCursor)
         self.record_btn.clicked.connect(self._toggle_record)
@@ -196,20 +197,20 @@ class TranscricoesView(QWidget):
         right.addWidget(self.status_label)
 
         # Transcrição
-        right.addWidget(QLabel("Transcrição:"))
+        right.addWidget(QLabel(t("Transcrição:")))
         self.transcript_edit = QTextEdit()
-        self.transcript_edit.setPlaceholderText("A transcrição aparecerá aqui...")
+        self.transcript_edit.setPlaceholderText(t("A transcrição aparecerá aqui..."))
         right.addWidget(self.transcript_edit, 1)
 
         # Ações
         actions = QHBoxLayout()
         actions.setSpacing(8)
-        self.analyze_btn = QPushButton("Analisar com IA")
+        self.analyze_btn = QPushButton(t("Analisar com IA"))
         self.analyze_btn.setFixedHeight(32)
         self.analyze_btn.setCursor(Qt.PointingHandCursor)
         self.analyze_btn.clicked.connect(self._analyze)
         actions.addWidget(self.analyze_btn)
-        self.save_day_btn = QPushButton("Salvar no Meu Dia")
+        self.save_day_btn = QPushButton(t("Salvar no Meu Dia"))
         self.save_day_btn.setFixedHeight(32)
         self.save_day_btn.setCursor(Qt.PointingHandCursor)
         self.save_day_btn.clicked.connect(self._save_to_day)
@@ -220,7 +221,7 @@ class TranscricoesView(QWidget):
 
         # Resultado markdown
         self.result_edit = QTextEdit()
-        self.result_edit.setPlaceholderText("O resumo estruturado aparecerá aqui após a análise.")
+        self.result_edit.setPlaceholderText(t("O resumo estruturado aparecerá aqui após a análise."))
         self.result_edit.setVisible(False)
         right.addWidget(self.result_edit, 1)
 
@@ -236,16 +237,16 @@ class TranscricoesView(QWidget):
 
     def _check_provider(self):
         provider = get_active_ai_provider()
-        t = current_theme()
+        theme = current_theme()
         msgs = []
         if not audio_backend.parec_available():
-            msgs.append("⚠ parec/pactl não encontrados — gravação indisponível (instale pulseaudio-utils).")
+            msgs.append(t("⚠ parec/pactl não encontrados — gravação indisponível (instale pulseaudio-utils)."))
         if not provider or not provider.get("model"):
-            msgs.append("⚠ Provedor de IA não configurado — a análise com IA ficará indisponível (Configurações → Provedores de IA).")
+            msgs.append(t("⚠ Provedor de IA não configurado — a análise com IA ficará indisponível (Configurações → Provedores de IA)."))
         if msgs:
             self.banner.setText("\n".join(msgs))
             self.banner.setStyleSheet(
-                f"background: {t.bg_badge}; color: {t.text_secondary}; border: 1px solid {t.border}; "
+                f"background: {theme.bg_badge}; color: {theme.text_secondary}; border: 1px solid {theme.border}; "
                 f"border-radius: 8px; padding: 8px 12px; font-size: 12px;"
             )
             self.banner.setVisible(True)
@@ -257,7 +258,7 @@ class TranscricoesView(QWidget):
     def _populate_devices(self):
         self.mic_combo.clear()
         self.monitor_combo.clear()
-        self.monitor_combo.addItem("Nenhum", None)
+        self.monitor_combo.addItem(t("Nenhum"), None)
         sources = audio_backend.list_sources()
         for s in sources:
             if s.is_monitor:
@@ -265,7 +266,7 @@ class TranscricoesView(QWidget):
             else:
                 self.mic_combo.addItem(s.description, s.name)
         if self.mic_combo.count() == 0:
-            self.mic_combo.addItem("Nenhum microfone", None)
+            self.mic_combo.addItem(t("Nenhum microfone"), None)
 
     def _on_kind_changed(self):
         self.topic_input.setVisible(self.kind_combo.currentData() == "study")
@@ -289,20 +290,20 @@ class TranscricoesView(QWidget):
 
     def _start_record(self):
         if not audio_backend.parec_available():
-            self.status_label.setText("parec indisponível — não é possível gravar.")
+            self.status_label.setText(t("parec indisponível — não é possível gravar."))
             return
         mic_name = self.mic_combo.currentData()
         mon_name = self.monitor_combo.currentData()
         mic = next((s for s in audio_backend.list_sources() if s.name == mic_name), None) if mic_name else None
         mon = next((s for s in audio_backend.list_sources() if s.name == mon_name), None) if mon_name else None
         if not mic and not mon:
-            self.status_label.setText("Selecione ao menos uma fonte de áudio.")
+            self.status_label.setText(t("Selecione ao menos uma fonte de áudio."))
             return
         try:
             self._session = audio_backend.RecordingSession(mic, mon)
             self._session.start()
         except Exception as e:  # noqa: BLE001
-            self.status_label.setText(f"Erro ao iniciar gravação: {e}")
+            self.status_label.setText(t("Erro ao iniciar gravação: {error}").format(error=e))
             self._session = None
             return
         # Nova gravação: zera o estado para criar um novo registro
@@ -313,25 +314,25 @@ class TranscricoesView(QWidget):
         self._elapsed = 0
         self.timer_label.setText("00:00")
         self._tick.start()
-        self.record_btn.setText("■ Parar")
-        self.status_label.setText("Gravando...")
+        self.record_btn.setText(t("■ Parar"))
+        self.status_label.setText(t("Gravando..."))
 
     def _stop_record(self):
         self._tick.stop()
-        self.record_btn.setText("● Gravar")
+        self.record_btn.setText(t("● Gravar"))
         if not self._session:
             return
         out = _recordings_dir() / f"rec-{datetime.now().strftime('%Y%m%d-%H%M%S')}.wav"
         try:
             path, duration = self._session.stop_and_save(out)
         except Exception as e:  # noqa: BLE001
-            self.status_label.setText(f"Erro ao salvar áudio: {e}")
+            self.status_label.setText(t("Erro ao salvar áudio: {error}").format(error=e))
             self._session = None
             return
         self._session = None
         self._current["audio_path"] = str(path)
         self._current["duration"] = duration
-        self.status_label.setText(f"Gravação salva ({duration:.0f}s). Transcrevendo...")
+        self.status_label.setText(t("Gravação salva ({seconds:.0f}s). Transcrevendo...").format(seconds=duration))
         self._transcribe(path)
 
     def _on_tick(self):
@@ -362,8 +363,9 @@ class TranscricoesView(QWidget):
         self.save_day_btn.setEnabled(bool(result.text.strip()))
         self._persist_recording()
         self.status_label.setText(
-            f"Transcrição concluída ({result.language}, {len(result.segments)} segmentos). "
-            f"Salva no histórico."
+            t("Transcrição concluída ({language}, {count} segmentos). Salva no histórico.").format(
+                language=result.language, count=len(result.segments)
+            )
         )
         self._load_history()
 
@@ -393,25 +395,25 @@ class TranscricoesView(QWidget):
 
     def _on_transcribe_error(self, err):
         self.progress.setVisible(False)
-        self.status_label.setText(f"Erro na transcrição: {err}")
+        self.status_label.setText(t("Erro na transcrição: {error}").format(error=err))
 
     # ------------------------- Análise IA -------------------------
     def _analyze(self):
         transcript = self.transcript_edit.toPlainText().strip()
         if not transcript:
-            self.status_label.setText("Sem transcrição para analisar.")
+            self.status_label.setText(t("Sem transcrição para analisar."))
             return
         provider = get_active_ai_provider()
         if not provider or not provider.get("model"):
-            name = provider.get("name") if provider else "nenhum"
+            name = provider.get("name") if provider else t("nenhum")
             self.status_label.setText(
-                f"O provedor de IA ativo ({name}) está sem modelo definido. "
-                f"Configure em Configurações → Provedores de IA (Base URL, API Key e Modelo)."
+                t("O provedor de IA ativo ({name}) está sem modelo definido. "
+                  "Configure em Configurações → Provedores de IA (Base URL, API Key e Modelo).").format(name=name)
             )
             return
         kind = self.kind_combo.currentData()
         self.analyze_btn.setEnabled(False)
-        self.status_label.setText("Analisando com IA...")
+        self.status_label.setText(t("Analisando com IA..."))
         self._analyzer = AnalyzeWorker(
             kind, transcript, self.topic_input.text().strip(),
             self._current.get("duration", 0.0), self._current.get("language", ""),
@@ -432,12 +434,12 @@ class TranscricoesView(QWidget):
             "duration": duration, "language": language,
         })
         self._persist_recording()  # atualiza o registro já criado na transcrição
-        self.status_label.setText("Análise concluída e salva no histórico.")
+        self.status_label.setText(t("Análise concluída e salva no histórico."))
         self._load_history()
 
     def _on_analyze_error(self, err):
         self.analyze_btn.setEnabled(True)
-        self.status_label.setText(f"Erro na análise: {err}")
+        self.status_label.setText(t("Erro na análise: {error}").format(error=err))
 
     # ------------------------- Meu Dia -------------------------
     def _save_to_day(self):
@@ -446,9 +448,9 @@ class TranscricoesView(QWidget):
         if not md:
             transcript = self.transcript_edit.toPlainText().strip()
             if not transcript:
-                self.status_label.setText("Nada para salvar — grave e transcreva primeiro.")
+                self.status_label.setText(t("Nada para salvar — grave e transcreva primeiro."))
                 return
-            kind_label = "Estudo" if self.kind_combo.currentData() == "study" else "Reunião"
+            kind_label = t("Estudo") if self.kind_combo.currentData() == "study" else t("Reunião")
             topic = self.topic_input.text().strip()
             header = f"## {kind_label}" + (f": {topic}" if topic else "")
             hora = datetime.now().strftime("%H:%M")
@@ -465,7 +467,7 @@ class TranscricoesView(QWidget):
             s.commit()
         finally:
             s.close()
-        self.status_label.setText("Resumo adicionado ao relatório do Meu Dia.")
+        self.status_label.setText(t("Resumo adicionado ao relatório do Meu Dia."))
 
     # ------------------------- Histórico -------------------------
     def _load_history(self):
@@ -480,7 +482,7 @@ class TranscricoesView(QWidget):
                     continue
                 icon = "📓" if r.kind == "study" else "🗣"
                 when = r.created_at.strftime("%d/%m %H:%M") if r.created_at else ""
-                item = QListWidgetItem(f"{icon}  {r.title or '(sem título)'}\n{when}")
+                item = QListWidgetItem(f"{icon}  {r.title or t('(sem título)')}\n{when}")
                 item.setData(Qt.UserRole, r.id)
                 self.history.addItem(item)
         finally:
@@ -501,6 +503,6 @@ class TranscricoesView(QWidget):
             idx = self.kind_combo.findData(r.kind)
             if idx >= 0:
                 self.kind_combo.setCurrentIndex(idx)
-            self.status_label.setText(f"Gravação de {r.created_at.strftime('%d/%m/%Y %H:%M') if r.created_at else ''}")
+            self.status_label.setText(t("Gravação de {when}").format(when=r.created_at.strftime('%d/%m/%Y %H:%M') if r.created_at else ''))
         finally:
             s.close()
