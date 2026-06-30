@@ -53,6 +53,18 @@ print('  PySide6: OK')
 print('  FastAPI: OK')
 "
 
+# Web UI (opcional): builda o frontend web servido pela API
+if command -v npm &>/dev/null; then
+    echo ""
+    echo "Buildando a web UI (webui)..."
+    (cd webui && npm install --silent && npm run build --silent) \
+        && echo "  web UI: OK (disponível em http://127.0.0.1:9777/)" \
+        || echo "  web UI: falhou o build (a API segue funcionando; rode 'cd webui && npm install && npm run build')"
+else
+    echo ""
+    echo "npm não encontrado — pulando build da web UI (só a GUI desktop). Instale Node para habilitar o frontend web."
+fi
+
 echo ""
 echo "=== Instalação concluída ==="
 echo ""

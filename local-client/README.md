@@ -178,6 +178,23 @@ Tela de configurações gerais:
 | **Backup** | Exportar banco SQLite a qualquer momento |
 | **Atalhos** | `Alt+1` a `Alt+9` + `Alt+0` para as 10 telas do menu, `Ctrl+K` busca, `Ctrl+Shift+R` gravação |
 
+## Web UI (frontend web)
+
+Além da GUI desktop, há um frontend **web** (React + Vite) servido pela própria API — sobe junto com ela. Com o app rodando, acesse **`http://127.0.0.1:9777/`** no navegador.
+
+- **Código**: `webui/` (React + Vite + axios + react-router), consome a mesma API REST
+- **Build**: o `install.sh` builda automaticamente (se houver `npm`); a FastAPI serve `webui/dist/` na raiz `/`, mantendo `/api/*`
+- **Desenvolvimento** (hot-reload): `cd webui && npm run dev` (porta 3000, com proxy `/api → 9777`)
+- **Telas atuais**: Projetos e Board kanban (criar projeto/tarefa, mover tarefa). É a fundação — as demais telas vão sendo portadas reaproveitando a API
+
+```bash
+cd webui
+npm install
+npm run build      # gera webui/dist servido pela API
+# ou, em dev:
+npm run dev        # http://localhost:3000 (proxy para a API em 9777)
+```
+
 ## API REST
 
 A API roda em `http://127.0.0.1:9777/api` sem autenticação. Todos os endpoints retornam JSON.

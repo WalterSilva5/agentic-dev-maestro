@@ -1812,3 +1812,35 @@ def get_daily_activity(date: str):
         }
     finally:
         s.close()
+
+
+# ---------------------------------------------------------------------------
+# Web UI (servida junto com a API, se o bundle estiver buildado em webui/dist)
+# ---------------------------------------------------------------------------
+
+def _mount_webui(_app):
+    from pathlib import Path
+
+    from fastapi.responses import FileResponse
+    from fastapi.staticfiles import StaticFiles
+
+    dist = Path(__file__).resolve().parents[2] / "webui" / "dist"
+    if not (dist / "index.html").exists():
+        return  # web UI não buildada; apenas a API responde
+
+    assets = dist / "assets"
+    if assets.exists():
+        _app.mount("/assets", StaticFiles(directory=str(assets)), name="assets")
+
+    @_app.get("/{full_path:path}", include_in_schema=False)
+    def _spa(full_path: str):
+        # rotas /api/* já foram tratadas acima; aqui é o SPA React
+        if full_path.startswith("api"):
+            raise HTTPException(status_code=404, detail="Not Found")
+        candidate = dist / full_path
+        if full_path and candidate.is_file():
+            return FileResponse(str(candidate))
+        return FileResponse(str(dist / "index.html"))
+
+
+_mount_webui(app)

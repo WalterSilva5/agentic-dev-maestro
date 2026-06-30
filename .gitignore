@@ -35,3 +35,7 @@ Thumbs.db
 
 # Cache de build TS
 *.tsbuildinfo
+
+# Web UI (build)
+local-client/webui/node_modules/
+local-client/webui/dist/
