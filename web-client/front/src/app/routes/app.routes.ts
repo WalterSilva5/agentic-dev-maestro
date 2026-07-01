@@ -25,6 +25,8 @@ import { LabelsComponent } from '../pages/labels/labels.component';
 import { AccessComponent } from '../pages/access/access.component';
 import { MetricsComponent } from '../pages/metrics/metrics.component';
 import { InviteComponent } from '../pages/invite/invite.component';
+import { StudiesComponent } from '../pages/studies/studies.component';
+import { StudyPlanComponent } from '../pages/studies/study-plan/study-plan.component';
 import { AuthGuard } from '../permissions/auth.guard';
 import { workspaceGuard } from '../permissions/workspace.guard';
 
@@ -54,5 +56,7 @@ export const routes: Routes = [
   { path: RoutesEnum.ACCESS, component: AccessComponent, canActivate: [AuthGuard, workspaceGuard] },
   { path: RoutesEnum.METRICS, component: MetricsComponent, canActivate: [AuthGuard, workspaceGuard] },
   { path: RoutesEnum.DOWNLOADS, component: DownloadsComponent, canActivate: [AuthGuard] },
+  { path: RoutesEnum.STUDIES, component: StudiesComponent, canActivate: [AuthGuard] },
+  { path: RoutesEnum.STUDY_PLAN, component: StudyPlanComponent, canActivate: [AuthGuard] },
   { path: '**', component: NotFoundComponent }
 ];

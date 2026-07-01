@@ -21,4 +21,6 @@ export enum RoutesEnum {
   ACCESS = 'access',
   METRICS = 'metrics',
   DOWNLOADS = 'downloads',
+  STUDIES = 'studies',
+  STUDY_PLAN = 'studies/:id',
 }

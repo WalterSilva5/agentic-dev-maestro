@@ -5,7 +5,7 @@ import { RouterModule } from '@angular/router';
 import Swal from 'sweetalert2';
 
 import { MaestroApiService } from '../../services/maestro-api.service';
-import { StudyPlan, StudyCategory, StudyPlanStatus } from '../../models/maestro.models';
+import { StudyPlan, StudyCategory, StudyPlanStatus, StudyStats } from '../../models/maestro.models';
 
 @Component({
   selector: 'app-studies',
@@ -15,6 +15,7 @@ import { StudyPlan, StudyCategory, StudyPlanStatus } from '../../models/maestro.
 })
 export class StudiesComponent implements OnInit {
   plans: StudyPlan[] = [];
+  stats: StudyStats | null = null;
   loading = false;
 
   // Filtros
@@ -40,7 +41,12 @@ export class StudiesComponent implements OnInit {
       const filters: Record<string, string> = {};
       if (this.statusFilter) filters['status'] = this.statusFilter;
       if (this.categoryFilter) filters['category'] = this.categoryFilter;
-      this.plans = await this.api.listStudyPlans(filters);
+      const [plans, stats] = await Promise.all([
+        this.api.listStudyPlans(filters),
+        this.api.getStudyStats(),
+      ]);
+      this.plans = plans;
+      this.stats = stats;
     } catch (err) {
       console.error('list study plans error', err);
     } finally {

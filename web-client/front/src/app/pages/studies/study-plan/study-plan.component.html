@@ -1,0 +1,394 @@
+<div class="study-plan-page p-6 max-w-5xl mx-auto text-dark-text">
+
+  <!-- Loading -->
+  <div *ngIf="loading" class="flex items-center justify-center gap-3 text-grayscale-4 py-20">
+    <span class="loading loading-spinner text-primary loading-lg"></span>
+    <span>Carregando plano...</span>
+  </div>
+
+  <ng-container *ngIf="!loading && plan">
+
+    <!-- Header -->
+    <header class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+      <div class="flex items-center gap-3">
+        <a routerLink="/studies" class="btn btn-ghost btn-sm btn-circle" title="Voltar">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          </svg>
+        </a>
+        <div>
+          <h1 class="text-2xl font-semibold">{{ plan.title }}</h1>
+          <div class="flex items-center gap-2 mt-1">
+            <span class="badge badge-sm" [ngClass]="statusBadge(plan.status)">
+              {{ statusLabel(plan.status) }}
+            </span>
+            <span
+              class="badge badge-sm text-white"
+              [ngStyle]="{
+                'background-color':
+                  plan.category === 'LINGUAGEM' ? '#6A0DAD' :
+                  plan.category === 'FRAMEWORK' ? '#3B82F6' :
+                  plan.category === 'CERTIFICACAO' ? '#F59E0B' :
+                  plan.category === 'CONCEITO' ? '#F97316' :
+                  plan.category === 'CURSO' ? '#1DB954' :
+                  plan.category === 'LIVRO' ? '#F43F5E' : '#6B7280',
+                'border-color': 'transparent'
+              }"
+            >
+              {{ categoryLabel(plan.category) }}
+            </span>
+          </div>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button class="btn btn-ghost btn-sm" (click)="openEditPlan()">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+          Editar
+        </button>
+        <button class="btn btn-ghost btn-sm text-error" (click)="deletePlan()">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+          Excluir
+        </button>
+      </div>
+    </header>
+
+    <!-- Progress card -->
+    <section class="card bg-dark-surface shadow-card mb-6">
+      <div class="card-body py-4">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div class="flex items-center gap-6">
+            <div class="text-center">
+              <span class="text-3xl font-bold text-primary">{{ progressPercent }}%</span>
+              <p class="text-xs text-grayscale-4 mt-1">Progresso</p>
+            </div>
+            <div class="flex-1 min-w-[200px]">
+              <div class="w-full bg-base-300 rounded-full h-3">
+                <div
+                  class="h-3 rounded-full transition-all duration-300"
+                  [style.width.%]="progressPercent"
+                  [style.background-color]="'#1DB954'"
+                ></div>
+              </div>
+            </div>
+          </div>
+          <div class="flex items-center gap-6 text-sm text-grayscale-4">
+            <span>
+              <strong class="text-dark-text">{{ plan.doneTopics }}</strong>/{{ plan.totalTopics }} topicos
+            </span>
+            <span>
+              <strong class="text-dark-text">{{ totalLoggedHours | number:'1.1-1' }}</strong>h registradas
+            </span>
+            <span *ngIf="plan.targetDate">
+              Meta: <strong class="text-dark-text">{{ plan.targetDate | date:'dd/MM/yyyy' }}</strong>
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Active session banner -->
+    <div
+      *ngIf="activeSession"
+      class="sticky top-16 z-10 card bg-dark-surface shadow-card border-2 mb-6"
+      [style.border-color]="'#1DB954'"
+    >
+      <div class="card-body py-3 flex-row items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <span class="relative flex h-3 w-3">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style="background-color: #1DB954"></span>
+            <span class="relative inline-flex rounded-full h-3 w-3" style="background-color: #1DB954"></span>
+          </span>
+          <span class="text-sm text-grayscale-4">Estudando:</span>
+          <span class="font-semibold">{{ activeSession.topicTitle }}</span>
+        </div>
+        <div class="flex items-center gap-4">
+          <span class="font-mono text-2xl font-bold text-primary">{{ sessionElapsed }}</span>
+          <button class="btn btn-error btn-sm" (click)="stopSession()">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+            </svg>
+            Parar sessao
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Topic list header -->
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-lg font-semibold">Topicos</h2>
+      <button class="btn btn-primary btn-sm" (click)="showAddTopic = !showAddTopic">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+        </svg>
+        Adicionar topico
+      </button>
+    </div>
+
+    <!-- Add topic form -->
+    <section *ngIf="showAddTopic" class="card bg-dark-surface shadow-card mb-4">
+      <div class="card-body py-4">
+        <h3 class="font-semibold text-base mb-3">Novo Topico</h3>
+        <form (ngSubmit)="addTopic()">
+          <div class="grid gap-3 sm:grid-cols-2">
+            <label class="form-control">
+              <span class="label-text mb-1 block text-grayscale-5">Titulo *</span>
+              <input
+                type="text"
+                class="input input-bordered w-full bg-dark-bg"
+                placeholder="Ex.: Generics avancados"
+                [(ngModel)]="newTopic.title"
+                name="topicTitle"
+                required
+              />
+            </label>
+
+            <label class="form-control">
+              <span class="label-text mb-1 block text-grayscale-5">Estimativa (horas)</span>
+              <input
+                type="number"
+                class="input input-bordered w-full bg-dark-bg"
+                placeholder="Ex.: 4"
+                [(ngModel)]="newTopic.estimateHours"
+                name="estimateHours"
+                min="0"
+                step="0.5"
+              />
+            </label>
+          </div>
+
+          <label class="form-control mt-3">
+            <span class="label-text mb-1 block text-grayscale-5">Descricao (opcional)</span>
+            <textarea
+              class="textarea textarea-bordered w-full bg-dark-bg"
+              rows="2"
+              placeholder="Descricao do topico"
+              [(ngModel)]="newTopic.description"
+              name="topicDescription"
+            ></textarea>
+          </label>
+
+          <label class="form-control mt-3" *ngIf="topics.length > 0">
+            <span class="label-text mb-1 block text-grayscale-5">Topico pai (opcional)</span>
+            <select
+              class="select select-bordered w-full bg-dark-bg"
+              [(ngModel)]="newTopic.parentId"
+              name="parentId"
+            >
+              <option [ngValue]="null">Nenhum (topico raiz)</option>
+              <option *ngFor="let t of topics" [ngValue]="t.id">{{ t.title }}</option>
+            </select>
+          </label>
+
+          <div class="flex justify-end gap-2 mt-4">
+            <button type="button" class="btn btn-ghost btn-sm" (click)="showAddTopic = false">Cancelar</button>
+            <button type="submit" class="btn btn-primary btn-sm">Adicionar</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- Empty state -->
+    <div *ngIf="topics.length === 0" class="flex flex-col items-center justify-center py-16 text-center">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-14 w-14 text-grayscale-4 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+      </svg>
+      <h3 class="text-lg font-semibold mb-1">Nenhum topico ainda</h3>
+      <p class="text-grayscale-4 mb-4">Adicione topicos para organizar seu plano de estudo.</p>
+      <button class="btn btn-primary btn-sm" (click)="showAddTopic = true">Adicionar primeiro topico</button>
+    </div>
+
+    <!-- Topic cards -->
+    <div *ngIf="topics.length > 0" class="space-y-3">
+
+      <!-- Root topics -->
+      <ng-container *ngFor="let topic of rootTopics; trackBy: trackByTopic">
+        <ng-container *ngTemplateOutlet="topicCard; context: { $implicit: topic, depth: 0 }"></ng-container>
+
+        <!-- Children -->
+        <ng-container *ngFor="let child of childrenOf(topic.id); trackBy: trackByTopic">
+          <ng-container *ngTemplateOutlet="topicCard; context: { $implicit: child, depth: 1 }"></ng-container>
+        </ng-container>
+      </ng-container>
+
+    </div>
+
+  </ng-container>
+
+  <!-- Topic card template -->
+  <ng-template #topicCard let-topic let-depth="depth">
+    <article
+      class="card bg-dark-surface shadow-card border border-dark-border transition-shadow duration-200"
+      [style.margin-left.px]="depth * 32"
+    >
+      <div class="card-body py-3 px-4">
+        <div class="flex items-center gap-3">
+          <!-- Status dot -->
+          <span
+            class="flex-shrink-0 w-3 h-3 rounded-full"
+            [ngStyle]="{ 'background-color': topicStatusColor(topic.status).bg }"
+            [title]="topicStatusLabel(topic.status)"
+          ></span>
+
+          <!-- Title -->
+          <span
+            class="flex-1 font-medium"
+            [ngClass]="{ 'line-through text-grayscale-4': topic.status === 'PULADO' }"
+          >
+            {{ topicStatusIcon(topic.status) }} {{ topic.title }}
+          </span>
+
+          <!-- Estimate badge -->
+          <span *ngIf="topic.estimateHours" class="badge badge-sm badge-outline text-grayscale-4">
+            ~{{ topic.estimateHours }}h
+          </span>
+
+          <!-- Logged hours badge -->
+          <span *ngIf="topic.loggedHours" class="badge badge-sm badge-ghost">
+            {{ formatDuration(topic.loggedHours * 60) }}
+          </span>
+
+          <!-- Status selector -->
+          <select
+            class="select select-bordered select-xs bg-dark-bg w-auto"
+            [ngModel]="topic.status"
+            (ngModelChange)="updateTopicStatus(topic, $event)"
+          >
+            <option value="PENDENTE">Pendente</option>
+            <option value="ESTUDANDO">Estudando</option>
+            <option value="REVISAO">Revisao</option>
+            <option value="CONCLUIDO">Concluido</option>
+            <option value="PULADO">Pulado</option>
+          </select>
+        </div>
+
+        <!-- Description -->
+        <p *ngIf="topic.description" class="text-sm text-grayscale-4 mt-1 ml-6">
+          {{ topic.description }}
+        </p>
+
+        <!-- Action buttons -->
+        <div class="flex items-center gap-2 mt-2 ml-6">
+          <button
+            *ngIf="topic.status !== 'CONCLUIDO' && topic.status !== 'PULADO' && !activeSession"
+            class="btn btn-primary btn-xs"
+            (click)="startSession(topic)"
+          >
+            ▶ Estudar
+          </button>
+
+          <button
+            class="btn btn-ghost btn-xs"
+            (click)="toggleNotes(topic.id)"
+            [ngClass]="{ 'btn-active': showNotes === topic.id }"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            Notas
+          </button>
+
+          <!-- Children toggle -->
+          <button
+            *ngIf="childrenOf(topic.id).length > 0"
+            class="btn btn-ghost btn-xs"
+            (click)="toggleExpand(topic.id)"
+          >
+            {{ expandedTopics.has(topic.id) ? '▾' : '▸' }} {{ childrenOf(topic.id).length }} sub
+          </button>
+
+          <button
+            class="btn btn-ghost btn-xs text-error ml-auto"
+            (click)="deleteTopic(topic.id)"
+            title="Excluir topico"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Notes section -->
+        <div *ngIf="showNotes === topic.id" class="mt-3 ml-6 border-t border-dark-border pt-3">
+          <textarea
+            class="textarea textarea-bordered w-full bg-dark-bg text-sm"
+            rows="4"
+            placeholder="Anotacoes sobre este topico..."
+            [(ngModel)]="editingNotes"
+          ></textarea>
+          <div class="flex justify-end gap-2 mt-2">
+            <button class="btn btn-ghost btn-xs" (click)="showNotes = null">Cancelar</button>
+            <button class="btn btn-primary btn-xs" (click)="saveNotes(topic.id)">Salvar notas</button>
+          </div>
+        </div>
+      </div>
+    </article>
+  </ng-template>
+
+  <!-- Edit plan modal -->
+  <div *ngIf="editingPlan" class="modal modal-open">
+    <div class="modal-box bg-dark-surface">
+      <h3 class="font-semibold text-lg mb-4">Editar Plano</h3>
+
+      <form (ngSubmit)="updatePlan()">
+        <label class="form-control mb-3">
+          <span class="label-text mb-1 block text-grayscale-5">Titulo *</span>
+          <input
+            type="text"
+            class="input input-bordered w-full bg-dark-bg"
+            [(ngModel)]="editPlanData.title"
+            name="editTitle"
+            required
+          />
+        </label>
+
+        <label class="form-control mb-3">
+          <span class="label-text mb-1 block text-grayscale-5">Descricao</span>
+          <textarea
+            class="textarea textarea-bordered w-full bg-dark-bg"
+            rows="3"
+            [(ngModel)]="editPlanData.description"
+            name="editDescription"
+          ></textarea>
+        </label>
+
+        <label class="form-control mb-3">
+          <span class="label-text mb-1 block text-grayscale-5">Status</span>
+          <select
+            class="select select-bordered w-full bg-dark-bg"
+            [(ngModel)]="editPlanData.status"
+            name="editStatus"
+          >
+            <option *ngFor="let s of statuses" [value]="s">{{ statusLabel(s) }}</option>
+          </select>
+        </label>
+
+        <label class="form-control mb-4">
+          <span class="label-text mb-1 block text-grayscale-5">Data meta</span>
+          <input
+            type="date"
+            class="input input-bordered w-full bg-dark-bg"
+            [(ngModel)]="editPlanData.targetDate"
+            name="editTargetDate"
+          />
+        </label>
+
+        <div class="modal-action">
+          <button type="button" class="btn btn-ghost" (click)="editingPlan = false">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+    <div class="modal-backdrop" (click)="editingPlan = false"></div>
+  </div>
+
+</div>
