@@ -219,7 +219,7 @@ class TranscricoesView(QWidget):
         # ---- Painel do assistente ao vivo (visível só durante gravação ao vivo) ----
         self.live_box = self._build_live_box()
         self.live_box.setVisible(False)
-        right.addWidget(self.live_box, 1)
+        right.addWidget(self.live_box, 3)
 
         # Progresso de transcrição
         self.progress = QProgressBar()
@@ -349,23 +349,17 @@ class TranscricoesView(QWidget):
         head.addWidget(self.live_status)
         v.addLayout(head)
 
-        split = QHBoxLayout()
-        split.setSpacing(10)
-
-        # Esquerda: transcrição ao vivo
-        left = QVBoxLayout()
-        left.setSpacing(4)
-        left.addWidget(QLabel(t("Transcrição ao vivo")))
+        # Transcrição ao vivo em cima (altura limitada)
+        v.addWidget(QLabel(t("Transcrição ao vivo")))
         self.live_transcript_edit = QTextEdit()
         self.live_transcript_edit.setReadOnly(True)
         self.live_transcript_edit.setPlaceholderText(t("A transcrição aparecerá aqui em tempo real..."))
-        left.addWidget(self.live_transcript_edit, 1)
-        split.addLayout(left, 1)
+        self.live_transcript_edit.setMaximumHeight(120)
+        v.addWidget(self.live_transcript_edit)
 
-        # Direita: abas Ações/Decisões/Perguntas
-        rightw = QVBoxLayout()
-        rightw.setSpacing(4)
+        # Abas do assistente em largura total (as 5 cabem sem sobrepor)
         self.live_tabs = QTabWidget()
+        self.live_tabs.setMinimumHeight(160)
         self.live_plan_list = QListWidget()
         self.live_tips_list = QListWidget()
         self.live_actions_list = QListWidget()
@@ -376,10 +370,7 @@ class TranscricoesView(QWidget):
         self.live_tabs.addTab(self.live_actions_list, t("Ações"))
         self.live_tabs.addTab(self.live_decisions_list, t("Decisões"))
         self.live_tabs.addTab(self.live_questions_list, t("Perguntas"))
-        rightw.addWidget(self.live_tabs, 1)
-        split.addLayout(rightw, 1)
-
-        v.addLayout(split, 1)
+        v.addWidget(self.live_tabs, 1)
 
         # Perguntar à reunião
         ask = QHBoxLayout()
