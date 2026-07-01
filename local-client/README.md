@@ -90,10 +90,13 @@ Módulo de aprendizado:
 Board de tarefas por projeto:
 
 - **Colunas**: customizáveis por projeto (ex: Backlog, A Fazer, Fazendo, Revisão, Concluído)
+- **Sprints (planejamento de projetos longos)**: cada projeto pode ter sprints (nome, meta, status planejada/ativa/concluída, datas e **capacidade** em homem-dia). O board tem um **seletor de sprint** (Todas / Backlog / uma sprint) que filtra os cards, e cada card tem um **dropdown para mover a tarefa** entre backlog e sprints. Ativar (só uma ativa por projeto), concluir (tarefas não concluídas voltam ao backlog) e excluir. Estatísticas de progresso e esforço comprometido vs. capacidade (⚠ quando estoura). Desktop e web
+- **Aba Planejamento de Sprints**: ao lado do board de fluxo, uma aba de **alocação** onde as colunas são **Backlog + cada sprint** — arraste o backlog para dentro das sprints (via seletor no card), veja capacidade vs. comprometido por sprint e crie/ative/conclua sprints. Ideal para planejar projetos longos em várias sprints futuras
 - **Drag-and-drop**: arrastar cards entre colunas
 - **Quick-move**: botão para avançar tarefa para próxima coluna sem arrastar
 - **Filtros**: por tipo (Feature, Bug, Tech Debt, Improvement, Chore), prioridade (Low, Medium, High, Urgent), responsável e label
 - **WIP limits**: limite de tarefas por coluna
+- **Arquivamento**: cards em colunas de conclusão têm ação **"Arquivar"** — somem do board e vão para um **board à parte (Arquivados)**, de onde podem ser **desarquivados**. Cards que ficam concluídos por **mais de 3 dias são arquivados automaticamente** ao abrir o board. Disponível no desktop e na web
 - **Cards**: mostram tipo, prioridade, labels, due date, assignee, indicador de bloqueio e checklist progress
 - **Task detail**: dialog completo com título, descrição, tipo, prioridade, assignee, due date, labels, checklist (Definition of Done), dependências, comentários com markdown
 - **Tarefas de revisão**: agentes sempre criam tarefas com `requiresHuman: true` para o desenvolvedor validar alterações
@@ -107,14 +110,14 @@ Assistente de IA interno que roda com seu próprio provedor:
 - **Execução assíncrona**: roda em thread separada, sem travar a interface
 - **Configuração**: provedor ativo definido em Configurações → Provedores de IA (Base URL, API Key e Modelo)
 
-### Transcrições (Alt+6)
+### Reuniões (Alt+6)
 
 Gravação, transcrição e resumo de reuniões e estudos (migrado do projeto wsi-cronista):
 
 - **Captura de áudio (Linux)**: microfone e/ou áudio do sistema via PipeWire/PulseAudio (`parec`); fontes `.monitor` para loopback
 - **Transcrição local**: faster-whisper, modelo configurável (tiny → large-v3), roda offline em QThread
 - **Assistente de reunião**: extrai título, pontos-chave, decisões, ações (com responsável) e perguntas em aberto
-- **Assistente ao vivo (tempo real)**: com o toggle "Assistente ao vivo" ligado, transcreve durante a gravação (janelas de ~10s, modelo `base` para baixa latência) e um painel lateral (abas Ações · Decisões · Perguntas) é preenchido incrementalmente pela IA. Inclui **"Perguntar à reunião"** — pergunte algo e a IA responde com base no que já foi dito. A transcrição definitiva (mais precisa) ainda é gerada do WAV completo ao parar
+- **Assistente ao vivo (copiloto de reunião)**: com o toggle "Assistente ao vivo" ligado, transcreve durante a gravação (janelas de ~10s, modelo `base` para baixa latência) e um painel lateral com abas **Plano · Dicas · Ações · Decisões · Perguntas** é preenchido incrementalmente pela IA. Além de extrair ações/decisões/perguntas, o copiloto **monta um plano de ação** e **dá dicas proativas** conforme a reunião avança, usando o **contexto do workspace e do projeto selecionado** (nome, descrição e tarefas em aberto). Inclui **"Perguntar à reunião"** — pergunte algo e a IA responde com base no que foi dito + contexto do projeto. A transcrição definitiva (mais precisa) ainda é gerada do WAV completo ao parar
 - **Assistente de estudo**: gera resumo, conceitos-chave, exercícios práticos, tópicos relacionados e recursos
 - **IA reusada**: a análise usa o provedor configurado em Provedores de IA (LM Studio/opencode)
 - **Reunião → board**: botão "Criar tarefas das ações" transforma os action items (do ao vivo ou do resumo) em tarefas (tipo CHORE, `requires_human`) no projeto escolhido

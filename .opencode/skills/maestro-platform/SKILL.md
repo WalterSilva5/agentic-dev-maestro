@@ -3,6 +3,13 @@
 ## Visão Geral
 O **Maestro** é uma plataforma de gestão de projetos que usa um board kanban. Agentes de IA podem interagir com ela via ferramentas customizadas do opencode para criar, mover, revisar e documentar tarefas.
 
+Disponível como app desktop (PySide6) e como **web app instalável (PWA)**, ambos servidos pela mesma API local (`http://127.0.0.1:9777`).
+
+## Recursos do board
+- **Sprints** (por projeto): nome, meta, status (PLANEJADA/ATIVA/CONCLUIDA), datas e **capacidade** (homem-dia). O board filtra por sprint e cada tarefa tem `sprintId` (nulo = backlog). Endpoints em `/api/projects/{id}/sprints` e `/api/sprints/{id}` — ver a skill **api-agent**.
+- **Arquivamento**: cards concluídos podem ser arquivados (somem do board, vão para um board à parte) e cards concluídos **há mais de 3 dias são arquivados automaticamente**. Endpoints `/api/tasks/{code}/archive` · `/unarchive` · `/api/projects/{id}/archived`.
+- **Assistentes de IA** (na GUI): assistente de **reunião ao vivo** (Transcrições) e assistente de **estudo sob demanda** (Estudos), além do chat interno — todos usam o provedor de IA configurado.
+
 ## Ferramentas Disponíveis
 Todas as ferramentas estão no namespace `maestro_*`:
 
