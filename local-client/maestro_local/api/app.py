@@ -1815,6 +1815,104 @@ def get_daily_activity(date: str):
 
 
 # ---------------------------------------------------------------------------
+# Workspaces
+# ---------------------------------------------------------------------------
+
+
+@app.get("/api/workspaces")
+def list_workspaces_ep():
+    from maestro_local.config import get_active_workspace_id, list_workspaces
+    return {"active": get_active_workspace_id(), "workspaces": list_workspaces()}
+
+
+@app.post("/api/workspaces/active")
+def set_active_workspace_ep(body: dict):
+    from maestro_local.config import get_workspace_db_path, set_active_workspace
+    from maestro_local.db.models import switch_db
+    ws_id = body.get("id")
+    if not ws_id:
+        raise HTTPException(status_code=400, detail="id é obrigatório")
+    set_active_workspace(ws_id)
+    switch_db(get_workspace_db_path(ws_id))
+    return {"ok": True, "active": ws_id}
+
+
+# ---------------------------------------------------------------------------
+# Assistente (agente interno)
+# ---------------------------------------------------------------------------
+
+
+class AssistantChat(BaseModel):
+    messages: list[dict]
+
+
+@app.post("/api/assistant/chat")
+def assistant_chat(body: AssistantChat):
+    from maestro_local.ai.agent import run_agent
+    try:
+        reply = run_agent(body.messages)
+        return {"reply": reply}
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ---------------------------------------------------------------------------
+# Configurações
+# ---------------------------------------------------------------------------
+
+
+class SettingsUpdate(BaseModel):
+    language: Optional[str] = None
+    activeProviderId: Optional[str] = None
+    aiProviders: Optional[list] = None
+    whisperModel: Optional[str] = None
+
+
+def _settings_dict() -> dict:
+    from maestro_local.config import (
+        get_active_ai_provider,
+        get_language,
+        list_ai_providers,
+        load_config,
+    )
+    cron = load_config().get("settings", {}).get("transcricoes", {})
+    active = get_active_ai_provider()
+    return {
+        "language": get_language(),
+        "aiProviders": list_ai_providers(),
+        "activeProviderId": active["id"] if active else None,
+        "whisperModel": cron.get("whisper_model", "small"),
+    }
+
+
+@app.get("/api/settings")
+def get_settings():
+    return _settings_dict()
+
+
+@app.put("/api/settings")
+def put_settings(body: SettingsUpdate):
+    from maestro_local.config import (
+        load_config,
+        save_ai_providers,
+        save_config,
+        set_active_ai_provider,
+        set_language,
+    )
+    if body.language:
+        set_language(body.language)
+    if body.aiProviders is not None:
+        save_ai_providers(body.aiProviders, active_id=body.activeProviderId)
+    elif body.activeProviderId:
+        set_active_ai_provider(body.activeProviderId)
+    if body.whisperModel:
+        cfg = load_config()
+        cfg.setdefault("settings", {}).setdefault("transcricoes", {})["whisper_model"] = body.whisperModel
+        save_config(cfg)
+    return _settings_dict()
+
+
+# ---------------------------------------------------------------------------
 # Web UI (servida junto com a API, se o bundle estiver buildado em webui/dist)
 # ---------------------------------------------------------------------------
 

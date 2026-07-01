@@ -185,7 +185,8 @@ Além da GUI desktop, há um frontend **web** (React + Vite) servido pela própr
 - **Código**: `webui/` (React + Vite + axios + react-router), consome a mesma API REST
 - **Build**: o `install.sh` builda automaticamente (se houver `npm`); a FastAPI serve `webui/dist/` na raiz `/`, mantendo `/api/*`
 - **Desenvolvimento** (hot-reload): `cd webui && npm run dev` (porta 3000, com proxy `/api → 9777`)
-- **Telas atuais**: Dashboard (resumo + atividade), Projetos, Board kanban e detalhe de tarefa (descrição, checklist, comentários, tipo/prioridade, mover). Tema claro/escuro. As demais telas vão sendo portadas reaproveitando a API
+- **Telas**: Dashboard, Meu Dia, Estudos, Projetos, Board + detalhe de tarefa (descrição, checklist, comentários, tipo/prioridade, mover), Assistente (chat), Métricas, TODOs, Labels e Configurações (idioma, provedores de IA, Whisper). Seletor de workspace na sidebar e tema claro/escuro. **Transcrições** e **Skills** seguem exclusivas da GUI desktop (captura de áudio e instalação em diretório local)
+- **Rodar só a web** (sem a GUI desktop): `./run-web.sh` (ou `python -m maestro_local.webmain`) — sobe API + web em `http://127.0.0.1:9777/`
 
 ```bash
 cd webui
