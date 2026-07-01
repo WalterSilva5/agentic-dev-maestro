@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getMetrics } from '../api'
+import { t } from '../i18n'
 
 export default function Metricas() {
   const [metrics, setMetrics] = useState(null)
@@ -15,12 +16,12 @@ export default function Metricas() {
 
   const s = metrics?.summary || {}
   const cards = [
-    { lbl: 'Total', val: s.totalTasks ?? '—' },
-    { lbl: 'Concluídas', val: s.doneTasks ?? '—' },
-    { lbl: 'Concluídas 7d', val: s.completedLast7d ?? '—' },
-    { lbl: 'Concluídas 30d', val: s.completedLast30d ?? '—' },
-    { lbl: 'Lead time médio (h)', val: s.avgLeadTimeHours != null ? Math.round(s.avgLeadTimeHours) : '—' },
-    { lbl: 'Cycle time médio (h)', val: s.avgCycleTimeHours != null ? Math.round(s.avgCycleTimeHours) : '—' },
+    { lbl: t('Total'), val: s.totalTasks ?? '—' },
+    { lbl: t('Concluídas'), val: s.doneTasks ?? '—' },
+    { lbl: t('Concluídas 7d'), val: s.completedLast7d ?? '—' },
+    { lbl: t('Concluídas 30d'), val: s.completedLast30d ?? '—' },
+    { lbl: t('Lead time médio (h)'), val: s.avgLeadTimeHours != null ? Math.round(s.avgLeadTimeHours) : '—' },
+    { lbl: t('Cycle time médio (h)'), val: s.avgCycleTimeHours != null ? Math.round(s.avgCycleTimeHours) : '—' },
   ]
 
   const weekly = metrics?.weeklyThroughput || []
@@ -36,7 +37,7 @@ export default function Metricas() {
     return (
       <div className="card" style={{ marginBottom: 16 }}>
         <h4 style={{ margin: '0 0 12px', color: 'var(--muted)' }}>{title}</h4>
-        {entries.length === 0 && <div className="muted">Sem dados.</div>}
+        {entries.length === 0 && <div className="muted">{t("Sem dados.")}</div>}
         {entries.map(([label, count]) => {
           const pct = Math.round(((count || 0) / total) * 100)
           return (
@@ -55,10 +56,10 @@ export default function Metricas() {
 
   return (
     <div>
-      <h1 className="page-title">Métricas</h1>
-      <p className="subtitle">Indicadores de fluxo e produtividade do workspace ativo (via API).</p>
+      <h1 className="page-title">{t("Métricas")}</h1>
+      <p className="subtitle">{t("Indicadores de fluxo e produtividade do workspace ativo (via API).")}</p>
       {error && <div className="banner">{error}</div>}
-      {loading && !error && <div className="muted">Carregando…</div>}
+      {loading && !error && <div className="muted">{t("Carregando…")}</div>}
 
       {metrics && (
         <>
@@ -72,8 +73,8 @@ export default function Metricas() {
           </div>
 
           <div className="card" style={{ marginBottom: 16 }}>
-            <h4 style={{ margin: '0 0 12px', color: 'var(--muted)' }}>Throughput semanal</h4>
-            {weekly.length === 0 && <div className="muted">Sem dados.</div>}
+            <h4 style={{ margin: '0 0 12px', color: 'var(--muted)' }}>{t("Throughput semanal")}</h4>
+            {weekly.length === 0 && <div className="muted">{t("Sem dados.")}</div>}
             {weekly.length > 0 && (
               <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: 140 }}>
                 {weekly.map((w) => (
@@ -96,12 +97,12 @@ export default function Metricas() {
             )}
           </div>
 
-          {distSection('Por tipo', byType)}
-          {distSection('Por prioridade', byPriority)}
+          {distSection(t('Por tipo'), byType)}
+          {distSection(t('Por prioridade'), byPriority)}
 
           <div className="card">
-            <h4 style={{ margin: '0 0 12px', color: 'var(--muted)' }}>Por projeto</h4>
-            {perProject.length === 0 && <div className="muted">Nenhum projeto.</div>}
+            <h4 style={{ margin: '0 0 12px', color: 'var(--muted)' }}>{t("Por projeto")}</h4>
+            {perProject.length === 0 && <div className="muted">{t("Nenhum projeto.")}</div>}
             {perProject.map((p) => (
               <div
                 key={p.projectId}

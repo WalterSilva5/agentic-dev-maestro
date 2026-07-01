@@ -8,6 +8,7 @@ import {
   toggleChecklist,
   deleteChecklist,
 } from '../api'
+import { t, tf } from '../i18n'
 
 const TYPES = ['FEATURE', 'BUG', 'TECH_DEBT', 'IMPROVEMENT', 'CHORE']
 const PRIOS = ['LOW', 'MEDIUM', 'HIGH', 'URGENT']
@@ -60,7 +61,7 @@ export default function TaskDetail({ code, onClose, onChanged }) {
     return (
       <div className="overlay" onClick={onClose}>
         <div className="modal" onClick={(e) => e.stopPropagation()}>
-          {error ? <div className="banner">{error}</div> : <div className="muted">Carregando...</div>}
+          {error ? <div className="banner">{error}</div> : <div className="muted">{t('Carregando...')}</div>}
         </div>
       </div>
     )
@@ -85,7 +86,7 @@ export default function TaskDetail({ code, onClose, onChanged }) {
         </div>
 
         <div className="section">
-          <h4>Descrição</h4>
+          <h4>{t('Descrição')}</h4>
           <textarea
             style={{ width: '100%', minHeight: 90 }}
             defaultValue={task.description || ''}
@@ -94,7 +95,7 @@ export default function TaskDetail({ code, onClose, onChanged }) {
         </div>
 
         <div className="section">
-          <h4>Checklist</h4>
+          <h4>{t('Checklist')}</h4>
           {(task.checklist || []).map((c) => (
             <div key={c.id} className={`check-item ${c.checked ? 'done' : ''}`}>
               <input type="checkbox" checked={c.checked} onChange={() => toggleChecklist(c.id).then(load)} />
@@ -104,7 +105,7 @@ export default function TaskDetail({ code, onClose, onChanged }) {
           ))}
           <div className="row" style={{ marginTop: 6 }}>
             <input
-              placeholder="Novo item..."
+              placeholder={t('Novo item...')}
               style={{ flex: 1 }}
               value={newCheck}
               onChange={(e) => setNewCheck(e.target.value)}
@@ -115,7 +116,7 @@ export default function TaskDetail({ code, onClose, onChanged }) {
         </div>
 
         <div className="section">
-          <h4>Comentários ({comments.length})</h4>
+          <h4>{tf('Comentários ({n})', { n: comments.length })}</h4>
           {comments.map((c) => (
             <div key={c.id} className="comment">
               <div className="meta">{c.type} · {c.author || 'local'}</div>
@@ -124,13 +125,13 @@ export default function TaskDetail({ code, onClose, onChanged }) {
           ))}
           <div className="row" style={{ marginTop: 6 }}>
             <input
-              placeholder="Comentário..."
+              placeholder={t('Comentário...')}
               style={{ flex: 1 }}
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && submitComment()}
             />
-            <button onClick={submitComment}>Enviar</button>
+            <button onClick={submitComment}>{t('Enviar')}</button>
           </div>
         </div>
       </div>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getDaily, saveDaily, genDailyReport, getDailyActivity } from '../api'
+import { t } from '../i18n'
 
 function fmtWhen(iso) {
   if (!iso) return ''
@@ -54,8 +55,8 @@ export default function MeuDia() {
 
   return (
     <div>
-      <h1 className="page-title">Meu Dia</h1>
-      <p className="subtitle">Anote o que você fez hoje e gere um relatório do dia.</p>
+      <h1 className="page-title">{t("Meu Dia")}</h1>
+      <p className="subtitle">{t("Anote o que você fez hoje e gere um relatório do dia.")}</p>
       {error && <div className="banner">{error}</div>}
 
       <div className="toolbar" style={{ marginBottom: 16 }}>
@@ -68,35 +69,35 @@ export default function MeuDia() {
 
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="row" style={{ justifyContent: 'space-between', marginBottom: 8 }}>
-          <h4 style={{ margin: 0, color: 'var(--muted)' }}>Nota do dia</h4>
+          <h4 style={{ margin: 0, color: 'var(--muted)' }}>{t("Nota do dia")}</h4>
         </div>
         <textarea
           value={body}
           onChange={(e) => setBody(e.target.value)}
-          placeholder="Escreva sua nota em markdown..."
+          placeholder={t("Escreva sua nota em markdown...")}
           rows={14}
           style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical' }}
         />
         <div className="toolbar" style={{ marginTop: 8 }}>
           <button onClick={onSave} disabled={saving}>
-            {saving ? 'Salvando...' : 'Salvar'}
+            {saving ? t('Salvando...') : t('Salvar')}
           </button>
           <button className="ghost" onClick={onGenerate} disabled={generating}>
-            {generating ? 'Gerando...' : 'Gerar relatório do dia'}
+            {generating ? t('Gerando...') : t('Gerar relatório do dia')}
           </button>
         </div>
       </div>
 
       {report && (
         <div className="card" style={{ marginBottom: 16 }}>
-          <h4 style={{ margin: '0 0 8px', color: 'var(--muted)' }}>Relatório do dia</h4>
+          <h4 style={{ margin: '0 0 8px', color: 'var(--muted)' }}>{t("Relatório do dia")}</h4>
           <div style={{ whiteSpace: 'pre-wrap' }}>{report}</div>
         </div>
       )}
 
       <div className="card">
-        <h4 style={{ margin: '0 0 8px', color: 'var(--muted)' }}>Atividade do dia</h4>
-        {activity.length === 0 && <div className="muted">Nenhuma atividade.</div>}
+        <h4 style={{ margin: '0 0 8px', color: 'var(--muted)' }}>{t("Atividade do dia")}</h4>
+        {activity.length === 0 && <div className="muted">{t("Nenhuma atividade.")}</div>}
         {activity.map((a, i) => (
           <div key={a.id ?? i} className="activity-item">
             <span className="when">{fmtWhen(a.createdAt)}</span>

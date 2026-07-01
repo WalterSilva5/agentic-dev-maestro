@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { getBoard, createTask, moveTask } from '../api'
 import TaskDetail from '../components/TaskDetail.jsx'
+import { t, tf } from '../i18n'
 
 export default function Board() {
   const { projectId } = useParams()
@@ -44,7 +45,7 @@ export default function Board() {
   }
 
   if (error) return <div className="banner">{error}</div>
-  if (!board) return <div className="muted">Carregando...</div>
+  if (!board) return <div className="muted">{t('Carregando...')}</div>
 
   const cols = [...board.columns].sort((a, b) => a.order - b.order)
 
@@ -54,9 +55,9 @@ export default function Board() {
         <h1 className="page-title">
           {board.key} · {board.name}
         </h1>
-        <Link to="/projects"><button className="ghost">← Projetos</button></Link>
+        <Link to="/projects"><button className="ghost">{t('← Projetos')}</button></Link>
       </div>
-      <p className="subtitle">Board kanban via API ({cols.length} colunas).</p>
+      <p className="subtitle">{tf('Board kanban via API ({count} colunas).', { count: cols.length })}</p>
 
       <div className="board">
         {cols.map((col) => (
@@ -80,7 +81,7 @@ export default function Board() {
                         advance(task, cols)
                       }}
                     >
-                      Mover →
+                      {t('Mover →')}
                     </button>
                   </div>
                 )}
@@ -88,7 +89,7 @@ export default function Board() {
             ))}
             <div className="row" style={{ marginTop: 6 }}>
               <input
-                placeholder="Nova tarefa..."
+                placeholder={t('Nova tarefa...')}
                 style={{ flex: 1, fontSize: 12 }}
                 value={newTitles[col.id] || ''}
                 onChange={(e) => setNewTitles({ ...newTitles, [col.id]: e.target.value })}

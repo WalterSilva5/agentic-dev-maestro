@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getLabels, createLabel, deleteLabel } from '../api'
+import { t } from '../i18n'
 
 const PALETTE = [
   '#E03131', '#E8590C', '#2F9E44', '#1971C2',
@@ -45,19 +46,19 @@ export default function Labels() {
 
   return (
     <div>
-      <h1 className="page-title">Labels</h1>
-      <p className="subtitle">Organize suas tarefas com labels coloridas.</p>
+      <h1 className="page-title">{t('Labels')}</h1>
+      <p className="subtitle">{t('Organize suas tarefas com labels coloridas.')}</p>
 
       {error && <div className="banner">{error}</div>}
 
       <div className="card">
         <div className="toolbar">
           <input
-            placeholder="Nome da label"
+            placeholder={t('Nome da label')}
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
-          <button onClick={onCreate}>Criar label</button>
+          <button onClick={onCreate}>{t('Criar label')}</button>
         </div>
 
         <div className="row" style={{ flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
@@ -98,10 +99,10 @@ export default function Labels() {
               />
               <span>{l.name}</span>
             </div>
-            <button className="danger" onClick={() => onDelete(l.id)}>Excluir</button>
+            <button className="danger" onClick={() => onDelete(l.id)}>{t('Excluir')}</button>
           </div>
         ))}
-        {labels.length === 0 && <div className="muted">Nenhuma label ainda.</div>}
+        {labels.length === 0 && <div className="muted">{t('Nenhuma label ainda.')}</div>}
       </div>
     </div>
   )

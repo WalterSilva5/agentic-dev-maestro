@@ -12,21 +12,21 @@ import Labels from './pages/Labels.jsx'
 import Configuracoes from './pages/Configuracoes.jsx'
 import WorkspaceSelector from './components/WorkspaceSelector.jsx'
 import { getTheme, toggleTheme } from './theme'
-
-const NAV = [
-  ['/dashboard', 'Dashboard'],
-  ['/meu-dia', 'Meu Dia'],
-  ['/estudos', 'Estudos'],
-  ['/projetos', 'Projetos'],
-  ['/assistente', 'Assistente'],
-  ['/metricas', 'Métricas'],
-  ['/todos', 'TODOs'],
-  ['/labels', 'Labels'],
-  ['/configuracoes', 'Configurações'],
-]
+import { t } from './i18n'
 
 function Sidebar() {
   const [theme, setTheme] = useState(getTheme())
+  const nav = [
+    ['/dashboard', t('Dashboard')],
+    ['/meu-dia', t('Meu Dia')],
+    ['/estudos', t('Estudos')],
+    ['/projetos', t('Projetos')],
+    ['/assistente', t('Assistente')],
+    ['/metricas', t('Métricas')],
+    ['/todos', t('TODOs')],
+    ['/labels', t('Labels')],
+    ['/configuracoes', t('Configurações')],
+  ]
   return (
     <aside className="sidebar">
       <div className="brand">
@@ -38,12 +38,12 @@ function Sidebar() {
       </div>
       <WorkspaceSelector />
       <nav className="nav">
-        {NAV.map(([to, label]) => (
+        {nav.map(([to, label]) => (
           <NavLink key={to} to={to}>{label}</NavLink>
         ))}
       </nav>
       <button className="theme-toggle" onClick={() => setTheme(toggleTheme())}>
-        {theme === 'dark' ? '☀  Tema claro' : '☾  Tema escuro'}
+        {theme === 'dark' ? `☀  ${t('Tema claro')}` : `☾  ${t('Tema escuro')}`}
       </button>
     </aside>
   )
@@ -66,7 +66,7 @@ export default function App() {
           <Route path="/todos" element={<Todos />} />
           <Route path="/labels" element={<Labels />} />
           <Route path="/configuracoes" element={<Configuracoes />} />
-          <Route path="*" element={<div className="muted">Página não encontrada</div>} />
+          <Route path="*" element={<div className="muted">{t('Página não encontrada')}</div>} />
         </Routes>
       </main>
     </div>

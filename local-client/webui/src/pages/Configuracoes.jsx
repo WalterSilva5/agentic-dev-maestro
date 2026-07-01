@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getSettings, updateSettings } from '../api'
+import { t } from '../i18n'
 
 export default function Configuracoes() {
   const [settings, setSettings] = useState(null)
@@ -13,7 +14,7 @@ export default function Configuracoes() {
         setSettings(s)
         setSelectedProviderId(s.activeProviderId)
       })
-      .catch((e) => setError(e?.message || 'Erro ao carregar configurações'))
+      .catch((e) => setError(e?.message || t('Erro ao carregar configurações')))
   }, [])
 
   const flash = (msg) => {
@@ -29,7 +30,7 @@ export default function Configuracoes() {
       if (updated.activeProviderId != null) setSelectedProviderId(updated.activeProviderId)
       if (okMsg) flash(okMsg)
     } catch (e) {
-      setError(e?.message || 'Erro ao salvar configurações')
+      setError(e?.message || t('Erro ao salvar configurações'))
     }
   }
 
@@ -43,9 +44,9 @@ export default function Configuracoes() {
   if (!settings) {
     return (
       <div>
-        <h1 className="page-title">Configurações</h1>
+        <h1 className="page-title">{t('Configurações')}</h1>
         {error && <div className="banner">{error}</div>}
-        {!error && <p className="muted">Carregando...</p>}
+        {!error && <p className="muted">{t('Carregando...')}</p>}
       </div>
     )
   }
@@ -54,28 +55,31 @@ export default function Configuracoes() {
 
   return (
     <div>
-      <h1 className="page-title">Configurações</h1>
-      <p className="subtitle">Idioma, provedores de IA e transcrições</p>
+      <h1 className="page-title">{t('Configurações')}</h1>
+      <p className="subtitle">{t('Idioma, provedores de IA e transcrições')}</p>
 
       {error && <div className="banner">{error}</div>}
       {saved && <p className="muted">{saved}</p>}
 
       <div className="card">
-        <h4 style={{ color: 'var(--muted)' }}>Idioma</h4>
+        <h4 style={{ color: 'var(--muted)' }}>{t('Idioma')}</h4>
         <div className="row">
           <select
             value={settings.language}
-            onChange={(e) => apply({ language: e.target.value }, 'Idioma salvo')}
+            onChange={async (e) => {
+              await apply({ language: e.target.value })
+              window.location.reload()
+            }}
           >
-            <option value="pt">Português</option>
-            <option value="en">English</option>
+            <option value="pt">{t('Português')}</option>
+            <option value="en">{t('English')}</option>
           </select>
         </div>
-        <p className="muted">Afeta o app desktop; a web ainda é PT.</p>
+        <p className="muted">{t('Também afeta o app desktop (após reiniciar).')}</p>
       </div>
 
       <div className="card">
-        <h4 style={{ color: 'var(--muted)' }}>Provedores de IA</h4>
+        <h4 style={{ color: 'var(--muted)' }}>{t('Provedores de IA')}</h4>
         <div className="row">
           <select
             value={selectedProviderId}
@@ -94,7 +98,7 @@ export default function Configuracoes() {
             <div className="row">
               <input
                 type="text"
-                placeholder="Nome"
+                placeholder={t('Nome')}
                 value={current.name || ''}
                 onChange={(e) => editProvider(current.id, 'name', e.target.value)}
               />
@@ -131,21 +135,21 @@ export default function Configuracoes() {
             onClick={() =>
               apply(
                 { aiProviders: settings.aiProviders, activeProviderId: selectedProviderId },
-                'Provedores salvos'
+                t('Provedores salvos')
               )
             }
           >
-            Salvar
+            {t('Salvar')}
           </button>
         </div>
       </div>
 
       <div className="card">
-        <h4 style={{ color: 'var(--muted)' }}>Transcrições</h4>
+        <h4 style={{ color: 'var(--muted)' }}>{t('Transcrições')}</h4>
         <div className="row">
           <select
             value={settings.whisperModel}
-            onChange={(e) => apply({ whisperModel: e.target.value }, 'Modelo salvo')}
+            onChange={(e) => apply({ whisperModel: e.target.value }, t('Modelo salvo'))}
           >
             <option value="tiny">tiny</option>
             <option value="base">base</option>

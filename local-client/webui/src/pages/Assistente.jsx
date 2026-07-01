@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { assistantChat } from '../api'
+import { t } from '../i18n'
 
 const SUGGESTIONS = [
   'Resuma o board e o que priorizar hoje',
@@ -36,7 +37,7 @@ export default function Assistente() {
       const detail =
         err?.response?.data?.detail ||
         err?.message ||
-        'Falha ao falar com o assistente.'
+        t('Falha ao falar com o assistente.')
       setError(detail)
     } finally {
       setLoading(false)
@@ -52,10 +53,11 @@ export default function Assistente() {
 
   return (
     <div>
-      <div className="page-title">Assistente</div>
+      <div className="page-title">{t('Assistente')}</div>
       <div className="subtitle">
-        Converse com o assistente interno: ele lê o board, sugere prioridades,
-        solicita revisões, cria TODOs e comenta tarefas.
+        {t(
+          'Converse com o assistente interno: ele lê o board, sugere prioridades, solicita revisões, cria TODOs e comenta tarefas.'
+        )}
       </div>
 
       {error && <div className="banner">{error}</div>}
@@ -71,7 +73,7 @@ export default function Assistente() {
             onClick={() => send(s)}
             disabled={loading}
           >
-            {s}
+            {t(s)}
           </button>
         ))}
       </div>
@@ -90,8 +92,9 @@ export default function Assistente() {
         >
           {messages.length === 0 && !loading && (
             <div className="muted">
-              Nenhuma mensagem ainda. Faça uma pergunta ou use uma sugestão
-              acima.
+              {t(
+                'Nenhuma mensagem ainda. Faça uma pergunta ou use uma sugestão acima.'
+              )}
             </div>
           )}
 
@@ -135,7 +138,7 @@ export default function Assistente() {
                   border: '1px solid var(--border)',
                 }}
               >
-                Pensando...
+                {t('Pensando...')}
               </div>
             </div>
           )}
@@ -147,14 +150,14 @@ export default function Assistente() {
         >
           <input
             style={{ flex: 1 }}
-            placeholder="Escreva sua mensagem..."
+            placeholder={t('Escreva sua mensagem...')}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={onKeyDown}
             disabled={loading}
           />
           <button onClick={() => send()} disabled={loading || !input.trim()}>
-            Enviar
+            {t('Enviar')}
           </button>
         </div>
       </div>

@@ -1,8 +1,26 @@
 import { useEffect, useState } from 'react'
 import { getStudyPlans, createStudyPlan, getTopics, addTopic, updateTopic } from '../api'
+import { t } from '../i18n'
 
 const CATEGORIES = ['LINGUAGEM', 'FRAMEWORK', 'CERTIFICACAO', 'CONCEITO', 'CURSO', 'LIVRO']
 const STATUSES = ['PENDENTE', 'ESTUDANDO', 'REVISAO', 'CONCLUIDO', 'PULADO']
+
+// Rótulos-fonte em PT; t() é aplicado no uso (no render, após o idioma carregar).
+const CATEGORY_LABELS = {
+  LINGUAGEM: 'Linguagem',
+  FRAMEWORK: 'Framework',
+  CERTIFICACAO: 'Certificação',
+  CONCEITO: 'Conceito',
+  CURSO: 'Curso',
+  LIVRO: 'Livro',
+}
+const STATUS_LABELS = {
+  PENDENTE: 'Pendente',
+  ESTUDANDO: 'Estudando',
+  REVISAO: 'Revisão',
+  CONCLUIDO: 'Concluído',
+  PULADO: 'Pulado',
+}
 
 export default function Estudos() {
   const [plans, setPlans] = useState([])
@@ -78,25 +96,25 @@ export default function Estudos() {
 
   return (
     <div>
-      <h1 className="page-title">Estudos</h1>
-      <p className="subtitle">Planos de estudo e acompanhamento de tópicos.</p>
+      <h1 className="page-title">{t("Estudos")}</h1>
+      <p className="subtitle">{t("Planos de estudo e acompanhamento de tópicos.")}</p>
 
       {error && <div className="banner">{error}</div>}
 
       <div className="toolbar">
         <input
-          placeholder="Título do plano"
+          placeholder={t("Título do plano")}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
         />
         <select value={category} onChange={(e) => setCategory(e.target.value)}>
           {CATEGORIES.map((c) => (
             <option key={c} value={c}>
-              {c}
+              {t(CATEGORY_LABELS[c] || c)}
             </option>
           ))}
         </select>
-        <button onClick={onCreatePlan}>+ Criar plano</button>
+        <button onClick={onCreatePlan}>{t("+ Criar plano")}</button>
       </div>
 
       {plans.map((p) => (
@@ -104,7 +122,7 @@ export default function Estudos() {
           <div className="row" onClick={() => onToggle(p.id)} style={{ cursor: 'pointer' }}>
             <div>
               <strong>{p.title}</strong>
-              <span className="muted"> · {p.category}</span>
+              <span className="muted"> · {t(CATEGORY_LABELS[p.category] || p.category)}</span>
             </div>
             <span className="muted">
               {p.doneTopics}/{p.totalTopics}
@@ -129,48 +147,48 @@ export default function Estudos() {
             />
           </div>
           <div className="muted" style={{ marginTop: 4 }}>
-            {p.progress}% · {p.status}
+            {p.progress}% · {t(STATUS_LABELS[p.status] || p.status)}
           </div>
 
           {expandedId === p.id && (
             <div style={{ marginTop: 12 }}>
-              {topics.map((t) => (
-                <div key={t.id} className="row">
-                  <span>{t.title}</span>
+              {topics.map((tp) => (
+                <div key={tp.id} className="row">
+                  <span>{tp.title}</span>
                   <span className="row" style={{ gap: 8 }}>
                     <select
-                      value={t.status}
-                      onChange={(e) => onChangeStatus(t.id, e.target.value, p.id)}
+                      value={tp.status}
+                      onChange={(e) => onChangeStatus(tp.id, e.target.value, p.id)}
                     >
                       {STATUSES.map((s) => (
                         <option key={s} value={s}>
-                          {s}
+                          {t(STATUS_LABELS[s] || s)}
                         </option>
                       ))}
                     </select>
                     <span className="muted">
-                      {t.loggedHours}h / {t.estimateHours}h
+                      {tp.loggedHours}h / {tp.estimateHours}h
                     </span>
                   </span>
                 </div>
               ))}
-              {topics.length === 0 && <div className="muted">Nenhum tópico ainda.</div>}
+              {topics.length === 0 && <div className="muted">{t("Nenhum tópico ainda.")}</div>}
 
               <div className="toolbar" style={{ marginTop: 8 }}>
                 <input
-                  placeholder="Novo tópico"
+                  placeholder={t("Novo tópico")}
                   value={topicTitle}
                   onChange={(e) => setTopicTitle(e.target.value)}
                 />
                 <button className="ghost" onClick={() => onAddTopic(p.id)}>
-                  + Adicionar tópico
+                  {t("+ Adicionar tópico")}
                 </button>
               </div>
             </div>
           )}
         </div>
       ))}
-      {plans.length === 0 && <div className="muted">Nenhum plano de estudo ainda.</div>}
+      {plans.length === 0 && <div className="muted">{t("Nenhum plano de estudo ainda.")}</div>}
     </div>
   )
 }

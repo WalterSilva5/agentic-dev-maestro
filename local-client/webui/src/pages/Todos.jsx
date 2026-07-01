@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getTodos, addTodo, updateTodo, deleteTodo } from '../api'
+import { t, tf } from '../i18n'
 
 export default function Todos() {
   const [todos, setTodos] = useState([])
@@ -67,21 +68,21 @@ export default function Todos() {
 
   return (
     <div>
-      <h1 className="page-title">TODOs</h1>
-      <p className="subtitle">Lista rápida de pendências.</p>
+      <h1 className="page-title">{t('TODOs')}</h1>
+      <p className="subtitle">{t('Lista rápida de pendências.')}</p>
 
       {error && <div className="banner">{error}</div>}
 
       <div className="toolbar">
         <input
-          placeholder="Nova pendência"
+          placeholder={t('Nova pendência')}
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter') onAdd()
           }}
         />
-        <button onClick={onAdd}>Adicionar</button>
+        <button onClick={onAdd}>{t('Adicionar')}</button>
       </div>
 
       <div className="card">
@@ -106,19 +107,19 @@ export default function Todos() {
             </button>
           </div>
         ))}
-        {todos.length === 0 && <div className="muted">Nenhuma pendência ainda.</div>}
+        {todos.length === 0 && <div className="muted">{t('Nenhuma pendência ainda.')}</div>}
       </div>
 
       <div className="toolbar">
         <span className="muted">
-          {doneCount} de {todos.length} concluídos
+          {tf('{done} de {total} concluídos', { done: doneCount, total: todos.length })}
         </span>
         <button
           className="ghost"
           onClick={onClearDone}
           disabled={doneCount === 0}
         >
-          Limpar concluídos
+          {t('Limpar concluídos')}
         </button>
       </div>
     </div>

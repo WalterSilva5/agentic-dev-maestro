@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getWorkspaces, setActiveWorkspace } from '../api';
+import { t } from '../i18n';
 
 export default function WorkspaceSelector() {
   const [workspaces, setWorkspaces] = useState([]);
@@ -43,7 +44,7 @@ export default function WorkspaceSelector() {
           marginBottom: '4px',
         }}
       >
-        WORKSPACE
+        {t('WORKSPACE')}
       </label>
       <select style={{ width: '100%' }} value={active} onChange={handleChange}>
         {workspaces.map((ws) => (

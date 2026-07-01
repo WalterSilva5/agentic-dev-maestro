@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getProjects, createProject } from '../api'
+import { t } from '../i18n'
 
 export default function Projects() {
   const [projects, setProjects] = useState([])
@@ -31,20 +32,20 @@ export default function Projects() {
 
   return (
     <div>
-      <h1 className="page-title">Projetos</h1>
-      <p className="subtitle">Web UI servida pela própria API do Maestro.</p>
+      <h1 className="page-title">{t('Projetos')}</h1>
+      <p className="subtitle">{t('Web UI servida pela própria API do Maestro.')}</p>
 
       {error && <div className="banner">{error}</div>}
 
       <div className="toolbar">
-        <input placeholder="Nome do projeto" value={name} onChange={(e) => setName(e.target.value)} />
+        <input placeholder={t('Nome do projeto')} value={name} onChange={(e) => setName(e.target.value)} />
         <input
-          placeholder="Chave (ex: DEMO)"
+          placeholder={t('Chave (ex: DEMO)')}
           value={key}
           style={{ width: 130 }}
           onChange={(e) => setKey(e.target.value)}
         />
-        <button onClick={onCreate}>+ Criar projeto</button>
+        <button onClick={onCreate}>{t('+ Criar projeto')}</button>
       </div>
 
       <div className="projects-grid">
@@ -52,10 +53,10 @@ export default function Projects() {
           <div key={p.id} className="card project-card" onClick={() => nav(`/board/${p.id}`)}>
             <div className="key">{p.key}</div>
             <div className="pname">{p.name}</div>
-            <div className="desc">{p.description || 'Sem descrição'}</div>
+            <div className="desc">{p.description || t('Sem descrição')}</div>
           </div>
         ))}
-        {projects.length === 0 && <div className="muted">Nenhum projeto ainda.</div>}
+        {projects.length === 0 && <div className="muted">{t('Nenhum projeto ainda.')}</div>}
       </div>
     </div>
   )

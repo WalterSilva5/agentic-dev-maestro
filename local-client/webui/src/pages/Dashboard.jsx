@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getMetrics, getActivity, getProjects } from '../api'
+import { t } from '../i18n'
 
 function fmtWhen(iso) {
   if (!iso) return ''
@@ -27,16 +28,16 @@ export default function Dashboard() {
 
   const s = metrics?.summary || {}
   const cards = [
-    { lbl: 'Tarefas', val: s.totalTasks ?? '—' },
-    { lbl: 'Concluídas', val: s.doneTasks ?? '—' },
-    { lbl: 'Lead time (h)', val: s.avgLeadTimeHours != null ? Math.round(s.avgLeadTimeHours) : '—' },
-    { lbl: 'Cycle time (h)', val: s.avgCycleTimeHours != null ? Math.round(s.avgCycleTimeHours) : '—' },
+    { lbl: t('Tarefas'), val: s.totalTasks ?? '—' },
+    { lbl: t('Concluídas'), val: s.doneTasks ?? '—' },
+    { lbl: t('Lead time (h)'), val: s.avgLeadTimeHours != null ? Math.round(s.avgLeadTimeHours) : '—' },
+    { lbl: t('Cycle time (h)'), val: s.avgCycleTimeHours != null ? Math.round(s.avgCycleTimeHours) : '—' },
   ]
 
   return (
     <div>
-      <h1 className="page-title">Dashboard</h1>
-      <p className="subtitle">Visão geral do workspace ativo (via API).</p>
+      <h1 className="page-title">{t('Dashboard')}</h1>
+      <p className="subtitle">{t('Visão geral do workspace ativo (via API).')}</p>
       {error && <div className="banner">{error}</div>}
 
       <div className="cards-row">
@@ -49,8 +50,8 @@ export default function Dashboard() {
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}>
-        <h4 style={{ margin: '0 0 8px', color: 'var(--muted)' }}>Atividade recente</h4>
-        {activity.length === 0 && <div className="muted">Nenhuma atividade.</div>}
+        <h4 style={{ margin: '0 0 8px', color: 'var(--muted)' }}>{t('Atividade recente')}</h4>
+        {activity.length === 0 && <div className="muted">{t('Nenhuma atividade.')}</div>}
         {activity.map((a) => (
           <div key={a.id} className="activity-item">
             <span className="when">{fmtWhen(a.createdAt)}</span>
@@ -60,14 +61,14 @@ export default function Dashboard() {
       </div>
 
       <div className="card">
-        <h4 style={{ margin: '0 0 8px', color: 'var(--muted)' }}>Projetos</h4>
+        <h4 style={{ margin: '0 0 8px', color: 'var(--muted)' }}>{t('Projetos')}</h4>
         {projects.map((p) => (
           <div key={p.id} className="activity-item" style={{ cursor: 'pointer' }} onClick={() => nav(`/board/${p.id}`)}>
             <span className="when">{p.key}</span>
             <span>{p.name}</span>
           </div>
         ))}
-        {projects.length === 0 && <div className="muted">Nenhum projeto.</div>}
+        {projects.length === 0 && <div className="muted">{t("Nenhum projeto.")}</div>}
       </div>
     </div>
   )
