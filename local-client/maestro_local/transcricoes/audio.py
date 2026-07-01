@@ -87,6 +87,20 @@ def default_monitor() -> AudioSource | None:
     return None
 
 
+def _mix(mic_audio: np.ndarray, mon_audio: np.ndarray) -> np.ndarray:
+    """Mixa (soma) mic + monitor alinhando o tamanho por padding."""
+    if len(mic_audio) and len(mon_audio):
+        n = max(len(mic_audio), len(mon_audio))
+        mic_audio = np.pad(mic_audio, (0, n - len(mic_audio)))
+        mon_audio = np.pad(mon_audio, (0, n - len(mon_audio)))
+        return mic_audio + mon_audio
+    if len(mic_audio):
+        return mic_audio
+    if len(mon_audio):
+        return mon_audio
+    return np.zeros(0, dtype=np.float32)
+
+
 class ParecRecorder:
     """Grava de uma fonte PulseAudio via parec em thread separada."""
 
@@ -191,16 +205,8 @@ class RecordingSession:
         mic_audio = self.mic_rec.get_audio() if self.mic_rec else np.zeros(0, dtype=np.float32)
         mon_audio = self.mon_rec.get_audio() if self.mon_rec else np.zeros(0, dtype=np.float32)
 
-        if len(mic_audio) and len(mon_audio):
-            n = max(len(mic_audio), len(mon_audio))
-            mic_audio = np.pad(mic_audio, (0, n - len(mic_audio)))
-            mon_audio = np.pad(mon_audio, (0, n - len(mon_audio)))
-            mixed = mic_audio + mon_audio
-        elif len(mic_audio):
-            mixed = mic_audio
-        elif len(mon_audio):
-            mixed = mon_audio
-        else:
+        mixed = _mix(mic_audio, mon_audio)
+        if not len(mixed):
             mixed = np.zeros(SAMPLE_RATE, dtype=np.float32)
 
         # Normaliza para evitar clipping
@@ -213,6 +219,16 @@ class RecordingSession:
         sf.write(str(out_path), mixed, SAMPLE_RATE)
         duration = len(mixed) / SAMPLE_RATE
         return out_path, duration
+
+    def snapshot_audio(self) -> np.ndarray:
+        """Retorna o áudio mixado acumulado até agora, SEM parar a gravação.
+
+        Usado pela transcrição ao vivo para consumir janelas do áudio enquanto
+        a sessão continua gravando.
+        """
+        mic_audio = self.mic_rec.get_audio() if self.mic_rec else np.zeros(0, dtype=np.float32)
+        mon_audio = self.mon_rec.get_audio() if self.mon_rec else np.zeros(0, dtype=np.float32)
+        return _mix(mic_audio, mon_audio)
 
     @property
     def is_recording(self) -> bool:

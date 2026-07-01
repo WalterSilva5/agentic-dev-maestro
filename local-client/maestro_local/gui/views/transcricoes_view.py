@@ -7,6 +7,7 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt, QThread, QTimer, Signal
 from PySide6.QtWidgets import (
+    QCheckBox,
     QComboBox,
     QFrame,
     QHBoxLayout,
@@ -16,6 +17,7 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QProgressBar,
     QPushButton,
+    QTabWidget,
     QTextEdit,
     QVBoxLayout,
     QWidget,
@@ -27,8 +29,21 @@ from maestro_local.config import (
     load_config,
 )
 from maestro_local.transcricoes import audio as audio_backend
-from maestro_local.transcricoes.constants import WHISPER_DEFAULT_LANGUAGE, WHISPER_DEFAULT_MODEL
-from maestro_local.db.models import DATA_DIR, Recording, get_session
+from maestro_local.transcricoes.constants import (
+    LIVE_AI_MIN_SECONDS,
+    LIVE_AI_MIN_WORDS,
+    LIVE_DEFAULT_MODEL,
+    WHISPER_DEFAULT_LANGUAGE,
+    WHISPER_DEFAULT_MODEL,
+)
+from maestro_local.db.models import (
+    DATA_DIR,
+    BoardColumn,
+    Project,
+    Recording,
+    Task,
+    get_session,
+)
 from maestro_local.gui.theme import current_theme
 from maestro_local.i18n import t
 
@@ -91,6 +106,15 @@ class TranscricoesView(QWidget):
         self._analyzer = None
         self._elapsed = 0
         self._current = {"transcript": "", "duration": 0.0, "language": "", "audio_path": ""}
+
+        # Estado do assistente ao vivo
+        self._live_transcriber = None
+        self._live_extractor = None
+        self._live_asker = None
+        self._live_transcript = ""       # transcrição ao vivo acumulada
+        self._live_pending = ""          # texto novo ainda não enviado à IA
+        self._live_secs_since = 0        # segundos desde a última extração
+        self._live_state = {"action_items": [], "decisions": [], "open_questions": []}
 
         self._tick = QTimer(self)
         self._tick.setInterval(1000)
@@ -183,9 +207,19 @@ class TranscricoesView(QWidget):
         self.timer_label.setStyleSheet("font-family: monospace; font-size: 16px;")
         row4.addWidget(self.timer_label)
         row4.addStretch()
+        self.live_check = QCheckBox(t("Assistente ao vivo"))
+        self.live_check.setToolTip(
+            t("Transcreve e extrai ações/decisões durante a gravação (mais uso de CPU/IA).")
+        )
+        row4.addWidget(self.live_check)
         cl.addLayout(row4)
 
         right.addWidget(ctrl)
+
+        # ---- Painel do assistente ao vivo (visível só durante gravação ao vivo) ----
+        self.live_box = self._build_live_box()
+        self.live_box.setVisible(False)
+        right.addWidget(self.live_box, 1)
 
         # Progresso de transcrição
         self.progress = QProgressBar()
@@ -217,6 +251,15 @@ class TranscricoesView(QWidget):
         self.save_day_btn.setEnabled(False)
         actions.addWidget(self.save_day_btn)
         actions.addStretch()
+        actions.addWidget(QLabel(t("Projeto:")))
+        self.proj_combo = QComboBox()
+        self.proj_combo.setMinimumWidth(140)
+        actions.addWidget(self.proj_combo)
+        self.tasks_btn = QPushButton(t("Criar tarefas das ações"))
+        self.tasks_btn.setFixedHeight(32)
+        self.tasks_btn.setCursor(Qt.PointingHandCursor)
+        self.tasks_btn.clicked.connect(self._actions_to_tasks)
+        actions.addWidget(self.tasks_btn)
         right.addLayout(actions)
 
         # Resultado markdown
@@ -232,8 +275,25 @@ class TranscricoesView(QWidget):
     # ------------------------------------------------------------------
     def refresh(self):
         self._populate_devices()
+        self._populate_projects()
         self._load_history()
         self._check_provider()
+
+    def _populate_projects(self):
+        current = self.proj_combo.currentData()
+        self.proj_combo.clear()
+        s = get_session()
+        try:
+            for p in s.query(Project).order_by(Project.name).all():
+                self.proj_combo.addItem(f"{p.key} · {p.name}", p.id)
+        finally:
+            s.close()
+        if self.proj_combo.count() == 0:
+            self.proj_combo.addItem(t("(nenhum projeto)"), None)
+        elif current is not None:
+            idx = self.proj_combo.findData(current)
+            if idx >= 0:
+                self.proj_combo.setCurrentIndex(idx)
 
     def _check_provider(self):
         provider = get_active_ai_provider()
@@ -270,6 +330,73 @@ class TranscricoesView(QWidget):
 
     def _on_kind_changed(self):
         self.topic_input.setVisible(self.kind_combo.currentData() == "study")
+
+    # ------------------------- Painel ao vivo -------------------------
+    def _build_live_box(self) -> QFrame:
+        box = QFrame()
+        box.setProperty("class", "card")
+        v = QVBoxLayout(box)
+        v.setContentsMargins(12, 10, 12, 10)
+        v.setSpacing(8)
+
+        head = QHBoxLayout()
+        title = QLabel(t("● Ao vivo"))
+        title.setProperty("class", "cardTitle")
+        head.addWidget(title)
+        head.addStretch()
+        self.live_status = QLabel("")
+        self.live_status.setObjectName("subtitle")
+        head.addWidget(self.live_status)
+        v.addLayout(head)
+
+        split = QHBoxLayout()
+        split.setSpacing(10)
+
+        # Esquerda: transcrição ao vivo
+        left = QVBoxLayout()
+        left.setSpacing(4)
+        left.addWidget(QLabel(t("Transcrição ao vivo")))
+        self.live_transcript_edit = QTextEdit()
+        self.live_transcript_edit.setReadOnly(True)
+        self.live_transcript_edit.setPlaceholderText(t("A transcrição aparecerá aqui em tempo real..."))
+        left.addWidget(self.live_transcript_edit, 1)
+        split.addLayout(left, 1)
+
+        # Direita: abas Ações/Decisões/Perguntas
+        rightw = QVBoxLayout()
+        rightw.setSpacing(4)
+        self.live_tabs = QTabWidget()
+        self.live_actions_list = QListWidget()
+        self.live_decisions_list = QListWidget()
+        self.live_questions_list = QListWidget()
+        self.live_tabs.addTab(self.live_actions_list, t("Ações"))
+        self.live_tabs.addTab(self.live_decisions_list, t("Decisões"))
+        self.live_tabs.addTab(self.live_questions_list, t("Perguntas"))
+        rightw.addWidget(self.live_tabs, 1)
+        split.addLayout(rightw, 1)
+
+        v.addLayout(split, 1)
+
+        # Perguntar à reunião
+        ask = QHBoxLayout()
+        ask.setSpacing(8)
+        self.ask_input = QLineEdit()
+        self.ask_input.setPlaceholderText(t("Perguntar à reunião (ex.: o que ficou decidido sobre X?)"))
+        self.ask_input.returnPressed.connect(self._ask_meeting)
+        ask.addWidget(self.ask_input, 1)
+        self.ask_btn = QPushButton(t("Perguntar"))
+        self.ask_btn.setCursor(Qt.PointingHandCursor)
+        self.ask_btn.clicked.connect(self._ask_meeting)
+        ask.addWidget(self.ask_btn)
+        v.addLayout(ask)
+
+        self.ask_answer = QLabel("")
+        self.ask_answer.setWordWrap(True)
+        self.ask_answer.setObjectName("subtitle")
+        self.ask_answer.setVisible(False)
+        v.addWidget(self.ask_answer)
+
+        return box
 
     # ------------------------- Gravação -------------------------
     def is_recording(self) -> bool:
@@ -316,10 +443,13 @@ class TranscricoesView(QWidget):
         self._tick.start()
         self.record_btn.setText(t("■ Parar"))
         self.status_label.setText(t("Gravando..."))
+        if self.live_check.isChecked():
+            self._start_live()
 
     def _stop_record(self):
         self._tick.stop()
         self.record_btn.setText(t("● Gravar"))
+        self._stop_live()
         if not self._session:
             return
         out = _recordings_dir() / f"rec-{datetime.now().strftime('%Y%m%d-%H%M%S')}.wav"
@@ -339,6 +469,210 @@ class TranscricoesView(QWidget):
         self._elapsed += 1
         m, s = divmod(self._elapsed, 60)
         self.timer_label.setText(f"{m:02d}:{s:02d}")
+        if self._live_transcriber is not None:
+            self._live_secs_since += 1
+            self._maybe_extract_live()
+
+    # ------------------------- Assistente ao vivo -------------------------
+    def _provider_ready(self) -> bool:
+        p = get_active_ai_provider()
+        return bool(p and p.get("model"))
+
+    def _start_live(self):
+        from maestro_local.transcricoes.transcriber import LiveTranscriber
+        _, lang = _whisper_settings()
+        # Reseta o estado ao vivo
+        self._live_transcript = ""
+        self._live_pending = ""
+        self._live_secs_since = 0
+        self._live_state = {"action_items": [], "decisions": [], "open_questions": []}
+        self.live_transcript_edit.clear()
+        self.live_actions_list.clear()
+        self.live_decisions_list.clear()
+        self.live_questions_list.clear()
+        self.ask_answer.setVisible(False)
+        self.live_box.setVisible(True)
+        ai_ok = self._provider_ready()
+        self.ask_input.setEnabled(ai_ok)
+        self.ask_btn.setEnabled(ai_ok)
+        self.live_status.setText(
+            t("Transcrevendo ao vivo...") if ai_ok
+            else t("Transcrevendo ao vivo (sem IA — configure um provedor para extrair ações).")
+        )
+        self._live_transcriber = LiveTranscriber(self._session, LIVE_DEFAULT_MODEL, lang)
+        self._live_transcriber.partial.connect(self._on_live_partial)
+        self._live_transcriber.status.connect(self.live_status.setText)
+        self._live_transcriber.start()
+
+    def _stop_live(self):
+        if self._live_transcriber is not None:
+            self._live_transcriber.stop()
+            self._live_transcriber.wait(3000)
+            self._live_transcriber = None
+        if self.live_box.isVisible():
+            self.live_status.setText(t("Sessão ao vivo encerrada."))
+
+    def _on_live_partial(self, text: str):
+        text = text.strip()
+        if not text:
+            return
+        self._live_transcript = (self._live_transcript + " " + text).strip()
+        self._live_pending = (self._live_pending + " " + text).strip()
+        self.live_transcript_edit.append(text)
+        sb = self.live_transcript_edit.verticalScrollBar()
+        sb.setValue(sb.maximum())
+
+    def _maybe_extract_live(self):
+        if self._live_extractor is not None:  # já tem uma extração em curso
+            return
+        if not self._live_pending.strip() or not self._provider_ready():
+            return
+        words = len(self._live_pending.split())
+        if words < LIVE_AI_MIN_WORDS and self._live_secs_since < LIVE_AI_MIN_SECONDS:
+            return
+        self._start_live_extract()
+
+    def _start_live_extract(self):
+        from maestro_local.transcricoes.live_assistant import LiveExtractWorker
+        new_text = self._live_pending
+        self._live_pending = ""
+        self._live_secs_since = 0
+        self._live_extractor = LiveExtractWorker(dict(self._live_state), new_text)
+        self._live_extractor.done.connect(self._on_live_extracted)
+        self._live_extractor.failed.connect(self._on_live_extract_error)
+        self._live_extractor.start()
+
+    def _on_live_extracted(self, state: dict):
+        self._live_extractor = None
+        self._live_state = state
+        self._refresh_live_panels()
+        if self._live_transcriber is not None:
+            self.live_status.setText(t("Transcrevendo ao vivo..."))
+
+    def _on_live_extract_error(self, err: str):
+        self._live_extractor = None
+        self.live_status.setText(t("IA ao vivo indisponível: {error}").format(error=err))
+
+    def _refresh_live_panels(self):
+        self.live_actions_list.clear()
+        for a in self._live_state.get("action_items", []):
+            desc = a.get("description", "") if isinstance(a, dict) else str(a)
+            who = a.get("assignee") if isinstance(a, dict) else None
+            self.live_actions_list.addItem(f"• {desc}" + (f"  — {who}" if who else ""))
+        self.live_decisions_list.clear()
+        for d in self._live_state.get("decisions", []):
+            self.live_decisions_list.addItem(f"✓ {d}")
+        self.live_questions_list.clear()
+        for q in self._live_state.get("open_questions", []):
+            self.live_questions_list.addItem(f"? {q}")
+        na = self.live_actions_list.count()
+        self.live_tabs.setTabText(0, t("Ações") + (f" ({na})" if na else ""))
+        nd = self.live_decisions_list.count()
+        self.live_tabs.setTabText(1, t("Decisões") + (f" ({nd})" if nd else ""))
+        nq = self.live_questions_list.count()
+        self.live_tabs.setTabText(2, t("Perguntas") + (f" ({nq})" if nq else ""))
+
+    def _ask_meeting(self):
+        question = self.ask_input.text().strip()
+        if not question:
+            return
+        if not self._provider_ready():
+            self.ask_answer.setVisible(True)
+            self.ask_answer.setText(t("Configure um provedor de IA para perguntar à reunião."))
+            return
+        if not self._live_transcript.strip():
+            self.ask_answer.setVisible(True)
+            self.ask_answer.setText(t("Ainda não há transcrição suficiente."))
+            return
+        from maestro_local.transcricoes.live_assistant import LiveAskWorker
+        self.ask_btn.setEnabled(False)
+        self.ask_answer.setVisible(True)
+        self.ask_answer.setText(t("Pensando..."))
+        self._live_asker = LiveAskWorker(self._live_transcript, question)
+        self._live_asker.answered.connect(self._on_ask_answered)
+        self._live_asker.failed.connect(self._on_ask_error)
+        self._live_asker.start()
+
+    def _on_ask_answered(self, answer: str):
+        self._live_asker = None
+        self.ask_btn.setEnabled(True)
+        self.ask_answer.setText(answer)
+
+    def _on_ask_error(self, err: str):
+        self._live_asker = None
+        self.ask_btn.setEnabled(True)
+        self.ask_answer.setText(t("Erro: {error}").format(error=err))
+
+    # ------------------------- Ações → tarefas -------------------------
+    def _collect_action_items(self) -> list[dict]:
+        """Ações do assistente ao vivo; se vazio, cai para o resumo de IA."""
+        items = list(self._live_state.get("action_items", []))
+        if items:
+            return [i if isinstance(i, dict) else {"description": str(i)} for i in items]
+        summary_json = self._current.get("summary_json")
+        if summary_json:
+            try:
+                data = json.loads(summary_json)
+                return [
+                    i if isinstance(i, dict) else {"description": str(i)}
+                    for i in data.get("action_items", [])
+                ]
+            except Exception:  # noqa: BLE001
+                pass
+        return []
+
+    def _actions_to_tasks(self):
+        project_id = self.proj_combo.currentData()
+        if not project_id:
+            self.status_label.setText(t("Selecione um projeto para criar as tarefas."))
+            return
+        actions = self._collect_action_items()
+        if not actions:
+            self.status_label.setText(t("Nenhuma ação encontrada — grave/analise ou use o assistente ao vivo."))
+            return
+        s = get_session()
+        try:
+            project = s.query(Project).get(project_id)
+            if not project:
+                self.status_label.setText(t("Projeto não encontrado."))
+                return
+            first_col = (
+                s.query(BoardColumn)
+                .filter(BoardColumn.project_id == project.id)
+                .order_by(BoardColumn.order)
+                .first()
+            )
+            if not first_col:
+                self.status_label.setText(t("O projeto não tem colunas."))
+                return
+            created = 0
+            src = self.topic_input.text().strip() or self._current.get("title") or t("Reunião")
+            for a in actions:
+                desc = (a.get("description") or "").strip()
+                if not desc:
+                    continue
+                project.task_seq = (project.task_seq or 0) + 1
+                task = Task(
+                    project_id=project.id,
+                    column_id=first_col.id,
+                    number=project.task_seq,
+                    title=desc[:255],
+                    description=t("Ação de: {src}").format(src=src),
+                    type="CHORE",
+                    priority="MEDIUM",
+                    assignee=(a.get("assignee") or None),
+                    requires_human=True,
+                )
+                s.add(task)
+                created += 1
+            s.commit()
+        finally:
+            s.close()
+        self.status_label.setText(
+            t("{count} tarefa(s) criada(s) em {project}.").format(
+                count=created, project=self.proj_combo.currentText()
+            )
+        )
 
     # ------------------------- Transcrição -------------------------
     def _transcribe(self, audio_path: Path):

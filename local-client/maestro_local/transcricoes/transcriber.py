@@ -7,7 +7,14 @@ from pathlib import Path
 
 from PySide6.QtCore import QThread, Signal
 
-from .constants import WHISPER_COMPUTE_TYPE, WHISPER_DEFAULT_MODEL, WHISPER_SUPPORTED_MODELS
+from .constants import (
+    LIVE_MIN_SECONDS,
+    LIVE_WINDOW_SECONDS,
+    SAMPLE_RATE,
+    WHISPER_COMPUTE_TYPE,
+    WHISPER_DEFAULT_MODEL,
+    WHISPER_SUPPORTED_MODELS,
+)
 
 logger = logging.getLogger("maestro.transcricoes.transcription")
 
@@ -99,3 +106,68 @@ class TranscriberWorker(QThread):
         except Exception as e:  # noqa: BLE001
             logger.error("Erro na transcrição: %s", e)
             self.finished_error.emit(str(e))
+
+
+class LiveTranscriber(QThread):
+    """Transcrição contínua enquanto a gravação acontece (assistente ao vivo).
+
+    A cada janela (~LIVE_WINDOW_SECONDS) pega o áudio novo acumulado na sessão
+    e transcreve só esse trecho, emitindo `partial` com o texto do bloco. A
+    transcrição definitiva (mais precisa) continua sendo feita ao parar, a
+    partir do WAV completo — esta aqui é auxiliar, para a UI e a IA ao vivo.
+    """
+
+    partial = Signal(str)   # texto transcrito do bloco novo
+    status = Signal(str)
+
+    def __init__(self, session, model_size: str, language: str = "", parent=None):
+        super().__init__(parent)
+        self.session = session
+        self.model_size = model_size
+        self.language = language
+        self._running = True
+
+    def stop(self) -> None:
+        self._running = False
+
+    def _sleep_window(self) -> None:
+        # Dorme em passos curtos para reagir rápido ao stop().
+        steps = int(LIVE_WINDOW_SECONDS / 0.25)
+        for _ in range(steps):
+            if not self._running:
+                return
+            self.msleep(250)
+
+    def run(self) -> None:
+        try:
+            _force_c_utf8_locale()
+            model = get_model(self.model_size)
+        except Exception as e:  # noqa: BLE001
+            logger.warning("Live: falha ao carregar modelo: %s", e)
+            self.status.emit(str(e))
+            return
+        language = self.language or None
+        processed = 0  # nº de amostras já transcritas
+        min_new = int(LIVE_MIN_SECONDS * SAMPLE_RATE)
+        while self._running:
+            self._sleep_window()
+            if not self._running:
+                break
+            try:
+                audio = self.session.snapshot_audio()
+            except Exception:  # noqa: BLE001
+                continue
+            if len(audio) - processed < min_new:
+                continue
+            chunk = audio[processed:]
+            processed = len(audio)
+            try:
+                segments_iter, _info = model.transcribe(
+                    chunk, language=language, beam_size=1, vad_filter=True,
+                )
+                text = " ".join(seg.text.strip() for seg in segments_iter).strip()
+            except Exception as e:  # noqa: BLE001
+                logger.warning("Live: erro transcrevendo janela: %s", e)
+                continue
+            if text:
+                self.partial.emit(text)
