@@ -14,10 +14,12 @@ from PySide6.QtWidgets import (
     QScrollArea,
     QSpinBox,
     QStackedWidget,
+    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
 
+from maestro_local.config import get_active_ai_provider
 from maestro_local.db.models import StudyPlan, StudyTopic, get_session
 from maestro_local.gui.theme import current_theme
 from maestro_local.i18n import t as _t
@@ -202,6 +204,9 @@ class StudyView(QWidget):
     def __init__(self):
         super().__init__()
         self.current_plan_id = None
+        self._assist_worker = None
+        self._assist_plan_title = ""
+        self._suggested_topics = []
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(0)
@@ -309,9 +314,15 @@ class StudyView(QWidget):
         status_row.addStretch()
         layout.addLayout(status_row)
 
+        # Corpo em duas colunas: tópicos (esquerda) + assistente (direita)
+        body = QHBoxLayout()
+        body.setSpacing(14)
+
+        left_col = QVBoxLayout()
+        left_col.setSpacing(8)
         topics_title = QLabel(_t("Tópicos"))
         topics_title.setStyleSheet("font-size: 16px; font-weight: 600; margin-top: 12px;")
-        layout.addWidget(topics_title)
+        left_col.addWidget(topics_title)
 
         add_form = QHBoxLayout()
         add_form.setSpacing(8)
@@ -335,7 +346,7 @@ class StudyView(QWidget):
         add_btn.setCursor(Qt.PointingHandCursor)
         add_btn.clicked.connect(self._add_topic)
         add_form.addWidget(add_btn)
-        layout.addLayout(add_form)
+        left_col.addLayout(add_form)
 
         self.topics_scroll = QScrollArea()
         self.topics_scroll.setWidgetResizable(True)
@@ -345,8 +356,92 @@ class StudyView(QWidget):
         self.topics_layout.setContentsMargins(0, 0, 0, 0)
         self.topics_layout.setSpacing(8)
         self.topics_scroll.setWidget(self.topics_container)
-        layout.addWidget(self.topics_scroll, 1)
+        left_col.addWidget(self.topics_scroll, 1)
+        body.addLayout(left_col, 3)
+
+        body.addWidget(self._build_assistant_panel(), 2)
+        layout.addLayout(body, 1)
         return page
+
+    # ---- Painel do assistente de estudo ----
+    def _build_assistant_panel(self):
+        panel = QFrame()
+        panel.setProperty("class", "card")
+        v = QVBoxLayout(panel)
+        v.setContentsMargins(12, 10, 12, 10)
+        v.setSpacing(8)
+
+        title = QLabel(_t("Assistente de estudo"))
+        title.setProperty("class", "cardTitle")
+        v.addWidget(title)
+
+        self.assist_hint = QLabel(_t("Escolha um tópico e clique numa ação. A IA gera sob demanda."))
+        self.assist_hint.setWordWrap(True)
+        self.assist_hint.setProperty("class", "hint")
+        v.addWidget(self.assist_hint)
+
+        topic_row = QHBoxLayout()
+        topic_row.setSpacing(6)
+        topic_row.addWidget(QLabel(_t("Tópico:")))
+        self.assist_topic_combo = QComboBox()
+        topic_row.addWidget(self.assist_topic_combo, 1)
+        v.addLayout(topic_row)
+
+        # Botões de ação
+        btns = QHBoxLayout()
+        btns.setSpacing(6)
+        self.assist_buttons = {}
+        for action, label in [
+            ("explain", _t("Explicar")),
+            ("exercises", _t("Exercícios")),
+            ("quiz", _t("Quiz")),
+            ("flashcards", _t("Flashcards")),
+        ]:
+            b = QPushButton(label)
+            b.setCursor(Qt.PointingHandCursor)
+            b.clicked.connect(lambda _=False, a=action: self._run_assist(a))
+            btns.addWidget(b)
+            self.assist_buttons[action] = b
+        v.addLayout(btns)
+
+        suggest_row = QHBoxLayout()
+        suggest_row.setSpacing(6)
+        self.suggest_btn = QPushButton(_t("Sugerir tópicos (roadmap)"))
+        self.suggest_btn.setCursor(Qt.PointingHandCursor)
+        self.suggest_btn.clicked.connect(lambda: self._run_assist("suggest_topics"))
+        self.assist_buttons["suggest_topics"] = self.suggest_btn
+        suggest_row.addWidget(self.suggest_btn)
+        self.add_suggested_btn = QPushButton(_t("+ Adicionar ao plano"))
+        self.add_suggested_btn.setCursor(Qt.PointingHandCursor)
+        self.add_suggested_btn.clicked.connect(self._add_suggested_topics)
+        self.add_suggested_btn.setVisible(False)
+        suggest_row.addWidget(self.add_suggested_btn)
+        v.addLayout(suggest_row)
+
+        # Tirar dúvida (chat livre)
+        ask_row = QHBoxLayout()
+        ask_row.setSpacing(6)
+        self.assist_ask = QLineEdit()
+        self.assist_ask.setPlaceholderText(_t("Tirar dúvida sobre o tópico..."))
+        self.assist_ask.returnPressed.connect(lambda: self._run_assist("ask"))
+        ask_row.addWidget(self.assist_ask, 1)
+        self.assist_ask_btn = QPushButton(_t("Perguntar"))
+        self.assist_ask_btn.setCursor(Qt.PointingHandCursor)
+        self.assist_ask_btn.clicked.connect(lambda: self._run_assist("ask"))
+        self.assist_buttons["ask"] = self.assist_ask_btn
+        ask_row.addWidget(self.assist_ask_btn)
+        v.addLayout(ask_row)
+
+        self.assist_status = QLabel("")
+        self.assist_status.setProperty("class", "hint")
+        v.addWidget(self.assist_status)
+
+        self.assist_output = QTextEdit()
+        self.assist_output.setReadOnly(True)
+        self.assist_output.setPlaceholderText(_t("A resposta da IA aparecerá aqui."))
+        v.addWidget(self.assist_output, 1)
+
+        return panel
 
     # ---- Actions ----
 
@@ -422,8 +517,35 @@ class StudyView(QWidget):
                 row.delete_clicked.connect(self._delete_topic)
                 self.topics_layout.addWidget(row)
             self.topics_layout.addStretch()
+            # Assistente: título do plano + combo de tópicos
+            self._assist_plan_title = p.title
+            self._populate_assist_topics([tp.title for tp in topics])
         finally:
             s.close()
+        self._update_assist_enabled()
+
+    def _populate_assist_topics(self, topic_titles):
+        prev = self.assist_topic_combo.currentText() if self.assist_topic_combo.count() else ""
+        self.assist_topic_combo.clear()
+        self.assist_topic_combo.addItem(_t("— Plano inteiro —"), "")
+        for title in topic_titles:
+            self.assist_topic_combo.addItem(title, title)
+        idx = self.assist_topic_combo.findText(prev)
+        if idx >= 0:
+            self.assist_topic_combo.setCurrentIndex(idx)
+
+    def _update_assist_enabled(self):
+        p = get_active_ai_provider()
+        ready = bool(p and p.get("model"))
+        for b in self.assist_buttons.values():
+            b.setEnabled(ready)
+        self.assist_ask.setEnabled(ready)
+        if not ready:
+            self.assist_hint.setText(
+                _t("Configure um provedor de IA (Configurações → Provedores de IA) para usar o assistente.")
+            )
+        else:
+            self.assist_hint.setText(_t("Escolha um tópico e clique numa ação. A IA gera sob demanda."))
 
     def _create_plan(self):
         title = self.title_input.text().strip()
@@ -523,6 +645,109 @@ class StudyView(QWidget):
             self._load_detail()
         finally:
             s.close()
+
+    # ---- Assistente de estudo ----
+    def _run_assist(self, action):
+        if self._assist_worker is not None:
+            return  # já há uma ação em andamento
+        topic = self.assist_topic_combo.currentData() or ""
+        question = self.assist_ask.text().strip()
+        if action == "ask" and not question:
+            return
+        if action in ("explain", "exercises", "quiz", "flashcards") and not topic:
+            self.assist_status.setText(_t("Selecione um tópico específico para esta ação."))
+            return
+        from maestro_local.study.assistant import StudyAIWorker
+        existing = [self.assist_topic_combo.itemData(i)
+                    for i in range(1, self.assist_topic_combo.count())]
+        self.add_suggested_btn.setVisible(False)
+        self._set_assist_busy(True)
+        labels = {
+            "explain": _t("Explicando..."), "exercises": _t("Gerando exercícios..."),
+            "quiz": _t("Montando quiz..."), "flashcards": _t("Gerando flashcards..."),
+            "suggest_topics": _t("Sugerindo tópicos..."), "ask": _t("Pensando..."),
+        }
+        self.assist_status.setText(labels.get(action, _t("Processando...")))
+        self._assist_worker = StudyAIWorker(
+            action, topic=topic, plan=self._assist_plan_title,
+            question=question, existing=[e for e in existing if e],
+        )
+        self._assist_worker.result.connect(self._on_assist_result)
+        self._assist_worker.failed.connect(self._on_assist_error)
+        self._assist_worker.finished.connect(self._on_assist_finished)
+        self._assist_worker.start()
+
+    def _on_assist_result(self, action, payload):
+        if action == "suggest_topics":
+            topics = payload or []
+            self._suggested_topics = topics
+            if not topics:
+                self.assist_output.setPlainText(_t("Nenhum tópico sugerido."))
+                return
+            lines = [_t("Tópicos sugeridos ({n}):").format(n=len(topics)), ""]
+            for tp in topics:
+                h = tp.get("estimate_hours")
+                lines.append(f"• {tp['title']}" + (f"  (~{h}h)" if h else ""))
+            self.assist_output.setPlainText("\n".join(lines))
+            self.add_suggested_btn.setVisible(True)
+        else:
+            self.assist_output.setMarkdown(payload or "")
+        self.assist_status.setText("")
+
+    def _on_assist_error(self, action, err):
+        self.assist_status.setText(_t("Erro: {error}").format(error=err))
+
+    def _on_assist_finished(self):
+        self._assist_worker = None
+        self._set_assist_busy(False)
+
+    def _set_assist_busy(self, busy):
+        ready = bool(get_active_ai_provider() and get_active_ai_provider().get("model"))
+        for b in self.assist_buttons.values():
+            b.setEnabled(ready and not busy)
+        self.assist_ask.setEnabled(ready and not busy)
+
+    def _add_suggested_topics(self):
+        if not self._suggested_topics or not self.current_plan_id:
+            return
+        s = get_session()
+        added = 0
+        try:
+            existing = {
+                (t2.title or "").strip().lower()
+                for t2 in s.query(StudyTopic).filter(
+                    StudyTopic.plan_id == self.current_plan_id,
+                    StudyTopic.parent_id.is_(None),
+                ).all()
+            }
+            base_order = s.query(StudyTopic).filter(
+                StudyTopic.plan_id == self.current_plan_id,
+                StudyTopic.parent_id.is_(None),
+            ).count()
+            for tp in self._suggested_topics:
+                title = (tp.get("title") or "").strip()
+                if not title or title.lower() in existing:
+                    continue
+                hours = tp.get("estimate_hours")
+                try:
+                    hours = float(hours) if hours else None
+                except (TypeError, ValueError):
+                    hours = None
+                s.add(StudyTopic(
+                    plan_id=self.current_plan_id, title=title,
+                    sort_order=base_order + added, weight=1.0, estimate_hours=hours,
+                ))
+                existing.add(title.lower())
+                added += 1
+            s.commit()
+        except Exception:
+            s.rollback()
+        finally:
+            s.close()
+        self._suggested_topics = []
+        self.add_suggested_btn.setVisible(False)
+        self.assist_status.setText(_t("{n} tópico(s) adicionado(s) ao plano.").format(n=added))
+        self._load_detail()
 
     def _update_plan_status(self):
         if not self.current_plan_id:

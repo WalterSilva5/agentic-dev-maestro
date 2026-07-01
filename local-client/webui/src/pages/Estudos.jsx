@@ -1,6 +1,15 @@
 import { useEffect, useState } from 'react'
-import { getStudyPlans, createStudyPlan, getTopics, addTopic, updateTopic } from '../api'
+import {
+  getStudyPlans,
+  createStudyPlan,
+  getTopics,
+  addTopic,
+  updateTopic,
+  studyAssistant,
+} from '../api'
 import { t } from '../i18n'
+
+const TEXT_ACTIONS = ['explain', 'exercises', 'quiz', 'flashcards']
 
 const CATEGORIES = ['LINGUAGEM', 'FRAMEWORK', 'CERTIFICACAO', 'CONCEITO', 'CURSO', 'LIVRO']
 const STATUSES = ['PENDENTE', 'ESTUDANDO', 'REVISAO', 'CONCLUIDO', 'PULADO']
@@ -32,6 +41,13 @@ export default function Estudos() {
   const [topics, setTopics] = useState([])
   const [topicTitle, setTopicTitle] = useState('')
 
+  // Assistente de estudo (aplica-se ao plano expandido)
+  const [assistTopic, setAssistTopic] = useState('')
+  const [assistBusy, setAssistBusy] = useState(false)
+  const [assistOutput, setAssistOutput] = useState('')
+  const [assistSuggested, setAssistSuggested] = useState([])
+  const [assistAsk, setAssistAsk] = useState('')
+
   const load = () =>
     getStudyPlans()
       .then(setPlans)
@@ -59,7 +75,16 @@ export default function Estudos() {
     }
   }
 
+  const resetAssist = () => {
+    setAssistTopic('')
+    setAssistOutput('')
+    setAssistSuggested([])
+    setAssistAsk('')
+    setAssistBusy(false)
+  }
+
   const onToggle = (planId) => {
+    resetAssist()
     if (expandedId === planId) {
       setExpandedId(null)
       setTopics([])
@@ -68,6 +93,53 @@ export default function Estudos() {
     setExpandedId(planId)
     setTopics([])
     loadTopics(planId)
+  }
+
+  const runAssist = async (action, plan) => {
+    if (assistBusy) return
+    if (TEXT_ACTIONS.includes(action) && !assistTopic) {
+      setAssistOutput(t('Selecione um tópico específico para esta ação.'))
+      return
+    }
+    if (action === 'ask' && !assistAsk.trim()) return
+    setAssistBusy(true)
+    setAssistSuggested([])
+    setAssistOutput('')
+    try {
+      const { result } = await studyAssistant({
+        action,
+        topic: assistTopic,
+        plan: plan.title,
+        question: assistAsk.trim(),
+        existing: topics.map((tp) => tp.title),
+      })
+      if (action === 'suggest_topics') setAssistSuggested(result || [])
+      else setAssistOutput(result || '')
+    } catch (e) {
+      setAssistOutput(e.response?.data?.detail || String(e.message || e))
+    } finally {
+      setAssistBusy(false)
+    }
+  }
+
+  const addSuggested = async (plan) => {
+    const have = new Set(topics.map((tp) => (tp.title || '').trim().toLowerCase()))
+    let added = 0
+    for (const tp of assistSuggested) {
+      const title = (tp.title || '').trim()
+      if (!title || have.has(title.toLowerCase())) continue
+      try {
+        await addTopic(plan.id, { title, weight: 1, estimateHours: tp.estimate_hours || null })
+        have.add(title.toLowerCase())
+        added += 1
+      } catch {
+        /* segue com os demais */
+      }
+    }
+    setAssistSuggested([])
+    setAssistOutput(t('{n} tópico(s) adicionado(s) ao plano.').replace('{n}', added))
+    loadTopics(plan.id)
+    load()
   }
 
   const onAddTopic = async (planId) => {
@@ -183,6 +255,92 @@ export default function Estudos() {
                 <button className="ghost" onClick={() => onAddTopic(p.id)}>
                   {t("+ Adicionar tópico")}
                 </button>
+              </div>
+
+              {/* Assistente de estudo (sob demanda) */}
+              <div
+                style={{
+                  marginTop: 14,
+                  paddingTop: 12,
+                  borderTop: '1px solid var(--border)',
+                }}
+              >
+                <strong>{t("Assistente de estudo")}</strong>
+                <div className="muted" style={{ margin: '4px 0 8px' }}>
+                  {t("Escolha um tópico e clique numa ação. A IA gera sob demanda.")}
+                </div>
+
+                <div className="toolbar" style={{ flexWrap: 'wrap' }}>
+                  <select value={assistTopic} onChange={(e) => setAssistTopic(e.target.value)}>
+                    <option value="">{t("— Plano inteiro —")}</option>
+                    {topics.map((tp) => (
+                      <option key={tp.id} value={tp.title}>
+                        {tp.title}
+                      </option>
+                    ))}
+                  </select>
+                  <button disabled={assistBusy} onClick={() => runAssist('explain', p)}>
+                    {t("Explicar")}
+                  </button>
+                  <button disabled={assistBusy} onClick={() => runAssist('exercises', p)}>
+                    {t("Exercícios")}
+                  </button>
+                  <button disabled={assistBusy} onClick={() => runAssist('quiz', p)}>
+                    {t("Quiz")}
+                  </button>
+                  <button disabled={assistBusy} onClick={() => runAssist('flashcards', p)}>
+                    {t("Flashcards")}
+                  </button>
+                  <button
+                    className="ghost"
+                    disabled={assistBusy}
+                    onClick={() => runAssist('suggest_topics', p)}
+                  >
+                    {t("Sugerir tópicos")}
+                  </button>
+                </div>
+
+                <div className="toolbar" style={{ marginTop: 8 }}>
+                  <input
+                    placeholder={t("Tirar dúvida sobre o tópico...")}
+                    value={assistAsk}
+                    onChange={(e) => setAssistAsk(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && runAssist('ask', p)}
+                  />
+                  <button className="ghost" disabled={assistBusy} onClick={() => runAssist('ask', p)}>
+                    {t("Perguntar")}
+                  </button>
+                </div>
+
+                {assistBusy && <div className="muted" style={{ marginTop: 8 }}>{t("Pensando...")}</div>}
+
+                {assistSuggested.length > 0 && (
+                  <div className="card" style={{ marginTop: 8 }}>
+                    <div style={{ marginBottom: 6 }}>
+                      <strong>{t("Tópicos sugeridos")}</strong>
+                    </div>
+                    {assistSuggested.map((tp, i) => (
+                      <div key={i} className="row">
+                        <span>{tp.title}</span>
+                        {tp.estimate_hours ? (
+                          <span className="muted">~{tp.estimate_hours}h</span>
+                        ) : null}
+                      </div>
+                    ))}
+                    <button style={{ marginTop: 8 }} onClick={() => addSuggested(p)}>
+                      {t("+ Adicionar ao plano")}
+                    </button>
+                  </div>
+                )}
+
+                {assistOutput && !assistBusy && (
+                  <div
+                    className="card"
+                    style={{ marginTop: 8, whiteSpace: 'pre-wrap', lineHeight: 1.5 }}
+                  >
+                    {assistOutput}
+                  </div>
+                )}
               </div>
             </div>
           )}

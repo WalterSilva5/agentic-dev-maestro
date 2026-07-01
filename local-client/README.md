@@ -83,6 +83,7 @@ Módulo de aprendizado:
 - **Roadmap visual**: barra de progresso calculada pelo peso dos tópicos concluídos
 - **Sessões de estudo**: registrar tempo de estudo com notas e nível de confiança (1-5)
 - **Estatísticas**: horas totais, sessões por semana, planos ativos
+- **Assistente de estudo (sob demanda)**: no detalhe do plano, um painel com botões que acionam a IA para o tópico escolhido — **Explicar**, **Exercícios**, **Quiz** (com gabarito), **Flashcards** de revisão, **Sugerir tópicos (roadmap)** (adiciona os sugeridos ao plano com 1 clique, sem duplicar) e **Tirar dúvida** (pergunta livre). Nada é automático: você clica na ação que quer. Usa o provedor de IA configurado
 
 ### Board Kanban (Alt+4)
 
@@ -113,8 +114,10 @@ Gravação, transcrição e resumo de reuniões e estudos (migrado do projeto ws
 - **Captura de áudio (Linux)**: microfone e/ou áudio do sistema via PipeWire/PulseAudio (`parec`); fontes `.monitor` para loopback
 - **Transcrição local**: faster-whisper, modelo configurável (tiny → large-v3), roda offline em QThread
 - **Assistente de reunião**: extrai título, pontos-chave, decisões, ações (com responsável) e perguntas em aberto
+- **Assistente ao vivo (tempo real)**: com o toggle "Assistente ao vivo" ligado, transcreve durante a gravação (janelas de ~10s, modelo `base` para baixa latência) e um painel lateral (abas Ações · Decisões · Perguntas) é preenchido incrementalmente pela IA. Inclui **"Perguntar à reunião"** — pergunte algo e a IA responde com base no que já foi dito. A transcrição definitiva (mais precisa) ainda é gerada do WAV completo ao parar
 - **Assistente de estudo**: gera resumo, conceitos-chave, exercícios práticos, tópicos relacionados e recursos
 - **IA reusada**: a análise usa o provedor configurado em Provedores de IA (LM Studio/opencode)
+- **Reunião → board**: botão "Criar tarefas das ações" transforma os action items (do ao vivo ou do resumo) em tarefas (tipo CHORE, `requires_human`) no projeto escolhido
 - **Histórico**: gravações salvas no banco do workspace, com busca por texto
 - **Integração**: botão "Salvar no Meu Dia" anexa o resumo ao relatório do dia
 - **Atalho global**: `Ctrl+Shift+R` inicia/para a gravação (best-effort; pode não funcionar em Wayland)

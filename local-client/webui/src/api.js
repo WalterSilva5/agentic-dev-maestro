@@ -47,6 +47,7 @@ export const getStudyPlan = (id) => api.get(`/study/plans/${id}`).then((r) => r.
 export const getTopics = (planId) => api.get(`/study/plans/${planId}/topics`).then((r) => r.data)
 export const addTopic = (planId, body) => api.post(`/study/plans/${planId}/topics`, body).then((r) => r.data)
 export const updateTopic = (id, body) => api.patch(`/study/topics/${id}`, body).then((r) => r.data)
+export const studyAssistant = (body) => api.post('/study/assistant', body).then((r) => r.data)
 
 // Meu Dia
 export const getDaily = (date) => api.get(`/daily/${date}`).then((r) => r.data)

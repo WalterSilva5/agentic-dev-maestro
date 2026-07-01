@@ -1856,6 +1856,29 @@ def assistant_chat(body: AssistantChat):
         raise HTTPException(status_code=400, detail=str(e))
 
 
+class StudyAssistBody(BaseModel):
+    action: str          # explain | exercises | quiz | flashcards | ask | suggest_topics
+    topic: str = ""
+    plan: str = ""
+    question: str = ""
+    existing: list[str] = []
+
+
+@app.post("/api/study/assistant")
+def study_assistant(body: StudyAssistBody):
+    """Assistente de estudo sob demanda. Retorna {action, result}: result é
+    markdown (texto) ou lista de {title, estimate_hours} (suggest_topics)."""
+    from maestro_local.study.assistant import run_action
+    try:
+        result = run_action(
+            body.action, topic=body.topic, plan=body.plan,
+            question=body.question, existing=body.existing,
+        )
+        return {"action": body.action, "result": result}
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 # ---------------------------------------------------------------------------
 # Configurações
 # ---------------------------------------------------------------------------
