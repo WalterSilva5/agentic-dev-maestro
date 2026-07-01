@@ -144,7 +144,7 @@ class TranscricoesView(QWidget):
         right = QVBoxLayout()
         right.setSpacing(10)
 
-        title = QLabel(t("Transcrições"))
+        title = QLabel(t("Reuniões"))
         title.setObjectName("sectionTitle")
         right.addWidget(title)
 
@@ -366,9 +366,13 @@ class TranscricoesView(QWidget):
         rightw = QVBoxLayout()
         rightw.setSpacing(4)
         self.live_tabs = QTabWidget()
+        self.live_plan_list = QListWidget()
+        self.live_tips_list = QListWidget()
         self.live_actions_list = QListWidget()
         self.live_decisions_list = QListWidget()
         self.live_questions_list = QListWidget()
+        self.live_tabs.addTab(self.live_plan_list, t("Plano"))
+        self.live_tabs.addTab(self.live_tips_list, t("Dicas"))
         self.live_tabs.addTab(self.live_actions_list, t("Ações"))
         self.live_tabs.addTab(self.live_decisions_list, t("Decisões"))
         self.live_tabs.addTab(self.live_questions_list, t("Perguntas"))
@@ -485,8 +489,13 @@ class TranscricoesView(QWidget):
         self._live_transcript = ""
         self._live_pending = ""
         self._live_secs_since = 0
-        self._live_state = {"action_items": [], "decisions": [], "open_questions": []}
+        self._live_state = {
+            "action_items": [], "decisions": [], "open_questions": [], "plan": [], "tips": [],
+        }
+        self._live_context = self._meeting_context()
         self.live_transcript_edit.clear()
+        self.live_plan_list.clear()
+        self.live_tips_list.clear()
         self.live_actions_list.clear()
         self.live_decisions_list.clear()
         self.live_questions_list.clear()
@@ -537,7 +546,9 @@ class TranscricoesView(QWidget):
         new_text = self._live_pending
         self._live_pending = ""
         self._live_secs_since = 0
-        self._live_extractor = LiveExtractWorker(dict(self._live_state), new_text)
+        self._live_extractor = LiveExtractWorker(
+            dict(self._live_state), new_text, context=getattr(self, "_live_context", ""),
+        )
         self._live_extractor.done.connect(self._on_live_extracted)
         self._live_extractor.failed.connect(self._on_live_extract_error)
         self._live_extractor.start()
@@ -554,6 +565,12 @@ class TranscricoesView(QWidget):
         self.live_status.setText(t("IA ao vivo indisponível: {error}").format(error=err))
 
     def _refresh_live_panels(self):
+        self.live_plan_list.clear()
+        for i, step in enumerate(self._live_state.get("plan", []), 1):
+            self.live_plan_list.addItem(f"{i}. {step}")
+        self.live_tips_list.clear()
+        for tip in self._live_state.get("tips", []):
+            self.live_tips_list.addItem(f"💡 {tip}")
         self.live_actions_list.clear()
         for a in self._live_state.get("action_items", []):
             desc = a.get("description", "") if isinstance(a, dict) else str(a)
@@ -565,12 +582,16 @@ class TranscricoesView(QWidget):
         self.live_questions_list.clear()
         for q in self._live_state.get("open_questions", []):
             self.live_questions_list.addItem(f"? {q}")
-        na = self.live_actions_list.count()
-        self.live_tabs.setTabText(0, t("Ações") + (f" ({na})" if na else ""))
-        nd = self.live_decisions_list.count()
-        self.live_tabs.setTabText(1, t("Decisões") + (f" ({nd})" if nd else ""))
-        nq = self.live_questions_list.count()
-        self.live_tabs.setTabText(2, t("Perguntas") + (f" ({nq})" if nq else ""))
+
+        def _tab(idx, label, widget):
+            n = widget.count()
+            self.live_tabs.setTabText(idx, t(label) + (f" ({n})" if n else ""))
+
+        _tab(0, "Plano", self.live_plan_list)
+        _tab(1, "Dicas", self.live_tips_list)
+        _tab(2, "Ações", self.live_actions_list)
+        _tab(3, "Decisões", self.live_decisions_list)
+        _tab(4, "Perguntas", self.live_questions_list)
 
     def _ask_meeting(self):
         question = self.ask_input.text().strip()
@@ -588,7 +609,9 @@ class TranscricoesView(QWidget):
         self.ask_btn.setEnabled(False)
         self.ask_answer.setVisible(True)
         self.ask_answer.setText(t("Pensando..."))
-        self._live_asker = LiveAskWorker(self._live_transcript, question)
+        self._live_asker = LiveAskWorker(
+            self._live_transcript, question, context=getattr(self, "_live_context", "") or self._meeting_context(),
+        )
         self._live_asker.answered.connect(self._on_ask_answered)
         self._live_asker.failed.connect(self._on_ask_error)
         self._live_asker.start()
@@ -602,6 +625,50 @@ class TranscricoesView(QWidget):
         self._live_asker = None
         self.ask_btn.setEnabled(True)
         self.ask_answer.setText(t("Erro: {error}").format(error=err))
+
+    def _meeting_context(self) -> str:
+        """Monta o contexto do workspace + projeto selecionado para o copiloto.
+
+        Usa o projeto escolhido no seletor (o mesmo de "Criar tarefas das ações")
+        e resume seus tópicos e tarefas em aberto, para o assistente alinhar plano
+        e dicas ao trabalho atual.
+        """
+        parts = []
+        try:
+            from maestro_local.config import get_active_workspace_id, list_workspaces
+            wid = get_active_workspace_id()
+            ws = next((w for w in list_workspaces() if w.get("id") == wid), None)
+            if ws and ws.get("name"):
+                parts.append(t("Workspace: {name}").format(name=ws["name"]))
+        except Exception:  # noqa: BLE001
+            pass
+        project_id = self.proj_combo.currentData()
+        if project_id:
+            s = get_session()
+            try:
+                p = s.query(Project).get(project_id)
+                if p:
+                    parts.append(t("Projeto atual: {name}").format(name=p.name))
+                    if p.description:
+                        parts.append(t("Descrição: {desc}").format(desc=p.description[:400]))
+                    open_tasks = (
+                        s.query(Task)
+                        .filter(
+                            Task.project_id == p.id,
+                            Task.deleted_at == None,  # noqa: E711
+                            Task.archived_at == None,  # noqa: E711
+                        )
+                        .order_by(Task.created_at.desc())
+                        .limit(15)
+                        .all()
+                    )
+                    titles = [f"- {tk.code} {tk.title}" for tk in open_tasks
+                              if not (tk.column and tk.column.is_done)]
+                    if titles:
+                        parts.append(t("Tarefas em aberto:") + "\n" + "\n".join(titles[:12]))
+            finally:
+                s.close()
+        return "\n".join(parts).strip()
 
     # ------------------------- Ações → tarefas -------------------------
     def _collect_action_items(self) -> list[dict]:

@@ -145,7 +145,7 @@ export default function Configuracoes() {
       </div>
 
       <div className="card">
-        <h4 style={{ color: 'var(--muted)' }}>{t('Transcrições')}</h4>
+        <h4 style={{ color: 'var(--muted)' }}>{t('Reuniões')}</h4>
         <div className="row">
           <select
             value={settings.whisperModel}

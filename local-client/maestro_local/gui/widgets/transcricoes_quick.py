@@ -23,7 +23,7 @@ class TranscricoesQuickWidget(QFrame):
         self._icon = QLabel("🎙")
         self._icon.setFixedWidth(16)
         title_row.addWidget(self._icon)
-        self._title = QLabel(_t("Transcrições"))
+        self._title = QLabel(_t("Reuniões"))
         title_row.addWidget(self._title)
         title_row.addStretch()
         self._open_btn = QPushButton(_t("abrir"))
@@ -43,11 +43,15 @@ class TranscricoesQuickWidget(QFrame):
         outer.addWidget(self._btn)
 
     def set_recording(self, recording: bool, elapsed_seconds: int = 0):
-        self._recording = recording
+        # Idempotente: só toca em estilo/labels quando muda (evita repaint a cada 500ms).
+        if recording != self._recording:
+            self._recording = recording
+            self._btn.setText("■  " + _t("Parar") if recording else "●  " + _t("Gravar"))
+            self._apply_btn_style()
         m, s = divmod(int(elapsed_seconds), 60)
-        self._time_label.setText(f"{m:02d}:{s:02d}")
-        self._btn.setText("■  " + _t("Parar") if recording else "●  " + _t("Gravar"))
-        self._apply_btn_style()
+        txt = f"{m:02d}:{s:02d}"
+        if self._time_label.text() != txt:
+            self._time_label.setText(txt)
 
     def _apply_btn_style(self):
         if not hasattr(self, "_t"):

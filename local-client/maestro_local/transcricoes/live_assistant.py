@@ -1,9 +1,11 @@
-"""Assistente de reunião ao vivo: extração incremental + perguntar à reunião.
+"""Assistente de reunião ao vivo: acompanha, planeja e dá dicas em tempo real.
 
 Roda em QThreads para não travar a GUI. Reusa o provedor de IA ativo via
-build_chat_model. Extração é *incremental*: recebe o que já foi extraído + o
-trecho novo do transcript e devolve o estado mesclado (sem reprocessar tudo),
-mantendo o custo baixo em reuniões longas.
+build_chat_model. A extração é *incremental*: recebe o que já foi extraído + o
+trecho novo do transcript e devolve o estado mesclado (sem reprocessar tudo).
+Além de ações/decisões/perguntas, o assistente sugere um **plano de ação** e
+**dicas** conforme a reunião avança, usando o CONTEXTO do workspace/projeto
+selecionado quando fornecido.
 """
 from __future__ import annotations
 
@@ -19,27 +21,37 @@ from .summarizer import _parse_json_response
 logger = logging.getLogger("maestro.transcricoes.live")
 
 
-LIVE_EXTRACT_SYSTEM = """Você acompanha uma reunião em tempo real e mantém um resumo estruturado incremental.
+LIVE_EXTRACT_SYSTEM = """Você é um assistente que acompanha uma reunião em tempo real. Você mantém um
+resumo estruturado incremental E ATUA COMO COPILOTO: sugere um plano de ação e dá dicas úteis
+conforme a reunião avança, levando em conta o CONTEXTO do workspace/projeto quando fornecido.
 
-Recebe o ESTADO ATUAL (JSON já extraído) e um TRECHO NOVO da transcrição. Sua tarefa é
-devolver o ESTADO ATUALIZADO, mesclando as informações do trecho novo com o que já existia.
+Recebe o CONTEXTO (workspace/projeto atual), o ESTADO ATUAL (JSON já produzido) e um TRECHO NOVO
+da transcrição. Devolva o ESTADO ATUALIZADO, mesclando o trecho novo com o que já existia.
 
 Responda SEMPRE apenas com JSON válido nesta estrutura:
 {
     "action_items": [{"description": "ação", "assignee": "responsável ou null"}],
-    "decisions": ["decisão"],
-    "open_questions": ["pergunta em aberto"]
+    "decisions": ["decisão tomada"],
+    "open_questions": ["pergunta em aberto"],
+    "plan": ["passo objetivo do plano de ação, em ordem de execução"],
+    "tips": ["dica/observação proativa do assistente"]
 }
 
 Regras:
-- NUNCA remova itens que já existiam, a não ser que o trecho novo os torne claramente resolvidos.
-- Se uma pergunta em aberto for respondida no trecho novo, mova-a para decisions (ou remova).
-- Não duplique itens semanticamente iguais.
-- Só inclua ações/decisões realmente ditas; não invente.
+- NUNCA remova action_items/decisions que já existiam, a não ser que o trecho novo os torne resolvidos.
+- Se uma pergunta em aberto for respondida, mova-a para decisions (ou remova).
+- "plan": derive um plano de ação prático do que foi discutido/decidido (5 a 8 passos no máximo);
+  refine-o a cada trecho novo em vez de recomeçar. Se houver contexto de projeto, alinhe os passos a ele.
+- "tips": sugestões proativas do copiloto — riscos, pontos esquecidos, boas práticas, dependências,
+  ou algo do CONTEXTO do projeto que seja relevante (máx. 5). Não repita o que já é óbvio na transcrição.
+- Não invente fatos; para plan/tips você pode inferir recomendações, deixando claro que são sugestões.
 - Responda em português do Brasil.
 """
 
-LIVE_EXTRACT_USER = """ESTADO ATUAL:
+LIVE_EXTRACT_USER = """CONTEXTO:
+{context}
+
+ESTADO ATUAL:
 {state}
 
 TRECHO NOVO DA TRANSCRIÇÃO:
@@ -47,19 +59,28 @@ TRECHO NOVO DA TRANSCRIÇÃO:
 
 Retorne apenas o JSON do estado atualizado."""
 
-LIVE_ASK_SYSTEM = """Você é um assistente que responde perguntas sobre uma reunião em andamento,
-usando SOMENTE o que foi dito na transcrição fornecida. Se a informação não estiver na
-transcrição, diga que ainda não foi mencionado. Seja direto e responda em português do Brasil."""
+LIVE_ASK_SYSTEM = """Você é um copiloto de reunião. Responde perguntas sobre a reunião em andamento
+usando a transcrição fornecida e, se útil, o CONTEXTO do workspace/projeto. Se algo não foi dito na
+reunião, diga isso claramente. Seja direto e responda em português do Brasil."""
 
-LIVE_ASK_USER = """TRANSCRIÇÃO ATÉ AGORA:
+LIVE_ASK_USER = """CONTEXTO:
+{context}
+
+TRANSCRIÇÃO ATÉ AGORA:
 {transcript}
 
 PERGUNTA: {question}
 
-Responda de forma objetiva, com base apenas na transcrição."""
+Responda de forma objetiva."""
 
 
-EMPTY_STATE = {"action_items": [], "decisions": [], "open_questions": []}
+EMPTY_STATE = {
+    "action_items": [],
+    "decisions": [],
+    "open_questions": [],
+    "plan": [],
+    "tips": [],
+}
 
 
 def _clamp_transcript(text: str, max_words: int = 4000) -> str:
@@ -71,22 +92,25 @@ def _clamp_transcript(text: str, max_words: int = 4000) -> str:
 
 
 class LiveExtractWorker(QThread):
-    """Faz UMA extração incremental e emite o estado mesclado."""
+    """Faz UMA passada incremental e emite o estado mesclado (com plano e dicas)."""
 
-    done = Signal(dict)     # estado atualizado {action_items, decisions, open_questions}
+    done = Signal(dict)     # {action_items, decisions, open_questions, plan, tips}
     failed = Signal(str)
 
-    def __init__(self, state: dict, new_text: str, parent=None):
+    def __init__(self, state: dict, new_text: str, context: str = "", parent=None):
         super().__init__(parent)
-        self.state = state or dict(EMPTY_STATE)
+        self.state = {**EMPTY_STATE, **(state or {})}
         self.new_text = new_text
+        self.context = context or "(sem contexto de projeto)"
 
     def run(self) -> None:
         try:
-            llm = build_chat_model(temperature=0.1)
+            llm = build_chat_model(temperature=0.2)
             state_json = json.dumps(self.state, ensure_ascii=False)
             user = LIVE_EXTRACT_USER.format(
-                state=state_json, new_text=_clamp_transcript(self.new_text, 1500),
+                context=_clamp_transcript(self.context, 600),
+                state=state_json,
+                new_text=_clamp_transcript(self.new_text, 1500),
             )
             resp = llm.invoke([("system", LIVE_EXTRACT_SYSTEM), ("user", user)])
             content = getattr(resp, "content", str(resp))
@@ -96,9 +120,8 @@ class LiveExtractWorker(QThread):
                 self.done.emit(self.state)
                 return
             merged = {
-                "action_items": parsed.get("action_items", self.state.get("action_items", [])),
-                "decisions": parsed.get("decisions", self.state.get("decisions", [])),
-                "open_questions": parsed.get("open_questions", self.state.get("open_questions", [])),
+                key: parsed.get(key, self.state.get(key, []))
+                for key in ("action_items", "decisions", "open_questions", "plan", "tips")
             }
             self.done.emit(merged)
         except Exception as e:  # noqa: BLE001
@@ -107,21 +130,24 @@ class LiveExtractWorker(QThread):
 
 
 class LiveAskWorker(QThread):
-    """Responde uma pergunta pontual com base no transcript atual."""
+    """Responde uma pergunta pontual com base no transcript (e no contexto)."""
 
     answered = Signal(str)
     failed = Signal(str)
 
-    def __init__(self, transcript: str, question: str, parent=None):
+    def __init__(self, transcript: str, question: str, context: str = "", parent=None):
         super().__init__(parent)
         self.transcript = transcript
         self.question = question
+        self.context = context or "(sem contexto de projeto)"
 
     def run(self) -> None:
         try:
             llm = build_chat_model(temperature=0.2)
             user = LIVE_ASK_USER.format(
-                transcript=_clamp_transcript(self.transcript), question=self.question,
+                context=_clamp_transcript(self.context, 600),
+                transcript=_clamp_transcript(self.transcript),
+                question=self.question,
             )
             resp = llm.invoke([("system", LIVE_ASK_SYSTEM), ("user", user)])
             self.answered.emit(getattr(resp, "content", str(resp)).strip())

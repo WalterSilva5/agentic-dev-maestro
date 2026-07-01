@@ -143,17 +143,17 @@ SECTIONS = [
     },
     {
         "icon": "10",
-        "title": _t("Transcrições (gravações)"),
+        "title": _t("Reuniões (gravações)"),
         "body": _t(
-            "A tela de Transcrições grava reuniões e sessões de estudo, transcreve "
+            "A tela de Reuniões grava reuniões e sessões de estudo, transcreve "
             "localmente com Whisper e gera resumos estruturados com IA:\n"
             "- Captura microfone e/ou áudio do sistema (PipeWire/PulseAudio)\n"
             "- Transcrição offline com faster-whisper (modelo configurável)\n"
-            "- Resumo de reunião: pontos-chave, decisões, ações\n"
+            "- Assistente ao vivo: plano, dicas, ações, decisões e perguntas em tempo real\n"
             "- Resumo de estudo: conceitos, exercícios, tópicos relacionados\n"
             "- Histórico pesquisável e botão 'Salvar no Meu Dia'\n\n"
             "Atalho global Ctrl+Shift+R inicia/para a gravação. O modelo do "
-            "Whisper é configurável em Configurações → Transcrições."
+            "Whisper é configurável em Configurações → Reuniões."
         ),
     },
     {
@@ -166,7 +166,7 @@ SECTIONS = [
             "- Alt+3 — Estudos\n"
             "- Alt+4 — Board\n"
             "- Alt+5 — Assistente\n"
-            "- Alt+6 — Transcrições\n"
+            "- Alt+6 — Reuniões\n"
             "- Alt+7 — Projetos\n"
             "- Alt+8 — Skills\n"
             "- Alt+9 — Instruções (esta tela)\n"

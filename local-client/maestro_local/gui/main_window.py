@@ -130,7 +130,7 @@ class MainWindow(QMainWindow):
             (t("Estudos"), "study"),
             (t("Board"), "board"),
             (t("Assistente"), "chat"),
-            (t("Transcrições"), "transcricoes"),
+            (t("Reuniões"), "transcricoes"),
             (t("Projetos"), "projects"),
             (t("Skills"), "skills"),
             (t("Instruções"), "guide"),
@@ -265,7 +265,7 @@ class MainWindow(QMainWindow):
 
         # Atualiza o widget rápido de Transcrições (estado de gravação)
         self._transcricoes_poll = QTimer(self)
-        self._transcricoes_poll.setInterval(500)
+        self._transcricoes_poll.setInterval(1000)
         self._transcricoes_poll.timeout.connect(self._update_transcricoes_quick)
         self._transcricoes_poll.start()
 

@@ -322,7 +322,7 @@ class SettingsView(QWidget):
         self.ai_test_btn.setEnabled(True)
 
     def _build_transcricoes_section(self):
-        card, layout = self._make_card("🎙", t("Transcrições"))
+        card, layout = self._make_card("🎙", t("Reuniões"))
 
         desc = QLabel(
             t("Modelo do Whisper usado para transcrever gravações localmente. "
