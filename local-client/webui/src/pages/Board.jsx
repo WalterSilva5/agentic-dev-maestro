@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { getBoard, createTask, moveTask } from '../api'
+import TaskDetail from '../components/TaskDetail.jsx'
 
 export default function Board() {
   const { projectId } = useParams()
   const [board, setBoard] = useState(null)
   const [error, setError] = useState('')
   const [newTitles, setNewTitles] = useState({})
+  const [openCode, setOpenCode] = useState(null)
 
   const load = () =>
     getBoard(projectId)
@@ -64,14 +66,20 @@ export default function Board() {
               <span className="count">{col.tasks.length}</span>
             </h3>
             {col.tasks.map((task) => (
-              <div key={task.id} className="task">
+              <div key={task.id} className="task" onClick={() => setOpenCode(task.code)}>
                 <div className="code">{task.code}</div>
                 <div className="ttitle">{task.title}</div>
                 <span className="badge-type">{task.type}</span>
                 <span className={`badge-prio ${task.priority}`}>{task.priority}</span>
                 {!col.isDone && (
                   <div>
-                    <button className="ghost move" onClick={() => advance(task, cols)}>
+                    <button
+                      className="ghost move"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        advance(task, cols)
+                      }}
+                    >
                       Mover →
                     </button>
                   </div>
@@ -90,6 +98,14 @@ export default function Board() {
           </div>
         ))}
       </div>
+
+      {openCode && (
+        <TaskDetail
+          code={openCode}
+          onClose={() => setOpenCode(null)}
+          onChanged={load}
+        />
+      )}
     </div>
   )
 }

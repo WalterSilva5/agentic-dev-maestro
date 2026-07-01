@@ -185,7 +185,7 @@ Além da GUI desktop, há um frontend **web** (React + Vite) servido pela própr
 - **Código**: `webui/` (React + Vite + axios + react-router), consome a mesma API REST
 - **Build**: o `install.sh` builda automaticamente (se houver `npm`); a FastAPI serve `webui/dist/` na raiz `/`, mantendo `/api/*`
 - **Desenvolvimento** (hot-reload): `cd webui && npm run dev` (porta 3000, com proxy `/api → 9777`)
-- **Telas atuais**: Projetos e Board kanban (criar projeto/tarefa, mover tarefa). É a fundação — as demais telas vão sendo portadas reaproveitando a API
+- **Telas atuais**: Dashboard (resumo + atividade), Projetos, Board kanban e detalhe de tarefa (descrição, checklist, comentários, tipo/prioridade, mover). Tema claro/escuro. As demais telas vão sendo portadas reaproveitando a API
 
 ```bash
 cd webui
