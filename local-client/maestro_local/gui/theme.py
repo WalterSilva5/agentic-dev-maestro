@@ -43,37 +43,40 @@ class ThemeColors:
 
 
 LIGHT = ThemeColors(
-    bg_primary="#F5F6FA",
-    bg_secondary="#EAECF2",
-    bg_sidebar="#EEF0F6",
+    # Fundo mais frio e cards bem separados (mais contraste que o cinza anterior)
+    bg_primary="#EEF1F8",
+    bg_secondary="#E2E6F1",
+    bg_sidebar="#E8EBF5",
     bg_card="#FFFFFF",
     bg_input="#FFFFFF",
-    bg_hover="#F0F3FF",
-    bg_selected="#E0E5FF",
-    bg_badge="#E6E8EF",
-    bg_overlay="rgba(15,15,35,0.40)",
+    bg_hover="#E9ECFF",
+    bg_selected="#DADEFF",
+    bg_badge="#E1E5F0",
+    bg_overlay="rgba(15,15,35,0.45)",
 
-    text_primary="#0E1120",
-    text_secondary="#2D3148",
-    text_muted="#5F6478",
+    text_primary="#0B0E1A",
+    text_secondary="#242A40",
+    text_muted="#525873",
     text_on_accent="#FFFFFF",
 
-    border="#CDD1DB",
-    border_focus="#4C5FD0",
-    border_light="#E3E5EC",
+    # Bordas mais marcadas para o tema claro ficar nítido
+    border="#B9BFD2",
+    border_focus="#4F46E5",
+    border_light="#D3D8E6",
 
-    accent="#4C5FD0",
-    accent_hover="#3D4EB8",
-    accent_pressed="#3140A0",
-    accent_light="#E8EBFF",
+    # Accent índigo vívido
+    accent="#4F46E5",
+    accent_hover="#4338CA",
+    accent_pressed="#3730A3",
+    accent_light="#E6E5FF",
 
-    danger="#D1242F",
-    success="#1E8A4A",
-    warning="#C47D00",
-    info="#0779B3",
+    danger="#DC2626",
+    success="#16A34A",
+    warning="#D97706",
+    info="#0284C7",
 
-    shadow="0 1px 3px rgba(0,0,0,0.08), 0 0 0 0.5px rgba(0,0,0,0.04)",
-    shadow_lg="0 4px 16px rgba(0,0,0,0.10), 0 0 0 1px rgba(0,0,0,0.03)",
+    shadow="0 1px 3px rgba(20,22,60,0.10), 0 0 0 0.5px rgba(20,22,60,0.05)",
+    shadow_lg="0 6px 20px rgba(20,22,60,0.14), 0 0 0 1px rgba(20,22,60,0.04)",
 )
 
 DARK = ThemeColors(
@@ -182,6 +185,30 @@ QListWidget::item:selected, QTreeWidget::item:selected {{
 QListWidget::item:hover, QTreeWidget::item:hover {{
     background-color: {t.bg_hover};
 }}
+QListWidget#navList {{
+    background-color: transparent;
+    border: none;
+    padding: 2px;
+    outline: none;
+}}
+QListWidget#navList::item {{
+    padding: 9px 12px;
+    margin: 3px 2px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    color: {t.text_secondary};
+    font-weight: 600;
+}}
+QListWidget#navList::item:hover {{
+    background-color: {t.bg_hover};
+    border: 1px solid {t.border};
+    color: {t.text_primary};
+}}
+QListWidget#navList::item:selected {{
+    background-color: {t.accent};
+    color: {t.text_on_accent};
+    border: 1px solid {t.accent};
+}}
 QPushButton {{
     background-color: {t.accent};
     color: {t.text_on_accent};
@@ -199,14 +226,20 @@ QPushButton:focus {{
     border: 2px solid {t.border_focus};
 }}
 QPushButton[flat="true"], QPushButton#flatBtn {{
-    background-color: transparent;
+    background-color: {t.bg_card};
     color: {t.text_secondary};
-    font-weight: normal;
-    border: none;
+    font-weight: 600;
+    border: 1px solid {t.border};
+    border-radius: 6px;
+    padding: 5px 12px;
 }}
 QPushButton[flat="true"]:hover, QPushButton#flatBtn:hover {{
     background-color: {t.bg_hover};
     color: {t.text_primary};
+    border-color: {t.accent};
+}}
+QPushButton[flat="true"]:pressed, QPushButton#flatBtn:pressed {{
+    background-color: {t.bg_selected};
 }}
 QLineEdit, QTextEdit, QPlainTextEdit, QComboBox, QSpinBox, QDoubleSpinBox {{
     background-color: {t.bg_input};
