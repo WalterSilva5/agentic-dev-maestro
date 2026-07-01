@@ -28,6 +28,7 @@ from maestro_local.db.models import (
     BoardColumn,
     Comment,
     Label,
+    Sprint,
     Task,
     TaskChecklist,
     TaskDependency,
@@ -120,6 +121,27 @@ class TaskDetailDialog(QDialog):
             col_label.setStyleSheet(f"color: {t.text_secondary};")
             header1.addWidget(col_label)
             header1.addWidget(self.col_combo)
+
+            # Sprint da tarefa (backlog = None)
+            self.sprint_combo = QComboBox()
+            self.sprint_combo.addItem(_t("Backlog"), None)
+            sprints = (
+                s.query(Sprint)
+                .filter(Sprint.project_id == task.project_id)
+                .order_by(Sprint.sort_order, Sprint.id)
+                .all()
+            )
+            for sp in sprints:
+                self.sprint_combo.addItem(sp.name, sp.id)
+            sidx = self.sprint_combo.findData(task.sprint_id) if task.sprint_id is not None else 0
+            self.sprint_combo.setCurrentIndex(sidx if sidx >= 0 else 0)
+            self.sprint_combo.currentIndexChanged.connect(
+                lambda: self._save_field("sprint_id", self.sprint_combo.currentData())
+            )
+            sprint_label = QLabel(_t("Sprint:"))
+            sprint_label.setStyleSheet(f"color: {t.text_secondary};")
+            header1.addWidget(sprint_label)
+            header1.addWidget(self.sprint_combo)
 
             layout.addLayout(header1)
 

@@ -2,18 +2,24 @@ import json
 import time
 from datetime import date, datetime
 
-from PySide6.QtCore import QMimeData, QPropertyAnimation, QTimer, Qt, Signal
+from PySide6.QtCore import QMimeData, QPoint, QPropertyAnimation, QRect, QSize, QTimer, Qt, Signal
 from PySide6.QtGui import QColor, QDrag, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QComboBox,
+    QDialog,
+    QDoubleSpinBox,
+    QFormLayout,
     QFrame,
     QGraphicsOpacityEffect,
     QHBoxLayout,
     QLabel,
+    QLayout,
     QLineEdit,
+    QMessageBox,
     QPushButton,
     QScrollArea,
     QSizePolicy,
+    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
@@ -23,6 +29,7 @@ from maestro_local.db.models import (
     BoardColumn,
     Comment,
     Project,
+    Sprint,
     Task,
     get_session,
 )
@@ -30,6 +37,73 @@ from maestro_local.gui.theme import PRIORITY_COLORS, TYPE_COLORS, TYPE_LABELS, c
 from maestro_local.i18n import t as _t
 
 MIME_TYPE = "application/x-maestro-task"
+
+
+class FlowLayout(QLayout):
+    """Layout horizontal que quebra para a próxima linha quando não cabe.
+
+    Evita que os filtros/botões se sobreponham em janelas estreitas.
+    """
+
+    def __init__(self, parent=None, hspacing=8, vspacing=6):
+        super().__init__(parent)
+        self._items = []
+        self._hspace = hspacing
+        self._vspace = vspacing
+        self.setContentsMargins(0, 0, 0, 0)
+
+    def addItem(self, item):
+        self._items.append(item)
+
+    def count(self):
+        return len(self._items)
+
+    def itemAt(self, i):
+        return self._items[i] if 0 <= i < len(self._items) else None
+
+    def takeAt(self, i):
+        return self._items.pop(i) if 0 <= i < len(self._items) else None
+
+    def expandingDirections(self):
+        return Qt.Orientations(Qt.Orientation(0))
+
+    def hasHeightForWidth(self):
+        return True
+
+    def heightForWidth(self, width):
+        return self._do_layout(QRect(0, 0, width, 0), True)
+
+    def setGeometry(self, rect):
+        super().setGeometry(rect)
+        self._do_layout(rect, False)
+
+    def sizeHint(self):
+        return self.minimumSize()
+
+    def minimumSize(self):
+        size = QSize()
+        for item in self._items:
+            size = size.expandedTo(item.minimumSize())
+        return size + QSize(2, 2)
+
+    def _do_layout(self, rect, test_only):
+        x, y, line_height = rect.x(), rect.y(), 0
+        for item in self._items:
+            hint = item.sizeHint()
+            mn = item.minimumSize()
+            w = max(hint.width(), mn.width())
+            h = max(hint.height(), mn.height())
+            next_x = x + w + self._hspace
+            if next_x - self._hspace > rect.right() and line_height > 0:
+                x = rect.x()
+                y = y + line_height + self._vspace
+                next_x = x + w + self._hspace
+                line_height = 0
+            if not test_only:
+                item.setGeometry(QRect(QPoint(x, y), QSize(w, h)))
+            x = next_x
+            line_height = max(line_height, h)
+        return y + line_height - rect.y()
 
 PRIORITY_FILTER_MAP = {
     "Todas": None,
@@ -56,6 +130,8 @@ TYPE_FILTER_MAP = {
 class TaskCard(QFrame):
     clicked = Signal(int)
     move_next = Signal(int)
+    sprint_changed = Signal(int, object)  # (task_id, sprint_id|None)
+    archive_requested = Signal(int)
 
     def __init__(self, task_data: dict):
         super().__init__()
@@ -226,13 +302,21 @@ class TaskCard(QFrame):
             bottom.addStretch()
             layout.addLayout(bottom)
 
-        # -- Quick move button --
-        move_btn = QPushButton(_t("Mover →"))
-        move_btn.setProperty("class", "quickMove")
-        move_btn.setCursor(Qt.PointingHandCursor)
-        move_btn.setToolTip(_t("Mover para próxima coluna"))
-        move_btn.clicked.connect(lambda: self.move_next.emit(self.task_id))
-        layout.addWidget(move_btn, alignment=Qt.AlignRight)
+        # -- Ação no rodapé: arquivar (colunas concluídas) ou avançar --
+        if task_data.get("can_archive"):
+            arch_btn = QPushButton(_t("Arquivar"))
+            arch_btn.setProperty("class", "quickMove")
+            arch_btn.setCursor(Qt.PointingHandCursor)
+            arch_btn.setToolTip(_t("Arquivar: some do board e vai para Arquivados"))
+            arch_btn.clicked.connect(lambda: self.archive_requested.emit(self.task_id))
+            layout.addWidget(arch_btn, alignment=Qt.AlignRight)
+        else:
+            move_btn = QPushButton(_t("Mover →"))
+            move_btn.setProperty("class", "quickMove")
+            move_btn.setCursor(Qt.PointingHandCursor)
+            move_btn.setToolTip(_t("Mover para próxima coluna"))
+            move_btn.clicked.connect(lambda: self.move_next.emit(self.task_id))
+            layout.addWidget(move_btn, alignment=Qt.AlignRight)
 
     # ── Drag & drop (unchanged) ──────────────────────────────
 
@@ -394,6 +478,7 @@ class ColumnWidget(QWidget):
             card = TaskCard(task)
             card.clicked.connect(self._open_task)
             card.move_next.connect(self._move_to_next)
+            card.archive_requested.connect(self._on_archive)
             self.cards_layout.addWidget(card)
             self._cards.append(card)
 
@@ -432,6 +517,28 @@ class ColumnWidget(QWidget):
         self.add_input.returnPressed.connect(self._add_task)
         add_row.addWidget(self.add_input)
         layout.addWidget(add_frame)
+
+    def _on_sprint_changed(self, task_id, sprint_id):
+        s = get_session()
+        try:
+            task = s.query(Task).get(task_id)
+            if task:
+                task.sprint_id = sprint_id
+                s.commit()
+        finally:
+            s.close()
+        self.task_changed.emit()
+
+    def _on_archive(self, task_id):
+        s = get_session()
+        try:
+            task = s.query(Task).get(task_id)
+            if task:
+                task.archived_at = datetime.utcnow()
+                s.commit()
+        finally:
+            s.close()
+        self.task_changed.emit()
 
     def get_cards(self) -> list[TaskCard]:
         return list(self._cards)
@@ -585,14 +692,13 @@ class FilterBar(QWidget):
     def __init__(self):
         super().__init__()
 
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(12)
+        # FlowLayout: os filtros quebram para a próxima linha em vez de sobrepor.
+        layout = FlowLayout(self, hspacing=8, vspacing=6)
 
         # Search input
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText(_t("\U0001f50d Buscar por título ou código..."))
-        self.search_input.setFixedWidth(280)
+        self.search_input.setMinimumWidth(240)
         self.search_input.textChanged.connect(self._emit_changed)
         layout.addWidget(self.search_input)
 
@@ -603,7 +709,7 @@ class FilterBar(QWidget):
         self.type_combo = QComboBox()
         for _key in TYPE_FILTER_MAP.keys():
             self.type_combo.addItem(_t(_key), _key)
-        self.type_combo.setFixedWidth(110)
+        self.type_combo.setMinimumWidth(96)
         self.type_combo.currentIndexChanged.connect(self._emit_changed)
         layout.addWidget(self.type_combo)
 
@@ -614,7 +720,7 @@ class FilterBar(QWidget):
         self.priority_combo = QComboBox()
         for _key in PRIORITY_FILTER_MAP.keys():
             self.priority_combo.addItem(_t(_key), _key)
-        self.priority_combo.setFixedWidth(100)
+        self.priority_combo.setMinimumWidth(92)
         self.priority_combo.currentIndexChanged.connect(self._emit_changed)
         layout.addWidget(self.priority_combo)
 
@@ -624,16 +730,18 @@ class FilterBar(QWidget):
         layout.addWidget(assignee_label)
         self.assignee_combo = QComboBox()
         self.assignee_combo.addItem(_t("Todos"), "Todos")
-        self.assignee_combo.setFixedWidth(130)
+        self.assignee_combo.setMinimumWidth(110)
         self.assignee_combo.currentIndexChanged.connect(self._emit_changed)
         layout.addWidget(self.assignee_combo)
-
-        layout.addStretch()
 
         # Task count
         self.count_label = QLabel(_t("0 tarefas"))
         self.count_label.setProperty("class", "hint")
         layout.addWidget(self.count_label)
+
+        sp = self.sizePolicy()
+        sp.setHeightForWidth(True)
+        self.setSizePolicy(sp)
 
     def _emit_changed(self):
         self.filters_changed.emit()
@@ -678,6 +786,632 @@ class FilterBar(QWidget):
 
 
 # ────────────────────────────────────────────────────────────
+# SprintManagerDialog
+# ────────────────────────────────────────────────────────────
+
+SPRINT_STATUS_LABELS = {
+    "PLANEJADA": "Planejada", "ATIVA": "Ativa", "CONCLUIDA": "Concluída",
+}
+
+
+class SprintManagerDialog(QDialog):
+    """Cria e gerencia as sprints de um projeto (ativar, concluir, excluir)."""
+
+    def __init__(self, project_id, parent=None):
+        super().__init__(parent)
+        self.project_id = project_id
+        self.setWindowTitle(_t("Sprints do projeto"))
+        self.resize(580, 520)
+        root = QVBoxLayout(self)
+        root.setSpacing(10)
+
+        form = QFormLayout()
+        self.name_input = QLineEdit()
+        self.name_input.setPlaceholderText(_t("Nome da sprint"))
+        form.addRow(_t("Nome:"), self.name_input)
+        self.goal_input = QLineEdit()
+        self.goal_input.setPlaceholderText(_t("Meta/objetivo"))
+        form.addRow(_t("Meta:"), self.goal_input)
+        self.capacity_input = QDoubleSpinBox()
+        self.capacity_input.setRange(0, 100000)
+        self.capacity_input.setDecimals(1)
+        self.capacity_input.setSuffix(" hd")
+        form.addRow(_t("Capacidade:"), self.capacity_input)
+        self.start_input = QLineEdit()
+        self.start_input.setPlaceholderText("AAAA-MM-DD")
+        form.addRow(_t("Início:"), self.start_input)
+        self.end_input = QLineEdit()
+        self.end_input.setPlaceholderText("AAAA-MM-DD")
+        form.addRow(_t("Fim:"), self.end_input)
+        root.addLayout(form)
+
+        create_btn = QPushButton(_t("+ Criar sprint"))
+        create_btn.setCursor(Qt.PointingHandCursor)
+        create_btn.clicked.connect(self._create)
+        root.addWidget(create_btn, alignment=Qt.AlignRight)
+
+        self.scroll = QScrollArea()
+        self.scroll.setWidgetResizable(True)
+        self.scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+        self.list_container = QWidget()
+        self.list_layout = QVBoxLayout(self.list_container)
+        self.list_layout.setContentsMargins(0, 0, 0, 0)
+        self.list_layout.setSpacing(8)
+        self.scroll.setWidget(self.list_container)
+        root.addWidget(self.scroll, 1)
+
+        self._load()
+
+    def _parse_date(self, text):
+        text = (text or "").strip()
+        if not text:
+            return None
+        try:
+            return datetime.fromisoformat(text)
+        except ValueError:
+            return None
+
+    def _create(self):
+        name = self.name_input.text().strip()
+        if not name:
+            return
+        s = get_session()
+        try:
+            order = s.query(Sprint).filter(Sprint.project_id == self.project_id).count()
+            s.add(Sprint(
+                project_id=self.project_id, name=name,
+                goal=self.goal_input.text().strip() or None,
+                capacity=self.capacity_input.value() or None,
+                start_date=self._parse_date(self.start_input.text()),
+                end_date=self._parse_date(self.end_input.text()),
+                sort_order=order,
+            ))
+            s.commit()
+        finally:
+            s.close()
+        self.name_input.clear()
+        self.goal_input.clear()
+        self.capacity_input.setValue(0)
+        self.start_input.clear()
+        self.end_input.clear()
+        self._load()
+
+    def _load(self):
+        while self.list_layout.count():
+            item = self.list_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        t = current_theme()
+        s = get_session()
+        try:
+            sprints = (
+                s.query(Sprint)
+                .filter(Sprint.project_id == self.project_id)
+                .order_by(Sprint.sort_order, Sprint.id)
+                .all()
+            )
+            if not sprints:
+                empty = QLabel(_t("Nenhuma sprint ainda."))
+                empty.setStyleSheet(f"color: {t.text_muted}; padding: 16px;")
+                self.list_layout.addWidget(empty)
+            for sp in sprints:
+                self.list_layout.addWidget(self._sprint_row(sp, t))
+            self.list_layout.addStretch()
+        finally:
+            s.close()
+
+    def _sprint_row(self, sp, t):
+        tasks = [tk for tk in sp.tasks if tk.deleted_at is None]
+        done = [tk for tk in tasks if tk.column and tk.column.is_done]
+        committed = sum(tk.estimate_md or 0 for tk in tasks)
+        progress = round(len(done) / len(tasks) * 100) if tasks else 0
+
+        row = QFrame()
+        row.setStyleSheet(
+            f"QFrame {{ background: {t.bg_card}; border: 1px solid {t.border_light}; border-radius: 8px; }}"
+        )
+        v = QVBoxLayout(row)
+        v.setContentsMargins(10, 8, 10, 8)
+        v.setSpacing(4)
+
+        top = QHBoxLayout()
+        name = QLabel(sp.name)
+        name.setStyleSheet(f"font-weight: 700; font-size: 14px; color: {t.text_primary}; border: none;")
+        top.addWidget(name)
+        status_lbl = QLabel(_t(SPRINT_STATUS_LABELS.get(sp.status, sp.status)))
+        sc = t.accent if sp.status == "ATIVA" else (t.success if sp.status == "CONCLUIDA" else t.text_muted)
+        status_lbl.setStyleSheet(
+            f"background: {t.bg_badge}; color: {sc}; padding: 1px 8px; border-radius: 4px; "
+            f"font-size: 11px; font-weight: 600; border: none;"
+        )
+        top.addWidget(status_lbl)
+        top.addStretch()
+        v.addLayout(top)
+
+        if sp.goal:
+            goal = QLabel(sp.goal)
+            goal.setWordWrap(True)
+            goal.setStyleSheet(f"color: {t.text_secondary}; font-size: 12px; border: none;")
+            v.addWidget(goal)
+
+        cap_txt = ""
+        over = sp.capacity is not None and committed > sp.capacity
+        if sp.capacity is not None:
+            cap_txt = _t(" / capacidade {cap}hd").format(cap=f"{sp.capacity:.0f}") + (" ⚠" if over else "")
+        stats = QLabel(
+            _t("{done}/{total} tarefas · {progress}% · comprometido {committed}hd").format(
+                done=len(done), total=len(tasks), progress=progress, committed=f"{committed:.0f}"
+            ) + cap_txt
+        )
+        stats.setStyleSheet(
+            f"color: {t.danger if over else t.text_muted}; font-size: 11px; border: none;"
+        )
+        v.addWidget(stats)
+
+        btns = QHBoxLayout()
+        btns.addStretch()
+        if sp.status not in ("ATIVA", "CONCLUIDA"):
+            act = QPushButton(_t("Ativar"))
+            act.setCursor(Qt.PointingHandCursor)
+            act.clicked.connect(lambda _=False, sid=sp.id: self._activate(sid))
+            btns.addWidget(act)
+        if sp.status != "CONCLUIDA":
+            comp = QPushButton(_t("Concluir"))
+            comp.setCursor(Qt.PointingHandCursor)
+            comp.clicked.connect(lambda _=False, sid=sp.id: self._complete(sid))
+            btns.addWidget(comp)
+        dele = QPushButton(_t("Excluir"))
+        dele.setCursor(Qt.PointingHandCursor)
+        dele.setStyleSheet(f"QPushButton {{ color: {t.danger}; }}")
+        dele.clicked.connect(lambda _=False, sid=sp.id: self._delete(sid))
+        btns.addWidget(dele)
+        v.addLayout(btns)
+        return row
+
+    def _activate(self, sprint_id):
+        s = get_session()
+        try:
+            sp = s.query(Sprint).get(sprint_id)
+            if sp:
+                for other in s.query(Sprint).filter(
+                    Sprint.project_id == sp.project_id, Sprint.id != sp.id, Sprint.status == "ATIVA"
+                ).all():
+                    other.status = "PLANEJADA"
+                sp.status = "ATIVA"
+                s.commit()
+        finally:
+            s.close()
+        self._load()
+
+    def _complete(self, sprint_id):
+        s = get_session()
+        try:
+            sp = s.query(Sprint).get(sprint_id)
+            if sp:
+                for tk in [x for x in sp.tasks if x.deleted_at is None]:
+                    if not (tk.column and tk.column.is_done):
+                        tk.sprint_id = None  # volta ao backlog
+                sp.status = "CONCLUIDA"
+                s.commit()
+        finally:
+            s.close()
+        self._load()
+
+    def _delete(self, sprint_id):
+        reply = QMessageBox.question(
+            self, _t("Confirmar exclusão"),
+            _t("Excluir a sprint? As tarefas voltam ao backlog."),
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
+        )
+        if reply != QMessageBox.Yes:
+            return
+        s = get_session()
+        try:
+            sp = s.query(Sprint).get(sprint_id)
+            if sp:
+                for tk in sp.tasks:
+                    tk.sprint_id = None
+                s.delete(sp)
+                s.commit()
+        finally:
+            s.close()
+        self._load()
+
+
+# ────────────────────────────────────────────────────────────
+# ArchivedDialog
+# ────────────────────────────────────────────────────────────
+
+class ArchivedDialog(QDialog):
+    """Board à parte com as tarefas arquivadas (desarquivar volta ao board)."""
+
+    def __init__(self, project_id, parent=None):
+        super().__init__(parent)
+        self.project_id = project_id
+        self.setWindowTitle(_t("Tarefas arquivadas"))
+        self.resize(560, 500)
+        root = QVBoxLayout(self)
+        root.setSpacing(8)
+
+        hint = QLabel(
+            _t("Cards concluídos há mais de 3 dias são arquivados automaticamente e somem do board.")
+        )
+        hint.setWordWrap(True)
+        hint.setProperty("class", "hint")
+        root.addWidget(hint)
+
+        self.scroll = QScrollArea()
+        self.scroll.setWidgetResizable(True)
+        self.scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+        self.list_container = QWidget()
+        self.list_layout = QVBoxLayout(self.list_container)
+        self.list_layout.setContentsMargins(0, 0, 0, 0)
+        self.list_layout.setSpacing(6)
+        self.scroll.setWidget(self.list_container)
+        root.addWidget(self.scroll, 1)
+
+        self._load()
+
+    def _load(self):
+        while self.list_layout.count():
+            item = self.list_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        t = current_theme()
+        s = get_session()
+        try:
+            tasks = (
+                s.query(Task)
+                .filter(
+                    Task.project_id == self.project_id,
+                    Task.deleted_at == None,  # noqa: E711
+                    Task.archived_at != None,  # noqa: E711
+                )
+                .order_by(Task.archived_at.desc())
+                .all()
+            )
+            if not tasks:
+                empty = QLabel(_t("Nenhuma tarefa arquivada."))
+                empty.setStyleSheet(f"color: {t.text_muted}; padding: 16px;")
+                self.list_layout.addWidget(empty)
+            for task in tasks:
+                self.list_layout.addWidget(self._row(task, t))
+            self.list_layout.addStretch()
+        finally:
+            s.close()
+
+    def _row(self, task, t):
+        row = QFrame()
+        row.setStyleSheet(
+            f"QFrame {{ background: {t.bg_card}; border: 1px solid {t.border_light}; border-radius: 8px; }}"
+        )
+        h = QHBoxLayout(row)
+        h.setContentsMargins(10, 8, 10, 8)
+        h.setSpacing(8)
+        when = task.archived_at.strftime("%d/%m") if task.archived_at else ""
+        lbl = QLabel(f"{task.code}  {task.title}")
+        lbl.setStyleSheet(f"color: {t.text_primary}; font-size: 13px; border: none;")
+        lbl.setWordWrap(True)
+        h.addWidget(lbl, 1)
+        when_lbl = QLabel(when)
+        when_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 11px; border: none;")
+        h.addWidget(when_lbl)
+        btn = QPushButton(_t("Desarquivar"))
+        btn.setCursor(Qt.PointingHandCursor)
+        btn.clicked.connect(lambda _=False, tid=task.id: self._unarchive(tid))
+        h.addWidget(btn)
+        return row
+
+    def _unarchive(self, task_id):
+        s = get_session()
+        try:
+            task = s.query(Task).get(task_id)
+            if task:
+                task.archived_at = None
+                if task.column and task.column.is_done:
+                    task.done_at = datetime.utcnow()  # reinicia a contagem
+                s.commit()
+        finally:
+            s.close()
+        self._load()
+
+
+# ────────────────────────────────────────────────────────────
+# SprintPlanningView — board de alocação (colunas = Backlog + sprints)
+# ────────────────────────────────────────────────────────────
+
+class SprintPlanningView(QWidget):
+    task_changed = Signal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.project_id = None
+        root = QVBoxLayout(self)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(10)
+
+        intro = QLabel(_t("Distribua o backlog entre as sprints. Cada card tem um seletor para mover de sprint."))
+        intro.setObjectName("subtitle")
+        intro.setWordWrap(True)
+        root.addWidget(intro)
+
+        # Criar sprint
+        form = QHBoxLayout()
+        form.setSpacing(6)
+        self.name_in = QLineEdit()
+        self.name_in.setPlaceholderText(_t("Nome da sprint"))
+        form.addWidget(self.name_in, 2)
+        self.goal_in = QLineEdit()
+        self.goal_in.setPlaceholderText(_t("Meta/objetivo"))
+        form.addWidget(self.goal_in, 2)
+        self.cap_in = QDoubleSpinBox()
+        self.cap_in.setRange(0, 100000)
+        self.cap_in.setDecimals(1)
+        self.cap_in.setSuffix(" hd")
+        form.addWidget(self.cap_in)
+        add_btn = QPushButton(_t("+ Criar sprint"))
+        add_btn.setCursor(Qt.PointingHandCursor)
+        add_btn.clicked.connect(self._create)
+        form.addWidget(add_btn)
+        root.addLayout(form)
+
+        self.scroll = QScrollArea()
+        self.scroll.setWidgetResizable(True)
+        self.scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+        self.cont = QWidget()
+        self.cols_layout = QHBoxLayout(self.cont)
+        self.cols_layout.setAlignment(Qt.AlignLeft)
+        self.cols_layout.setSpacing(10)
+        self.scroll.setWidget(self.cont)
+        root.addWidget(self.scroll, 1)
+
+    def set_project(self, project_id):
+        self.project_id = project_id
+        self.refresh()
+
+    def refresh(self):
+        while self.cols_layout.count():
+            item = self.cols_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        if not self.project_id:
+            return
+        t = current_theme()
+        s = get_session()
+        try:
+            sprints = (
+                s.query(Sprint)
+                .filter(Sprint.project_id == self.project_id)
+                .order_by(Sprint.sort_order, Sprint.id)
+                .all()
+            )
+            tasks = s.query(Task).filter(
+                Task.project_id == self.project_id,
+                Task.deleted_at == None,  # noqa: E711
+                Task.archived_at == None,  # noqa: E711
+            ).all()
+            opts = [(sp.id, sp.name) for sp in sprints]
+            backlog = [tk for tk in tasks if tk.sprint_id is None]
+            self.cols_layout.addWidget(self._column(None, backlog, opts, t))
+            for sp in sprints:
+                lst = [tk for tk in tasks if tk.sprint_id == sp.id]
+                self.cols_layout.addWidget(self._column(sp, lst, opts, t))
+            self.cols_layout.addStretch()
+        finally:
+            s.close()
+
+    def _column(self, sp, tasks, opts, t):
+        col = QWidget()
+        col.setFixedWidth(280)
+        v = QVBoxLayout(col)
+        v.setContentsMargins(0, 0, 0, 0)
+        v.setSpacing(6)
+
+        header = QFrame()
+        is_backlog = sp is None
+        header.setStyleSheet(
+            f"QFrame {{ background: {t.bg_badge}; border-radius: 10px; padding: 8px; }}"
+        )
+        hv = QVBoxLayout(header)
+        hv.setContentsMargins(10, 8, 10, 8)
+        hv.setSpacing(4)
+        title_row = QHBoxLayout()
+        name = QLabel(_t("Backlog") if is_backlog else sp.name)
+        name.setStyleSheet(f"font-weight: 700; font-size: 13px; color: {t.text_primary}; border: none;")
+        title_row.addWidget(name, 1)
+        count = QLabel(str(len(tasks)))
+        count.setStyleSheet(
+            f"background: {t.bg_card}; color: {t.text_muted}; padding: 1px 8px; "
+            f"border-radius: 10px; font-size: 11px; border: none;"
+        )
+        title_row.addWidget(count)
+        hv.addLayout(title_row)
+
+        if not is_backlog:
+            status_lbl = {"PLANEJADA": _t("Planejada"), "ATIVA": _t("Ativa"), "CONCLUIDA": _t("Concluída")}
+            committed = sum(tk.estimate_md or 0 for tk in tasks)
+            done = sum(1 for tk in tasks if tk.column and tk.column.is_done)
+            over = sp.capacity is not None and committed > sp.capacity
+            meta = QLabel(
+                _t("{status} · {committed}hd").format(
+                    status=status_lbl.get(sp.status, sp.status), committed=f"{committed:.0f}"
+                ) + (
+                    _t(" / cap {cap}hd").format(cap=f"{sp.capacity:.0f}") + (" ⚠" if over else "")
+                    if sp.capacity is not None else ""
+                ) + _t(" · {done} concl.").format(done=done)
+            )
+            meta.setStyleSheet(
+                f"color: {t.danger if over else t.text_muted}; font-size: 11px; border: none;"
+            )
+            meta.setWordWrap(True)
+            hv.addWidget(meta)
+
+            actions = QHBoxLayout()
+            actions.setSpacing(4)
+            if sp.status not in ("ATIVA", "CONCLUIDA"):
+                b = QPushButton(_t("Ativar"))
+                b.setCursor(Qt.PointingHandCursor)
+                b.clicked.connect(lambda _=False, sid=sp.id: self._activate(sid))
+                actions.addWidget(b)
+            if sp.status != "CONCLUIDA":
+                b = QPushButton(_t("Concluir"))
+                b.setCursor(Qt.PointingHandCursor)
+                b.clicked.connect(lambda _=False, sid=sp.id: self._complete(sid))
+                actions.addWidget(b)
+            b = QPushButton(_t("Excluir"))
+            b.setStyleSheet(f"QPushButton {{ color: {t.danger}; }}")
+            b.setCursor(Qt.PointingHandCursor)
+            b.clicked.connect(lambda _=False, sid=sp.id: self._delete(sid))
+            actions.addWidget(b)
+            actions.addStretch()
+            hv.addLayout(actions)
+
+        v.addWidget(header)
+
+        cards_scroll = QScrollArea()
+        cards_scroll.setWidgetResizable(True)
+        cards_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        cards_scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+        cards_w = QWidget()
+        cards_l = QVBoxLayout(cards_w)
+        cards_l.setContentsMargins(2, 2, 2, 2)
+        cards_l.setSpacing(6)
+        cur = None if is_backlog else sp.id
+        for tk in tasks:
+            cards_l.addWidget(self._card(tk, cur, opts, t))
+        cards_l.addStretch()
+        cards_scroll.setWidget(cards_w)
+        v.addWidget(cards_scroll, 1)
+        return col
+
+    def _card(self, task, cur_sprint_id, opts, t):
+        card = QFrame()
+        pc = PRIORITY_COLORS.get(task.priority or "MEDIUM", "#4C6EF5")
+        card.setStyleSheet(
+            f"QFrame {{ background: {t.bg_card}; border: 1px solid {t.border_light}; "
+            f"border-left: 3px solid {pc}; border-radius: 8px; }}"
+        )
+        v = QVBoxLayout(card)
+        v.setContentsMargins(10, 8, 10, 8)
+        v.setSpacing(4)
+        code = QLabel(task.code)
+        code.setStyleSheet(f"font-family: monospace; font-size: 10px; color: {t.text_muted}; border: none;")
+        v.addWidget(code)
+        title = QLabel(task.title)
+        title.setWordWrap(True)
+        title.setStyleSheet(f"font-size: 12px; color: {t.text_primary}; border: none;")
+        v.addWidget(title)
+        if task.estimate_md:
+            est = QLabel(f"{task.estimate_md:.0f} hd")
+            est.setStyleSheet(f"color: {t.text_muted}; font-size: 10px; border: none;")
+            v.addWidget(est)
+        combo = QComboBox()
+        combo.addItem(_t("Backlog"), None)
+        for sid, sname in opts:
+            combo.addItem(sname, sid)
+        idx = combo.findData(cur_sprint_id) if cur_sprint_id is not None else 0
+        combo.blockSignals(True)
+        combo.setCurrentIndex(idx if idx >= 0 else 0)
+        combo.blockSignals(False)
+        combo.setStyleSheet(
+            f"QComboBox {{ background: {t.bg_input}; border: 1px solid {t.border_light}; "
+            f"border-radius: 4px; padding: 2px 6px; font-size: 11px; color: {t.text_muted}; }}"
+        )
+        combo.currentIndexChanged.connect(
+            lambda _i, c=combo, tid=task.id: self._assign(tid, c.currentData())
+        )
+        v.addWidget(combo)
+        return card
+
+    # ---- Operações ----
+    def _assign(self, task_id, sprint_id):
+        s = get_session()
+        try:
+            tk = s.query(Task).get(task_id)
+            if tk:
+                tk.sprint_id = sprint_id
+                s.commit()
+        finally:
+            s.close()
+        self.refresh()
+        self.task_changed.emit()
+
+    def _create(self):
+        name = self.name_in.text().strip()
+        if not name or not self.project_id:
+            return
+        s = get_session()
+        try:
+            order = s.query(Sprint).filter(Sprint.project_id == self.project_id).count()
+            s.add(Sprint(
+                project_id=self.project_id, name=name,
+                goal=self.goal_in.text().strip() or None,
+                capacity=self.cap_in.value() or None, sort_order=order,
+            ))
+            s.commit()
+        finally:
+            s.close()
+        self.name_in.clear()
+        self.goal_in.clear()
+        self.cap_in.setValue(0)
+        self.refresh()
+        self.task_changed.emit()
+
+    def _activate(self, sprint_id):
+        s = get_session()
+        try:
+            sp = s.query(Sprint).get(sprint_id)
+            if sp:
+                for other in s.query(Sprint).filter(
+                    Sprint.project_id == sp.project_id, Sprint.id != sp.id, Sprint.status == "ATIVA"
+                ).all():
+                    other.status = "PLANEJADA"
+                sp.status = "ATIVA"
+                s.commit()
+        finally:
+            s.close()
+        self.refresh()
+        self.task_changed.emit()
+
+    def _complete(self, sprint_id):
+        s = get_session()
+        try:
+            sp = s.query(Sprint).get(sprint_id)
+            if sp:
+                for tk in [x for x in sp.tasks if x.deleted_at is None]:
+                    if not (tk.column and tk.column.is_done):
+                        tk.sprint_id = None
+                sp.status = "CONCLUIDA"
+                s.commit()
+        finally:
+            s.close()
+        self.refresh()
+        self.task_changed.emit()
+
+    def _delete(self, sprint_id):
+        reply = QMessageBox.question(
+            self, _t("Confirmar exclusão"),
+            _t("Excluir a sprint? As tarefas voltam ao backlog."),
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
+        )
+        if reply != QMessageBox.Yes:
+            return
+        s = get_session()
+        try:
+            sp = s.query(Sprint).get(sprint_id)
+            if sp:
+                for tk in sp.tasks:
+                    tk.sprint_id = None
+                s.delete(sp)
+                s.commit()
+        finally:
+            s.close()
+        self.refresh()
+        self.task_changed.emit()
+
+
+# ────────────────────────────────────────────────────────────
 # BoardView
 # ────────────────────────────────────────────────────────────
 
@@ -692,6 +1426,9 @@ class BoardView(QWidget):
         self.project_id = None
         self._columns: list[ColumnWidget] = []
         self._last_task_hash = None
+        self._sprint_filter = None  # None=todas | "__backlog__" | sprint_id(int)
+        self._sprints_cache: list[dict] = []
+        self._sprint_filter_initialized = False  # já aplicou o default (sprint ativa)?
 
         self.main_layout = QVBoxLayout(self)
         self.main_layout.setContentsMargins(14, 14, 14, 14)
@@ -723,10 +1460,32 @@ class BoardView(QWidget):
         self.board_layout.setSpacing(12)
 
         header_row = QHBoxLayout()
+        header_row.setSpacing(8)
         self.header = QLabel("")
         self.header.setObjectName("sectionTitle")
         header_row.addWidget(self.header)
         header_row.addStretch()
+
+        header_row.addWidget(QLabel(_t("Sprint:")))
+        self.sprint_combo = QComboBox()
+        self.sprint_combo.setMinimumWidth(150)
+        self.sprint_combo.setMaximumWidth(220)
+        self.sprint_combo.currentIndexChanged.connect(self._on_sprint_filter_changed)
+        header_row.addWidget(self.sprint_combo)
+
+        self.manage_sprints_btn = QPushButton(_t("Sprints"))
+        self.manage_sprints_btn.setProperty("flat", True)
+        self.manage_sprints_btn.setFixedHeight(28)
+        self.manage_sprints_btn.setCursor(Qt.PointingHandCursor)
+        self.manage_sprints_btn.clicked.connect(self._open_sprint_manager)
+        header_row.addWidget(self.manage_sprints_btn)
+
+        self.archived_btn = QPushButton(_t("Arquivados"))
+        self.archived_btn.setProperty("flat", True)
+        self.archived_btn.setFixedHeight(28)
+        self.archived_btn.setCursor(Qt.PointingHandCursor)
+        self.archived_btn.clicked.connect(self._open_archived)
+        header_row.addWidget(self.archived_btn)
 
         self.refresh_btn = QPushButton(_t("Atualizar"))
         self.refresh_btn.setProperty("flat", True)
@@ -735,25 +1494,40 @@ class BoardView(QWidget):
         self.refresh_btn.clicked.connect(self.refresh)
         header_row.addWidget(self.refresh_btn)
 
-        self.board_layout.addLayout(header_row)
+        # --- Aba "Board" (fluxo de trabalho) ---
+        self.board_tab = QWidget()
+        board_tab_layout = QVBoxLayout(self.board_tab)
+        board_tab_layout.setContentsMargins(0, 0, 0, 0)
+        board_tab_layout.setSpacing(12)
+        board_tab_layout.addLayout(header_row)
 
         # Filter bar
         self.filter_bar = FilterBar()
         self.filter_bar.filters_changed.connect(self._apply_filters)
-        self.board_layout.addWidget(self.filter_bar)
+        board_tab_layout.addWidget(self.filter_bar)
 
         # Board scroll area
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
         self.scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
-        self.board_layout.addWidget(self.scroll, 1)
+        board_tab_layout.addWidget(self.scroll, 1)
 
         self.columns_widget = QWidget()
         self.columns_layout = QHBoxLayout(self.columns_widget)
         self.columns_layout.setAlignment(Qt.AlignLeft)
         self.columns_layout.setSpacing(10)
         self.scroll.setWidget(self.columns_widget)
+
+        # --- Aba "Planejamento de Sprints" (alocação) ---
+        self.planning_view = SprintPlanningView()
+        self.planning_view.task_changed.connect(self._on_change)
+
+        self.tabs = QTabWidget()
+        self.tabs.addTab(self.board_tab, _t("Board"))
+        self.tabs.addTab(self.planning_view, _t("Planejamento de Sprints"))
+        self.tabs.currentChanged.connect(self._on_tab_changed)
+        self.board_layout.addWidget(self.tabs)
 
         self.main_layout.addWidget(self.board_widget)
         self.board_widget.setVisible(False)
@@ -767,6 +1541,9 @@ class BoardView(QWidget):
 
     def set_project(self, project_id):
         self.project_id = project_id
+        # Novo projeto: re-aplica o default (sprint ativa) e volta o filtro.
+        self._sprint_filter_initialized = False
+        self._sprint_filter = None
         if project_id:
             self.empty_widget.setVisible(False)
             self.board_widget.setVisible(True)
@@ -774,7 +1551,17 @@ class BoardView(QWidget):
             self.empty_widget.setVisible(True)
             self.board_widget.setVisible(False)
             self._load_project_list()
+        # Reseta para a aba Board ao trocar de projeto. O planejamento é
+        # construído sob demanda (lazy) só quando a aba é aberta.
+        if hasattr(self, "tabs"):
+            self.tabs.setCurrentIndex(0)
+        self.planning_view.project_id = project_id
         self.refresh()
+
+    def _on_tab_changed(self, idx):
+        # Ao abrir a aba de planejamento, recarrega a alocação atual
+        if self.tabs.widget(idx) is self.planning_view and self.project_id:
+            self.planning_view.set_project(self.project_id)
 
     def _load_project_list(self):
         while self.project_buttons_layout.count():
@@ -822,6 +1609,73 @@ class BoardView(QWidget):
     def _open_project(self, project_id):
         self.project_opened.emit(project_id)
 
+    # ---- Sprints ----
+    def _populate_sprint_combo(self):
+        prev = self._sprint_filter
+        status_lbl = {
+            "PLANEJADA": _t("Planejada"), "ATIVA": _t("Ativa"), "CONCLUIDA": _t("Concluída"),
+        }
+        self.sprint_combo.blockSignals(True)
+        self.sprint_combo.clear()
+        self.sprint_combo.addItem(_t("Todas"), None)
+        self.sprint_combo.addItem(_t("Backlog"), "__backlog__")
+        for sp in self._sprints_cache:
+            self.sprint_combo.addItem(
+                f"{sp['name']} · {status_lbl.get(sp['status'], sp['status'])}", sp["id"]
+            )
+        idx = self.sprint_combo.findData(prev)
+        self.sprint_combo.setCurrentIndex(idx if idx >= 0 else 0)
+        if idx < 0:
+            self._sprint_filter = None
+        self.sprint_combo.blockSignals(False)
+
+    def _on_sprint_filter_changed(self):
+        self._sprint_filter = self.sprint_combo.currentData()
+        self.refresh()
+
+    def _open_sprint_manager(self):
+        if not self.project_id:
+            return
+        dlg = SprintManagerDialog(self.project_id, self)
+        dlg.exec()
+        self.refresh()
+
+    def _auto_archive(self, s):
+        """Arquiva tarefas concluídas há mais de 3 dias (backfill do done_at)."""
+        from datetime import timedelta
+        now = datetime.utcnow()
+        cutoff = now - timedelta(days=3)
+        done_ids = {
+            c.id for c in s.query(BoardColumn).filter(
+                BoardColumn.project_id == self.project_id, BoardColumn.is_done == True  # noqa: E712
+            ).all()
+        }
+        if not done_ids:
+            return
+        tasks = s.query(Task).filter(
+            Task.project_id == self.project_id,
+            Task.deleted_at == None,  # noqa: E711
+            Task.archived_at == None,  # noqa: E711
+            Task.column_id.in_(done_ids),
+        ).all()
+        changed = False
+        for t in tasks:
+            if t.done_at is None:
+                t.done_at = t.updated_at or now
+                changed = True
+            if t.done_at <= cutoff:
+                t.archived_at = now
+                changed = True
+        if changed:
+            s.commit()
+
+    def _open_archived(self):
+        if not self.project_id:
+            return
+        dlg = ArchivedDialog(self.project_id, self)
+        dlg.exec()
+        self.refresh()
+
     def refresh(self):
         if not self.project_id:
             return
@@ -836,7 +1690,27 @@ class BoardView(QWidget):
             project = s.query(Project).get(self.project_id)
             if not project:
                 return
-            self.header.setText(_t("Board — {name}").format(name=project.name))
+            self.header.setText(project.name)
+
+            self._auto_archive(s)
+
+            # Sprints do projeto (para filtro e dropdown nos cards)
+            sprints = (
+                s.query(Sprint)
+                .filter(Sprint.project_id == self.project_id)
+                .order_by(Sprint.sort_order, Sprint.id)
+                .all()
+            )
+            self._sprints_cache = [
+                {"id": sp.id, "name": sp.name, "status": sp.status} for sp in sprints
+            ]
+            # Default: ao abrir o projeto, o board mostra a sprint ativa.
+            if not self._sprint_filter_initialized:
+                self._sprint_filter_initialized = True
+                active = next((sp for sp in self._sprints_cache if sp["status"] == "ATIVA"), None)
+                if active:
+                    self._sprint_filter = active["id"]
+            self._populate_sprint_combo()
 
             columns = (
                 s.query(BoardColumn)
@@ -848,7 +1722,11 @@ class BoardView(QWidget):
             for col in columns:
                 tasks = (
                     s.query(Task)
-                    .filter(Task.column_id == col.id, Task.deleted_at == None)
+                    .filter(
+                        Task.column_id == col.id,
+                        Task.deleted_at == None,
+                        Task.archived_at == None,
+                    )
                     .order_by(Task.rank)
                     .all()
                 )
@@ -861,6 +1739,11 @@ class BoardView(QWidget):
                     "tasks": [],
                 }
                 for t in tasks:
+                    # Filtro por sprint
+                    if self._sprint_filter == "__backlog__" and t.sprint_id is not None:
+                        continue
+                    if isinstance(self._sprint_filter, int) and t.sprint_id != self._sprint_filter:
+                        continue
                     td = {
                         "id": t.id,
                         "code": t.code,
@@ -877,6 +1760,7 @@ class BoardView(QWidget):
                         "assignee": t.assignee,
                         "comments_count": len(t.comments),
                         "requires_human": t.requires_human or False,
+                        "can_archive": col.is_done,
                     }
                     col_data["tasks"].append(td)
 

@@ -46,6 +46,7 @@ class Project(Base):
 
     columns = relationship("BoardColumn", back_populates="project", cascade="all,delete-orphan", order_by="BoardColumn.order")
     tasks = relationship("Task", back_populates="project", cascade="all,delete-orphan")
+    sprints = relationship("Sprint", back_populates="project", cascade="all,delete-orphan", order_by="Sprint.sort_order")
 
 
 class BoardColumn(Base):
@@ -60,6 +61,25 @@ class BoardColumn(Base):
 
     project = relationship("Project", back_populates="columns")
     tasks = relationship("Task", back_populates="column")
+
+
+class Sprint(Base):
+    __tablename__ = "sprints"
+
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(120), nullable=False)
+    goal = Column(Text)
+    status = Column(String(20), default="PLANEJADA")  # PLANEJADA | ATIVA | CONCLUIDA
+    start_date = Column(DateTime)
+    end_date = Column(DateTime)
+    capacity = Column(Float)  # capacidade planejada (mesma unidade de estimate_md: homem-dia)
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    project = relationship("Project", back_populates="sprints")
+    tasks = relationship("Task", back_populates="sprint")
 
 
 class Task(Base):
@@ -77,6 +97,7 @@ class Task(Base):
     priority = Column(String(10), default="MEDIUM")
     estimate_md = Column(Float)
     parent_id = Column(Integer, ForeignKey("tasks.id"))
+    sprint_id = Column(Integer, ForeignKey("sprints.id", ondelete="SET NULL"))
     rank = Column(String(64))
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -84,8 +105,11 @@ class Task(Base):
     due_date = Column(DateTime)
     assignee = Column(String(100))
     requires_human = Column(Boolean, default=False)
+    done_at = Column(DateTime)      # quando entrou numa coluna "concluído"
+    archived_at = Column(DateTime)  # arquivada: some do board, vai para o board de arquivados
 
     project = relationship("Project", back_populates="tasks")
+    sprint = relationship("Sprint", back_populates="tasks")
     column = relationship("BoardColumn", back_populates="tasks")
     parent = relationship("Task", remote_side="Task.id", backref="subtasks")
     labels = relationship("Label", secondary=task_labels, back_populates="tasks")
@@ -245,10 +269,32 @@ def get_session(db_path=None) -> Session:
     return _SessionLocal()
 
 
+def _run_light_migrations(engine):
+    """Migrações aditivas para bancos já existentes (SQLite não altera schema
+    via create_all). Idempotente: só adiciona o que falta."""
+    from sqlalchemy import inspect as _inspect, text
+    insp = _inspect(engine)
+    tables = set(insp.get_table_names())
+    if "tasks" in tables:
+        cols = {c["name"] for c in insp.get_columns("tasks")}
+        adds = []
+        if "sprint_id" not in cols:
+            adds.append("ALTER TABLE tasks ADD COLUMN sprint_id INTEGER REFERENCES sprints(id)")
+        if "done_at" not in cols:
+            adds.append("ALTER TABLE tasks ADD COLUMN done_at DATETIME")
+        if "archived_at" not in cols:
+            adds.append("ALTER TABLE tasks ADD COLUMN archived_at DATETIME")
+        if adds:
+            with engine.begin() as conn:
+                for stmt in adds:
+                    conn.execute(text(stmt))
+
+
 def init_db(db_path=None):
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     engine = get_engine(db_path)
     Base.metadata.create_all(engine)
+    _run_light_migrations(engine)
 
 
 def switch_db(db_path: str):

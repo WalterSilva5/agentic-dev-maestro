@@ -11,13 +11,28 @@ export const setActiveWorkspace = (id) => api.post('/workspaces/active', { id })
 export const getProjects = () => api.get('/projects').then((r) => r.data)
 export const createProject = (body) => api.post('/projects', body).then((r) => r.data)
 export const deleteProject = (id) => api.delete(`/projects/${id}`).then((r) => r.data)
-export const getBoard = (projectId) => api.get(`/projects/${projectId}/board`).then((r) => r.data)
+export const getBoard = (projectId, sprintId) =>
+  api
+    .get(`/projects/${projectId}/board`, { params: sprintId != null ? { sprintId } : {} })
+    .then((r) => r.data)
 
 // Tarefas
 export const getTask = (code) => api.get(`/tasks/${code}`).then((r) => r.data)
 export const createTask = (body) => api.post('/tasks', body).then((r) => r.data)
 export const updateTask = (code, body) => api.patch(`/tasks/${code}`, body).then((r) => r.data)
 export const moveTask = (code, columnId) => api.post(`/tasks/${code}/move`, { columnId }).then((r) => r.data)
+export const archiveTask = (code) => api.post(`/tasks/${code}/archive`).then((r) => r.data)
+export const unarchiveTask = (code) => api.post(`/tasks/${code}/unarchive`).then((r) => r.data)
+export const getArchived = (projectId) => api.get(`/projects/${projectId}/archived`).then((r) => r.data)
+
+// Sprints
+export const getSprints = (projectId) => api.get(`/projects/${projectId}/sprints`).then((r) => r.data)
+export const createSprint = (projectId, body) =>
+  api.post(`/projects/${projectId}/sprints`, body).then((r) => r.data)
+export const updateSprint = (id, body) => api.patch(`/sprints/${id}`, body).then((r) => r.data)
+export const completeSprint = (id, body) =>
+  api.post(`/sprints/${id}/complete`, body || {}).then((r) => r.data)
+export const deleteSprint = (id) => api.delete(`/sprints/${id}`).then((r) => r.data)
 
 // Checklist
 export const addChecklist = (code, title) => api.post(`/tasks/${code}/checklist`, { title }).then((r) => r.data)

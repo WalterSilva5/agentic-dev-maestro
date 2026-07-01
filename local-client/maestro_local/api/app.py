@@ -22,6 +22,7 @@ from maestro_local.db.models import (
     Document,
     Label,
     Project,
+    Sprint,
     StudyPlan,
     StudySession,
     StudyTopic,
@@ -83,6 +84,7 @@ class TaskCreate(BaseModel):
     type: Optional[str] = "FEATURE"
     columnId: Optional[int] = None
     parentId: Optional[int] = None
+    sprintId: Optional[int] = None
     dueDate: str | None = None
     assignee: str | None = None
     requiresHuman: bool | None = None
@@ -98,6 +100,7 @@ class TaskUpdate(BaseModel):
     type: Optional[str] = None
     columnId: Optional[int] = None
     parentId: Optional[int] = None
+    sprintId: Optional[int] = None
     rank: Optional[str] = None
     dueDate: str | None = None
     assignee: str | None = None
@@ -106,6 +109,28 @@ class TaskUpdate(BaseModel):
 
 class MoveBody(BaseModel):
     columnId: int
+
+
+class SprintCreate(BaseModel):
+    name: str
+    goal: Optional[str] = None
+    startDate: Optional[str] = None
+    endDate: Optional[str] = None
+    capacity: Optional[float] = None
+
+
+class SprintUpdate(BaseModel):
+    name: Optional[str] = None
+    goal: Optional[str] = None
+    status: Optional[str] = None
+    startDate: Optional[str] = None
+    endDate: Optional[str] = None
+    capacity: Optional[float] = None
+    sortOrder: Optional[int] = None
+
+
+class SprintComplete(BaseModel):
+    moveUnfinishedTo: Optional[int] = None  # id da sprint destino; ausente/null = backlog
 
 
 class ChecklistBody(BaseModel):
@@ -297,6 +322,9 @@ def _task_brief(t: Task) -> dict:
         "assignee": t.assignee,
         "requiresHuman": t.requires_human or False,
         "parentId": t.parent_id,
+        "sprintId": t.sprint_id,
+        "doneAt": t.done_at.isoformat() if t.done_at else None,
+        "archivedAt": t.archived_at.isoformat() if t.archived_at else None,
         "createdAt": t.created_at.isoformat() if t.created_at else None,
         "updatedAt": t.updated_at.isoformat() if t.updated_at else None,
         "labels": [_label_dict(lb) for lb in t.labels],
@@ -346,6 +374,31 @@ def _project_dict(p: Project) -> dict:
         "taskSeq": p.task_seq,
         "createdAt": p.created_at.isoformat() if p.created_at else None,
     }
+
+
+def _sprint_dict(sp: Sprint, include_stats: bool = True) -> dict:
+    d = {
+        "id": sp.id,
+        "projectId": sp.project_id,
+        "name": sp.name,
+        "goal": sp.goal,
+        "status": sp.status,
+        "startDate": sp.start_date.isoformat() if sp.start_date else None,
+        "endDate": sp.end_date.isoformat() if sp.end_date else None,
+        "capacity": sp.capacity,
+        "sortOrder": sp.sort_order,
+    }
+    if include_stats:
+        tasks = [t for t in sp.tasks if t.deleted_at is None]
+        done = [t for t in tasks if t.column and t.column.is_done]
+        committed = sum(t.estimate_md or 0 for t in tasks)
+        d.update({
+            "taskCount": len(tasks),
+            "doneCount": len(done),
+            "committedMd": round(committed, 2),
+            "progress": round(len(done) / len(tasks) * 100) if tasks else 0,
+        })
+    return d
 
 
 def _comment_dict(c: Comment) -> dict:
@@ -534,15 +587,72 @@ def project_metrics(s: Session = Depends(db)):
     }
 
 
+AUTO_ARCHIVE_DAYS = 3
+
+
+def _auto_archive(s: Session, project_id: int) -> int:
+    """Arquiva tarefas concluídas há mais de AUTO_ARCHIVE_DAYS dias.
+
+    Faz o backfill do done_at (a partir de updated_at) para tarefas já em
+    coluna de conclusão que ainda não têm o marcador. Retorna quantas arquivou.
+    """
+    from datetime import timedelta
+    now = datetime.utcnow()
+    cutoff = now - timedelta(days=AUTO_ARCHIVE_DAYS)
+    done_col_ids = {
+        c.id for c in s.query(BoardColumn).filter(
+            BoardColumn.project_id == project_id, BoardColumn.is_done == True  # noqa: E712
+        ).all()
+    }
+    if not done_col_ids:
+        return 0
+    tasks = s.query(Task).filter(
+        Task.project_id == project_id,
+        Task.deleted_at.is_(None),
+        Task.archived_at.is_(None),
+        Task.column_id.in_(done_col_ids),
+    ).all()
+    archived = 0
+    for t in tasks:
+        if t.done_at is None:
+            t.done_at = t.updated_at or now
+        if t.done_at <= cutoff:
+            t.archived_at = now
+            archived += 1
+    if tasks:
+        s.commit()
+    return archived
+
+
 @app.get("/api/projects/{project_id}/board")
-def project_board(project_id: int, s: Session = Depends(db)):
+def project_board(project_id: int, sprintId: Optional[str] = None, s: Session = Depends(db)):
+    """Board do projeto. sprintId opcional filtra as tarefas:
+    - ausente: todas as tarefas
+    - "backlog": só tarefas sem sprint
+    - número: só tarefas da sprint indicada
+    Tarefas arquivadas nunca aparecem aqui.
+    """
     p = s.query(Project).filter(Project.id == project_id).first()
     if not p:
         raise HTTPException(404, "Project not found")
-    return {
-        **_project_dict(p),
-        "columns": [_column_dict(c, include_tasks=True) for c in p.columns],
-    }
+
+    _auto_archive(s, project_id)
+
+    def _keep(t: Task) -> bool:
+        if t.deleted_at is not None or t.archived_at is not None:
+            return False
+        if sprintId is None or sprintId == "":
+            return True
+        if sprintId == "backlog":
+            return t.sprint_id is None
+        return str(t.sprint_id) == str(sprintId)
+
+    columns = []
+    for c in p.columns:
+        col = _column_dict(c, include_tasks=False)
+        col["tasks"] = [_task_brief(t) for t in c.tasks if _keep(t)]
+        columns.append(col)
+    return {**_project_dict(p), "columns": columns}
 
 
 @app.delete("/api/projects/{project_id}")
@@ -611,6 +721,8 @@ def create_task(body: TaskCreate, s: Session = Depends(db)):
         task.assignee = body.assignee
     if body.requiresHuman is not None:
         task.requires_human = body.requiresHuman
+    if body.sprintId is not None:
+        task.sprint_id = body.sprintId
     s.add(task)
     s.flush()
     _log(s, "task", task.id, "created", f"Task {project.key}-{number} created")
@@ -674,6 +786,7 @@ def update_task(code: str, body: TaskUpdate, s: Session = Depends(db)):
         "type": "type",
         "columnId": "column_id",
         "parentId": "parent_id",
+        "sprintId": "sprint_id",
         "rank": "rank",
     }
     for api_field, model_field in field_map.items():
@@ -719,6 +832,118 @@ def delete_task(code: str, s: Session = Depends(db)):
     return {"ok": True}
 
 
+# ---------------------------------------------------------------------------
+# Sprints
+# ---------------------------------------------------------------------------
+
+
+def _parse_dt(value):
+    from datetime import datetime as _dt
+    return _dt.fromisoformat(value) if value else None
+
+
+@app.get("/api/projects/{project_id}/sprints")
+def list_sprints(project_id: int, s: Session = Depends(db)):
+    p = s.query(Project).filter(Project.id == project_id).first()
+    if not p:
+        raise HTTPException(404, "Project not found")
+    sprints = (
+        s.query(Sprint)
+        .filter(Sprint.project_id == project_id)
+        .order_by(Sprint.sort_order, Sprint.id)
+        .all()
+    )
+    return [_sprint_dict(sp) for sp in sprints]
+
+
+@app.post("/api/projects/{project_id}/sprints")
+def create_sprint(project_id: int, body: SprintCreate, s: Session = Depends(db)):
+    p = s.query(Project).filter(Project.id == project_id).first()
+    if not p:
+        raise HTTPException(404, "Project not found")
+    max_order = (
+        s.query(Sprint).filter(Sprint.project_id == project_id).count()
+    )
+    sp = Sprint(
+        project_id=project_id,
+        name=body.name,
+        goal=body.goal,
+        start_date=_parse_dt(body.startDate),
+        end_date=_parse_dt(body.endDate),
+        capacity=body.capacity,
+        sort_order=max_order,
+    )
+    s.add(sp)
+    s.commit()
+    s.refresh(sp)
+    return _sprint_dict(sp)
+
+
+@app.patch("/api/sprints/{sprint_id}")
+def update_sprint(sprint_id: int, body: SprintUpdate, s: Session = Depends(db)):
+    sp = s.query(Sprint).filter(Sprint.id == sprint_id).first()
+    if not sp:
+        raise HTTPException(404, "Sprint not found")
+    data = body.model_dump(exclude_unset=True)
+    if "name" in data:
+        sp.name = data["name"]
+    if "goal" in data:
+        sp.goal = data["goal"]
+    if "capacity" in data:
+        sp.capacity = data["capacity"]
+    if "sortOrder" in data:
+        sp.sort_order = data["sortOrder"]
+    if "startDate" in data:
+        sp.start_date = _parse_dt(data["startDate"])
+    if "endDate" in data:
+        sp.end_date = _parse_dt(data["endDate"])
+    if "status" in data and data["status"]:
+        sp.status = data["status"]
+        # Só uma sprint ativa por projeto: rebaixa as outras.
+        if sp.status == "ATIVA":
+            for other in s.query(Sprint).filter(
+                Sprint.project_id == sp.project_id, Sprint.id != sp.id, Sprint.status == "ATIVA"
+            ).all():
+                other.status = "PLANEJADA"
+    s.commit()
+    s.refresh(sp)
+    return _sprint_dict(sp)
+
+
+@app.post("/api/sprints/{sprint_id}/complete")
+def complete_sprint(sprint_id: int, body: SprintComplete, s: Session = Depends(db)):
+    sp = s.query(Sprint).filter(Sprint.id == sprint_id).first()
+    if not sp:
+        raise HTTPException(404, "Sprint not found")
+    target = body.moveUnfinishedTo
+    if target is not None:
+        dest = s.query(Sprint).filter(Sprint.id == target, Sprint.project_id == sp.project_id).first()
+        if not dest:
+            raise HTTPException(400, "Destino inválido para tarefas não concluídas")
+    moved = 0
+    for task in [t for t in sp.tasks if t.deleted_at is None]:
+        if not (task.column and task.column.is_done):
+            task.sprint_id = target  # None = backlog
+            moved += 1
+    sp.status = "CONCLUIDA"
+    s.commit()
+    s.refresh(sp)
+    return {**_sprint_dict(sp), "movedUnfinished": moved}
+
+
+@app.delete("/api/sprints/{sprint_id}")
+def delete_sprint(sprint_id: int, s: Session = Depends(db)):
+    sp = s.query(Sprint).filter(Sprint.id == sprint_id).first()
+    if not sp:
+        raise HTTPException(404, "Sprint not found")
+    # SQLite não força ON DELETE SET NULL: solta as tarefas para o backlog.
+    for task in sp.tasks:
+        task.sprint_id = None
+    s.delete(sp)
+    s.commit()
+    return {"ok": True}
+
+
 @app.post("/api/tasks/{code}/move")
 def move_task(code: str, body: MoveBody, s: Session = Depends(db)):
     task = _resolve_task(code, s)
@@ -740,6 +965,12 @@ def move_task(code: str, body: MoveBody, s: Session = Depends(db)):
             )
     task.column_id = new_col.id
     task.updated_at = datetime.utcnow()
+    # Marca/limpa o momento em que a tarefa ficou "concluída" (base do auto-arquivamento)
+    if new_col.is_done:
+        if task.done_at is None:
+            task.done_at = datetime.utcnow()
+    else:
+        task.done_at = None
     _log(
         s,
         "task",
@@ -750,6 +981,52 @@ def move_task(code: str, body: MoveBody, s: Session = Depends(db)):
     s.commit()
     s.refresh(task)
     return _task_full(task)
+
+
+# -- Arquivamento -----------------------------------------------------------
+
+
+@app.post("/api/tasks/{code}/archive")
+def archive_task(code: str, s: Session = Depends(db)):
+    task = _resolve_task(code, s)
+    if task.archived_at is None:
+        task.archived_at = datetime.utcnow()
+        _log(s, "task", task.id, "archived", f"Task {task.code} arquivada")
+        s.commit()
+    s.refresh(task)
+    return _task_full(task)
+
+
+@app.post("/api/tasks/{code}/unarchive")
+def unarchive_task(code: str, s: Session = Depends(db)):
+    task = _resolve_task(code, s)
+    if task.archived_at is not None:
+        task.archived_at = None
+        # Reinicia a contagem para não re-arquivar na hora
+        if task.column and task.column.is_done:
+            task.done_at = datetime.utcnow()
+        _log(s, "task", task.id, "unarchived", f"Task {task.code} desarquivada")
+        s.commit()
+    s.refresh(task)
+    return _task_full(task)
+
+
+@app.get("/api/projects/{project_id}/archived")
+def list_archived(project_id: int, s: Session = Depends(db)):
+    p = s.query(Project).filter(Project.id == project_id).first()
+    if not p:
+        raise HTTPException(404, "Project not found")
+    tasks = (
+        s.query(Task)
+        .filter(
+            Task.project_id == project_id,
+            Task.deleted_at.is_(None),
+            Task.archived_at.isnot(None),
+        )
+        .order_by(Task.archived_at.desc())
+        .all()
+    )
+    return [_task_brief(t) for t in tasks]
 
 
 # -- Checklist --------------------------------------------------------------
