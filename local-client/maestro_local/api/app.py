@@ -1917,10 +1917,16 @@ def put_settings(body: SettingsUpdate):
 # ---------------------------------------------------------------------------
 
 def _mount_webui(_app):
+    import mimetypes
     from pathlib import Path
 
     from fastapi.responses import FileResponse
     from fastapi.staticfiles import StaticFiles
+
+    # Garante content-types corretos para o PWA
+    mimetypes.add_type("application/manifest+json", ".webmanifest")
+    mimetypes.add_type("application/javascript", ".js")
+    mimetypes.add_type("image/svg+xml", ".svg")
 
     dist = Path(__file__).resolve().parents[2] / "webui" / "dist"
     if not (dist / "index.html").exists():

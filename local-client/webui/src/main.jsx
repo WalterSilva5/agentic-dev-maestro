@@ -9,6 +9,13 @@ import './styles.css'
 
 applyTheme(getTheme())
 
+// PWA: registra o service worker (só no build de produção)
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {})
+  })
+}
+
 function render() {
   createRoot(document.getElementById('root')).render(
     <React.StrictMode>
