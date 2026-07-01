@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   getStudyPlans,
   createStudyPlan,
+  createStudyPlanWithFiles,
   getTopics,
   addTopic,
   updateTopic,
@@ -35,11 +36,17 @@ export default function Estudos() {
   const [plans, setPlans] = useState([])
   const [title, setTitle] = useState('')
   const [category, setCategory] = useState(CATEGORIES[0])
+  const [description, setDescription] = useState('')
   const [error, setError] = useState('')
 
   const [expandedId, setExpandedId] = useState(null)
   const [topics, setTopics] = useState([])
   const [topicTitle, setTopicTitle] = useState('')
+
+  // Anexos (ebooks/documentos) usados como contexto na criação do plano
+  const fileRef = useRef(null)
+  const [attachedFiles, setAttachedFiles] = useState([])
+  const [creating, setCreating] = useState(false)
 
   // Assistente de estudo (aplica-se ao plano expandido)
   const [assistTopic, setAssistTopic] = useState('')
@@ -62,16 +69,44 @@ export default function Estudos() {
       .then(setTopics)
       .catch((e) => setError(e.response?.data?.detail || String(e.message || e)))
 
+  const onPickFiles = (e) => {
+    const files = Array.from(e.target.files || [])
+    e.target.value = ''
+    if (files.length) setAttachedFiles((prev) => [...prev, ...files])
+  }
+
+  const removeAttached = (idx) => setAttachedFiles((prev) => prev.filter((_, i) => i !== idx))
+
   const onCreatePlan = async () => {
-    if (!title.trim()) return
+    if (!title.trim() || creating) return
+    setCreating(true)
+    setError('')
     try {
-      await createStudyPlan({ title: title.trim(), category })
+      let plan
+      if (attachedFiles.length) {
+        // Cria usando os campos + os arquivos anexados como contexto (IA gera os tópicos)
+        plan = await createStudyPlanWithFiles({
+          title: title.trim(),
+          category,
+          description: description.trim(),
+          files: attachedFiles,
+        })
+      } else {
+        plan = await createStudyPlan({ title: title.trim(), category, description: description.trim() || null })
+      }
       setTitle('')
       setCategory(CATEGORIES[0])
-      setError('')
-      load()
+      setDescription('')
+      setAttachedFiles([])
+      await load()
+      if (plan?.id) {
+        setExpandedId(plan.id)
+        loadTopics(plan.id)
+      }
     } catch (e) {
       setError(e.response?.data?.detail || String(e.message || e))
+    } finally {
+      setCreating(false)
     }
   }
 
@@ -173,7 +208,7 @@ export default function Estudos() {
 
       {error && <div className="banner">{error}</div>}
 
-      <div className="toolbar">
+      <div className="toolbar" style={{ flexWrap: 'wrap' }}>
         <input
           placeholder={t("Título do plano")}
           value={title}
@@ -186,8 +221,43 @@ export default function Estudos() {
             </option>
           ))}
         </select>
-        <button onClick={onCreatePlan}>{t("+ Criar plano")}</button>
+        <input
+          placeholder={t("Descrição (opcional)")}
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+        />
+        <input
+          ref={fileRef}
+          type="file"
+          multiple
+          accept=".txt,.md,.markdown,.pdf,.docx,.epub"
+          style={{ display: 'none' }}
+          onChange={onPickFiles}
+        />
+        <button className="ghost" onClick={() => fileRef.current?.click()}>
+          {t('📎 Anexar arquivos')}
+        </button>
+        <button disabled={creating} onClick={onCreatePlan}>
+          {creating ? t('Criando...') : t('+ Criar plano')}
+        </button>
       </div>
+
+      {attachedFiles.length > 0 && (
+        <div className="muted" style={{ marginBottom: 6 }}>
+          {t('Anexos (usados como contexto):')}{' '}
+          {attachedFiles.map((f, i) => (
+            <span key={i} className="badge-type" style={{ marginRight: 6 }}>
+              {f.name}{' '}
+              <a style={{ cursor: 'pointer' }} onClick={() => removeAttached(i)}>✕</a>
+            </span>
+          ))}
+        </div>
+      )}
+      {creating && attachedFiles.length > 0 && (
+        <div className="muted" style={{ marginBottom: 10 }}>
+          {t('Lendo os arquivos e montando os tópicos com IA — pode levar alguns segundos.')}
+        </div>
+      )}
 
       {plans.map((p) => (
         <div key={p.id} className="card">

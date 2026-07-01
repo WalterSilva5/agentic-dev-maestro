@@ -63,6 +63,14 @@ export const getTopics = (planId) => api.get(`/study/plans/${planId}/topics`).th
 export const addTopic = (planId, body) => api.post(`/study/plans/${planId}/topics`, body).then((r) => r.data)
 export const updateTopic = (id, body) => api.patch(`/study/topics/${id}`, body).then((r) => r.data)
 export const studyAssistant = (body) => api.post('/study/assistant', body).then((r) => r.data)
+export const createStudyPlanWithFiles = ({ title, category, description = '', files = [] }) => {
+  const fd = new FormData()
+  fd.append('title', title)
+  fd.append('category', category)
+  if (description) fd.append('description', description)
+  for (const f of files) fd.append('files', f)
+  return api.post('/study/plans/with-files', fd).then((r) => r.data)
+}
 
 // Meu Dia
 export const getDaily = (date) => api.get(`/daily/${date}`).then((r) => r.data)

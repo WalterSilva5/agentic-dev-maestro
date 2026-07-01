@@ -1,8 +1,9 @@
 """Study module GUI — list plans, plan detail with topics, create/edit."""
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtWidgets import (
     QComboBox,
+    QFileDialog,
     QFormLayout,
     QFrame,
     QHBoxLayout,
@@ -48,6 +49,42 @@ TOPIC_STATUSES = [
     ("CONCLUIDO", _t("Concluído")),
     ("PULADO", _t("Pulado")),
 ]
+
+
+class PlanTopicsWorker(QThread):
+    """Extrai texto de vários arquivos e gera os tópicos do plano com IA (QThread)."""
+
+    done = Signal(object)   # list[{title, estimate_hours}]
+    failed = Signal(str)
+
+    def __init__(self, paths, title="", category="", description="", parent=None):
+        super().__init__(parent)
+        self.paths = list(paths)
+        self.title = title
+        self.category = category
+        self.description = description
+
+    def run(self):
+        try:
+            import os
+            from maestro_local.study.assistant import topics_from_material
+            from maestro_local.study.ingest import extract_text
+            chunks = []
+            for path in self.paths:
+                try:
+                    with open(path, "rb") as f:
+                        data = f.read()
+                except OSError:
+                    continue
+                text = extract_text(data, os.path.basename(path))
+                if text.strip():
+                    chunks.append(f"### {os.path.basename(path)}\n{text}")
+            material = "\n\n".join(chunks)
+            self.done.emit(topics_from_material(
+                material, title=self.title, category=self.category, description=self.description,
+            ))
+        except Exception as e:  # noqa: BLE001
+            self.failed.emit(str(e))
 
 
 def _status_color(status, t):
@@ -207,6 +244,9 @@ class StudyView(QWidget):
         self._assist_worker = None
         self._assist_plan_title = ""
         self._suggested_topics = []
+        self._file_worker = None
+        self._attached_files = []
+        self._pending_plan_id = None
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(0)
@@ -251,11 +291,20 @@ class StudyView(QWidget):
         form_layout.addLayout(inputs)
 
         btn_row = QHBoxLayout()
-        btn_row.addStretch()
-        create_btn = QPushButton(_t("+ Criar Plano"))
-        create_btn.setCursor(Qt.PointingHandCursor)
-        create_btn.clicked.connect(self._create_plan)
-        btn_row.addWidget(create_btn)
+        self.attach_label = QLabel("")
+        self.attach_label.setProperty("class", "hint")
+        self.attach_label.setWordWrap(True)
+        btn_row.addWidget(self.attach_label, 1)
+        self.attach_btn = QPushButton(_t("📎 Anexar arquivos"))
+        self.attach_btn.setProperty("flat", True)
+        self.attach_btn.setCursor(Qt.PointingHandCursor)
+        self.attach_btn.setToolTip(_t("Anexar ebooks/documentos (txt, pdf, docx, epub) usados como contexto"))
+        self.attach_btn.clicked.connect(self._attach_files)
+        btn_row.addWidget(self.attach_btn)
+        self.create_btn = QPushButton(_t("+ Criar Plano"))
+        self.create_btn.setCursor(Qt.PointingHandCursor)
+        self.create_btn.clicked.connect(self._create_plan)
+        btn_row.addWidget(self.create_btn)
         form_layout.addLayout(btn_row)
         layout.addWidget(form)
 
@@ -549,24 +598,109 @@ class StudyView(QWidget):
 
     def _create_plan(self):
         title = self.title_input.text().strip()
-        if not title:
+        if not title or self._file_worker is not None:
             return
+        category = self.category_combo.currentData()
+        description = self.desc_input.text().strip()
+        files = list(self._attached_files)
+
+        # Cria o plano com os campos do usuário
+        new_id = None
         s = get_session()
         try:
-            p = StudyPlan(
-                title=title,
-                category=self.category_combo.currentData(),
-                description=self.desc_input.text().strip() or None,
-            )
+            p = StudyPlan(title=title, category=category, description=description or None)
             s.add(p)
             s.commit()
-            self.title_input.clear()
-            self.desc_input.clear()
-            self.refresh()
+            new_id = p.id
         except Exception:
             s.rollback()
         finally:
             s.close()
+        if not new_id:
+            return
+
+        # Limpa o formulário
+        self.title_input.clear()
+        self.desc_input.clear()
+        self._attached_files = []
+        self._refresh_attach_label()
+
+        if files:
+            p = get_active_ai_provider()
+            if not (p and p.get("model")):
+                self.stats_label.setText(
+                    _t("Plano criado. Configure um provedor de IA para gerar os tópicos dos anexos.")
+                )
+                self._open_plan(new_id)
+                return
+            self._pending_plan_id = new_id
+            self.stats_label.setText(
+                _t("Lendo os arquivos e montando os tópicos com IA — pode levar alguns segundos.")
+            )
+            self.create_btn.setEnabled(False)
+            self._file_worker = PlanTopicsWorker(files, title=title, category=category, description=description)
+            self._file_worker.done.connect(self._on_topics)
+            self._file_worker.failed.connect(self._on_topics_error)
+            self._file_worker.finished.connect(
+                lambda: (setattr(self, "_file_worker", None), self.create_btn.setEnabled(True))
+            )
+            self._file_worker.start()
+            self._open_plan(new_id)
+        else:
+            self.refresh()
+
+    # ---- Anexos (contexto na criação) ----
+    def _attach_files(self):
+        paths, _ = QFileDialog.getOpenFileNames(
+            self, _t("Anexar ebooks/documentos"), "",
+            _t("Documentos (*.txt *.md *.markdown *.pdf *.docx *.epub);;Todos (*)"),
+        )
+        if paths:
+            self._attached_files.extend(paths)
+            self._refresh_attach_label()
+
+    def _refresh_attach_label(self):
+        import os
+        if not self._attached_files:
+            self.attach_label.setText("")
+            return
+        names = ", ".join(os.path.basename(p) for p in self._attached_files)
+        self.attach_label.setText(_t("Anexos ({n}): {names}").format(
+            n=len(self._attached_files), names=names,
+        ))
+
+    def _on_topics(self, topics):
+        topics = topics or []
+        pid = self._pending_plan_id
+        self._pending_plan_id = None
+        if pid:
+            s = get_session()
+            try:
+                for i, tp in enumerate(topics):
+                    hours = tp.get("estimate_hours")
+                    try:
+                        hours = float(hours) if hours else None
+                    except (TypeError, ValueError):
+                        hours = None
+                    s.add(StudyTopic(
+                        plan_id=pid, title=(tp.get("title") or "").strip()[:200] or _t("Tópico"),
+                        sort_order=i, weight=1.0, estimate_hours=hours,
+                    ))
+                s.commit()
+            except Exception:
+                s.rollback()
+            finally:
+                s.close()
+        self.stats_label.setText(_t("Plano criado com {n} tópico(s) a partir dos anexos.").format(n=len(topics)))
+        if self.current_plan_id:
+            self._load_detail()
+        else:
+            self.refresh()
+
+    def _on_topics_error(self, err):
+        self.stats_label.setText(
+            _t("Plano criado, mas falhou gerar tópicos: {error}").format(error=err)
+        )
 
     def _open_plan(self, plan_id):
         self.current_plan_id = plan_id

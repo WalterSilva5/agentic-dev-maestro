@@ -163,5 +163,10 @@ export const CATALOG = {
   " / capacidade {cap}hd": " / capacity {cap}md",
   "{d}/{n} concluídas": "{d}/{n} done",
   "Crie uma sprint para começar a planejar.": "Create a sprint to start planning.",
+  "Descrição (opcional)": "Description (optional)",
+  "📎 Anexar arquivos": "📎 Attach files",
+  "Criando...": "Creating...",
+  "Anexos (usados como contexto):": "Attachments (used as context):",
+  "Lendo os arquivos e montando os tópicos com IA — pode levar alguns segundos.": "Reading the files and building the topics with AI — this may take a few seconds.",
 },
 }

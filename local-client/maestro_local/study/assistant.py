@@ -122,6 +122,53 @@ def run_action(action: str, *, topic: str = "", plan: str = "",
     return generate_text(action, topic=topic, plan=plan, question=question)
 
 
+_TOPICS_FROM_MATERIAL_SYSTEM = (
+    "Você é um mentor que monta roteiros de estudo. Recebe a definição de um plano "
+    "(título, categoria, descrição) e, opcionalmente, um MATERIAL anexado (ebooks, "
+    "apostilas, documentos). Responda SEMPRE apenas com JSON válido, sem texto fora do JSON."
+)
+
+_TOPICS_FROM_MATERIAL_PROMPT = (
+    "Monte a lista de tópicos de estudo para o plano abaixo, em uma ordem de aprendizado coerente.\n"
+    "PLANO: título=\"{title}\" | categoria={category}\n"
+    "{description}\n"
+    "{material_intro}{content}\n\n"
+    "Retorne APENAS este JSON:\n"
+    "{{\"topics\": [{{\"title\": \"tópico\", \"estimate_hours\": número}}]}}\n"
+    "Regras: 6 a 15 tópicos; títulos curtos; estimate_hours é um inteiro de horas realista. "
+    "Quando houver MATERIAL, os tópicos devem cobrir o conteúdo dele; sem material, baseie-se no título/descrição."
+)
+
+
+def topics_from_material(material: str = "", *, title: str = "",
+                         category: str = "", description: str = "") -> list[dict]:
+    """Gera os tópicos de um plano a partir dos campos + material anexado (opcional).
+
+    Retorna list[{title, estimate_hours}].
+    """
+    words = material.split()
+    clamped = " ".join(words[:6000]) if len(words) > 6000 else material
+    material_intro = "MATERIAL ANEXADO (pode estar truncado):\n" if clamped.strip() else ""
+    desc = f"Descrição: {description}" if description else ""
+    llm = build_chat_model(temperature=0.3)
+    user = _TOPICS_FROM_MATERIAL_PROMPT.format(
+        title=title or "(sem título)", category=category or "CURSO",
+        description=desc, material_intro=material_intro, content=clamped,
+    )
+    resp = llm.invoke([("system", _TOPICS_FROM_MATERIAL_SYSTEM), ("user", user)])
+    parsed = _parse_json_response(getattr(resp, "content", str(resp)))
+    topics: list[dict] = []
+    for item in (parsed.get("topics", []) if isinstance(parsed, dict) else []):
+        if isinstance(item, dict) and item.get("title"):
+            topics.append({
+                "title": str(item["title"]).strip()[:200],
+                "estimate_hours": item.get("estimate_hours"),
+            })
+        elif isinstance(item, str) and item.strip():
+            topics.append({"title": item.strip()[:200], "estimate_hours": None})
+    return topics
+
+
 class StudyAIWorker(QThread):
     """Executa UMA ação do assistente e emite o resultado.
 

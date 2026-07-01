@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Any, Optional
 
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -2154,6 +2154,61 @@ def study_assistant(body: StudyAssistBody):
         return {"action": body.action, "result": result}
     except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/study/plans/with-files")
+def create_study_plan_with_files(
+    title: str = Form(...),
+    category: str = Form("LIVRO"),
+    description: str = Form(""),
+    files: list[UploadFile] = File(default=[]),
+    s: Session = Depends(db),
+):
+    """Cria um plano de estudo usando os CAMPOS (título/categoria/descrição) e os
+    ARQUIVOS anexados como contexto. Extrai o texto de todos os arquivos, gera os
+    tópicos com IA e persiste. O plano é criado mesmo se a geração de IA falhar."""
+    from maestro_local.study.assistant import topics_from_material
+    from maestro_local.study.ingest import extract_text
+
+    chunks: list[str] = []
+    used_files: list[str] = []
+    for f in files or []:
+        try:
+            data = f.file.read()
+        except Exception:  # noqa: BLE001
+            data = b""
+        if not data:
+            continue
+        text = extract_text(data, f.filename or "")
+        if text.strip():
+            chunks.append(f"### {f.filename}\n{text}")
+            used_files.append(f.filename)
+    material = "\n\n".join(chunks)
+
+    plan = StudyPlan(title=title.strip(), category=category or "LIVRO", description=description.strip() or None)
+    s.add(plan)
+    s.flush()
+
+    ai_error = None
+    try:
+        topics = topics_from_material(
+            material, title=title.strip(), category=category, description=description.strip(),
+        )
+    except Exception as e:  # noqa: BLE001
+        topics, ai_error = [], str(e)
+
+    for i, tp in enumerate(topics):
+        hours = tp.get("estimate_hours")
+        try:
+            hours = float(hours) if hours else None
+        except (TypeError, ValueError):
+            hours = None
+        s.add(StudyTopic(
+            plan_id=plan.id, title=tp["title"], sort_order=i, weight=1.0, estimate_hours=hours,
+        ))
+    s.commit()
+    s.refresh(plan)
+    return {**_plan_dict(plan, include_topics=True), "usedFiles": used_files, "aiError": ai_error}
 
 
 # ---------------------------------------------------------------------------
