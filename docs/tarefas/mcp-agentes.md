@@ -1,45 +1,47 @@
-# Tarefas — MCP / Agentes
+> 🇧🇷 [Versão em português](mcp-agentes.ptbr.md)
 
-Pacote separado que expõe a API do Maestro como **servidor MCP**, para agentes
-(Claude Code, etc.) operarem os quadros nativamente. Detalhes de design no
-[doc 03](../03-api-e-agentes.md#servidor-mcp-envólucro-da-api). Esforço em homem-dia (hd).
+# Tasks — MCP / Agents
+
+A separate package that exposes the Maestro API as an **MCP server**, so agents
+(Claude Code, etc.) can operate the boards natively. Design details in
+[doc 03](../03-api-e-agentes.md#servidor-mcp-envólucro-da-api). Effort in man-days (md).
 
 ---
 
-## M1 — Scaffold do servidor MCP · 1.5 hd
-- [ ] Pacote `maestro-mcp` (Node/TypeScript) usando o SDK MCP
-- [ ] Config por env: `MAESTRO_API_URL`, `MAESTRO_API_KEY`, `MAESTRO_COMPANY_ID`
-- [ ] Cliente HTTP tipado (reusar tipos gerados do Swagger)
-- [ ] Mapear erros da API → erros MCP legíveis para o agente
+## M1 — MCP server scaffold · 1.5 md
+- [ ] `maestro-mcp` package (Node/TypeScript) using the MCP SDK
+- [ ] Config via env: `MAESTRO_API_URL`, `MAESTRO_API_KEY`, `MAESTRO_COMPANY_ID`
+- [ ] Typed HTTP client (reuse the types generated from Swagger)
+- [ ] Map API errors → MCP errors readable by the agent
 
-## M2 — Tools de leitura · 1 hd
+## M2 — Read tools · 1 md
 - [ ] `maestro_list_projects`
-- [ ] `maestro_list_tasks` (filtros: status, assignee, label)
-- [ ] `maestro_get_task` (por código `GAV-42`)
+- [ ] `maestro_list_tasks` (filters: status, assignee, label)
+- [ ] `maestro_get_task` (by `GAV-42` code)
 
-## M3 — Tools de escrita · 2 hd
-- [ ] `maestro_write_doc` (cria/atualiza doc markdown em projeto/tarefa)
-- [ ] `maestro_decompose` (bulk: tarefas + subtarefas, com `Idempotency-Key`)
-- [ ] `maestro_move_task` (muda status no quadro)
-- [ ] `maestro_comment` (comenta numa tarefa)
+## M3 — Write tools · 2 md
+- [ ] `maestro_write_doc` (creates/updates a markdown doc on a project/task)
+- [ ] `maestro_decompose` (bulk: tasks + subtasks, with `Idempotency-Key`)
+- [ ] `maestro_move_task` (changes status on the board)
+- [ ] `maestro_comment` (comments on a task)
 
-## M4 — Empacotamento e uso · 1.5 hd
-- [ ] Publicar/rodar via `npx` ou binário
-- [ ] Exemplo de config no cliente MCP (ex.: `claude` / `mcpServers`)
-- [ ] Guia: "como dar uma API key a um agente e ligar o MCP"
-- [ ] Princípio do menor privilégio: recomendar chave com escopos mínimos
+## M4 — Packaging and usage · 1.5 md
+- [ ] Publish/run via `npx` or a binary
+- [ ] Example config in the MCP client (e.g., `claude` / `mcpServers`)
+- [ ] Guide: "how to give an agent an API key and wire up the MCP"
+- [ ] Least-privilege principle: recommend a key with minimal scopes
 
-## M5 — Validação ponta a ponta · 1 hd
-- [ ] Rodar o **Maestro Loop** completo via MCP num agente real
-      (briefing → doc → decompose → mover status)
-- [ ] Conferir que toda ação aparece no `ActivityLog` como "via agente"
+## M5 — End-to-end validation · 1 md
+- [ ] Run the full **Maestro Loop** via MCP with a real agent
+      (briefing → doc → decompose → move status)
+- [ ] Verify that every action appears in the `ActivityLog` as "via agent"
 
 ---
 
-## Checklist de qualidade (MCP)
+## Quality checklist (MCP)
 
-- [ ] Tools com descrições claras e schemas de entrada validados
-- [ ] Erros da API chegam ao agente de forma acionável (campo faltando, escopo)
-- [ ] Idempotência respeitada no `decompose` (sem tarefas duplicadas)
-- [ ] Auditoria correta (ações atribuídas à identidade do agente)
-- [ ] Guia de configuração testado por alguém que não escreveu o código
+- [ ] Tools with clear descriptions and validated input schemas
+- [ ] API errors reach the agent in an actionable form (missing field, scope)
+- [ ] Idempotency honored in `decompose` (no duplicated tasks)
+- [ ] Correct auditing (actions attributed to the agent's identity)
+- [ ] Configuration guide tested by someone who did not write the code

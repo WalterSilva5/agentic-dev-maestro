@@ -1,72 +1,74 @@
-# 09 — Modulo de Estudos
+> 🇧🇷 [Versão em português](09-modulo-estudos.ptbr.md)
 
-## Contexto
+# 09 — Studies Module
 
-O Maestro hoje resolve tracking de tarefas de desenvolvimento. A ideia é expandir para que tambem funcione como ferramenta de acompanhamento de estudos pessoais — permitindo definir um roadmap de aprendizado, quebrar em topicos/etapas, acompanhar progresso percentual e manter notas de estudo integradas ao fluxo existente.
+## Context
 
-O objetivo nao é criar um app separado, mas integrar estudos como um modulo dentro do Maestro, reaproveitando o maximo da infraestrutura existente (projetos, tarefas, kanban, notas diarias, Obsidian).
+Maestro today handles development task tracking. The idea is to expand it so it also works as a personal study tracking tool — allowing you to define a learning roadmap, break it into topics/stages, track percentage progress and keep study notes integrated into the existing flow.
 
----
-
-## Conceitos principais
-
-### Plano de Estudo (StudyPlan)
-
-Um plano de estudo é um container que representa um percurso completo — ex: "Aprender Rust", "Certificacao AWS SAA", "Algoritmos e Estruturas de Dados".
-
-Cada plano tem:
-- **Titulo** e **descricao**
-- **Categoria** (linguagem, framework, certificacao, conceito, curso, livro)
-- **Status** (planejado, em andamento, pausado, concluido, abandonado)
-- **Data inicio / data alvo** (opcional, para prazos pessoais)
-- **Progresso geral** (calculado automaticamente a partir dos topicos)
-- **Recursos** (links, livros, cursos — lista livre)
-- **Projeto vinculado** (opcional — pode vincular a um projeto existente do Maestro para usar o kanban)
-
-### Topico de Estudo (StudyTopic)
-
-Cada plano é dividido em topicos ordenados que formam o roadmap. Um topico pode ter sub-topicos (hierarquia de 1 nivel).
-
-Cada topico tem:
-- **Titulo**
-- **Descricao** (o que cobrir, por que importa)
-- **Ordem** no roadmap
-- **Status** (pendente, estudando, revisao, concluido, pulado)
-- **Peso** (default 1 — permite dar mais importancia a topicos maiores)
-- **Estimativa de horas** (opcional)
-- **Horas registradas** (tracking de tempo)
-- **Notas** (markdown livre — anotacoes do estudo)
-- **Recursos** (links especificos do topico)
-- **Parent** (para sub-topicos)
-
-### Sessao de Estudo (StudySession)
-
-Registro de quando o usuario sentou pra estudar. Pode ser manual ou com timer.
-
-- **Topico vinculado**
-- **Data/hora inicio e fim**
-- **Duracao** (minutos)
-- **Notas da sessao** (o que aprendeu, duvidas, insights)
-- **Nivel de confianca** (1-5: quao bem entendeu o topico)
+The goal is not to create a separate app, but to integrate studies as a module within Maestro, reusing as much of the existing infrastructure as possible (projects, tasks, kanban, daily notes, Obsidian).
 
 ---
 
-## Calculo de progresso
+## Main concepts
 
-O progresso percentual do plano é calculado com base nos topicos:
+### Study Plan (StudyPlan)
+
+A study plan is a container that represents a complete journey — e.g.: "Learn Rust", "AWS SAA Certification", "Algorithms and Data Structures".
+
+Each plan has:
+- **Title** and **description**
+- **Category** (language, framework, certification, concept, course, book)
+- **Status** (planned, in progress, paused, completed, abandoned)
+- **Start date / target date** (optional, for personal deadlines)
+- **Overall progress** (calculated automatically from the topics)
+- **Resources** (links, books, courses — free-form list)
+- **Linked project** (optional — can be linked to an existing Maestro project to use the kanban)
+
+### Study Topic (StudyTopic)
+
+Each plan is divided into ordered topics that make up the roadmap. A topic can have sub-topics (1-level hierarchy).
+
+Each topic has:
+- **Title**
+- **Description** (what to cover, why it matters)
+- **Order** in the roadmap
+- **Status** (pending, studying, review, completed, skipped)
+- **Weight** (default 1 — allows giving more importance to larger topics)
+- **Hours estimate** (optional)
+- **Logged hours** (time tracking)
+- **Notes** (free-form markdown — study notes)
+- **Resources** (topic-specific links)
+- **Parent** (for sub-topics)
+
+### Study Session (StudySession)
+
+A record of when the user sat down to study. Can be manual or with a timer.
+
+- **Linked topic**
+- **Start and end date/time**
+- **Duration** (minutes)
+- **Session notes** (what was learned, questions, insights)
+- **Confidence level** (1-5: how well the topic was understood)
+
+---
+
+## Progress calculation
+
+The plan's percentage progress is calculated based on the topics:
 
 ```
 progresso = soma(peso dos topicos concluidos) / soma(peso de todos os topicos) * 100
 ```
 
-Topicos com status "pulado" nao contam no denominador (foram removidos do escopo).
+Topics with status "skipped" do not count in the denominator (they were removed from scope).
 
-Sub-topicos contribuem proporcionalmente ao peso do topico pai:
-- Se um topico pai tem peso 3 e 2 de 4 sub-topicos estao concluidos, ele contribui com 1.5 (3 * 0.5).
+Sub-topics contribute proportionally to the weight of the parent topic:
+- If a parent topic has weight 3 and 2 of 4 sub-topics are completed, it contributes 1.5 (3 * 0.5).
 
 ---
 
-## Modelo de dados
+## Data model
 
 ```
 StudyPlan
@@ -114,49 +116,49 @@ StudySession
 
 ## Interface (GUI)
 
-### Nova pagina: "Estudos" no sidebar
+### New page: "Studies" in the sidebar
 
-Posicao no menu: entre "Diario" e "Board" (Alt+2).
+Position in the menu: between "Journal" and "Board" (Alt+2).
 
-### Tela principal: lista de planos
+### Main screen: list of plans
 
-- Cards com titulo, categoria, status, barra de progresso percentual
-- Filtros por status e categoria
-- Botao "Novo Plano"
-- Ordenacao por ultimo acesso, progresso, data alvo
+- Cards with title, category, status, percentage progress bar
+- Filters by status and category
+- "New Plan" button
+- Sorting by last accessed, progress, target date
 
-### Tela de plano: roadmap visual
+### Plan screen: visual roadmap
 
-- Header com titulo, descricao, progresso geral (barra + percentual)
-- Estatisticas: topicos concluidos/total, horas estimadas vs registradas
-- Lista de topicos como timeline/roadmap vertical:
-  - Cada topico mostra: titulo, status (badge colorido), barra de progresso (sub-topicos), horas
-  - Topico expandivel para ver sub-topicos e notas
-  - Drag-and-drop para reordenar
-- Painel lateral ou dialog para editar topico:
-  - Titulo, descricao, notas (markdown), recursos
+- Header with title, description, overall progress (bar + percentage)
+- Statistics: completed/total topics, estimated vs. logged hours
+- List of topics as a vertical timeline/roadmap:
+  - Each topic shows: title, status (colored badge), progress bar (sub-topics), hours
+  - Topic expandable to see sub-topics and notes
+  - Drag-and-drop to reorder
+- Side panel or dialog to edit a topic:
+  - Title, description, notes (markdown), resources
   - Status (dropdown)
-  - Registro de sessao de estudo (botao "Registrar sessao")
-- Botao "Iniciar sessao" (timer simples)
+  - Study session logging ("Log session" button)
+- "Start session" button (simple timer)
 
-### Tela de sessao de estudo
+### Study session screen
 
-- Timer (opcional — pode registrar manualmente)
-- Campo de notas (markdown)
-- Slider de confianca (1-5)
-- Ao finalizar: salva sessao e atualiza horas do topico
+- Timer (optional — can be logged manually)
+- Notes field (markdown)
+- Confidence slider (1-5)
+- On finish: saves the session and updates the topic's hours
 
-### Integracao com Diario
+### Journal integration
 
-- Na pagina "Diario de Trabalho", mostrar sessoes de estudo do dia
-- No relatorio gerado, incluir secao "Estudos" com:
-  - Sessoes realizadas
-  - Horas de estudo
-  - Topicos avancados
+- On the "Work Journal" page, show the day's study sessions
+- In the generated report, include a "Studies" section with:
+  - Sessions performed
+  - Study hours
+  - Topics advanced
 
-### Integracao com Obsidian
+### Obsidian integration
 
-Na sincronizacao do vault, exportar:
+On vault synchronization, export:
 ```
 Vault/
   Estudos/
@@ -170,12 +172,12 @@ Vault/
         2026-06-25.md    -- sessoes do dia
 ```
 
-### Integracao com projeto (opcional)
+### Project integration (optional)
 
-Se o plano estiver vinculado a um projeto:
-- Cada topico pode gerar uma tarefa no kanban (acao manual "Criar tarefa")
-- A tarefa mantem referencia ao topico
-- Concluir a tarefa marca o topico como concluido
+If the plan is linked to a project:
+- Each topic can generate a task on the kanban (manual "Create task" action)
+- The task keeps a reference to the topic
+- Completing the task marks the topic as completed
 
 ---
 
@@ -203,42 +205,42 @@ GET    /api/study/stats                    -- estatisticas gerais (horas, planos
 
 ---
 
-## Fases de implementacao
+## Implementation phases
 
-### Fase 1 — Fundacao (MVP)
-- Modelos SQLAlchemy: StudyPlan, StudyTopic, StudySession
-- Migracao do banco
-- Endpoints CRUD basicos
-- Pagina "Estudos" no sidebar com lista de planos
-- Tela de criacao/edicao de plano
-- Lista de topicos com status e reordenacao
-- Calculo de progresso
+### Phase 1 — Foundation (MVP)
+- SQLAlchemy models: StudyPlan, StudyTopic, StudySession
+- Database migration
+- Basic CRUD endpoints
+- "Studies" page in the sidebar with a list of plans
+- Plan creation/editing screen
+- List of topics with status and reordering
+- Progress calculation
 
-### Fase 2 — Sessoes e tracking
-- Registro de sessoes de estudo (manual)
-- Timer simples (opcional)
-- Horas registradas por topico
-- Slider de confianca
-- Integracao com Diario (mostrar sessoes do dia no relatorio)
+### Phase 2 — Sessions and tracking
+- Study session logging (manual)
+- Simple timer (optional)
+- Logged hours per topic
+- Confidence slider
+- Journal integration (show the day's sessions in the report)
 
-### Fase 3 — Visualizacao e polish
-- Roadmap visual (timeline vertical)
-- Graficos de progresso ao longo do tempo
-- Streak de estudo (dias consecutivos)
-- Estatisticas na pagina de Metricas
-- Integracao com Obsidian (export de planos e notas)
+### Phase 3 — Visualization and polish
+- Visual roadmap (vertical timeline)
+- Progress-over-time charts
+- Study streak (consecutive days)
+- Statistics on the Metrics page
+- Obsidian integration (export of plans and notes)
 
-### Fase 4 — Integracao com projetos
-- Vincular plano a projeto
-- Gerar tarefas a partir de topicos
-- Sincronizar status topico <-> tarefa
+### Phase 4 — Project integration
+- Link a plan to a project
+- Generate tasks from topics
+- Sync topic <-> task status
 
 ---
 
-## Decisoes em aberto
+## Open decisions
 
-1. **Timer**: implementar timer real (com notificacao) ou apenas registro manual de horas?
-2. **Gamificacao**: adicionar streak, badges, XP? Pode motivar mas tambem adiciona complexidade.
-3. **Importacao de roadmaps**: permitir colar um roadmap em markdown e parsear automaticamente em topicos?
-4. **Flashcards/revisao espaçada**: faz sentido integrar revisao espaçada (tipo Anki) aos topicos? Pode ser um modulo futuro.
-5. **Compartilhamento**: exportar plano como template para reusar? Ex: "Roadmap Rust" que qualquer um pode importar.
+1. **Timer**: implement a real timer (with notification) or just manual hour logging?
+2. **Gamification**: add streaks, badges, XP? It can motivate but also adds complexity.
+3. **Roadmap import**: allow pasting a roadmap in markdown and automatically parsing it into topics?
+4. **Flashcards/spaced repetition**: does it make sense to integrate spaced repetition (Anki-style) into topics? It could be a future module.
+5. **Sharing**: export a plan as a template to reuse? E.g.: a "Rust Roadmap" that anyone can import.

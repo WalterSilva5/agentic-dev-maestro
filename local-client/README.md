@@ -1,14 +1,16 @@
+> 🇧🇷 [Versão em português](README.ptbr.md)
+
 # Maestro Local
 
-Cliente desktop do Agentic Dev Maestro. Organiza tarefas, diário de trabalho e estudos, com API REST embutida para integração com agentes de IA.
+Desktop client for Agentic Dev Maestro. Organizes tasks, work journal, and studies, with an embedded REST API for integration with AI agents.
 
-## Instalação e execução
+## Installation and running
 
-### Rápido (recomendado)
+### Quick (recommended)
 
 ```bash
-./install.sh    # cria venv, instala deps, valida
-./run.sh        # executa
+./install.sh    # creates venv, installs deps, validates
+./run.sh        # runs
 ```
 
 ### Manual
@@ -20,322 +22,322 @@ pip install -e .
 python -m maestro_local
 ```
 
-### Opções
+### Options
 
 ```bash
-./run.sh --port 8888    # porta customizada (padrão: 9777)
+./run.sh --port 8888    # custom port (default: 9777)
 ```
 
-### Entry point global
+### Global entry point
 
-Após `pip install -e .`, o comando `maestro` fica disponível no PATH do venv:
+After `pip install -e .`, the `maestro` command becomes available in the venv PATH:
 
 ```bash
-maestro              # porta padrão
-maestro --port 8888  # porta customizada
+maestro              # default port
+maestro --port 8888  # custom port
 ```
 
-## O que a aplicação faz
+## What the application does
 
-Ao iniciar, o Maestro abre:
-1. **GUI desktop** (PySide6/Qt 6) — interface gráfica com 10 telas no menu (+ Métricas, TODOs e Labels como abas do Dashboard)
-2. **API REST** (FastAPI/uvicorn) — `http://127.0.0.1:9777/api` em thread daemon
+On startup, Maestro opens:
+1. **Desktop GUI** (PySide6/Qt 6) — graphical interface with 10 screens in the menu (+ Metrics, TODOs, and Labels as Dashboard tabs)
+2. **REST API** (FastAPI/uvicorn) — `http://127.0.0.1:9777/api` in a daemon thread
 
-A tela inicial é **Meu Dia**, que funciona como home da aplicação.
+The initial screen is **My Day**, which works as the application's home.
 
-## Telas
+## Screens
 
-### Meu Dia (Alt+2) — home
+### My Day (Alt+2) — home
 
-Tela principal do dia de trabalho:
+Main screen for the workday:
 
-- **Obsidian Vault**: selecionar vault por projeto/workspace, sincronizar notas e tarefas com o Obsidian. Sync automático a cada 5 minutos
-- **Notas do dia**: editor markdown com template pre-configurado, preview renderizado, botão para inserir template padrão (Foco do Dia, Tarefas, Blockers, Notas Técnicas)
-- **Gerar Relatório**: gera relatório automático com lista de tarefas trabalhadas, atividades do dia e resumo
-- **Date picker**: calendário popup para navegar entre dias (substituiu o combo de datas)
-- **Dica IA**: ao lado do relatório gerado, botão com prompt sugerido para pedir a um agente de IA que resuma o dia usando a skill `maestro-daily-report`
-- **Atividade do dia**: timeline com todas as ações do dia (tasks criadas, movidas, comentadas)
-- **Backup do Banco**: exportar cópia do banco SQLite
+- **Obsidian Vault**: select a vault by project/workspace, sync notes and tasks with Obsidian. Automatic sync every 5 minutes
+- **Notes of the day**: markdown editor with a pre-configured template, rendered preview, button to insert the default template (Focus of the Day, Tasks, Blockers, Technical Notes)
+- **Generate Report**: generates an automatic report with a list of tasks worked on, activities of the day, and summary
+- **Date picker**: popup calendar to navigate between days (replaced the date combo box)
+- **AI Tip**: next to the generated report, a button with a suggested prompt to ask an AI agent to summarize the day using the `maestro-daily-report` skill
+- **Activity of the day**: timeline with all the day's actions (tasks created, moved, commented)
+- **Database Backup**: export a copy of the SQLite database
 
-### TODOs (aba do Dashboard)
+### TODOs (Dashboard tab)
 
-Lista rápida de pendências, separada do board:
+Quick list of pending items, separate from the board:
 
-- **Lista simples**: sem colunas, sem projeto, sem fluxo de status
-- **Adicionar/concluir/remover**: campo de texto com Enter, checkbox por item (riscado quando concluído), botão de remover
-- **Organização**: pendentes no topo, concluídos embaixo, com contador
-- **Limpar concluídos**: botão para remover de uma vez todos os itens marcados
-- **API**: gerenciável via `/api/todos`, então agentes também conseguem criar e fechar TODOs
+- **Simple list**: no columns, no project, no status flow
+- **Add/complete/remove**: text field with Enter, checkbox per item (struck through when completed), remove button
+- **Organization**: pending items at the top, completed ones at the bottom, with a counter
+- **Clear completed**: button to remove all checked items at once
+- **API**: manageable via `/api/todos`, so agents can also create and close TODOs
 
 ### Dashboard (Alt+1)
 
-Hub central do workspace, organizado em **abas**:
+Central hub of the workspace, organized into **tabs**:
 
-- **Visão geral**: Pomodoro em destaque, cards de resumo (tarefas ativas, concluídas, vencidas, em progresso), tarefas vencidas clicáveis, atividade recente e progresso por projeto
-- **Métricas**, **TODOs** e **Labels** (antes eram páginas próprias)
+- **Overview**: Pomodoro highlighted, summary cards (active, completed, overdue, in-progress tasks), clickable overdue tasks, recent activity, and progress by project
+- **Metrics**, **TODOs**, and **Labels** (previously their own pages)
 
-### Estudos (Alt+3)
+### Studies (Alt+3)
 
-Módulo de aprendizado:
+Learning module:
 
-- **Planos de estudo**: criar planos com nome, categoria (Linguagem, Framework, Certificação, Conceito, Curso, Livro) e status (Não Iniciado, Em Progresso, Concluído, Pausado)
-- **Tópicos**: adicionar tópicos com peso e estimativa de horas. Marcar como concluído
-- **Roadmap visual**: barra de progresso calculada pelo peso dos tópicos concluídos
-- **Sessões de estudo**: registrar tempo de estudo com notas e nível de confiança (1-5)
-- **Estatísticas**: horas totais, sessões por semana, planos ativos
-- **Assistente de estudo (sob demanda)**: no detalhe do plano, um painel com botões que acionam a IA para o tópico escolhido — **Explicar**, **Exercícios**, **Quiz** (com gabarito), **Flashcards** de revisão, **Sugerir tópicos (roadmap)** (adiciona os sugeridos ao plano com 1 clique, sem duplicar) e **Tirar dúvida** (pergunta livre). Nada é automático: você clica na ação que quer. Usa o provedor de IA configurado
-- **Anexos como contexto na criação**: ao criar um plano, dá para **anexar arquivos** (ebooks/documentos: `.txt`, `.md`, `.pdf`, `.docx`, `.epub`). O texto é extraído localmente e usado como **contexto junto com os campos** (título, categoria, descrição) para a IA gerar os **tópicos** do plano com estimativa de horas. Sem anexos, o plano é criado normalmente (vazio)
+- **Study plans**: create plans with a name, category (Language, Framework, Certification, Concept, Course, Book), and status (Not Started, In Progress, Completed, Paused)
+- **Topics**: add topics with weight and estimated hours. Mark as completed
+- **Visual roadmap**: progress bar calculated from the weight of completed topics
+- **Study sessions**: log study time with notes and confidence level (1-5)
+- **Statistics**: total hours, sessions per week, active plans
+- **Study assistant (on demand)**: in the plan detail view, a panel with buttons that trigger the AI for the chosen topic — **Explain**, **Exercises**, **Quiz** (with answer key), review **Flashcards**, **Suggest topics (roadmap)** (adds the suggested ones to the plan with 1 click, without duplicating), and **Ask a question** (free-form question). Nothing is automatic: you click the action you want. Uses the configured AI provider
+- **Attachments as context during creation**: when creating a plan, you can **attach files** (ebooks/documents: `.txt`, `.md`, `.pdf`, `.docx`, `.epub`). The text is extracted locally and used as **context together with the fields** (title, category, description) for the AI to generate the plan's **topics** with estimated hours. Without attachments, the plan is created normally (empty)
 
-### Board Kanban (Alt+4)
+### Kanban Board (Alt+4)
 
-Board de tarefas por projeto:
+Task board by project:
 
-- **Colunas**: customizáveis por projeto (ex: Backlog, A Fazer, Fazendo, Revisão, Concluído)
-- **Sprints (planejamento de projetos longos)**: cada projeto pode ter sprints (nome, meta, status planejada/ativa/concluída, datas e **capacidade** em homem-dia). O board tem um **seletor de sprint** (Todas / Backlog / uma sprint) que filtra os cards, e cada card tem um **dropdown para mover a tarefa** entre backlog e sprints. Ativar (só uma ativa por projeto), concluir (tarefas não concluídas voltam ao backlog) e excluir. Estatísticas de progresso e esforço comprometido vs. capacidade (⚠ quando estoura). Desktop e web
-- **Aba Planejamento de Sprints**: ao lado do board de fluxo, uma aba de **alocação** onde as colunas são **Backlog + cada sprint** — arraste o backlog para dentro das sprints (via seletor no card), veja capacidade vs. comprometido por sprint e crie/ative/conclua sprints. Ideal para planejar projetos longos em várias sprints futuras
-- **Drag-and-drop**: arrastar cards entre colunas
-- **Quick-move**: botão para avançar tarefa para próxima coluna sem arrastar
-- **Filtros**: por tipo (Feature, Bug, Tech Debt, Improvement, Chore), prioridade (Low, Medium, High, Urgent), responsável e label
-- **WIP limits**: limite de tarefas por coluna
-- **Arquivamento**: cards em colunas de conclusão têm ação **"Arquivar"** — somem do board e vão para um **board à parte (Arquivados)**, de onde podem ser **desarquivados**. Cards que ficam concluídos por **mais de 3 dias são arquivados automaticamente** ao abrir o board. Disponível no desktop e na web
-- **Cards**: mostram tipo, prioridade, labels, due date, assignee, indicador de bloqueio e checklist progress
-- **Task detail**: dialog completo com título, descrição, tipo, prioridade, assignee, due date, labels, checklist (Definition of Done), dependências, comentários com markdown
-- **Tarefas de revisão**: agentes sempre criam tarefas com `requiresHuman: true` para o desenvolvedor validar alterações
+- **Columns**: customizable per project (e.g.: Backlog, To Do, Doing, Review, Done)
+- **Sprints (planning long projects)**: each project can have sprints (name, goal, status planned/active/completed, dates, and **capacity** in man-days). The board has a **sprint selector** (All / Backlog / a sprint) that filters the cards, and each card has a **dropdown to move the task** between backlog and sprints. Activate (only one active per project), complete (unfinished tasks return to the backlog), and delete. Progress statistics and committed effort vs. capacity (⚠ when it exceeds). Desktop and web
+- **Sprint Planning tab**: alongside the flow board, an **allocation** tab where the columns are **Backlog + each sprint** — drag the backlog into the sprints (via the selector on the card), see capacity vs. committed per sprint, and create/activate/complete sprints. Ideal for planning long projects across several future sprints
+- **Drag-and-drop**: drag cards between columns
+- **Quick-move**: button to advance a task to the next column without dragging
+- **Filters**: by type (Feature, Bug, Tech Debt, Improvement, Chore), priority (Low, Medium, High, Urgent), assignee, and label
+- **WIP limits**: task limit per column
+- **Archiving**: cards in completion columns have an **"Archive"** action — they disappear from the board and go to a **separate board (Archived)**, from which they can be **unarchived**. Cards that have been completed for **more than 3 days are archived automatically** when opening the board. Available on desktop and web
+- **Cards**: show type, priority, labels, due date, assignee, blocking indicator, and checklist progress
+- **Task detail**: full dialog with title, description, type, priority, assignee, due date, labels, checklist (Definition of Done), dependencies, comments with markdown
+- **Review tasks**: agents always create tasks with `requiresHuman: true` for the developer to validate changes
 
-### Assistente (Alt+5)
+### Assistant (Alt+5)
 
-Assistente de IA interno que roda com seu próprio provedor:
+Internal AI assistant that runs with your own provider:
 
-- **Provedores compatíveis com OpenAI**: LM Studio local, opencode ou qualquer API no formato `/v1/chat/completions`
-- **Ferramentas internas** (LangGraph): lê o board, lista tarefas, solicita revisão (cria tarefa requer-dev), comenta tarefas, cria TODOs e resume a atividade recente
-- **Execução assíncrona**: roda em thread separada, sem travar a interface
-- **Configuração**: provedor ativo definido em Configurações → Provedores de IA (Base URL, API Key e Modelo)
+- **OpenAI-compatible providers**: local LM Studio, opencode, or any API in the `/v1/chat/completions` format
+- **Internal tools** (LangGraph): reads the board, lists tasks, requests review (creates a requires-dev task), comments on tasks, creates TODOs, and summarizes recent activity
+- **Asynchronous execution**: runs in a separate thread, without freezing the interface
+- **Configuration**: active provider defined in Settings → AI Providers (Base URL, API Key, and Model)
 
-### Reuniões (Alt+6)
+### Meetings (Alt+6)
 
-Gravação, transcrição e resumo de reuniões e estudos (migrado do projeto wsi-cronista):
+Recording, transcription, and summarization of meetings and studies (migrated from the wsi-cronista project):
 
-- **Captura de áudio (Linux)**: microfone e/ou áudio do sistema via PipeWire/PulseAudio (`parec`); fontes `.monitor` para loopback
-- **Transcrição local**: faster-whisper, modelo configurável (tiny → large-v3), roda offline em QThread
-- **Assistente de reunião**: extrai título, pontos-chave, decisões, ações (com responsável) e perguntas em aberto
-- **Assistente ao vivo (copiloto de reunião)**: com o toggle "Assistente ao vivo" ligado, transcreve durante a gravação (janelas de ~10s, modelo `base` para baixa latência) e um painel lateral com abas **Plano · Dicas · Ações · Decisões · Perguntas** é preenchido incrementalmente pela IA. Além de extrair ações/decisões/perguntas, o copiloto **monta um plano de ação** e **dá dicas proativas** conforme a reunião avança, usando o **contexto do workspace e do projeto selecionado** (nome, descrição e tarefas em aberto). Inclui **"Perguntar à reunião"** — pergunte algo e a IA responde com base no que foi dito + contexto do projeto. A transcrição definitiva (mais precisa) ainda é gerada do WAV completo ao parar
-- **Assistente de estudo**: gera resumo, conceitos-chave, exercícios práticos, tópicos relacionados e recursos
-- **IA reusada**: a análise usa o provedor configurado em Provedores de IA (LM Studio/opencode)
-- **Reunião → board**: botão "Criar tarefas das ações" transforma os action items (do ao vivo ou do resumo) em tarefas (tipo CHORE, `requires_human`) no projeto escolhido
-- **Histórico**: gravações salvas no banco do workspace, com busca por texto
-- **Integração**: botão "Salvar no Meu Dia" anexa o resumo ao relatório do dia
-- **Atalho global**: `Ctrl+Shift+R` inicia/para a gravação (best-effort; pode não funcionar em Wayland)
-- **Acesso rápido**: widget na sidebar inicia a gravação em 1 clique e mostra o tempo decorrido
+- **Audio capture (Linux)**: microphone and/or system audio via PipeWire/PulseAudio (`parec`); `.monitor` sources for loopback
+- **Local transcription**: faster-whisper, configurable model (tiny → large-v3), runs offline in a QThread
+- **Meeting assistant**: extracts title, key points, decisions, actions (with owner), and open questions
+- **Live assistant (meeting copilot)**: with the "Live assistant" toggle on, it transcribes during recording (~10s windows, `base` model for low latency) and a side panel with **Plan · Tips · Actions · Decisions · Questions** tabs is filled incrementally by the AI. In addition to extracting actions/decisions/questions, the copilot **builds an action plan** and **gives proactive tips** as the meeting progresses, using the **context of the workspace and the selected project** (name, description, and open tasks). It includes **"Ask the meeting"** — ask something and the AI answers based on what was said + the project context. The definitive (more accurate) transcription is still generated from the full WAV when stopping
+- **Study assistant**: generates a summary, key concepts, practical exercises, related topics, and resources
+- **Reused AI**: the analysis uses the provider configured in AI Providers (LM Studio/opencode)
+- **Meeting → board**: the "Create tasks from actions" button turns the action items (from the live view or the summary) into tasks (type CHORE, `requires_human`) in the chosen project
+- **History**: recordings saved in the workspace database, with text search
+- **Integration**: the "Save to My Day" button appends the summary to the day's report
+- **Global shortcut**: `Ctrl+Shift+R` starts/stops the recording (best-effort; may not work on Wayland)
+- **Quick access**: a widget in the sidebar starts the recording in 1 click and shows the elapsed time
 
-### Projetos (Alt+7)
+### Projects (Alt+7)
 
-- Criar projetos com nome, chave única (ex: DEMO, PROJ) e descrição
-- Cada projeto gera automaticamente colunas padrão no board
-- Visão de lista com link para o board
+- Create projects with a name, unique key (e.g.: DEMO, PROJ), and description
+- Each project automatically generates default board columns
+- List view with a link to the board
 
-### Labels (aba do Dashboard)
+### Labels (Dashboard tab)
 
-- Criar labels com nome e cor (paleta de 12 cores)
-- Aplicar labels em tarefas para categorizar e filtrar
-- Labels compartilhadas entre projetos do mesmo workspace
+- Create labels with a name and color (palette of 12 colors)
+- Apply labels to tasks to categorize and filter
+- Labels shared across projects of the same workspace
 
-### Métricas (aba do Dashboard)
+### Metrics (Dashboard tab)
 
-Dashboard analítico:
+Analytics dashboard:
 
-- **Cards**: total de tarefas, concluídas (7 e 30 dias), lead time médio, cycle time
-- **Throughput semanal**: gráfico de barras das últimas 8 semanas
-- **Por tipo**: breakdown Feature/Bug/Tech Debt/Improvement/Chore com percentual
-- **Por prioridade**: breakdown Low/Medium/High/Urgent com percentual
-- **Por projeto**: progresso de cada projeto com barra
+- **Cards**: total tasks, completed (7 and 30 days), average lead time, cycle time
+- **Weekly throughput**: bar chart of the last 8 weeks
+- **By type**: Feature/Bug/Tech Debt/Improvement/Chore breakdown with percentage
+- **By priority**: Low/Medium/High/Urgent breakdown with percentage
+- **By project**: progress of each project with a bar
 
 ### Skills (Alt+8)
 
-Biblioteca de skills para agentes de IA:
+Library of skills for AI agents:
 
-- **12 skills** com prefixo `maestro-` organizadas por categoria (Setup, Agente, Fluxo de Trabalho, Planejamento, Qualidade, Registro)
-- **Instalar**: um clique instala o arquivo SKILL.md em `.claude/skills/` do projeto alvo
-- **Instalar todas**: botão para instalar todas as skills de uma vez
-- **Preview**: ver o conteúdo da skill antes de instalar
-- **Diretório destino**: selecionar o projeto onde instalar as skills
+- **12 skills** prefixed with `maestro-` organized by category (Setup, Agent, Workflow, Planning, Quality, Logging)
+- **Install**: one click installs the SKILL.md file into the target project's `.claude/skills/`
+- **Install all**: button to install all skills at once
+- **Preview**: view the skill's content before installing
+- **Target directory**: select the project where the skills will be installed
 
-### Instruções (Alt+9)
+### Instructions (Alt+9)
 
-Guia de uso reestruturado com 12 seções, incluindo explicações de cada tela, fluxo de trabalho, o papel dos agentes e tarefas de revisão.
+Restructured usage guide with 12 sections, including explanations of each screen, the workflow, the role of the agents, and review tasks.
 
-### Configurações (Alt+0)
+### Settings (Alt+0)
 
-Tela de configurações gerais:
+General settings screen:
 
-- **Provedores de IA**: cadastrar e selecionar provedores compatíveis com OpenAI (LM Studio, Ollama, OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Gemini, Together, opencode) usados pelo Assistente e pelas Transcrições. Campos de Base URL, API Key e Modelo, com botão de testar conexão e adicionar novos provedores
-- **Transcrições**: modelo do Whisper (tiny → large-v3) e idioma usados na transcrição local
-- **Pomodoro**: duração da sessão configurável (1-120 minutos), atualiza o timer da sidebar em tempo real
-- **Notificações push**: notificações periódicas na área de trabalho com mensagem personalizada, intervalo configurável (1-480 min) e toggle de ativação. Desabilitado por padrão. Usa `QSystemTrayIcon` com fallback para `notify-send`
+- **AI Providers**: register and select OpenAI-compatible providers (LM Studio, Ollama, OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Gemini, Together, opencode) used by the Assistant and by Transcriptions. Base URL, API Key, and Model fields, with a button to test the connection and add new providers
+- **Transcriptions**: Whisper model (tiny → large-v3) and language used in local transcription
+- **Pomodoro**: configurable session duration (1-120 minutes), updates the sidebar timer in real time
+- **Push notifications**: periodic desktop notifications with a custom message, configurable interval (1-480 min), and an enable toggle. Disabled by default. Uses `QSystemTrayIcon` with a fallback to `notify-send`
 
-## Recursos gerais
+## General features
 
-| Recurso | Descrição |
+| Feature | Description |
 |---|---|
-| **Tema dark/light** | Toggle na sidebar, aplica em todas as telas |
-| **Pomodoro** | Timer configurável no Dashboard com play/pause e reset |
-| **Notificações push** | Lembretes periódicos na área de trabalho com mensagem e intervalo customizáveis |
-| **Busca global** | `Ctrl+K` abre busca por título ou código de tarefa |
-| **Workspaces** | Isolamento completo com banco separado, emoji, cor e descrição customizáveis |
-| **Obsidian sync** | Auto-sync a cada 5 min, vault configurável por workspace/projeto |
-| **Backup** | Exportar banco SQLite a qualquer momento |
-| **Atalhos** | `Alt+1` a `Alt+9` + `Alt+0` para as 10 telas do menu, `Ctrl+K` busca, `Ctrl+Shift+R` gravação |
+| **Dark/light theme** | Toggle in the sidebar, applies to all screens |
+| **Pomodoro** | Configurable timer in the Dashboard with play/pause and reset |
+| **Push notifications** | Periodic desktop reminders with customizable message and interval |
+| **Global search** | `Ctrl+K` opens search by task title or code |
+| **Workspaces** | Complete isolation with a separate database, customizable emoji, color, and description |
+| **Obsidian sync** | Auto-sync every 5 min, vault configurable per workspace/project |
+| **Backup** | Export the SQLite database at any time |
+| **Shortcuts** | `Alt+1` to `Alt+9` + `Alt+0` for the 10 menu screens, `Ctrl+K` search, `Ctrl+Shift+R` recording |
 
-## Web UI (frontend web)
+## Web UI (web frontend)
 
-Além da GUI desktop, há um frontend **web** (React + Vite) servido pela própria API — sobe junto com ela. Com o app rodando, acesse **`http://127.0.0.1:9777/`** no navegador.
+In addition to the desktop GUI, there is a **web** frontend (React + Vite) served by the API itself — it starts up along with it. With the app running, access **`http://127.0.0.1:9777/`** in the browser.
 
-- **Código**: `webui/` (React + Vite + axios + react-router), consome a mesma API REST
-- **Build**: o `install.sh` builda automaticamente (se houver `npm`); a FastAPI serve `webui/dist/` na raiz `/`, mantendo `/api/*`
-- **Desenvolvimento** (hot-reload): `cd webui && npm run dev` (porta 3000, com proxy `/api → 9777`)
-- **Telas**: Dashboard, Meu Dia, Estudos, Projetos, Board + detalhe de tarefa (descrição, checklist, comentários, tipo/prioridade, mover), Assistente (chat), Métricas, TODOs, Labels e Configurações (idioma, provedores de IA, Whisper). Seletor de workspace na sidebar e tema claro/escuro. **Transcrições** e **Skills** seguem exclusivas da GUI desktop (captura de áudio e instalação em diretório local)
-- **Rodar só a web** (sem a GUI desktop): `./run-web.sh` (ou `python -m maestro_local.webmain`) — sobe API + web em `http://127.0.0.1:9777/`
-- **PWA instalável**: a web é um Progressive Web App (manifest + service worker em `webui/public/`). No navegador, use "Instalar app" para abrir em janela própria; funciona offline para o shell (a API continua exigindo o servidor local)
+- **Code**: `webui/` (React + Vite + axios + react-router), consumes the same REST API
+- **Build**: `install.sh` builds automatically (if `npm` is available); FastAPI serves `webui/dist/` at the root `/`, keeping `/api/*`
+- **Development** (hot-reload): `cd webui && npm run dev` (port 3000, with `/api → 9777` proxy)
+- **Screens**: Dashboard, My Day, Studies, Projects, Board + task detail (description, checklist, comments, type/priority, move), Assistant (chat), Metrics, TODOs, Labels, and Settings (language, AI providers, Whisper). Workspace selector in the sidebar and light/dark theme. **Transcriptions** and **Skills** remain exclusive to the desktop GUI (audio capture and installation into a local directory)
+- **Run only the web** (without the desktop GUI): `./run-web.sh` (or `python -m maestro_local.webmain`) — starts API + web at `http://127.0.0.1:9777/`
+- **Installable PWA**: the web is a Progressive Web App (manifest + service worker in `webui/public/`). In the browser, use "Install app" to open it in its own window; it works offline for the shell (the API still requires the local server)
 
 ```bash
 cd webui
 npm install
-npm run build      # gera webui/dist servido pela API
-# ou, em dev:
-npm run dev        # http://localhost:3000 (proxy para a API em 9777)
+npm run build      # generates webui/dist served by the API
+# or, in dev:
+npm run dev        # http://localhost:3000 (proxy to the API at 9777)
 ```
 
-## API REST
+## REST API
 
-A API roda em `http://127.0.0.1:9777/api` sem autenticação. Todos os endpoints retornam JSON.
+The API runs at `http://127.0.0.1:9777/api` without authentication. All endpoints return JSON.
 
 ### Endpoints
 
-| Recurso | Método | Endpoint | Descrição |
+| Resource | Method | Endpoint | Description |
 |---|---|---|---|
-| Health | GET | `/api/health` | Status da API |
-| Projetos | POST | `/api/projects` | Criar projeto |
-| Projetos | GET | `/api/projects` | Listar projetos |
-| Projetos | GET | `/api/projects/metrics` | Métricas por projeto |
-| Projetos | GET | `/api/projects/{id}/board` | Board completo do projeto |
-| Tarefas | POST | `/api/tasks` | Criar tarefa |
-| Tarefas | GET | `/api/tasks` | Listar tarefas (filtros: project_id, column_id, type, priority) |
-| Tarefas | GET | `/api/tasks/{code}` | Detalhe da tarefa por código (ex: DEMO-1) |
-| Tarefas | PATCH | `/api/tasks/{code}` | Atualizar tarefa |
-| Tarefas | DELETE | `/api/tasks/{code}` | Soft-delete da tarefa |
-| Tarefas | POST | `/api/tasks/{code}/move` | Mover para coluna (body: {column_id}) |
-| Checklist | POST | `/api/tasks/{code}/checklist` | Adicionar item de checklist |
+| Health | GET | `/api/health` | API status |
+| Projects | POST | `/api/projects` | Create project |
+| Projects | GET | `/api/projects` | List projects |
+| Projects | GET | `/api/projects/metrics` | Metrics by project |
+| Projects | GET | `/api/projects/{id}/board` | Complete project board |
+| Tasks | POST | `/api/tasks` | Create task |
+| Tasks | GET | `/api/tasks` | List tasks (filters: project_id, column_id, type, priority) |
+| Tasks | GET | `/api/tasks/{code}` | Task detail by code (e.g.: DEMO-1) |
+| Tasks | PATCH | `/api/tasks/{code}` | Update task |
+| Tasks | DELETE | `/api/tasks/{code}` | Soft-delete the task |
+| Tasks | POST | `/api/tasks/{code}/move` | Move to column (body: {column_id}) |
+| Checklist | POST | `/api/tasks/{code}/checklist` | Add checklist item |
 | Checklist | PATCH | `/api/tasks/checklist/{id}/toggle` | Toggle checked |
-| Checklist | DELETE | `/api/tasks/checklist/{id}` | Remover item |
-| Dependências | POST | `/api/tasks/{code}/dependencies` | Adicionar dependência |
-| Dependências | DELETE | `/api/tasks/{code}/dependencies/{id}` | Remover dependência |
-| Context | GET | `/api/tasks/{code}/context` | Contexto completo da tarefa |
-| Context | GET | `/api/tasks/{code}/flow` | Fluxo de trabalho da tarefa |
-| Histórico | GET | `/api/tasks/{code}/history` | Timeline estruturada de desenvolvimento (transições, comentários, code reviews, checklist) |
-| Changelog | GET | `/api/projects/{project_id}/changelog?days=7` | Changelog agregado do projeto (tarefas concluídas, em andamento, atividade por dia) |
-| Labels | POST | `/api/labels` | Criar label |
-| Labels | GET | `/api/labels` | Listar labels |
-| Labels | DELETE | `/api/labels/{id}` | Remover label |
-| Labels | POST | `/api/labels/{id}/tasks/{task_id}` | Aplicar label em tarefa |
-| Labels | DELETE | `/api/labels/{id}/tasks/{task_id}` | Remover label de tarefa |
-| Comentários | POST | `/api/comments` | Criar comentário |
-| Comentários | GET | `/api/comments` | Listar comentários (filtro: task_id) |
-| Comentários | PATCH | `/api/comments/{id}` | Editar comentário |
-| Comentários | DELETE | `/api/comments/{id}` | Remover comentário |
-| Documentos | POST | `/api/documents` | Criar documento |
-| Documentos | GET | `/api/documents` | Listar documentos |
-| Documentos | PUT | `/api/documents/{id}` | Atualizar documento |
-| Documentos | DELETE | `/api/documents/{id}` | Remover documento |
-| Atividade | GET | `/api/activity` | Log de atividades |
-| Diario | GET | `/api/daily/{date}` | Nota do dia (YYYY-MM-DD) |
-| Diario | POST | `/api/daily/{date}` | Criar/atualizar nota do dia |
-| Diario | PATCH | `/api/daily/{date}/report` | Append ao relatório do dia |
-| TODOs | GET | `/api/todos` | Listar TODOs (filtro: done) |
-| TODOs | POST | `/api/todos` | Criar TODO |
-| TODOs | PATCH | `/api/todos/{id}` | Atualizar texto ou marcar como concluído |
-| TODOs | DELETE | `/api/todos/{id}` | Remover TODO |
-| Estudos | POST | `/api/study/plans` | Criar plano de estudo |
-| Estudos | GET | `/api/study/plans` | Listar planos |
-| Estudos | GET | `/api/study/plans/{id}` | Detalhe do plano |
-| Estudos | PATCH | `/api/study/plans/{id}` | Atualizar plano |
-| Estudos | DELETE | `/api/study/plans/{id}` | Remover plano |
-| Tópicos | POST | `/api/study/plans/{id}/topics` | Adicionar tópico |
-| Tópicos | GET | `/api/study/plans/{id}/topics` | Listar tópicos |
-| Tópicos | PATCH | `/api/study/topics/{id}` | Atualizar tópico |
-| Tópicos | DELETE | `/api/study/topics/{id}` | Remover tópico |
-| Sessões | POST | `/api/study/sessions` | Registrar sessão de estudo |
-| Sessões | GET | `/api/study/sessions` | Listar sessões (filtro: date) |
-| Stats | GET | `/api/study/stats` | Estatísticas de estudo |
+| Checklist | DELETE | `/api/tasks/checklist/{id}` | Remove item |
+| Dependencies | POST | `/api/tasks/{code}/dependencies` | Add dependency |
+| Dependencies | DELETE | `/api/tasks/{code}/dependencies/{id}` | Remove dependency |
+| Context | GET | `/api/tasks/{code}/context` | Complete task context |
+| Context | GET | `/api/tasks/{code}/flow` | Task workflow |
+| History | GET | `/api/tasks/{code}/history` | Structured development timeline (transitions, comments, code reviews, checklist) |
+| Changelog | GET | `/api/projects/{project_id}/changelog?days=7` | Aggregated project changelog (completed tasks, in progress, activity per day) |
+| Labels | POST | `/api/labels` | Create label |
+| Labels | GET | `/api/labels` | List labels |
+| Labels | DELETE | `/api/labels/{id}` | Remove label |
+| Labels | POST | `/api/labels/{id}/tasks/{task_id}` | Apply label to task |
+| Labels | DELETE | `/api/labels/{id}/tasks/{task_id}` | Remove label from task |
+| Comments | POST | `/api/comments` | Create comment |
+| Comments | GET | `/api/comments` | List comments (filter: task_id) |
+| Comments | PATCH | `/api/comments/{id}` | Edit comment |
+| Comments | DELETE | `/api/comments/{id}` | Remove comment |
+| Documents | POST | `/api/documents` | Create document |
+| Documents | GET | `/api/documents` | List documents |
+| Documents | PUT | `/api/documents/{id}` | Update document |
+| Documents | DELETE | `/api/documents/{id}` | Remove document |
+| Activity | GET | `/api/activity` | Activity log |
+| Journal | GET | `/api/daily/{date}` | Note of the day (YYYY-MM-DD) |
+| Journal | POST | `/api/daily/{date}` | Create/update note of the day |
+| Journal | PATCH | `/api/daily/{date}/report` | Append to the day's report |
+| TODOs | GET | `/api/todos` | List TODOs (filter: done) |
+| TODOs | POST | `/api/todos` | Create TODO |
+| TODOs | PATCH | `/api/todos/{id}` | Update text or mark as completed |
+| TODOs | DELETE | `/api/todos/{id}` | Remove TODO |
+| Studies | POST | `/api/study/plans` | Create study plan |
+| Studies | GET | `/api/study/plans` | List plans |
+| Studies | GET | `/api/study/plans/{id}` | Plan detail |
+| Studies | PATCH | `/api/study/plans/{id}` | Update plan |
+| Studies | DELETE | `/api/study/plans/{id}` | Remove plan |
+| Topics | POST | `/api/study/plans/{id}/topics` | Add topic |
+| Topics | GET | `/api/study/plans/{id}/topics` | List topics |
+| Topics | PATCH | `/api/study/topics/{id}` | Update topic |
+| Topics | DELETE | `/api/study/topics/{id}` | Remove topic |
+| Sessions | POST | `/api/study/sessions` | Log study session |
+| Sessions | GET | `/api/study/sessions` | List sessions (filter: date) |
+| Stats | GET | `/api/study/stats` | Study statistics |
 
-### Exemplo: criar tarefa via curl
+### Example: create a task via curl
 
 ```bash
-# Criar projeto
+# Create project
 curl -X POST http://127.0.0.1:9777/api/projects \
   -H "Content-Type: application/json" \
   -d '{"name": "Meu Projeto", "key": "MP"}'
 
-# Criar tarefa
+# Create task
 curl -X POST http://127.0.0.1:9777/api/tasks \
   -H "Content-Type: application/json" \
   -d '{"title": "Implementar login", "project_id": 1, "type": "FEATURE", "priority": "HIGH"}'
 
-# Mover tarefa
+# Move task
 curl -X POST http://127.0.0.1:9777/api/tasks/MP-1/move \
   -H "Content-Type: application/json" \
   -d '{"column_id": 2}'
 ```
 
-## Skills para agentes de IA
+## Skills for AI agents
 
-| Skill | Categoria | O que faz |
+| Skill | Category | What it does |
 |---|---|---|
-| `maestro-run` | Setup | Iniciar a aplicação (GUI + API) |
-| `maestro-api-agent` | Agente | Ensina o agente a interagir com a API REST |
-| `maestro-task-workflow` | Fluxo | Fluxo completo: pegar task, implementar, mover, documentar |
-| `maestro-project-setup` | Setup | Criar projeto com colunas e labels padrão |
-| `maestro-sprint-planning` | Planejamento | Planejar sprint com estimativas e priorização |
-| `maestro-code-review-log` | Qualidade | Registrar code reviews como comentários |
-| `maestro-bug-triage` | Qualidade | Triagem de bugs com prioridade e reprodução |
-| `maestro-daily-standup` | Registro | Gerar relatório de standup automático |
-| `maestro-tech-debt-tracker` | Qualidade | Registrar e priorizar dívida técnica |
-| `maestro-documentation-writer` | Registro | Gerar documentação a partir do código |
-| `maestro-daily-report` | Registro | Relatório diário com notas, atividade e resumo em bullet list (suporta modo parcial) |
-| `maestro-context-loader` | Agente | Carregar contexto completo do workspace para retomar trabalho de onde parou |
+| `maestro-run` | Setup | Start the application (GUI + API) |
+| `maestro-api-agent` | Agent | Teaches the agent to interact with the REST API |
+| `maestro-task-workflow` | Workflow | Complete flow: pick a task, implement, move, document |
+| `maestro-project-setup` | Setup | Create a project with default columns and labels |
+| `maestro-sprint-planning` | Planning | Plan a sprint with estimates and prioritization |
+| `maestro-code-review-log` | Quality | Log code reviews as comments |
+| `maestro-bug-triage` | Quality | Bug triage with priority and reproduction |
+| `maestro-daily-standup` | Logging | Generate an automatic standup report |
+| `maestro-tech-debt-tracker` | Quality | Log and prioritize technical debt |
+| `maestro-documentation-writer` | Logging | Generate documentation from the code |
+| `maestro-daily-report` | Logging | Daily report with notes, activity, and a bullet-list summary (supports partial mode) |
+| `maestro-context-loader` | Agent | Load the complete workspace context to resume work from where you left off |
 
-## Tipos de tarefa
+## Task types
 
-| Tipo | Uso |
+| Type | Use |
 |---|---|
-| `FEATURE` | Nova funcionalidade |
-| `BUG` | Correção de bug |
-| `TECH_DEBT` | Dívida técnica |
-| `IMPROVEMENT` | Melhoria em funcionalidade existente |
-| `CHORE` | Tarefa operacional |
+| `FEATURE` | New functionality |
+| `BUG` | Bug fix |
+| `TECH_DEBT` | Technical debt |
+| `IMPROVEMENT` | Improvement to existing functionality |
+| `CHORE` | Operational task |
 
-## Prioridades
+## Priorities
 
-| Prioridade | Nível |
+| Priority | Level |
 |---|---|
-| `LOW` | Baixa |
-| `MEDIUM` | Média |
-| `HIGH` | Alta |
-| `URGENT` | Urgente |
+| `LOW` | Low |
+| `MEDIUM` | Medium |
+| `HIGH` | High |
+| `URGENT` | Urgent |
 
-## Banco de dados
+## Database
 
-SQLite local com isolamento por workspace:
+Local SQLite with isolation per workspace:
 
 ```
 ~/.maestro-local/
-├── config.json                     # Workspaces, vaults, tema
+├── config.json                     # Workspaces, vaults, theme
 └── workspaces/
-    ├── default/maestro.db          # Workspace padrão
-    └── {workspace-id}/maestro.db   # Workspaces adicionais
+    ├── default/maestro.db          # Default workspace
+    └── {workspace-id}/maestro.db   # Additional workspaces
 ```
 
-O banco é criado automaticamente na primeira execução. Cada workspace tem seu próprio arquivo, garantindo isolamento total dos dados.
+The database is created automatically on the first run. Each workspace has its own file, ensuring complete data isolation.
 
-## Estrutura do código
+## Code structure
 
 ```
 maestro_local/
@@ -344,47 +346,47 @@ maestro_local/
 ├── db/
 │   └── models.py            # SQLAlchemy models + switch_db()
 ├── api/
-│   ├── app.py               # FastAPI endpoints (todos os recursos)
-│   └── server.py            # Uvicorn runner em thread daemon
+│   ├── app.py               # FastAPI endpoints (all resources)
+│   └── server.py            # Uvicorn runner in a daemon thread
 ├── gui/
 │   ├── theme.py             # ThemeColors dataclass + dark/light + stylesheet
 │   ├── main_window.py       # MainWindow + sidebar + pomodoro + workspace selector
-│   ├── workspace_selector.py # Seletor de workspace com emoji/cor/descrição
+│   ├── workspace_selector.py # Workspace selector with emoji/color/description
 │   └── views/
-│       ├── daily_view.py        # Meu Dia + Obsidian sync + relatório
-│       ├── todos_view.py        # Lista simples de TODOs
-│       ├── chat_view.py         # Assistente (agente interno)
-│       ├── transcricoes_view.py # Transcrições (gravação + transcrição)
-│       ├── settings_view.py     # Configurações (IA, pomodoro, notificações)
-│       ├── dashboard_view.py    # Dashboard com resumo e atividade
-│       ├── study_view.py        # Planos de estudo + tópicos + sessões
-│       ├── board_view.py        # Kanban board + TaskCard + filtros
-│       ├── task_detail_dialog.py # Dialog completo de tarefa
-│       ├── projects_view.py     # Lista/criação de projetos
-│       ├── labels_view.py       # CRUD de labels com paleta
-│       ├── metrics_view.py      # Dashboard de métricas
-│       ├── skills_view.py       # Skills para agentes de IA
-│       └── guide_view.py        # Instruções de uso
+│       ├── daily_view.py        # My Day + Obsidian sync + report
+│       ├── todos_view.py        # Simple TODO list
+│       ├── chat_view.py         # Assistant (internal agent)
+│       ├── transcricoes_view.py # Transcriptions (recording + transcription)
+│       ├── settings_view.py     # Settings (AI, pomodoro, notifications)
+│       ├── dashboard_view.py    # Dashboard with summary and activity
+│       ├── study_view.py        # Study plans + topics + sessions
+│       ├── board_view.py        # Kanban board + TaskCard + filters
+│       ├── task_detail_dialog.py # Complete task dialog
+│       ├── projects_view.py     # List/creation of projects
+│       ├── labels_view.py       # Label CRUD with palette
+│       ├── metrics_view.py      # Metrics dashboard
+│       ├── skills_view.py       # Skills for AI agents
+│       └── guide_view.py        # Usage instructions
 ├── ai/
-│   ├── providers.py         # Provedores OpenAI-compatíveis + teste de conexão
-│   ├── tools.py             # Ferramentas internas do agente (board, revisão, TODOs)
-│   └── agent.py             # Agente estratégico (LangGraph ReAct)
+│   ├── providers.py         # OpenAI-compatible providers + connection test
+│   ├── tools.py             # Internal agent tools (board, review, TODOs)
+│   └── agent.py             # Strategic agent (LangGraph ReAct)
 ├── transcricoes/
-│   ├── audio.py             # Captura de áudio Linux (parec/PipeWire)
-│   ├── transcriber.py       # faster-whisper em QThread
-│   ├── summarizer.py        # Sumarização via provedor do Maestro
-│   ├── assistants.py        # Assistentes de reunião e estudo
-│   ├── markdown_gen.py      # Geração de markdown dos resumos
-│   └── hotkeys.py           # Atalhos globais (pynput)
+│   ├── audio.py             # Linux audio capture (parec/PipeWire)
+│   ├── transcriber.py       # faster-whisper in a QThread
+│   ├── summarizer.py        # Summarization via the Maestro provider
+│   ├── assistants.py        # Meeting and study assistants
+│   ├── markdown_gen.py      # Markdown generation for the summaries
+│   └── hotkeys.py           # Global shortcuts (pynput)
 └── skills/
-    └── catalog.py           # Catálogo de 12 skills com conteúdo SKILL.md
+    └── catalog.py           # Catalog of 12 skills with SKILL.md content
 ```
 
-## Requisitos
+## Requirements
 
 - Python 3.10+
-- Qt 6 (instalado automaticamente com PySide6)
-- `langgraph` + `langchain-openai` (instalados automaticamente; usados pelo Assistente)
-- Para o Chat e a análise das Transcrições: um provedor de IA compatível com OpenAI (LM Studio local, opencode, etc.)
-- Para as Transcrições (gravação no Linux): `pulseaudio-utils` (`parec`/`pactl`) e PipeWire/PulseAudio; `faster-whisper` para transcrição (instalado automaticamente)
-- Linux, macOS ou Windows
+- Qt 6 (installed automatically with PySide6)
+- `langgraph` + `langchain-openai` (installed automatically; used by the Assistant)
+- For the Chat and the analysis of Transcriptions: an OpenAI-compatible AI provider (local LM Studio, opencode, etc.)
+- For Transcriptions (recording on Linux): `pulseaudio-utils` (`parec`/`pactl`) and PipeWire/PulseAudio; `faster-whisper` for transcription (installed automatically)
+- Linux, macOS, or Windows

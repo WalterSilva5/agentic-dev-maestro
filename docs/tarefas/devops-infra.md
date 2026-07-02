@@ -1,50 +1,52 @@
-# Tarefas — Infra / DevOps
+> 🇧🇷 [Versão em português](devops-infra.ptbr.md)
 
-Base: o template já traz `docker-compose.yml` (MySQL, Redis, API, fronts),
-`Dockerfile` multi-stage, `docker-entrypoint.sh` (migrations + seed) e Nginx.
-Aqui é só **adaptar** para o Maestro. Esforço em homem-dia (hd).
+# Tasks — Infra / DevOps
 
----
-
-## D1 — Compose enxuto para o Maestro · 1 hd
-- [ ] Remover serviços `front-react` e `front-flutter` do compose
-- [ ] Manter: `mysql`, `redis`, `api`, `front` (Angular)
-- [ ] Conferir portas e nomes de serviço; healthchecks ok
-
-## D2 — Variáveis de ambiente · 0.5 hd
-- [ ] Revisar `back/.env.example`: `DATABASE_URL`, `JWT_*`, `REDIS_*`
-- [ ] Adicionar segredos do Maestro: prefixo de API key, secret de webhook (HMAC)
-- [ ] Documentar cada variável no `.env.example`
-
-## D3 — Migrations + seed automáticos · 0.5 hd
-- [ ] Validar `docker-entrypoint.sh` rodando `prisma migrate deploy` + seed
-- [ ] Seed idempotente (não duplica empresa/usuário demo em reexecuções)
-
-## D4 — CI (lint, test, build) · 1.5 hd
-- [ ] Pipeline: instalar deps, `lint`, `test` (back e front), `build`
-- [ ] Rodar testes de isolamento multi-tenant no CI
-- [ ] Cache de dependências para acelerar
-
-## D5 — Build de imagens e deploy · 1.5 hd
-- [ ] Build multi-stage da API e do front (Nginx servindo o Angular)
-- [ ] Estratégia de migrations no deploy (rodar antes de subir a nova API)
-- [ ] Variáveis/segredos no ambiente de destino (não commitar `.env`)
-
-## D6 — Observabilidade básica · 1 hd
-- [ ] Health check exposto (já no template) + readiness do DB/Redis
-- [ ] Logs estruturados; correlação por request id
-- [ ] (Opcional) métricas de fila Bull
+Base: the template already ships a `docker-compose.yml` (MySQL, Redis, API, front ends),
+a multi-stage `Dockerfile`, `docker-entrypoint.sh` (migrations + seed) and Nginx.
+Here it is only about **adapting** it for Maestro. Effort in man-days (md).
 
 ---
 
-## Diagramas (manutenção)
+## D1 — Lean compose for Maestro · 1 md
+- [ ] Remove the `front-react` and `front-flutter` services from the compose file
+- [ ] Keep: `mysql`, `redis`, `api`, `front` (Angular)
+- [ ] Check ports and service names; healthchecks ok
 
-- [ ] `docs/diagramas/gerar.sh` roda local com Java + Graphviz
-- [ ] (Opcional) job de CI que regenera os SVGs e falha se houver `.puml` sem `.svg` atualizado
+## D2 — Environment variables · 0.5 md
+- [ ] Review `back/.env.example`: `DATABASE_URL`, `JWT_*`, `REDIS_*`
+- [ ] Add Maestro secrets: API key prefix, webhook secret (HMAC)
+- [ ] Document each variable in `.env.example`
 
-## Checklist de qualidade (infra)
+## D3 — Automatic migrations + seed · 0.5 md
+- [ ] Validate `docker-entrypoint.sh` running `prisma migrate deploy` + seed
+- [ ] Idempotent seed (does not duplicate the demo company/user on reruns)
 
-- [ ] `docker compose up` sobe tudo do zero com migrations + seed
-- [ ] `.env` nunca commitado; `.env.example` completo
-- [ ] CI verde (lint + test + build) obrigatório para merge
-- [ ] Deploy reprodutível e com rollback de migration pensado
+## D4 — CI (lint, test, build) · 1.5 md
+- [ ] Pipeline: install deps, `lint`, `test` (back and front), `build`
+- [ ] Run multi-tenant isolation tests in CI
+- [ ] Dependency caching to speed things up
+
+## D5 — Image build and deploy · 1.5 md
+- [ ] Multi-stage build of the API and the front end (Nginx serving the Angular app)
+- [ ] Migration strategy on deploy (run before bringing up the new API)
+- [ ] Variables/secrets in the target environment (do not commit `.env`)
+
+## D6 — Basic observability · 1 md
+- [ ] Health check exposed (already in the template) + DB/Redis readiness
+- [ ] Structured logs; correlation by request id
+- [ ] (Optional) Bull queue metrics
+
+---
+
+## Diagrams (maintenance)
+
+- [ ] `docs/diagramas/gerar.sh` runs locally with Java + Graphviz
+- [ ] (Optional) CI job that regenerates the SVGs and fails if there is a `.puml` without an updated `.svg`
+
+## Quality checklist (infra)
+
+- [ ] `docker compose up` brings everything up from scratch with migrations + seed
+- [ ] `.env` never committed; `.env.example` complete
+- [ ] Green CI (lint + test + build) required for merge
+- [ ] Reproducible deploy with a planned migration rollback

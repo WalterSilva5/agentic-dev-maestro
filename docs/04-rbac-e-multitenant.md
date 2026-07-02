@@ -1,74 +1,76 @@
-# 04 — RBAC e multi-tenant
+> 🇧🇷 [Versão em português](04-rbac-e-multitenant.ptbr.md)
+
+# 04 — RBAC and multi-tenant
 
 ## Multi-tenancy
 
-- **Tenant = Company.** Um usuário pode pertencer a várias empresas (uma
-  `Membership` por empresa), com papel possivelmente diferente em cada uma.
-- **Isolamento row-level:** toda entidade de domínio carrega `companyId`. Um guard
-  global resolve a empresa do contexto (do JWT/Membership ou da API key) e **toda
-  query é filtrada por `companyId`**. Sem exceção — é a defesa contra vazamento
-  entre tenants.
-- O `companyId` **nunca** vem do corpo da requisição confiável: vem do token/chave.
+- **Tenant = Company.** A user can belong to several companies (one
+  `Membership` per company), potentially with a different role in each.
+- **Row-level isolation:** every domain entity carries `companyId`. A global
+  guard resolves the company from the context (from the JWT/Membership or the API key) and **every
+  query is filtered by `companyId`**. No exceptions — this is the defense against leakage
+  between tenants.
+- The `companyId` **never** comes from the trusted request body: it comes from the token/key.
 
-### Resolução de contexto por requisição
+### Per-request context resolution
 
 ```
-Humano (JWT)   → token identifica o User → escolhe a empresa ativa
-                 (header X-Company-Id ou rota /companies/:id/...) →
-                 carrega a Membership → papel + permissões
-Agente (key)   → x-api-key → ApiKey → Membership → companyId + papel
-                 (papel define a permissão; scopes da chave: refinamento planejado)
+Human (JWT)    → token identifies the User → picks the active company
+                 (X-Company-Id header or /companies/:id/... route) →
+                 loads the Membership → role + permissions
+Agent (key)    → x-api-key → ApiKey → Membership → companyId + role
+                 (role defines the permission; key scopes: planned refinement)
 ```
 
-## Papéis e matriz de permissões
+## Roles and permission matrix
 
-| Ação | OWNER | MANAGER | TECH_LEAD | DEV | VIEWER |
+| Action | OWNER | MANAGER | TECH_LEAD | DEV | VIEWER |
 |---|:--:|:--:|:--:|:--:|:--:|
-| Ver projetos/quadros/tarefas | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Criar/editar tarefas | ✅ | ✅ | ✅ | ✅ | ❌ |
-| Mover tarefas no quadro | ✅ | ✅ | ✅ | ✅ | ❌ |
-| Excluir tarefas | ✅ | ✅ | ✅ | ⚠️ próprias | ❌ |
-| Escrever docs | ✅ | ✅ | ✅ | ✅ | ❌ |
-| Criar/configurar projetos e quadros | ✅ | ✅ | ✅ | ❌ | ❌ |
-| Gerenciar membros (convidar / mudar papel) | ✅ | ✅ | ❌ | ❌ | ❌ |
-| Gerenciar API keys | ✅ | ✅ | ⚠️ próprias | ⚠️ próprias | ❌ |
-| Configurar/excluir a empresa, transferir posse | ✅ | ❌ | ❌ | ❌ | ❌ |
+| View projects/boards/tasks | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Create/edit tasks | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Move tasks on the board | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Delete tasks | ✅ | ✅ | ✅ | ⚠️ own | ❌ |
+| Write docs | ✅ | ✅ | ✅ | ✅ | ❌ |
+| Create/configure projects and boards | ✅ | ✅ | ✅ | ❌ | ❌ |
+| Manage members (invite / change role) | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Manage API keys | ✅ | ✅ | ⚠️ own | ⚠️ own | ❌ |
+| Configure/delete the company, transfer ownership | ✅ | ❌ | ❌ | ❌ | ❌ |
 
-⚠️ = restrito a recursos próprios.
+⚠️ = restricted to own resources.
 
-### Notas
+### Notes
 
-- **OWNER** é o responsável pela empresa (quem a criou ou recebeu a posse). Pode
-  rebaixar/remover qualquer um, exceto outro OWNER (transferência de posse explícita).
-- **MANAGER** gerencia o dia a dia: membros, projetos, quadros, tarefas — mas não
-  destrói a empresa nem mexe em OWNERs.
-- **TECH_LEAD** manda no técnico (projetos, quadros, tarefas, docs, revisão), mas não
-  gerencia pessoas.
-- **DEV** é o executor: cria/edita/move tarefas e escreve docs.
-- **VIEWER** é só leitura — ideal para stakeholders/gerentes que apenas consomem a
-  visão (gera os mesmos relatórios markdown de hoje, sem poder editar).
+- **OWNER** is responsible for the company (whoever created it or received ownership). Can
+  demote/remove anyone except another OWNER (explicit ownership transfer).
+- **MANAGER** handles day-to-day operations: members, projects, boards, tasks — but does not
+  destroy the company or touch OWNERs.
+- **TECH_LEAD** runs the technical side (projects, boards, tasks, docs, review), but does not
+  manage people.
+- **DEV** is the executor: creates/edits/moves tasks and writes docs.
+- **VIEWER** is read-only — ideal for stakeholders/managers who only consume the
+  view (generates the same markdown reports as today, without being able to edit).
 
-## Agentes e permissões
+## Agents and permissions
 
-> **Estado atual:** a autorização efetiva de uma API key é dada pelo **papel da
-> Membership** (`@RequireRole` no guard). Os `scopes` já são **armazenados** na chave
-> e expostos no contexto, mas o enforcement granular por escopo é um **refinamento
-> planejado**. A descrição abaixo é o design-alvo (papel ∩ scopes).
+> **Current state:** the effective authorization of an API key is given by the **Membership
+> role** (`@RequireRole` on the guard). The `scopes` are already **stored** on the key
+> and exposed in the context, but granular per-scope enforcement is a **planned
+> refinement**. The description below is the target design (role ∩ scopes).
 
-A permissão efetiva de uma API key é **a interseção** do papel da Membership com os
-`scopes` da chave. Exemplos:
+The effective permission of an API key is **the intersection** of the Membership role with the
+key's `scopes`. Examples:
 
-- Chave num membro **DEV** com escopo `tasks:write tasks:move docs:write` → pode
-  executar o loop, mas nunca gerenciar membros (o papel já barra).
-- Chave num membro **MANAGER** mas com escopo só `tasks:read` → apesar do papel
-  alto, a chave só lê (princípio do menor privilégio para agentes).
+- A key on a **DEV** member with scope `tasks:write tasks:move docs:write` → can
+  run the loop, but never manage members (the role already blocks it).
+- A key on a **MANAGER** member but with scope only `tasks:read` → despite the high
+  role, the key only reads (least-privilege principle for agents).
 
-Recomendação: **agentes executores** usam uma Membership dedicada de papel `DEV`
-(ou um papel `AGENT` futuro) com escopos mínimos, para deixar a auditoria limpa
-(toda ação do agente fica atribuída àquela identidade).
+Recommendation: **executor agents** use a dedicated Membership with role `DEV`
+(or a future `AGENT` role) with minimal scopes, to keep auditing clean
+(every agent action is attributed to that identity).
 
-## Auditoria
+## Auditing
 
-Toda escrita grava em `ActivityLog`: `actorUserId` + `viaApiKeyId` (se agente) +
-`action` + `changes` (diff). Isso responde "quem mudou o status / criou a tarefa /
-editou a doc — humano ou agente, e qual chave".
+Every write records into `ActivityLog`: `actorUserId` + `viaApiKeyId` (if agent) +
+`action` + `changes` (diff). This answers "who changed the status / created the task /
+edited the doc — human or agent, and which key".

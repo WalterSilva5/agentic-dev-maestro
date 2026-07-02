@@ -1,86 +1,89 @@
-# 08 — Fluxo de tarefas (objetivo → subtarefas → aceite)
+> 🇧🇷 [Versão em português](08-fluxo-de-tarefas.ptbr.md)
 
-A plataforma **exibe cada tarefa como um fluxograma**, não só como uma lista de
-subtarefas. A ideia:
+# 08 — Task flow (objective → subtasks → acceptance)
 
-> Uma **tarefa** é a *entrada* do fluxo: tem um **objetivo** e um **ponto de
-> aceitação** (critério de aceite). Para chegar ao aceite, é preciso concluir os
-> **passos** — as **subtarefas** — que podem ter **dependências** entre si.
+The platform **displays each task as a flowchart**, not just as a list of
+subtasks. The idea:
 
-Exemplo renderizado: [`diagramas/fluxo-tarefa-exemplo.svg`](diagramas/fluxo-tarefa-exemplo.svg)
+> A **task** is the *entry point* of the flow: it has an **objective** and an
+> **acceptance point** (acceptance criterion). To reach acceptance, you need to
+> complete the **steps** — the **subtasks** — which may have **dependencies**
+> among them.
 
-![Exemplo de fluxo de tarefa](diagramas/fluxo-tarefa-exemplo.svg)
+Rendered example: [`diagramas/fluxo-tarefa-exemplo.svg`](diagramas/fluxo-tarefa-exemplo.svg)
 
-## O que isso adiciona ao modelo
+![Task flow example](diagramas/fluxo-tarefa-exemplo.svg)
 
-Detalhe em [doc 02](02-modelo-de-dados.md). Resumo:
+## What this adds to the model
 
-- `Task.objective` — o **objetivo** (entrada do fluxo).
-- `Task.acceptance` — o **critério de aceite** (ponto de aceitação).
-- `TaskDependency` — aresta de **precedência** `blocker → blocked` entre tarefas/
-  subtarefas. O conjunto de arestas forma um **DAG** (grafo acíclico).
+Details in [doc 02](02-modelo-de-dados.md). Summary:
 
-## Dois níveis de fluxo (mesma mecânica)
+- `Task.objective` — the **objective** (flow entry point).
+- `Task.acceptance` — the **acceptance criterion** (acceptance point).
+- `TaskDependency` — a **precedence** edge `blocker → blocked` between tasks/
+  subtasks. The set of edges forms a **DAG** (acyclic graph).
 
-1. **Fluxo de uma tarefa** — nós = subtarefas; arestas = dependências entre elas.
-   É o caso principal (o exemplo acima).
-2. **Fluxo de um projeto** — nós = tarefas; arestas = dependências entre tarefas.
-   Mesma estrutura (`TaskDependency`), só muda o nível exibido.
+## Two flow levels (same mechanics)
 
-## Como o grafo é montado
+1. **Flow of a task** — nodes = subtasks; edges = dependencies among them.
+   This is the main case (the example above).
+2. **Flow of a project** — nodes = tasks; edges = dependencies among tasks.
+   Same structure (`TaskDependency`), only the displayed level changes.
 
-Dado uma tarefa e suas subtarefas + dependências, o backend produz um grafo com
-dois **nós sintéticos**:
+## How the graph is built
 
-- **Entrada** (`objetivo`) → liga-se às subtarefas **raiz** (sem `blocker`).
-- **Aceite** (`acceptance`) ← recebe das subtarefas **folha** (sem `blocked`).
+Given a task and its subtasks + dependencies, the backend produces a graph with
+two **synthetic nodes**:
 
-Regras:
+- **Entry** (`objective`) → links to the **root** subtasks (with no `blocker`).
+- **Acceptance** (`acceptance`) ← receives from the **leaf** subtasks (with no `blocked`).
 
-- **Sem dependências** → todas as subtarefas são raiz e folha: o fluxo vira
-  `entrada → (cada subtarefa em paralelo) → aceite`. Não inventa ordem que não existe.
-- **Com dependências** → o layout segue a precedência (sequência, ramificação,
-  paralelo + junção), como no exemplo (A‖B → C → D → aceite).
-- **DAG obrigatório** → ciclos são rejeitados na criação da aresta (ver validação).
+Rules:
 
-## Estado e cores dos nós
+- **No dependencies** → all subtasks are both root and leaf: the flow becomes
+  `entry → (each subtask in parallel) → acceptance`. It does not invent an order that doesn't exist.
+- **With dependencies** → the layout follows the precedence (sequence, branching,
+  parallel + join), as in the example (A‖B → C → D → acceptance).
+- **DAG required** → cycles are rejected when the edge is created (see validation).
 
-A cor do nó reflete o status (a coluna do kanban onde a subtarefa está):
+## Node state and colors
 
-| Nó | Significado |
+The node color reflects the status (the kanban column where the subtask sits):
+
+| Node | Meaning |
 |---|---|
-| 🟩 concluída | subtarefa numa coluna "concluída" |
-| 🟨 em andamento | subtarefa em "fazendo"/"revisão" |
-| ⬜ a fazer | ainda não iniciada |
-| 🔒 bloqueada | tem `blocker` ainda não concluído (não pode começar) |
-| 🟦 aceite | nó terminal; **libera quando todas as subtarefas concluem** |
+| 🟩 completed | subtask in a "completed" column |
+| 🟨 in progress | subtask in "doing"/"review" |
+| ⬜ to do | not yet started |
+| 🔒 blocked | has a `blocker` not yet completed (cannot start) |
+| 🟦 acceptance | terminal node; **unlocks when all subtasks are completed** |
 
-- **Bloqueio é derivado**, não um status manual: uma subtarefa está bloqueada se
-  qualquer dependência (`blocker`) não estiver concluída.
-- **Progresso da tarefa** = % de subtarefas concluídas; o nó de aceite indica
-  "pronto para aceitar" quando 100% + critérios de aceite atendidos.
+- **Blocking is derived**, not a manual status: a subtask is blocked if
+  any dependency (`blocker`) is not completed.
+- **Task progress** = % of completed subtasks; the acceptance node indicates
+  "ready to accept" when 100% + acceptance criteria are met.
 
-## Validação (DAG)
+## Validation (DAG)
 
-- Ao criar `TaskDependency`, rejeitar se a aresta criar **ciclo** (busca em
-  profundidade a partir de `blocked` procurando `blocker`).
-- Rejeitar auto-dependência (`blockerId == blockedId`).
-- Dependências normalmente ligam subtarefas da **mesma tarefa-pai**; ligar tarefas
-  de projetos/empresas diferentes é proibido (mesmo `companyId`).
+- When creating a `TaskDependency`, reject if the edge creates a **cycle** (depth-
+  first search starting from `blocked` looking for `blocker`).
+- Reject self-dependency (`blockerId == blockedId`).
+- Dependencies normally link subtasks of the **same parent task**; linking tasks
+  from different projects/companies is forbidden (same `companyId`).
 
-## Renderização na plataforma
+## Rendering on the platform
 
-| Onde | Tecnologia | Por quê |
+| Where | Technology | Why |
 |---|---|---|
-| **Dentro do app** (interativo) | **`@swimlane/ngx-graph`** (Angular + dagre) | nós customizados com status/cor, clicáveis, pan/zoom, layout automático do DAG |
-| **Export / docs markdown** | **Mermaid** (`flowchart`) | renderiza nativo no GitHub/Obsidian; acompanha a doc exportada da tarefa |
-| **Docs estáticas do repo** | PlantUML (como em `docs/diagramas/`) | mantém o padrão dos diagramas de arquitetura |
+| **Inside the app** (interactive) | **`@swimlane/ngx-graph`** (Angular + dagre) | custom nodes with status/color, clickable, pan/zoom, automatic DAG layout |
+| **Export / markdown docs** | **Mermaid** (`flowchart`) | renders natively on GitHub/Obsidian; ships with the doc exported from the task |
+| **Static repo docs** | PlantUML (as in `docs/diagramas/`) | keeps the standard of the architecture diagrams |
 
-- **In-app:** `ngx-graph` recebe `{ nodes, edges }` da API e usa template de nó
-  próprio (título, código `GAV-42`, assignee, cor por status, cadeado se bloqueada).
-  Clicar num nó abre o detalhe da subtarefa; o layout (dagre) é automático.
-- **Export:** a API também emite o mesmo grafo como **Mermaid** para embutir na doc
-  markdown da tarefa (o artefato que o time recebe). Ex.:
+- **In-app:** `ngx-graph` receives `{ nodes, edges }` from the API and uses its own
+  node template (title, code `GAV-42`, assignee, color by status, padlock if blocked).
+  Clicking a node opens the subtask detail; the layout (dagre) is automatic.
+- **Export:** the API also emits the same graph as **Mermaid** to embed in the task's
+  markdown doc (the artifact the team receives). E.g.:
 
   ```mermaid
   flowchart TD
@@ -92,25 +95,25 @@ A cor do nó reflete o status (a coluna do kanban onde a subtarefa está):
     D --> ACE([Aceite: loga + renova + testes verdes])
   ```
 
-## Interações (app)
+## Interactions (app)
 
-- **Clicar nó** → abre o detalhe da subtarefa.
-- **Ligar dois nós** (arrastar de um para outro) → cria `TaskDependency` (com
-  validação de ciclo); desfazer remove a aresta.
-- **Mover subtarefa no kanban** → recolore o nó automaticamente (mesmo estado).
-- *(futuro)* destacar **caminho crítico** e subtarefas bloqueando o aceite.
+- **Click a node** → opens the subtask detail.
+- **Link two nodes** (drag from one to another) → creates a `TaskDependency` (with
+  cycle validation); undo removes the edge.
+- **Move a subtask on the kanban** → recolors the node automatically (same state).
+- *(future)* highlight the **critical path** and subtasks blocking acceptance.
 
-## API (resumo — detalhe no doc 03)
+## API (summary — details in doc 03)
 
-- `GET /tasks/:code/flow` → `{ nodes, edges }` (e `?format=mermaid` → texto Mermaid).
-- `POST /tasks/:code/dependencies` `{ blockerCode, blockedCode }` (valida DAG).
+- `GET /tasks/:code/flow` → `{ nodes, edges }` (and `?format=mermaid` → Mermaid text).
+- `POST /tasks/:code/dependencies` `{ blockerCode, blockedCode }` (validates DAG).
 - `DELETE /tasks/:code/dependencies/:depId`.
-- No `POST /tasks/bulk` (decompose), o agente pode já enviar `dependsOn` em cada
-  subtarefa → as arestas são criadas junto. Assim o **fluxo nasce pronto** no
-  passo de decompose do [Maestro Loop](diagramas/maestro-loop.svg).
+- In `POST /tasks/bulk` (decompose), the agent can already send `dependsOn` in each
+  subtask → the edges are created along with it. This way the **flow is born ready** in
+  the decompose step of the [Maestro Loop](diagramas/maestro-loop.svg).
 
-## Por que isso importa
+## Why this matters
 
-- Deixa explícito **o que falta** para aceitar a tarefa e **o que está travando** o quê.
-- O agente, no decompose, já descreve o **caminho** (não só uma lista solta).
-- Gerentes/tech leads enxergam gargalos sem ler todas as subtarefas.
+- It makes explicit **what is missing** to accept the task and **what is blocking** what.
+- The agent, during decompose, already describes the **path** (not just a loose list).
+- Managers/tech leads can see bottlenecks without reading all the subtasks.

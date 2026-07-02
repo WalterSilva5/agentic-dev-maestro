@@ -1,71 +1,73 @@
-# Diagramas
+> 🇧🇷 [Versão em português](README.ptbr.md)
 
-Fluxogramas do Maestro em **PlantUML** (`.puml` — fonte) + **SVG** (renderizado).
-Sempre que editar um `.puml`, regenere os SVGs:
+# Diagrams
+
+Maestro flowcharts in **PlantUML** (`.puml` — source) + **SVG** (rendered).
+Whenever you edit a `.puml`, regenerate the SVGs:
 
 ```bash
 ./gerar.sh        # baixa o plantuml.jar (1x) e gera todos os .svg
 ```
 
-Requisitos: Java + Graphviz (`dot`). O jar fica em `.plantuml.jar` (ignorado no git).
+Requirements: Java + Graphviz (`dot`). The jar lives in `.plantuml.jar` (git-ignored).
 
 ---
 
-## 1. Arquitetura (componentes)
+## 1. Architecture (components)
 
-Visão geral: frontend Angular, backend NestJS (auth, contexto multi-tenant, domínio,
-filas), servidor MCP, MySQL e Redis — e como humanos e agentes entram.
+Overview: Angular frontend, NestJS backend (auth, multi-tenant context, domain,
+queues), MCP server, MySQL and Redis — and how humans and agents come in.
 
-![Arquitetura](arquitetura.svg)
+![Architecture](arquitetura.svg)
 
-Fonte: [`arquitetura.puml`](arquitetura.puml)
+Source: [`arquitetura.puml`](arquitetura.puml)
 
-## 2. Maestro Loop (fluxo principal)
+## 2. Maestro Loop (main flow)
 
-O ciclo do produto: briefing → refino → decompose → quadro → execução → visão.
+The product cycle: briefing → refinement → decompose → board → execution → overview.
 
 ![Maestro Loop](maestro-loop.svg)
 
-Fonte: [`maestro-loop.puml`](maestro-loop.puml)
+Source: [`maestro-loop.puml`](maestro-loop.puml)
 
-## 3. Modelo de dados (ER)
+## 3. Data model (ER)
 
-Entidades e relacionamentos (detalhe em [`../02-modelo-de-dados.md`](../02-modelo-de-dados.md)).
+Entities and relationships (details in [`../02-modelo-de-dados.md`](../02-modelo-de-dados.md)).
 
-![Modelo de dados](modelo-dados.svg)
+![Data model](modelo-dados.svg)
 
-Fonte: [`modelo-dados.puml`](modelo-dados.puml)
+Source: [`modelo-dados.puml`](modelo-dados.puml)
 
-## 4. Fluxo do agente (sequência)
+## 4. Agent flow (sequence)
 
-Como o agente transforma um briefing em doc + tarefas no quadro, via API key.
+How the agent turns a briefing into a doc + tasks on the board, via API key.
 
-![Fluxo do agente](fluxo-agente.svg)
+![Agent flow](fluxo-agente.svg)
 
-Fonte: [`fluxo-agente.puml`](fluxo-agente.puml)
+Source: [`fluxo-agente.puml`](fluxo-agente.puml)
 
-## 5. Autenticação e RBAC (sequência)
+## 5. Authentication and RBAC (sequence)
 
-Resolução de contexto (JWT vs. API key) e permissão efetiva = papel ∩ escopos.
+Context resolution (JWT vs. API key) and effective permission = role ∩ scopes.
 
-![Auth e RBAC](auth-rbac.svg)
+![Auth and RBAC](auth-rbac.svg)
 
-Fonte: [`auth-rbac.puml`](auth-rbac.puml)
+Source: [`auth-rbac.puml`](auth-rbac.puml)
 
-## 6. Estados da tarefa (kanban)
+## 6. Task states (kanban)
 
-Transições padrão de uma tarefa entre as colunas do quadro.
+Standard transitions of a task between the board columns.
 
-![Estados da tarefa](kanban-estados.svg)
+![Task states](kanban-estados.svg)
 
-Fonte: [`kanban-estados.puml`](kanban-estados.puml)
+Source: [`kanban-estados.puml`](kanban-estados.puml)
 
-## 7. Fluxo de uma tarefa (objetivo → subtarefas → aceite)
+## 7. Flow of a task (objective → subtasks → acceptance)
 
-Exemplo do fluxograma que a plataforma exibe por tarefa: a entrada (objetivo), os
-passos (subtarefas com dependências, coloridos por status) e o ponto de aceite.
-Conceito e renderização in-app em [`../08-fluxo-de-tarefas.md`](../08-fluxo-de-tarefas.md).
+Example of the flowchart the platform displays per task: the entry (objective), the
+steps (subtasks with dependencies, colored by status) and the acceptance point.
+Concept and in-app rendering in [`../08-fluxo-de-tarefas.md`](../08-fluxo-de-tarefas.md).
 
-![Exemplo de fluxo de tarefa](fluxo-tarefa-exemplo.svg)
+![Task flow example](fluxo-tarefa-exemplo.svg)
 
-Fonte: [`fluxo-tarefa-exemplo.puml`](fluxo-tarefa-exemplo.puml)
+Source: [`fluxo-tarefa-exemplo.puml`](fluxo-tarefa-exemplo.puml)

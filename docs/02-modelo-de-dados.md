@@ -1,49 +1,51 @@
-# 02 — Modelo de dados
+> 🇧🇷 [Versão em português](02-modelo-de-dados.ptbr.md)
 
-Multi-tenant por **Empresa (Company)**. Estratégia de isolamento recomendada:
-**row-level** — toda tabela de domínio carrega `companyId` e toda query é filtrada
-por ele (simples, suficiente, fácil de auditar). Ver [doc 04](04-rbac-e-multitenant.md).
+# 02 — Data model
 
-## Entidades
+Multi-tenant by **Company**. Recommended isolation strategy:
+**row-level** — every domain table carries `companyId` and every query is filtered
+by it (simple, sufficient, easy to audit). See [doc 04](04-rbac-e-multitenant.md).
 
-| Entidade | Papel |
+## Entities
+
+| Entity | Role |
 |---|---|
-| **User** | identidade global (já vem do template). Pode pertencer a várias empresas. |
-| **Company** | a empresa (tenant). Tem membros, projetos, quadros, API keys. |
-| **Membership** | liga `User ↔ Company` com um **Role**. É onde mora o papel do usuário *naquela* empresa. |
-| **ApiKey** | credencial de agente, vinculada a uma Membership. Tem escopos, hash, expiração, revogação. |
-| **Project** | unidade de trabalho dentro da empresa. Tem docs, quadro(s), tarefas. |
-| **Board** | quadro kanban de um projeto. Tem colunas. |
-| **Column** | coluna/status do quadro (Backlog, A fazer, Fazendo, Revisão, Concluído…), com ordem e WIP opcional. |
-| **Task** | tarefa numa coluna. Auto-relacional para **subtarefas** (`parentId`). Tem **objetivo** e **critério de aceite** (ponto de aceitação). |
-| **TaskDependency** | aresta de **precedência** entre tarefas/subtarefas (`blocker → blocked`). Forma o grafo (DAG) do fluxo. |
-| **Document** | doc markdown versionada, ligada a Project ou Task. |
-| **Comment** | comentário em tarefa. |
-| **Label** | etiqueta/tag por empresa, aplicável a tarefas. |
-| **ActivityLog** | trilha de auditoria: ator (user + se via API key), ação, antes/depois. |
+| **User** | global identity (already comes from the template). May belong to several companies. |
+| **Company** | the company (tenant). Has members, projects, boards, API keys. |
+| **Membership** | links `User ↔ Company` with a **Role**. This is where the user's role *in that* company lives. |
+| **ApiKey** | agent credential, linked to a Membership. Has scopes, hash, expiration, revocation. |
+| **Project** | unit of work within the company. Has docs, board(s), tasks. |
+| **Board** | kanban board of a project. Has columns. |
+| **Column** | board column/status (Backlog, To do, Doing, Review, Done…), with order and optional WIP. |
+| **Task** | task in a column. Self-relational for **subtasks** (`parentId`). Has an **objective** and an **acceptance criterion** (acceptance point). |
+| **TaskDependency** | **precedence** edge between tasks/subtasks (`blocker → blocked`). Forms the flow graph (DAG). |
+| **Document** | versioned markdown doc, linked to a Project or Task. |
+| **Comment** | comment on a task. |
+| **Label** | label/tag per company, applicable to tasks. |
+| **ActivityLog** | audit trail: actor (user + whether via API key), action, before/after. |
 
-## Relacionamentos (resumo)
+## Relationships (summary)
 
 ```
 User 1───* Membership *───1 Company
 Company 1───* Project 1───* Board 1───* Column 1───* Task
-Task *───1 Task (parentId → subtarefas)
-Task *───* Task (TaskDependency: blocker → blocked → fluxo/DAG)
+Task *───1 Task (parentId → subtasks)
+Task *───* Task (TaskDependency: blocker → blocked → flow/DAG)
 Task *───* Label
 Project/Task 1───* Document
 Task 1───* Comment
 Company 1───* ApiKey (via Membership)
-* ───* ActivityLog (polimórfico por entidade)
+* ───* ActivityLog (polymorphic per entity)
 ```
 
-## Papéis (enum Role, na Membership)
+## Roles (enum Role, on the Membership)
 
 `OWNER` · `MANAGER` · `TECH_LEAD` · `DEV` · `VIEWER`
-(matriz de permissões no [doc 04](04-rbac-e-multitenant.md))
+(permission matrix in [doc 04](04-rbac-e-multitenant.md))
 
-## Esboço Prisma (parcial)
+## Prisma sketch (partial)
 
-> Reaproveita o `User` do template; adiciona o domínio. MySQL (do template).
+> Reuses the `User` from the template; adds the domain. MySQL (from the template).
 
 ```prisma
 model Company {
@@ -66,21 +68,21 @@ model Membership {
   role      Role     @default(DEV)
   apiKeys   ApiKey[]
   createdAt DateTime @default(now())
-  @@unique([userId, companyId])   // 1 papel por usuário por empresa
+  @@unique([userId, companyId])   // 1 role per user per company
 }
 
 enum Role { OWNER MANAGER TECH_LEAD DEV VIEWER }
 
 model ApiKey {
   id           String     @id @default(cuid())
-  label        String     // "agente claude-code", etc.
-  hashedKey    String     @unique   // só o hash; o segredo é exibido 1x na criação
-  prefix       String     // primeiros chars p/ identificar na UI
+  label        String     // "claude-code agent", etc.
+  hashedKey    String     @unique   // only the hash; the secret is shown once at creation
+  prefix       String     // first chars to identify it in the UI
   membership   Membership @relation(fields: [membershipId], references: [id])
   membershipId String
   company      Company    @relation(fields: [companyId], references: [id])
   companyId    String
-  scopes       Json       // ex.: ["tasks:write","docs:write","tasks:move"]
+  scopes       Json       // e.g.: ["tasks:write","docs:write","tasks:move"]
   lastUsedAt   DateTime?
   expiresAt    DateTime?
   revokedAt    DateTime?
@@ -92,7 +94,7 @@ model Project {
   company     Company    @relation(fields: [companyId], references: [id])
   companyId   String
   name        String
-  key         String     // prefixo curto p/ código de tarefa (ex.: "GAV")
+  key         String     // short prefix for task code (e.g.: "GAV")
   description String?    @db.Text
   boards      Board[]
   tasks       Task[]
@@ -113,7 +115,7 @@ model Column {
   id       String @id @default(cuid())
   board    Board  @relation(fields: [boardId], references: [id])
   boardId  String
-  name     String   // "A fazer", "Fazendo", "Revisão", "Concluído"
+  name     String   // "To do", "Doing", "Review", "Done"
   order    Int
   wipLimit Int?
   tasks    Task[]
@@ -127,22 +129,22 @@ model Task {
   projectId   String
   column      Column     @relation(fields: [columnId], references: [id])
   columnId    String
-  number      Int        // sequencial por projeto → "GAV-42"
+  number      Int        // sequential per project → "GAV-42"
   title       String
-  description String?    @db.Text          // markdown (detalhe)
-  objective   String?    @db.Text          // o OBJETIVO da tarefa (a entrada do fluxo)
-  acceptance  String?    @db.Text          // CRITÉRIO DE ACEITE (o ponto de aceitação)
+  description String?    @db.Text          // markdown (detail)
+  objective   String?    @db.Text          // the task's OBJECTIVE (the flow's entry)
+  acceptance  String?    @db.Text          // ACCEPTANCE CRITERION (the acceptance point)
   parent      Task?      @relation("Subtasks", fields: [parentId], references: [id])
   parentId    String?
   subtasks    Task[]     @relation("Subtasks")
   assignee    User?      @relation(fields: [assigneeId], references: [id])
   assigneeId  String?
   priority    Priority   @default(MEDIUM)
-  estimateMd  Float?     // estimativa em HOMEM-DIA
-  rank        String     // ordenação no kanban (lexorank/fractional)
-  // arestas do fluxo (precedência entre tarefas/subtarefas)
-  blocking    TaskDependency[] @relation("Blocker")  // tarefas que ESTA bloqueia
-  blockedBy   TaskDependency[] @relation("Blocked")  // tarefas que bloqueiam ESTA
+  estimateMd  Float?     // estimate in PERSON-DAYS
+  rank        String     // kanban ordering (lexorank/fractional)
+  // flow edges (precedence between tasks/subtasks)
+  blocking    TaskDependency[] @relation("Blocker")  // tasks that THIS one blocks
+  blockedBy   TaskDependency[] @relation("Blocked")  // tasks that block THIS one
   labels      Label[]
   comments    Comment[]
   documents   Document[]
@@ -151,8 +153,8 @@ model Task {
   @@unique([projectId, number])
 }
 
-// Aresta de precedência: blocker precisa concluir antes de blocked.
-// Tipicamente liga subtarefas da MESMA tarefa-pai (mas pode ligar tarefas).
+// Precedence edge: blocker must complete before blocked.
+// Typically links subtasks of the SAME parent task (but can link tasks).
 model TaskDependency {
   id         String @id @default(cuid())
   companyId  String
@@ -161,7 +163,7 @@ model TaskDependency {
   blocked    Task   @relation("Blocked", fields: [blockedId], references: [id])
   blockedId  String
   createdAt  DateTime @default(now())
-  @@unique([blockerId, blockedId])         // sem aresta duplicada
+  @@unique([blockerId, blockedId])         // no duplicate edge
 }
 
 enum Priority { LOW MEDIUM HIGH URGENT }
@@ -187,31 +189,31 @@ enum DocType { SPEC PLAN NOTES ADR OTHER }
 model ActivityLog {
   id          String   @id @default(cuid())
   companyId   String
-  actorUserId String                       // sempre um usuário…
-  viaApiKeyId String?                      // …mas marca se foi um agente
+  actorUserId String                       // always a user…
+  viaApiKeyId String?                      // …but flags whether it was an agent
   entityType  String                       // "Task", "Document", "Membership"…
   entityId    String
   action      String                       // "created","moved","status_changed"…
-  changes     Json?                        // diff antes/depois
+  changes     Json?                        // before/after diff
   createdAt   DateTime @default(now())
 }
 ```
 
-## Decisões de modelagem
+## Modeling decisions
 
-- **Subtarefa = Task com `parentId`** (auto-relacional), não uma entidade à parte —
-  reaproveita todo o comportamento (status, assignee, doc, estimativa). Checklist
-  simples pode ser um campo `Json` numa fase futura, se necessário.
-- **Status = coluna do quadro** — o status é a `Column` em que a tarefa está.
-  Quadros configuráveis → status configuráveis, sem enum rígido.
-- **`number` sequencial por projeto** → códigos legíveis (`GAV-42`), bons para o
-  agente referenciar e para humanos conversarem.
-- **`estimateMd` em homem-dia** — alinhado à preferência de documentar esforço em
-  homem-dia, sem alocação de pessoas.
-- **API key guarda só o hash** — segredo mostrado uma única vez na criação.
-- **Tarefa tem `objective` + `acceptance`** — a tarefa é a *entrada* do fluxo
-  (objetivo) e tem um *ponto de aceitação* (critério de aceite); as subtarefas são os
-  passos para chegar lá. Ver [doc 08 — Fluxo de tarefas](08-fluxo-de-tarefas.md).
-- **`TaskDependency` forma um DAG** — as arestas de precedência entre subtarefas
-  geram o fluxograma da tarefa. Deve ser **acíclico** (validar na criação); sem
-  arestas, as subtarefas são tratadas como paralelas (entrada → cada uma → aceite).
+- **Subtask = Task with `parentId`** (self-relational), not a separate entity —
+  it reuses all the behavior (status, assignee, doc, estimate). A simple
+  checklist could be a `Json` field in a future phase, if needed.
+- **Status = board column** — the status is the `Column` the task is in.
+  Configurable boards → configurable statuses, with no rigid enum.
+- **`number` sequential per project** → readable codes (`GAV-42`), good for the
+  agent to reference and for humans to talk about.
+- **`estimateMd` in person-days** — aligned with the preference to document effort in
+  person-days, without allocating people.
+- **API key stores only the hash** — the secret is shown only once at creation.
+- **Task has `objective` + `acceptance`** — the task is the *entry* of the flow
+  (objective) and has an *acceptance point* (acceptance criterion); the subtasks are the
+  steps to get there. See [doc 08 — Task flow](08-fluxo-de-tarefas.md).
+- **`TaskDependency` forms a DAG** — the precedence edges between subtasks
+  produce the task's flowchart. It must be **acyclic** (validate on creation); with no
+  edges, subtasks are treated as parallel (entry → each one → acceptance).

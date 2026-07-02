@@ -1,149 +1,151 @@
-# Plano — Assistente de Reunião em Tempo Real
+> 🇧🇷 [Versão em português](PLANO_ASSISTENTE_REUNIAO.ptbr.md)
 
-Evolução do módulo **Transcrições** (`maestro_local/transcricoes/`) de "grava → para →
-transcreve → resume" para **acompanhamento ao vivo** durante a reunião, com ponte
-direta para o board. Esforço em homem-dia (hd); staffing/cronograma fica a critério da
-liderança.
+# Plan — Real-Time Meeting Assistant
 
----
-
-## 1. Objetivo
-
-Durante uma reunião/estudo, o app:
-- Transcreve **continuamente** (painel de transcrição ao vivo);
-- Extrai **incrementalmente** ações, decisões e perguntas em aberto;
-- Permite **perguntar à reunião** ("o que decidimos sobre X?");
-- Ao fim, transforma as **ações em tarefas** no board com 1 clique.
-
-Diferencial: tudo local (áudio + Whisper) + IA com o provedor já configurado
-(LM Studio/opencode/etc.), sem enviar áudio para a nuvem.
+Evolution of the **Transcriptions** module (`maestro_local/transcricoes/`) from "record → stop →
+transcribe → summarize" to **live tracking** during the meeting, with a direct
+bridge to the board. Effort in man-days (md); staffing/schedule is left to the
+leadership's discretion.
 
 ---
 
-## 2. Experiência (UX)
+## 1. Objective
 
-Layout da tela Transcrições em modo "ao vivo" (3 colunas):
-- **Esquerda**: controles + histórico (como hoje).
-- **Centro**: transcrição ao vivo rolando, com marcação de blocos por pausa (VAD).
-- **Direita**: painel dinâmico com abas **Ações · Decisões · Perguntas**, atualizado a
-  cada bloco. Caixa **"Perguntar à reunião"** no rodapé.
+During a meeting/study, the app:
+- Transcribes **continuously** (live transcription panel);
+- Extracts actions, decisions, and open questions **incrementally**;
+- Allows **asking the meeting** ("what did we decide about X?");
+- At the end, turns the **actions into tasks** on the board with 1 click.
 
-Ao parar: resumo estruturado (como hoje) + botão **"Criar tarefas das ações"** e
-**"Salvar no Meu Dia"**.
+Differentiator: everything local (audio + Whisper) + AI with the already configured provider
+(LM Studio/opencode/etc.), without sending audio to the cloud.
 
 ---
 
-## 3. Arquitetura (como encaixa no código atual)
+## 2. Experience (UX)
 
-| Camada | Onde | O que muda |
+Layout of the Transcriptions screen in "live" mode (3 columns):
+- **Left**: controls + history (as today).
+- **Center**: live transcription scrolling, with block marking by pause (VAD).
+- **Right**: dynamic panel with **Actions · Decisions · Questions** tabs, updated at
+  each block. **"Ask the meeting"** box at the bottom.
+
+When stopping: structured summary (as today) + **"Create tasks from actions"** and
+**"Save to My Day"** buttons.
+
+---
+
+## 3. Architecture (how it fits into the current code)
+
+| Layer | Where | What changes |
 |---|---|---|
-| Captura | `transcricoes/audio.py` | Já é contínua (`parec`). Expor um buffer rolante (ring buffer) consumível sem parar a gravação. |
-| Transcrição | `transcricoes/transcriber.py` | Novo `LiveTranscriber` (QThread) que a cada janela pega o buffer, aplica VAD e transcreve só o trecho novo; emite `partial_text`. |
-| IA ao vivo | `transcricoes/live_assistant.py` (novo) | Debounce: a cada N segundos ou M palavras novas, manda o transcript acumulado ao provedor e faz **extração incremental** (merge com o que já foi extraído). Reusa `ai/providers.build_chat_model`. |
-| Perguntar à reunião | mesmo módulo | Chamada pontual com o transcript como contexto. |
-| Ações → tarefas | `api/app.py` + view | Endpoint/каminho para criar tarefas a partir das ações (usa `POST /api/tasks` já existente). |
-| UI | `gui/views/transcricoes_view.py` | Modo ao vivo (3 colunas), painéis reativos, threads não bloqueiam a GUI. |
+| Capture | `transcricoes/audio.py` | Already continuous (`parec`). Expose a rolling buffer (ring buffer) consumable without stopping the recording. |
+| Transcription | `transcricoes/transcriber.py` | New `LiveTranscriber` (QThread) that at each window takes the buffer, applies VAD, and transcribes only the new segment; emits `partial_text`. |
+| Live AI | `transcricoes/live_assistant.py` (new) | Debounce: every N seconds or M new words, sends the accumulated transcript to the provider and does **incremental extraction** (merge with what has already been extracted). Reuses `ai/providers.build_chat_model`. |
+| Ask the meeting | same module | One-off call with the transcript as context. |
+| Actions → tasks | `api/app.py` + view | Endpoint/path to create tasks from the actions (uses the existing `POST /api/tasks`). |
+| UI | `gui/views/transcricoes_view.py` | Live mode (3 columns), reactive panels, threads that don't block the GUI. |
 
-Princípios: manter tudo em **QThreads** (transcrição e IA nunca no thread da GUI);
-**degradar com elegância** (se não houver provedor de IA, só a transcrição ao vivo roda).
-
----
-
-## 4. Fases e tarefas
-
-> Status: Fases 1–4 **implementadas** (verificadas em smoke test offscreen). Falta
-> exercício ponta a ponta com áudio real numa máquina com microfone.
-
-### Fase 1 — Transcrição ao vivo (~2–3 hd) ✅
-- [x] Buffer rolante no `audio.py` (`snapshot_audio()` lê sem parar a gravação; mixagem refatorada em `_mix`).
-- [x] `LiveTranscriber` (QThread): janela deslizante (10s) + VAD, emite `partial`.
-- [x] Painel de transcrição ao vivo na tela, com autoscroll.
-- [x] Constantes de janela/modelo (`LIVE_*`); modo ao vivo usa `base` por padrão.
-
-### Fase 2 — Extração incremental ao vivo (~2 hd) ✅
-- [x] `live_assistant.py`: `LiveExtractWorker` com extração incremental (recebe "já extraído" + "novo trecho", devolve o merge; contexto limitado).
-- [x] Painel Ações/Decisões/Perguntas reativo (abas com contadores).
-- [x] "Perguntar à reunião" (`LiveAskWorker`, resposta pontual com contexto do transcript).
-- [x] Debounce por tempo (`LIVE_AI_MIN_SECONDS`) OU palavras novas (`LIVE_AI_MIN_WORDS`), 1 extração por vez.
-
-### Fase 3 — Ponte reunião → board (~1 hd) ✅
-- [x] Botão "Criar tarefas das ações": cada ação vira tarefa (tipo CHORE, `requires_human=True`), no projeto escolhido.
-- [x] Fallback: usa ações do assistente ao vivo ou, se não houver, do resumo de IA final.
-
-### Fase 4 — Polimento (~1 hd) ✅
-- [x] Indicadores de estado (transcrevendo / sem IA / pensando).
-- [x] Reunião longa: contexto enviado à IA limitado (`_clamp_transcript`).
-- [x] Toggle "Assistente ao vivo"; painel só aparece durante a gravação ao vivo.
-- [ ] Screenshot final com áudio real (pendente — precisa de máquina com microfone).
-
-**Total estimado: ~6–7 hd.** Fases 1→2→3 já entregam valor de ponta a ponta; a 3 sozinha (sem tempo real) é a de melhor custo/benefício se quiser começar leve.
+Principles: keep everything in **QThreads** (transcription and AI never on the GUI thread);
+**degrade gracefully** (if there is no AI provider, only the live transcription runs).
 
 ---
 
-## 5. Dicas técnicas
+## 4. Phases and tasks
 
-- **Janelamento com overlap**: transcreva janelas com ~1s de sobreposição e faça
-  dedupe do texto repetido nas bordas — evita cortar palavras entre blocos.
-- **VAD para cortar em pausas**: o faster-whisper já tem `vad_filter=True`; use as
-  pausas para fechar blocos "estáveis" (não reprocessar trecho já confirmado).
-- **Modelo por modo**: `small` para o resumo final (precisão), `base`/`tiny` para o
-  ao vivo (latência). Deixar configurável em Configurações → Transcrições.
-- **Locale C.UTF-8 no worker**: manter o fix já aplicado (Qt reseta o LC_CTYPE e o
-  PyAV quebra) — vale para qualquer novo worker de áudio.
-- **Debounce da IA**: não chamar o provedor a cada palavra; disparar a cada ~15s ou
-  ~40 palavras novas. Cancelar chamada anterior se chegar bloco novo.
-- **Contexto limitado**: em reunião longa, enviar só a "janela recente + resumo
-  acumulado" para não estourar o contexto/custo do provedor.
-- **Tudo em QThread**: transcrição e IA fora do thread da GUI; comunicar via signals.
-- **Falha graciosa**: sem provedor de IA → só transcrição ao vivo; sem `parec` →
-  aviso claro (já existe o padrão no código).
+> Status: Phases 1–4 **implemented** (verified in an offscreen smoke test). Missing an
+> end-to-end run with real audio on a machine with a microphone.
 
-## 6. Dicas de UX
+### Phase 1 — Live transcription (~2–3 md) ✅
+- [x] Rolling buffer in `audio.py` (`snapshot_audio()` reads without stopping the recording; mixing refactored into `_mix`).
+- [x] `LiveTranscriber` (QThread): sliding window (10s) + VAD, emits `partial`.
+- [x] Live transcription panel on the screen, with autoscroll.
+- [x] Window/model constants (`LIVE_*`); live mode uses `base` by default.
 
-- Mostrar o **estado** com clareza (chip "IA pensando…", "transcrevendo…").
-- Ações/decisões extraídas devem ser **editáveis** antes de virar tarefa (a IA erra).
-- Um clique para **descartar** uma ação sugerida.
-- Atalho para pausar só a **extração de IA** (economiza recurso) mantendo a transcrição.
+### Phase 2 — Live incremental extraction (~2 md) ✅
+- [x] `live_assistant.py`: `LiveExtractWorker` with incremental extraction (receives "already extracted" + "new segment", returns the merge; limited context).
+- [x] Reactive Actions/Decisions/Questions panel (tabs with counters).
+- [x] "Ask the meeting" (`LiveAskWorker`, one-off answer with transcript context).
+- [x] Debounce by time (`LIVE_AI_MIN_SECONDS`) OR new words (`LIVE_AI_MIN_WORDS`), 1 extraction at a time.
 
----
+### Phase 3 — Meeting → board bridge (~1 md) ✅
+- [x] "Create tasks from actions" button: each action becomes a task (type CHORE, `requires_human=True`), in the chosen project.
+- [x] Fallback: uses the live assistant's actions or, if there are none, the final AI summary's.
 
-## 7. Funcionalidades complementares (roadmap que faz sentido)
+### Phase 4 — Polish (~1 md) ✅
+- [x] State indicators (transcribing / no AI / thinking).
+- [x] Long meeting: context sent to the AI limited (`_clamp_transcript`).
+- [x] "Live assistant" toggle; the panel only appears during live recording.
+- [ ] Final screenshot with real audio (pending — needs a machine with a microphone).
 
-Itens que conversam com o resto do app e potencializam o assistente de reunião:
-
-- **Ponte ações → tarefas** (~1–2 hd) — já incluída na Fase 3; vale como feature
-  independente mesmo sem tempo real.
-- **Digest proativo do assistente** (~3 hd) — resumo automático (manhã/fim do dia)
-  com prioridades, vencidas e itens parados; mostrar no Dashboard. Reusa a lógica da
-  skill `maestro-daily-report`.
-- **Busca global de verdade** (~2 hd) — hoje o Ctrl+K só acha tarefas; expandir para
-  notas, **transcrições** e comentários via SQLite FTS.
-- **Agenda/calendário por prazo** (~2 hd) — visão de calendário das tarefas por
-  `due_date` (hoje só lista de vencidas).
-- **Tarefas recorrentes / templates de subtarefas** (~2 hd).
-- **Pomodoro ligado à tarefa** (~1 hd) — registrar tempo gasto por tarefa e alimentar
-  o cycle time real das Métricas.
-- **Web em tempo real** (~2 hd) — WebSocket para board/dashboard atualizarem quando um
-  agente mexe via API (hoje precisa recarregar).
-- **Diarização "quem falou"** (~4 hd, mais pesado) — `pyannote` + modelo; melhora muito
-  a ata de reunião, porém é o item mais custoso e o único que puxa dependência grande.
+**Estimated total: ~6–7 md.** Phases 1→2→3 already deliver end-to-end value; phase 3 alone (without real time) is the best cost/benefit if you want to start light.
 
 ---
 
-## 8. Riscos e mitigação
+## 5. Technical tips
 
-| Risco | Mitigação |
+- **Windowing with overlap**: transcribe windows with ~1s of overlap and
+  dedupe the repeated text at the edges — avoids cutting words between blocks.
+- **VAD to cut at pauses**: faster-whisper already has `vad_filter=True`; use the
+  pauses to close "stable" blocks (don't reprocess an already confirmed segment).
+- **Model per mode**: `small` for the final summary (accuracy), `base`/`tiny` for the
+  live one (latency). Keep it configurable in Settings → Transcriptions.
+- **C.UTF-8 locale in the worker**: keep the already applied fix (Qt resets the LC_CTYPE and
+  PyAV breaks) — applies to any new audio worker.
+- **AI debounce**: don't call the provider at every word; trigger every ~15s or
+  ~40 new words. Cancel the previous call if a new block arrives.
+- **Limited context**: in a long meeting, send only the "recent window + accumulated
+  summary" so as not to blow the provider's context/cost.
+- **Everything in QThread**: transcription and AI outside the GUI thread; communicate via signals.
+- **Graceful failure**: no AI provider → only live transcription; no `parec` →
+  clear warning (the pattern already exists in the code).
+
+## 6. UX tips
+
+- Show the **state** clearly (chip "AI thinking…", "transcribing…").
+- Extracted actions/decisions should be **editable** before becoming a task (the AI makes mistakes).
+- One click to **discard** a suggested action.
+- Shortcut to pause only the **AI extraction** (saves resources) while keeping the transcription.
+
+---
+
+## 7. Complementary features (roadmap that makes sense)
+
+Items that connect with the rest of the app and enhance the meeting assistant:
+
+- **Actions → tasks bridge** (~1–2 md) — already included in Phase 3; worth it as an
+  independent feature even without real time.
+- **Proactive assistant digest** (~3 md) — automatic summary (morning/end of day)
+  with priorities, overdue, and stalled items; show it in the Dashboard. Reuses the logic of the
+  `maestro-daily-report` skill.
+- **Real global search** (~2 md) — today Ctrl+K only finds tasks; expand to
+  notes, **transcriptions**, and comments via SQLite FTS.
+- **Agenda/calendar by deadline** (~2 md) — calendar view of tasks by
+  `due_date` (today only a list of overdue ones).
+- **Recurring tasks / subtask templates** (~2 md).
+- **Pomodoro linked to the task** (~1 md) — log time spent per task and feed
+  the real cycle time in Metrics.
+- **Real-time web** (~2 md) — WebSocket so that board/dashboard update when an
+  agent makes changes via the API (today it needs a reload).
+- **"Who spoke" diarization** (~4 md, heavier) — `pyannote` + model; greatly improves
+  the meeting minutes, but it is the most costly item and the only one that pulls in a large dependency.
+
+---
+
+## 8. Risks and mitigation
+
+| Risk | Mitigation |
 |---|---|
-| Latência do Whisper em CPU | Modelo menor no ao vivo; janela configurável; indicador de estado. |
-| Latência/custo do provedor de IA | Debounce + contexto limitado; extração incremental (não reprocessa tudo). |
-| Reunião longa estoura contexto | Resumir o miolo; enviar só janela recente + resumo. |
-| IA erra ações/decisões | Painel editável + descartar antes de virar tarefa. |
-| GUI travar | Todo processamento em QThread; comunicação por signals. |
+| Whisper latency on CPU | Smaller model in the live mode; configurable window; state indicator. |
+| AI provider latency/cost | Debounce + limited context; incremental extraction (doesn't reprocess everything). |
+| Long meeting blows the context | Summarize the middle; send only the recent window + summary. |
+| AI gets actions/decisions wrong | Editable panel + discard before it becomes a task. |
+| GUI freezing | All processing in QThread; communication via signals. |
 
-## 9. Critérios de aceite
+## 9. Acceptance criteria
 
-- Transcrição aparece ao vivo com atraso aceitável (poucos segundos).
-- Ações/decisões/perguntas se atualizam durante a reunião sem travar a GUI.
-- "Perguntar à reunião" responde com base no que já foi dito.
-- Ao parar, "Criar tarefas das ações" gera tarefas corretas no board.
-- Sem provedor de IA, a transcrição ao vivo continua funcionando.
+- Transcription appears live with acceptable delay (a few seconds).
+- Actions/decisions/questions update during the meeting without freezing the GUI.
+- "Ask the meeting" answers based on what has already been said.
+- When stopping, "Create tasks from actions" generates the correct tasks on the board.
+- Without an AI provider, the live transcription keeps working.

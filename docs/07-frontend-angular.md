@@ -1,131 +1,133 @@
+> 🇧🇷 [Versão em português](07-frontend-angular.ptbr.md)
+
 # 07 — Frontend Angular
 
-Decisão [D1](06-decisoes-em-aberto.md#d1--frontend-angular-ou-react--decidido-angular):
-o front é **Angular** (`front/` do template). Remover `front-react/` e `front-flutter/`.
+Decision [D1](06-decisoes-em-aberto.md#d1--frontend-angular-ou-react--decidido-angular):
+the front is **Angular** (`front/` from the template). Remove `front-react/` and `front-flutter/`.
 
 ## Stack
 
-| Item | Tecnologia |
+| Item | Technology |
 |---|---|
-| Framework | Angular 20 (standalone components, sem NgModules) |
-| Estado | NgRx (store por feature) + signals para estado local |
-| Estilo | Tailwind CSS + Bootstrap (já no template) |
-| Drag-and-drop | **Angular CDK** (`@angular/cdk/drag-drop`) — para o kanban |
-| Grafo de fluxo | **`@swimlane/ngx-graph`** (dagre) — fluxograma da tarefa (doc 08) |
-| Markdown | `ngx-markdown` (render) + editor de textarea com preview |
-| Alertas | SweetAlert2 (já no template) |
-| HTTP | `HttpClient` + interceptors (JWT, refresh, X-Company-Id, erros) |
-| PWA/Mobile | Capacitor (já no template) |
+| Framework | Angular 20 (standalone components, no NgModules) |
+| State | NgRx (store per feature) + signals for local state |
+| Style | Tailwind CSS + Bootstrap (already in the template) |
+| Drag-and-drop | **Angular CDK** (`@angular/cdk/drag-drop`) — for the kanban |
+| Flow graph | **`@swimlane/ngx-graph`** (dagre) — task flowchart (doc 08) |
+| Markdown | `ngx-markdown` (render) + textarea editor with preview |
+| Alerts | SweetAlert2 (already in the template) |
+| HTTP | `HttpClient` + interceptors (JWT, refresh, X-Company-Id, errors) |
+| PWA/Mobile | Capacitor (already in the template) |
 
-> Onde o template já entrega login/refresh/perfil, **reusar** — só adicionar o domínio.
+> Where the template already delivers login/refresh/profile, **reuse** — just add the domain.
 
-## Estrutura de pastas (feature-based)
+## Folder structure (feature-based)
 
 ```
 front/src/app/
 ├── core/                  # singletons: guards, interceptors, auth, config
-│   ├── auth/              # (do template) login, refresh, guard
+│   ├── auth/              # (from the template) login, refresh, guard
 │   ├── interceptors/      # jwt, company-context (X-Company-Id), error
-│   └── tenant/            # serviço de empresa ativa (signal)
-├── shared/                # componentes/pipes/diretivas reutilizáveis
-│   └── ui/                # botões, modal, badge de prioridade, avatar...
+│   └── tenant/            # active company service (signal)
+├── shared/                # reusable components/pipes/directives
+│   └── ui/                # buttons, modal, priority badge, avatar...
 ├── features/
-│   ├── companies/         # listar/selecionar/criar empresa, membros
-│   ├── projects/          # listar/criar projeto
-│   ├── board/             # quadro kanban (DnD)
-│   ├── tasks/             # detalhe/edição de tarefa + subtarefas
-│   ├── docs/              # editor/visualizador markdown
-│   └── settings/          # membros, API keys
-└── state/                 # NgRx (actions/reducers/effects/selectors) por feature
+│   ├── companies/         # list/select/create company, members
+│   ├── projects/          # list/create project
+│   ├── board/             # kanban board (DnD)
+│   ├── tasks/             # task detail/editing + subtasks
+│   ├── docs/              # markdown editor/viewer
+│   └── settings/          # members, API keys
+└── state/                 # NgRx (actions/reducers/effects/selectors) per feature
 ```
 
-## Contexto de empresa (multi-tenant no front)
+## Company context (multi-tenant on the front)
 
-- Um `TenantService` guarda a **empresa ativa** (signal), persistida em storage.
-- Um **interceptor** injeta `X-Company-Id` em toda requisição.
-- Um **seletor de empresa** no header troca o contexto (o usuário pode ter várias).
-- Trocar de empresa limpa os stores de domínio (board/tasks) e refaz o fetch.
+- A `TenantService` holds the **active company** (signal), persisted in storage.
+- An **interceptor** injects `X-Company-Id` into every request.
+- A **company selector** in the header switches the context (the user may have several).
+- Switching company clears the domain stores (board/tasks) and refetches.
 
-Ver fluxo de auth/contexto em [`diagramas/auth-rbac.svg`](diagramas/auth-rbac.svg).
+See the auth/context flow in [`diagramas/auth-rbac.svg`](diagramas/auth-rbac.svg).
 
-## Quadro kanban (CDK drag-drop)
+## Kanban board (CDK drag-drop)
 
-Componentes:
+Components:
 
-- `BoardComponent` — carrega o board (colunas + tarefas) via NgRx; orquestra DnD.
-- `ColumnComponent` — uma coluna (`cdkDropList`), aceita drop e mostra WIP.
-- `TaskCardComponent` — cartão (`cdkDrag`): título, código `GAV-42`, assignee,
-  prioridade, estimativa (hd), labels.
-- `TaskDetailComponent` — modal/painel: edição, subtarefas, comentários, docs, atividade.
+- `BoardComponent` — loads the board (columns + tasks) via NgRx; orchestrates DnD.
+- `ColumnComponent` — a column (`cdkDropList`), accepts drops and shows WIP.
+- `TaskCardComponent` — card (`cdkDrag`): title, `GAV-42` code, assignee,
+  priority, estimate (pd), labels.
+- `TaskDetailComponent` — modal/panel: editing, subtasks, comments, docs, activity.
 
-Comportamento do drop:
+Drop behavior:
 
-1. `cdkDropListDropped` → **atualização otimista** no store (move o cartão na UI).
-2. Dispara `POST /tasks/:code/move { columnId, rank }`.
-3. Em erro → **rollback** + SweetAlert. Em sucesso → confirma o `rank` do servidor.
-4. `rank` lexicográfico (ver [D4](06-decisoes-em-aberto.md#d4--ordenação-no-kanban-rank-fracionário-lexorank-vs-order-inteiro)) → mover = 1 PATCH.
+1. `cdkDropListDropped` → **optimistic update** in the store (move the card in the UI).
+2. Fires `POST /tasks/:code/move { columnId, rank }`.
+3. On error → **rollback** + SweetAlert. On success → confirm the server's `rank`.
+4. Lexicographic `rank` (see [D4](06-decisoes-em-aberto.md#d4--ordenação-no-kanban-rank-fracionário-lexorank-vs-order-inteiro)) → moving = 1 PATCH.
 
-## Fluxo da tarefa (`ngx-graph`)
+## Task flow (`ngx-graph`)
 
-Visualização do fluxo objetivo → subtarefas → aceite (conceito no [doc 08](08-fluxo-de-tarefas.md)).
+Visualization of the objective → subtasks → acceptance flow (concept in [doc 08](08-fluxo-de-tarefas.md)).
 
-- **Lib:** `@swimlane/ngx-graph` (layout dagre, pan/zoom, template de nó próprio).
-- `TaskFlowComponent` — consome `GET /tasks/:code/flow` (`{ nodes, edges }`) e desenha
-  o DAG. Vive numa aba do `TaskDetailComponent` ("Fluxo"), ao lado de "Subtarefas".
-- **Template de nó:** título, código `GAV-42`, assignee, **cor por status** e cadeado
-  quando `bloqueada`; nós sintéticos **Objetivo** (entrada) e **Aceite** (saída).
-- **Interações:**
-  - clicar nó → abre o detalhe da subtarefa;
-  - arrastar de um nó a outro → `POST /dependencies` (cria aresta, valida ciclo);
-  - mover subtarefa no kanban → recolore o nó (deriva do mesmo status).
-- **Sem dependências** → render padrão `entrada → (subtarefas em paralelo) → aceite`.
-- O mesmo componente serve ao **fluxo do projeto** (nós = tarefas), trocando a fonte.
-- **Export:** botão "exportar Mermaid" usa `?format=mermaid` para embutir o fluxo na
-  doc markdown da tarefa.
+- **Lib:** `@swimlane/ngx-graph` (dagre layout, pan/zoom, custom node template).
+- `TaskFlowComponent` — consumes `GET /tasks/:code/flow` (`{ nodes, edges }`) and draws
+  the DAG. Lives in a tab of `TaskDetailComponent` ("Flow"), next to "Subtasks".
+- **Node template:** title, `GAV-42` code, assignee, **color by status** and a lock
+  when `blocked`; synthetic **Objective** (entry) and **Acceptance** (exit) nodes.
+- **Interactions:**
+  - clicking a node → opens the subtask detail;
+  - dragging from one node to another → `POST /dependencies` (creates an edge, validates cycle);
+  - moving a subtask on the kanban → recolors the node (derives from the same status).
+- **No dependencies** → default render `entry → (subtasks in parallel) → acceptance`.
+- The same component serves the **project flow** (nodes = tasks), switching the source.
+- **Export:** an "export Mermaid" button uses `?format=mermaid` to embed the flow in
+  the task's markdown doc.
 
-## Estado (NgRx)
+## State (NgRx)
 
-- Um slice por feature: `companies`, `projects`, `board`, `tasks`, `docs`, `members`.
-- Effects fazem as chamadas HTTP; selectors derivam a view (ex.: tarefas por coluna).
-- Estado de UI efêmero (modais, drafts) fica em **signals** locais, fora do store.
+- One slice per feature: `companies`, `projects`, `board`, `tasks`, `docs`, `members`.
+- Effects make the HTTP calls; selectors derive the view (e.g., tasks per column).
+- Ephemeral UI state (modals, drafts) lives in local **signals**, outside the store.
 
-## Documentos markdown
+## Markdown documents
 
-- `DocViewerComponent` — render com `ngx-markdown`.
-- `DocEditorComponent` — editor com preview lado a lado + botão **exportar `.md`**
-  (preserva o fluxo atual de mandar markdown para o time).
-- Docs vivem em projeto e em tarefa (mesma entidade `Document`).
+- `DocViewerComponent` — render with `ngx-markdown`.
+- `DocEditorComponent` — editor with side-by-side preview + **export `.md`** button
+  (preserves the current flow of sending markdown to the team).
+- Docs live on projects and tasks (same `Document` entity).
 
-## Rotas (lazy)
+## Routes (lazy)
 
 ```
 /login                                  (template)
-/companies                              seleção/criação de empresa
-/:companyId/projects                    lista de projetos
-/:companyId/projects/:id/board          quadro kanban
-/:companyId/projects/:id/docs           documentos do projeto
-/:companyId/tasks/:code                 detalhe da tarefa (deep-link GAV-42)
-/:companyId/settings/members            gestão de membros e papéis
-/:companyId/settings/api-keys           gestão de API keys (agentes)
+/companies                              company selection/creation
+/:companyId/projects                    project list
+/:companyId/projects/:id/board          kanban board
+/:companyId/projects/:id/docs           project documents
+/:companyId/tasks/:code                 task detail (deep-link GAV-42)
+/:companyId/settings/members            member and role management
+/:companyId/settings/api-keys           API key management (agents)
 ```
 
-Cada feature é **lazy-loaded** por rota. Guards: `authGuard` (template) + `tenantGuard`
-(exige empresa ativa) + `roleGuard` (esconde telas de gestão para DEV/VIEWER).
+Each feature is **lazy-loaded** by route. Guards: `authGuard` (template) + `tenantGuard`
+(requires active company) + `roleGuard` (hides management screens for DEV/VIEWER).
 
-## Integração com a API
+## API integration
 
-- Gerar os **tipos/clients a partir do Swagger** da API (`openapi-generator` ou
-  `ng-openapi-gen`) para não escrever DTOs à mão e manter o front em sincronia.
-- Padronizar o tratamento de erro (interceptor) para mensagens vindas da API
-  (escopo insuficiente, validação) virarem toasts amigáveis.
+- Generate the **types/clients from the API's Swagger** (`openapi-generator` or
+  `ng-openapi-gen`) to avoid hand-writing DTOs and keep the front in sync.
+- Standardize error handling (interceptor) so messages coming from the API
+  (insufficient scope, validation) turn into friendly toasts.
 
 ## Definition of Done (frontend)
 
-- [ ] Login/refresh reusando o template, com seletor de empresa funcional.
-- [ ] Quadro kanban com DnD, update otimista e rollback.
-- [ ] Detalhe de tarefa com subtarefas, comentários e docs.
-- [ ] Aba "Fluxo" (ngx-graph) com nós coloridos por status, clicáveis, e export Mermaid.
-- [ ] Editor/visualizador markdown com export `.md`.
-- [ ] Telas de membros e API keys protegidas por papel.
-- [ ] Tipos gerados do Swagger; sem `any` nos contratos de API.
-- [ ] Responsivo + dark mode; lint e build sem erros.
+- [ ] Login/refresh reusing the template, with a functional company selector.
+- [ ] Kanban board with DnD, optimistic update and rollback.
+- [ ] Task detail with subtasks, comments and docs.
+- [ ] "Flow" tab (ngx-graph) with nodes colored by status, clickable, and Mermaid export.
+- [ ] Markdown editor/viewer with `.md` export.
+- [ ] Member and API key screens protected by role.
+- [ ] Types generated from Swagger; no `any` in the API contracts.
+- [ ] Responsive + dark mode; lint and build with no errors.

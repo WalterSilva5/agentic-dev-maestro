@@ -1,79 +1,81 @@
-# 01 — Conceito e escopo
+> 🇧🇷 [Versão em português](01-conceito-e-escopo.ptbr.md)
 
-## O problema
+# 01 — Concept and scope
 
-Hoje o fluxo de trabalho com agentes é:
+## The problem
 
-1. Recebo uma tarefa/projeto (descrição crua, às vezes vaga).
-2. Passo a descrição para um agente.
-3. Juntos otimizamos a documentação, geramos lista de tarefas/subtarefas/dicas.
-4. Os markdowns resultantes vão para outros devs e gerentes, dando visão do projeto.
+Today the workflow with agents is:
 
-Isso **funciona**, mas os artefatos ficam soltos (arquivos `.md` espalhados), sem
-estado (o que está em andamento? quem fez o quê?), sem padronização e sem um lugar
-único onde humanos e agentes compartilham a verdade. Não dá para ver progresso, nem
-auditar o que um agente alterou.
+1. I receive a task/project (a raw description, sometimes vague).
+2. I hand the description to an agent.
+3. Together we optimize the documentation and generate a list of tasks/subtasks/tips.
+4. The resulting markdown files go to other devs and managers, giving them visibility into the project.
 
-## A solução
+This **works**, but the artifacts end up loose (`.md` files scattered around), without
+state (what's in progress? who did what?), without standardization, and without a single
+place where humans and agents share the truth. You can't see progress, nor
+audit what an agent changed.
 
-Uma aplicação **backend + frontend** que vira o sistema de registro desse fluxo:
+## The solution
 
-- O agente acessa a **API** para criar tarefas, subtarefas e documentação.
-- O agente **muda o status** das tarefas seguindo um **quadro kanban** configurável.
-- A documentação otimizada vive **colada** ao projeto/tarefa (markdown, versionada,
-  exportável) — o mesmo artefato que hoje é enviado para devs e gerentes.
-- Tudo é **multi-empresa**: usuários se vinculam a empresas e são gerenciados pelos
-  responsáveis dela.
-- Agentes agem via **API key vinculada a um usuário**, herdando suas permissões e
-  deixando rastro de auditoria (humano vs. agente).
+A **backend + frontend** application that becomes the system of record for this workflow:
+
+- The agent accesses the **API** to create tasks, subtasks, and documentation.
+- The agent **changes the status** of tasks following a configurable **kanban board**.
+- The optimized documentation lives **attached** to the project/task (markdown, versioned,
+  exportable) — the same artifact that today is sent to devs and managers.
+- Everything is **multi-company**: users are linked to companies and are managed by
+  the company's owners.
+- Agents act via an **API key linked to a user**, inheriting their permissions and
+  leaving an audit trail (human vs. agent).
 
 ## Personas
 
-| Persona | Usa o Maestro para |
+| Persona | Uses Maestro to |
 |---|---|
-| **Dev** | ver suas tarefas, mover no quadro, ler a doc/dicas, comentar, abrir PRs ligados |
-| **Tech Lead** | revisar, aprovar, ajustar decomposição, garantir qualidade técnica |
-| **Manager** | visão de progresso por projeto/empresa, sem entrar no detalhe técnico |
-| **Agente de IA** | refinar briefings em docs, decompor em tarefas/subtarefas, mover status, registrar progresso — tudo via API key |
+| **Dev** | see their tasks, move them on the board, read the docs/tips, comment, open linked PRs |
+| **Tech Lead** | review, approve, adjust decomposition, ensure technical quality |
+| **Manager** | progress view by project/company, without getting into technical detail |
+| **AI Agent** | refine briefings into docs, decompose into tasks/subtasks, move status, record progress — all via API key |
 
-## Diferenciais (o "porquê construir")
+## Differentiators (the "why build it")
 
-1. **Agente como cidadão de primeira classe** — não é integração colada por cima:
-   o agente tem identidade (API key), escopos de permissão e auditoria.
-2. **Pipeline spec → tarefas embutido** — refino + decompose é a feature central.
-3. **Docs markdown nativas e exportáveis** — preserva o fluxo atual (mandar `.md`
-   para o time), mas com estado e versão.
-4. **Esforço em homem-dia, sem alocação** — estimativas em homem-dia; quem aloca
-   pessoas e define cronograma é a liderança. O Maestro não escala equipe.
-5. **Servidor MCP** — qualquer agente (Claude Code, etc.) conversa nativamente com
-   os quadros via MCP, além do REST.
+1. **Agent as a first-class citizen** — it's not an integration bolted on top:
+   the agent has an identity (API key), permission scopes, and auditing.
+2. **Built-in spec → tasks pipeline** — refine + decompose is the central feature.
+3. **Native, exportable markdown docs** — preserves the current workflow (sending `.md`
+   files to the team), but with state and version.
+4. **Effort in person-days, no allocation** — estimates in person-days; allocating
+   people and setting the schedule is up to leadership. Maestro does not staff the team.
+5. **MCP server** — any agent (Claude Code, etc.) talks natively to the boards
+   via MCP, in addition to REST.
 
-## Escopo do MVP (o que entra)
+## MVP scope (what's included)
 
-- Empresas + vínculo de usuários (membros) + papéis.
-- Projetos dentro de empresas.
-- Quadros kanban com colunas/status configuráveis.
-- Tarefas e subtarefas (mover, atribuir, priorizar, estimar em homem-dia, tags).
-- Documentos markdown em projeto/tarefa.
-- API key por usuário (com escopos) para agentes.
-- API REST com Swagger + endpoints amigáveis a agente (bulk create, idempotência).
-- Log de auditoria (quem/qual agente fez o quê).
+- Companies + user membership (members) + roles.
+- Projects within companies.
+- Kanban boards with configurable columns/statuses.
+- Tasks and subtasks (move, assign, prioritize, estimate in person-days, tags).
+- Markdown documents on project/task.
+- API key per user (with scopes) for agents.
+- REST API with Swagger + agent-friendly endpoints (bulk create, idempotency).
+- Audit log (who/which agent did what).
 
-## Fora do escopo (por enquanto)
+## Out of scope (for now)
 
-- Cronograma/Gantt e **alocação de pessoas** (decisão da liderança, não da ferramenta).
-- Time tracking / apontamento de horas.
-- Sprints/cycles formais (pode entrar depois como visão opcional).
-- Faturamento/billing.
-- Real-time colaborativo (websockets) — fica para uma fase posterior.
+- Schedule/Gantt and **people allocation** (a leadership decision, not a tool's).
+- Time tracking / hour logging.
+- Formal sprints/cycles (may come later as an optional view).
+- Billing.
+- Real-time collaboration (websockets) — left for a later phase.
 
-## Nome (decidido)
+## Name (decided)
 
 **Agentic Dev Maestro** — repo `agentic-dev-maestro`.
 
-- **Agentic** — os agentes de IA agem com autonomia (não é automação colada).
-- **Dev** — o domínio é trabalho de desenvolvimento (tarefas, docs, quadro).
-- **Maestro** — orquestra o time misto (humanos + agentes) em torno do trabalho.
+- **Agentic** — the AI agents act with autonomy (it's not bolted-on automation).
+- **Dev** — the domain is development work (tasks, docs, board).
+- **Maestro** — orchestrates the mixed team (humans + agents) around the work.
 
-No dia a dia e na documentação, o nome curto é **Maestro** (daí "Maestro Loop",
-"API Maestro" etc.).
+Day to day and in the documentation, the short name is **Maestro** (hence "Maestro Loop",
+"Maestro API", etc.).

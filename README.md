@@ -1,100 +1,102 @@
+> 🇧🇷 [Versão em português](README.ptbr.md)
+
 # Agentic Dev Maestro
 
-Aplicação desktop de gestão de projetos, diário de trabalho e estudos, com API REST embutida para integração com agentes de IA.
+Desktop application for project management, work journaling, and study tracking, with an embedded REST API for integration with AI agents.
 
 ![Dashboard Light](local-client/docs/screenshots/dashboard-light.png)
 
-## O que é
+## What it is
 
-O Maestro é uma ferramenta local para desenvolvedores que querem organizar seu trabalho diário, gerenciar tarefas em kanban, acompanhar estudos e integrar agentes de IA no fluxo de desenvolvimento. Tudo roda localmente — sem servidor externo, sem conta, sem dependência de internet.
+Maestro is a local tool for developers who want to organize their daily work, manage tasks on a kanban board, track their studies, and integrate AI agents into their development workflow. Everything runs locally — no external server, no account, no internet dependency.
 
-### Principais diferenciais
+### Key differentiators
 
-- **Tudo local**: dados em SQLite, GUI desktop nativa, sem cloud
-- **Assistente**: agente de IA interno (LangGraph) com provedor configurável (LM Studio, opencode) que age sobre o board
-- **Cronista**: grava reuniões/estudos, transcreve local com Whisper e resume com IA (ex-projeto wsi-cronista integrado)
-- **API para agentes**: agentes de IA criam tarefas, movem no board, registram code reviews e geram relatórios — tudo via REST
-- **Skills prontas**: 12 skills instaláveis que ensinam agentes a usar o Maestro
-- **Workspaces isolados**: cada workspace tem seu próprio banco, permitindo separar projetos pessoais de profissionais
-- **Obsidian sync**: sincroniza notas diárias e tarefas com seu vault do Obsidian
-- **Pomodoro integrado**: timer no Dashboard para sessões de foco
+- **Fully local**: data in SQLite, native desktop GUI, no cloud
+- **Assistant**: internal AI agent (LangGraph) with a configurable provider (LM Studio, opencode) that acts on the board
+- **Cronista**: records meetings/study sessions, transcribes locally with Whisper, and summarizes with AI (the former wsi-cronista project, now integrated)
+- **Agent API**: AI agents create tasks, move them on the board, log code reviews, and generate reports — all via REST
+- **Ready-made skills**: 12 installable skills that teach agents how to use Maestro
+- **Isolated workspaces**: each workspace has its own database, letting you separate personal from professional projects
+- **Obsidian sync**: synchronizes daily notes and tasks with your Obsidian vault
+- **Integrated Pomodoro**: timer on the Dashboard for focus sessions
 
-## Instalação com agente de IA
+## Installation with an AI agent
 
-Peça ao seu agente de IA (Claude Code, Cursor, etc.) para instalar o Maestro automaticamente. Basta enviar algo como:
+Ask your AI agent (Claude Code, Cursor, etc.) to install Maestro automatically. Just send something like:
 
-> Clone o repositório https://github.com/WalterSilva5/agentic-dev-maestro.git, execute o install.sh no diretório local-client, crie um atalho na área de trabalho para o run.sh e me explique como usar a aplicação.
+> Clone the repository https://github.com/WalterSilva5/agentic-dev-maestro.git, run install.sh in the local-client directory, create a desktop shortcut for run.sh, and explain to me how to use the application.
 
-O agente vai:
+The agent will:
 
-1. Clonar o repositório
-2. Executar `local-client/install.sh` (cria venv + instala dependências)
-3. Criar um atalho `.desktop` na área de trabalho apontando para `local-client/run.sh`
-4. Explicar as funcionalidades principais: board kanban, meu dia, skills, API para agentes
+1. Clone the repository
+2. Run `local-client/install.sh` (creates a venv + installs dependencies)
+3. Create a `.desktop` shortcut on the desktop pointing to `local-client/run.sh`
+4. Explain the main features: kanban board, my day, skills, agent API
 
-Após a instalação, abra o Maestro pelo atalho ou execute `local-client/run.sh`. Na aba **Skills**, instale as skills no diretório do seu projeto — elas ensinam o agente a usar a API do Maestro para criar tarefas, documentar progresso e gerar relatórios.
+After installation, open Maestro from the shortcut or run `local-client/run.sh`. On the **Skills** tab, install the skills into your project's directory — they teach the agent how to use the Maestro API to create tasks, document progress, and generate reports.
 
-## Funcionalidades
+## Features
 
-### Meu Dia (home)
-Tela principal com notas diárias em markdown, template pre-configurado, geração de relatório automático com resumo de atividades, e sincronização com Obsidian vault. Date picker com calendário popup para navegar entre dias. Inclui dica de prompt para que agentes de IA gerem o resumo via skill.
+### My Day (home)
+Main screen with daily notes in markdown, a pre-configured template, automatic report generation with an activity summary, and synchronization with an Obsidian vault. Date picker with a popup calendar for navigating between days. Includes a prompt hint so AI agents can generate the summary via a skill.
 
 ### Dashboard
-Hub central organizado em abas: **Visão geral** (Pomodoro, cards de resumo, tarefas vencidas, atividade recente e progresso por projeto), **Métricas**, **TODOs** e **Labels**.
+Central hub organized into tabs: **Overview** (Pomodoro, summary cards, overdue tasks, recent activity, and progress by project), **Metrics**, **TODOs**, and **Labels**.
 
-### Board Kanban
-Board com drag-and-drop, colunas customizáveis por projeto, filtros por tipo/prioridade/responsável, botão quick-move para avançar tarefas, WIP limits e indicador de code review obrigatório. Agentes sempre criam tarefas de revisão (`requiresHuman: true`) para o desenvolvedor validar alterações.
+### Kanban Board
+Board with drag-and-drop, columns customizable per project, filters by type/priority/assignee, a quick-move button to advance tasks, WIP limits, and a mandatory code review indicator. Agents always create review tasks (`requiresHuman: true`) so the developer can validate changes.
 
-### Assistente
-Assistente de IA interno que roda com seu próprio provedor (LM Studio local, opencode ou qualquer API compatível com OpenAI). Ele lê o board, sugere prioridades, solicita revisões de tarefas, cria TODOs e comenta tarefas — tudo dentro da aplicação. Construído com LangGraph e ferramentas internas. Configurável em Configurações → Provedores de IA.
+### Assistant
+Internal AI assistant that runs with your own provider (local LM Studio, opencode, or any OpenAI-compatible API). It reads the board, suggests priorities, requests task reviews, creates TODOs, and comments on tasks — all within the application. Built with LangGraph and internal tools. Configurable under Settings → AI Providers.
 
-### Transcrições
-Grava reuniões e sessões de estudo (microfone e/ou áudio do sistema via PipeWire/PulseAudio), transcreve localmente com faster-whisper e gera resumos estruturados com IA: reuniões viram pontos-chave/decisões/ações; estudos viram conceitos/exercícios/tópicos relacionados. Histórico pesquisável, atalho global Ctrl+Shift+R e botão para salvar o resumo no Meu Dia. Funcionalidades migradas do projeto wsi-cronista.
+### Transcriptions
+Records meetings and study sessions (microphone and/or system audio via PipeWire/PulseAudio), transcribes locally with faster-whisper, and generates structured summaries with AI: meetings become key points/decisions/action items; study sessions become concepts/exercises/related topics. Searchable history, global Ctrl+Shift+R shortcut, and a button to save the summary to My Day. Features migrated from the wsi-cronista project.
 
-### Projetos
-Criar e gerenciar projetos com chave única (ex: DEMO). Cada projeto tem suas colunas de board, tarefas, labels e métricas próprias.
+### Projects
+Create and manage projects with a unique key (e.g., DEMO). Each project has its own board columns, tasks, labels, and metrics.
 
 ### Labels
-Criar labels com cores da paleta, aplicar em tarefas para categorizar e filtrar. Labels são compartilhadas entre projetos do mesmo workspace.
+Create labels with colors from the palette and apply them to tasks to categorize and filter. Labels are shared across projects in the same workspace.
 
-### Métricas
-Dashboard com total de tarefas, concluídas (7 e 30 dias), lead time médio, cycle time, throughput semanal com gráfico de barras, e breakdown por tipo, prioridade e projeto.
+### Metrics
+Dashboard with total tasks, completed (7 and 30 days), average lead time, cycle time, weekly throughput with a bar chart, and a breakdown by type, priority, and project.
 
-### Estudos
-Planos de estudo com roadmap visual, categorias (Linguagem, Framework, Certificação, Conceito, Curso, Livro), tópicos ponderados, sessões com tracking de horas e nível de confiança (1-5).
+### Studies
+Study plans with a visual roadmap, categories (Language, Framework, Certification, Concept, Course, Book), weighted topics, and sessions with hour tracking and a confidence level (1-5).
 
 ### Skills
-Biblioteca de 12 skills para agentes de IA. Cada skill é um arquivo SKILL.md que pode ser instalado no diretório `.claude/skills/` do projeto. Botão "Instalar todas" para setup rápido.
+Library of 12 skills for AI agents. Each skill is a SKILL.md file that can be installed into the project's `.claude/skills/` directory. "Install all" button for quick setup.
 
-### Instruções
-Guia de uso da aplicação com 12 seções, incluindo explicações de cada tela, fluxo de trabalho, o papel dos agentes e tarefas de revisão.
+### Instructions
+Application usage guide with 12 sections, including explanations of each screen, the workflow, the role of agents, and review tasks.
 
-### Configurações
-Tela de configurações gerais com:
-- **Provedores de IA**: cadastrar/selecionar provedores compatíveis com OpenAI (LM Studio, Ollama, OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Gemini, Together, opencode), com teste de conexão. Usado pelo Assistente
-- **Pomodoro**: duração da sessão configurável (1-120 min)
-- **Notificações push**: notificações periódicas na área de trabalho com mensagem personalizada, intervalo configurável e ativação/desativação
+### Settings
+General settings screen with:
+- **AI Providers**: register/select OpenAI-compatible providers (LM Studio, Ollama, OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Gemini, Together, opencode), with a connection test. Used by the Assistant
+- **Pomodoro**: configurable session duration (1-120 min)
+- **Push notifications**: periodic desktop notifications with a custom message, configurable interval, and enable/disable toggle
 
-### Recursos gerais
-- Tema dark/light com toggle na sidebar
-- Pomodoro timer configurável no Dashboard
-- Acesso rápido às Transcrições na sidebar (gravar em 1 clique)
-- Notificações push periódicas com mensagem customizada
-- Busca global de tarefas (Ctrl+K)
-- Workspaces isolados com bancos separados, emojis e cores customizáveis
-- Backup do banco de dados
-- Auto-sync com Obsidian vault por workspace (a cada 5 min)
-- Vault configurável por workspace e projeto
+### General features
+- Dark/light theme with a toggle in the sidebar
+- Configurable Pomodoro timer on the Dashboard
+- Quick access to Transcriptions in the sidebar (record in 1 click)
+- Periodic push notifications with a custom message
+- Global task search (Ctrl+K)
+- Isolated workspaces with separate databases, customizable emojis and colors
+- Database backup
+- Auto-sync with an Obsidian vault per workspace (every 5 min)
+- Vault configurable per workspace and project
 
-## Início Rápido (manual)
+## Quick Start (manual)
 
 ```bash
 cd local-client
-./install.sh    # cria venv + instala dependências + valida
-./run.sh        # executa a aplicação
+./install.sh    # creates venv + installs dependencies + validates
+./run.sh        # runs the application
 ```
 
-Ou:
+Or:
 
 ```bash
 cd local-client
@@ -104,108 +106,108 @@ pip install -e .
 python -m maestro_local
 ```
 
-A aplicação abre com:
-- **GUI desktop** — interface completa com 10 telas no menu (Métricas, TODOs e Labels viraram abas do Dashboard)
-- **API REST** — `http://127.0.0.1:9777/api` para agentes de IA
+The application opens with:
+- **Desktop GUI** — complete interface with 10 screens in the menu (Metrics, TODOs, and Labels became Dashboard tabs)
+- **REST API** — `http://127.0.0.1:9777/api` for AI agents
 
-### Porta customizada
+### Custom port
 
 ```bash
 ./run.sh --port 8888
 ```
 
-## API REST para agentes
+## REST API for agents
 
-A API roda em `http://127.0.0.1:9777/api` sem autenticação. Endpoints principais:
+The API runs at `http://127.0.0.1:9777/api` without authentication. Main endpoints:
 
-| Recurso | Endpoints |
+| Resource | Endpoints |
 |---|---|
 | Health | `GET /api/health` |
-| Projetos | `POST/GET /api/projects`, `GET /api/projects/metrics` |
-| Tarefas | `POST/GET /api/tasks`, `GET/PATCH/DELETE /api/tasks/{code}`, `POST /api/tasks/{code}/move` |
+| Projects | `POST/GET /api/projects`, `GET /api/projects/metrics` |
+| Tasks | `POST/GET /api/tasks`, `GET/PATCH/DELETE /api/tasks/{code}`, `POST /api/tasks/{code}/move` |
 | Checklist | `POST /api/tasks/{code}/checklist`, `PATCH/DELETE /api/tasks/checklist/{id}` |
 | Labels | `POST/GET /api/labels`, `POST/DELETE /api/labels/{id}/tasks/{task_id}` |
-| Comentários | `GET/POST /api/comments`, `PATCH/DELETE /api/comments/{id}` |
-| Diario | `GET/POST /api/daily/{date}`, `PATCH /api/daily/{date}/report` |
+| Comments | `GET/POST /api/comments`, `PATCH/DELETE /api/comments/{id}` |
+| Journal | `GET/POST /api/daily/{date}`, `PATCH /api/daily/{date}/report` |
 | TODOs | `GET/POST /api/todos`, `PATCH/DELETE /api/todos/{id}` |
-| Estudos | `POST/GET /api/study/plans`, `PATCH/DELETE /api/study/plans/{id}` |
-| Histórico | `GET /api/tasks/{code}/history` |
+| Studies | `POST/GET /api/study/plans`, `PATCH/DELETE /api/study/plans/{id}` |
+| History | `GET /api/tasks/{code}/history` |
 | Changelog | `GET /api/projects/{project_id}/changelog?days=7` |
-| Atividade | `GET /api/activity` |
+| Activity | `GET /api/activity` |
 
-## Skills para agentes de IA
+## Skills for AI agents
 
-| Skill | O que faz |
+| Skill | What it does |
 |---|---|
-| `maestro-run` | Iniciar a aplicação (GUI + API) |
-| `maestro-api-agent` | Ensina o agente a usar a API REST |
-| `maestro-task-workflow` | Fluxo completo: pegar task, implementar, mover, documentar |
-| `maestro-project-setup` | Criar projeto com colunas e labels padrão |
-| `maestro-sprint-planning` | Planejar sprint com estimativas e priorização |
-| `maestro-code-review-log` | Registrar code reviews como comentários |
-| `maestro-bug-triage` | Triagem de bugs com prioridade e reprodução |
-| `maestro-daily-standup` | Gerar relatório de standup automático |
-| `maestro-tech-debt-tracker` | Registrar e priorizar dívida técnica |
-| `maestro-documentation-writer` | Gerar documentação a partir do código |
-| `maestro-daily-report` | Relatório diário com notas, atividade e resumo (suporta modo parcial) |
-| `maestro-context-loader` | Carregar contexto completo do workspace para retomar trabalho de onde parou |
+| `maestro-run` | Start the application (GUI + API) |
+| `maestro-api-agent` | Teaches the agent to use the REST API |
+| `maestro-task-workflow` | Complete workflow: pick a task, implement, move, document |
+| `maestro-project-setup` | Create a project with default columns and labels |
+| `maestro-sprint-planning` | Plan a sprint with estimates and prioritization |
+| `maestro-code-review-log` | Log code reviews as comments |
+| `maestro-bug-triage` | Bug triage with priority and reproduction |
+| `maestro-daily-standup` | Generate an automatic standup report |
+| `maestro-tech-debt-tracker` | Log and prioritize technical debt |
+| `maestro-documentation-writer` | Generate documentation from code |
+| `maestro-daily-report` | Daily report with notes, activity, and summary (supports partial mode) |
+| `maestro-context-loader` | Load the full workspace context to resume work from where you left off |
 
 ## Screenshots
 
 ![Dashboard](local-client/docs/screenshots/dashboard-light.png)
-![Meu Dia](local-client/docs/screenshots/meudia-light.png)
-![Board com sprints](local-client/docs/screenshots/board-light.png)
-![Planejamento de Sprints](local-client/docs/screenshots/planejamento-light.png)
-![Estudos com assistente](local-client/docs/screenshots/estudos-light.png)
-![Assistente](local-client/docs/screenshots/chat-light.png)
-![Reuniões (copiloto ao vivo)](local-client/docs/screenshots/reunioes-light.png)
-![Projetos](local-client/docs/screenshots/projetos-light.png)
+![My Day](local-client/docs/screenshots/meudia-light.png)
+![Board with sprints](local-client/docs/screenshots/board-light.png)
+![Sprint Planning](local-client/docs/screenshots/planejamento-light.png)
+![Studies with the assistant](local-client/docs/screenshots/estudos-light.png)
+![Assistant](local-client/docs/screenshots/chat-light.png)
+![Meetings (live copilot)](local-client/docs/screenshots/reunioes-light.png)
+![Projects](local-client/docs/screenshots/projetos-light.png)
 ![Skills](local-client/docs/screenshots/skills-light.png)
-![Instruções](local-client/docs/screenshots/instrucoes-light.png)
-![Configurações](local-client/docs/screenshots/configuracoes-light.png)
+![Instructions](local-client/docs/screenshots/instrucoes-light.png)
+![Settings](local-client/docs/screenshots/configuracoes-light.png)
 
-## Estrutura do projeto
+## Project structure
 
 ```
 agentic-dev-maestro/
-├── local-client/              # App principal (Python/PySide6)
-│   ├── maestro_local/         # Código fonte
-│   │   ├── gui/views/         # telas da interface (Dashboard com abas)
+├── local-client/              # Main app (Python/PySide6)
+│   ├── maestro_local/         # Source code
+│   │   ├── gui/views/         # interface screens (Dashboard with tabs)
 │   │   ├── api/               # FastAPI endpoints
 │   │   ├── db/                # SQLAlchemy models + SQLite
-│   │   └── skills/            # Catálogo de 12 skills
-│   ├── install.sh             # Script de instalação
-│   ├── run.sh                 # Script de execução
-│   ├── pyproject.toml         # Dependências Python
+│   │   └── skills/            # Catalog of 12 skills
+│   ├── install.sh             # Installation script
+│   ├── run.sh                 # Run script
+│   ├── pyproject.toml         # Python dependencies
 │   └── docs/screenshots/      # Screenshots
 │
-├── web-client/                # Cliente web (NestJS + Angular) — em desenvolvimento
-├── mcp/                       # Servidor MCP para integração
-├── docs/                      # Documentação de arquitetura
-├── CLAUDE.md                  # Guia para agentes de IA
+├── web-client/                # Web client (NestJS + Angular) — in development
+├── mcp/                       # MCP server for integration
+├── docs/                      # Architecture documentation
+├── CLAUDE.md                  # Guide for AI agents
 └── README.md
 ```
 
-## Dados
+## Data
 
-Os dados ficam em `~/.maestro-local/`:
+Data lives in `~/.maestro-local/`:
 
 ```
 ~/.maestro-local/
-├── config.json                # Configurações (workspaces, vault paths, tema)
+├── config.json                # Settings (workspaces, vault paths, theme)
 └── workspaces/
     ├── default/
-    │   └── maestro.db         # Banco SQLite do workspace padrão
+    │   └── maestro.db         # SQLite database for the default workspace
     └── {workspace-id}/
-        └── maestro.db         # Banco SQLite de cada workspace
+        └── maestro.db         # SQLite database for each workspace
 ```
 
-## Requisitos
+## Requirements
 
 - Python 3.10+
-- Sistema operacional: Linux, macOS ou Windows
-- Qt 6 (instalado automaticamente com PySide6)
+- Operating system: Linux, macOS, or Windows
+- Qt 6 (installed automatically with PySide6)
 
-## Licença
+## License
 
-Licença Privada. Copyright (c) 2026 WalterSilva5. Todos os direitos reservados. Consulte o arquivo [LICENSE](LICENSE) para detalhes.
+Private License. Copyright (c) 2026 WalterSilva5. All rights reserved. See the [LICENSE](LICENSE) file for details.

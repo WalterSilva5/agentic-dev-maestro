@@ -1,29 +1,31 @@
-# Configuração de Ambiente
+> 🇧🇷 [Versão em português](CONFIG.ptbr.md)
 
-Este projeto utiliza um sistema de configuração baseado em arquivo JSON carregado em runtime, ao invés de arquivos de environment TypeScript. Esta abordagem permite atualizar configurações sem precisar fazer rebuild da aplicação.
+# Environment Configuration
 
-## Estrutura
+This project uses a configuration system based on a JSON file loaded at runtime, instead of TypeScript environment files. This approach lets you update configuration without needing to rebuild the application.
 
-- **`public/config.json`**: Arquivo de configuração que será carregado pela aplicação
-- **`public/config.example.json`**: Exemplo de configuração (versionado no Git)
-- **`src/app/services/config.service.ts`**: Serviço que carrega e gerencia as configurações
-- **`src/app/config/config.initializer.ts`**: Inicializador que carrega as configurações antes do bootstrap
-- **`src/app/models/app-config.interface.ts`**: Interface TypeScript para as configurações
+## Structure
 
-## Como Funciona
+- **`public/config.json`**: Configuration file that will be loaded by the application
+- **`public/config.example.json`**: Configuration example (versioned in Git)
+- **`src/app/services/config.service.ts`**: Service that loads and manages the configuration
+- **`src/app/config/config.initializer.ts`**: Initializer that loads the configuration before bootstrap
+- **`src/app/models/app-config.interface.ts`**: TypeScript interface for the configuration
 
-1. Antes da aplicação iniciar, o `ConfigService` carrega o arquivo `/config.json`
-2. As configurações ficam disponíveis em toda a aplicação via injeção de dependência
-3. No deploy, basta substituir o arquivo `config.json` com os valores do ambiente correto
+## How It Works
 
-## Configuração Local
+1. Before the application starts, the `ConfigService` loads the `/config.json` file
+2. The configuration becomes available throughout the application via dependency injection
+3. At deploy time, just replace the `config.json` file with the values for the correct environment
 
-1. Copie o arquivo de exemplo:
+## Local Configuration
+
+1. Copy the example file:
 ```bash
 cp public/config.example.json public/config.json
 ```
 
-2. Edite `public/config.json` com as configurações locais:
+2. Edit `public/config.json` with the local configuration:
 ```json
 {
   "apiUrl": "http://localhost:5000/api",
@@ -33,7 +35,7 @@ cp public/config.example.json public/config.json
 
 ## Deploy
 
-### Desenvolvimento
+### Development
 ```json
 {
   "apiUrl": "http://192.168.1.6:5000/api",
@@ -41,7 +43,7 @@ cp public/config.example.json public/config.json
 }
 ```
 
-### Produção
+### Production
 ```json
 {
   "apiUrl": "https://api.wsisys.com.br/api",
@@ -49,25 +51,25 @@ cp public/config.example.json public/config.json
 }
 ```
 
-### Como Aplicar no Deploy
+### How to Apply on Deploy
 
-**Opção 1: Substituir arquivo após build**
+**Option 1: Replace the file after build**
 ```bash
-# Build da aplicação
+# Build the application
 npm run build
 
-# Substituir config.json na pasta dist
+# Replace config.json in the dist folder
 cp config.production.json dist/fullstack-template-front/browser/config.json
 ```
 
-**Opção 2: Volume no Docker**
+**Option 2: Docker volume**
 ```dockerfile
-# No docker-compose.yml
+# In docker-compose.yml
 volumes:
   - ./config.production.json:/app/config.json
 ```
 
-**Opção 3: Script de deploy**
+**Option 3: Deploy script**
 ```bash
 #!/bin/bash
 npm run build
@@ -80,9 +82,9 @@ cat > config.json << EOF
 EOF
 ```
 
-## Usando as Configurações no Código
+## Using the Configuration in Code
 
-### Injetar o serviço:
+### Inject the service:
 ```typescript
 import { ConfigService } from './services/config.service';
 
@@ -92,22 +94,22 @@ constructor(private configService: ConfigService) {
 }
 ```
 
-### Obter configuração completa:
+### Get the complete configuration:
 ```typescript
 const config = this.configService.getConfig();
 console.log(config.apiUrl);
 ```
 
-## Migrando Código Antigo
+## Migrating Old Code
 
-### Antes (usando environment):
+### Before (using environment):
 ```typescript
 import { environment } from '../environments/environment';
 
 apiUrl = environment.apiUrl;
 ```
 
-### Depois (usando ConfigService):
+### After (using ConfigService):
 ```typescript
 import { ConfigService } from './services/config.service';
 
@@ -116,21 +118,21 @@ constructor(private configService: ConfigService) {
 }
 ```
 
-## Vantagens
+## Advantages
 
-✅ **Sem rebuild**: Altere configurações sem recompilar  
-✅ **Simplicidade**: Apenas um arquivo JSON para editar  
-✅ **Flexibilidade**: Fácil integração com CI/CD  
-✅ **Segurança**: Arquivo não é versionado (adicionado ao .gitignore)  
-✅ **Runtime**: Configurações carregadas dinamicamente  
+✅ **No rebuild**: Change configuration without recompiling  
+✅ **Simplicity**: Only one JSON file to edit  
+✅ **Flexibility**: Easy integration with CI/CD  
+✅ **Security**: The file is not versioned (added to .gitignore)  
+✅ **Runtime**: Configuration loaded dynamically  
 
-## Arquivos Antigos (Deprecados)
+## Old Files (Deprecated)
 
-Os seguintes arquivos podem ser removidos após a migração completa:
+The following files can be removed after the full migration:
 - `src/environments/environment.ts`
 - `src/environments/environment.dev.ts`
 - `src/environments/environment.local.ts`
 - `src/environments/environment.prod.ts`
-- `src/environments/environment.hml.ts` (se existir)
+- `src/environments/environment.hml.ts` (if it exists)
 
-Também pode remover as seções `fileReplacements` do `angular.json`.
+You can also remove the `fileReplacements` sections from `angular.json`.

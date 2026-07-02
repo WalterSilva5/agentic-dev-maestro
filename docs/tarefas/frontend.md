@@ -1,102 +1,104 @@
-# Tarefas — Frontend (Angular 20)
+> 🇧🇷 [Versão em português](frontend.ptbr.md)
 
-Base: `front/` do template (login/refresh/perfil prontos). Arquitetura no
-[doc 07](../07-frontend-angular.md). Esforço em homem-dia (hd).
+# Tasks — Frontend (Angular 20)
+
+Base: the template's `front/` (login/refresh/profile ready). Architecture in
+[doc 07](../07-frontend-angular.md). Effort in man-days (md).
 
 ---
 
-## Fase 1 — Núcleo de tarefas e quadro
+## Phase 1 — Task and board core
 
-### F1.0 — Setup e limpeza · 0.5 hd
-- [ ] Copiar `front/` do template; remover `front-react/` e `front-flutter/`
-- [ ] Subir o front e validar login contra a API
-- [ ] Instalar deps novas: `@angular/cdk`, `ngx-markdown`, `@swimlane/ngx-graph`
+### F1.0 — Setup and cleanup · 0.5 md
+- [ ] Copy the template's `front/`; remove `front-react/` and `front-flutter/`
+- [ ] Bring up the front end and validate login against the API
+- [ ] Install new deps: `@angular/cdk`, `ngx-markdown`, `@swimlane/ngx-graph`
 
-### F1.1 — Contexto de empresa (multi-tenant) · 1.5 hd
-- [ ] `TenantService` com empresa ativa (signal + storage)
-- [ ] Interceptor que injeta `X-Company-Id`
-- [ ] Seletor de empresa no header; trocar limpa stores de domínio
-- [ ] `tenantGuard` (exige empresa ativa)
+### F1.1 — Company context (multi-tenant) · 1.5 md
+- [ ] `TenantService` with the active company (signal + storage)
+- [ ] Interceptor that injects `X-Company-Id`
+- [ ] Company selector in the header; switching clears domain stores
+- [ ] `tenantGuard` (requires an active company)
 
-### F1.2 — Lista/criação de projetos · 1.5 hd
-- [ ] Tela de projetos (lista + criar)
-- [ ] Slice NgRx `projects` (effects + selectors)
-- [ ] Navegação para o board do projeto
+### F1.2 — Project list/creation · 1.5 md
+- [ ] Projects screen (list + create)
+- [ ] `projects` NgRx slice (effects + selectors)
+- [ ] Navigation to the project board
 
-### F1.3 — Quadro kanban com CDK drag-drop · 4 hd
-- [ ] `BoardComponent` carregando colunas + tarefas (slice `board`)
-- [ ] `ColumnComponent` (`cdkDropList`) com indicador de WIP
-- [ ] `TaskCardComponent` (`cdkDrag`): código, assignee, prioridade, estimativa, labels
-- [ ] Drop → **update otimista** + `POST /move` + **rollback** em erro
-- [ ] Criar tarefa rápida na coluna (inline)
+### F1.3 — Kanban board with CDK drag-drop · 4 md
+- [ ] `BoardComponent` loading columns + tasks (`board` slice)
+- [ ] `ColumnComponent` (`cdkDropList`) with a WIP indicator
+- [ ] `TaskCardComponent` (`cdkDrag`): code, assignee, priority, estimate, labels
+- [ ] Drop → **optimistic update** + `POST /move` + **rollback** on error
+- [ ] Quick task creation in the column (inline)
 
-### F1.4 — Detalhe da tarefa · 2.5 hd
-- [ ] `TaskDetailComponent` (modal/painel): editar campos, prioridade, estimativa
-- [ ] Campos **objetivo** e **critério de aceite** (markdown)
-- [ ] Subtarefas (listar/criar/concluir)
-- [ ] Comentários
+### F1.4 — Task detail · 2.5 md
+- [ ] `TaskDetailComponent` (modal/panel): edit fields, priority, estimate
+- [ ] **Objective** and **acceptance criteria** fields (markdown)
+- [ ] Subtasks (list/create/complete)
+- [ ] Comments
 - [ ] Deep-link `/:companyId/tasks/:code`
 
-### F1.5 — Aba de fluxo da tarefa (ngx-graph) · 3 hd
-> Feature do [doc 08](../08-fluxo-de-tarefas.md).
-- [ ] `TaskFlowComponent` consumindo `GET /tasks/:code/flow` (`{ nodes, edges }`)
-- [ ] Template de nó: título, código, assignee, **cor por status** + cadeado se bloqueada
-- [ ] Nós sintéticos **Objetivo** (entrada) e **Aceite** (saída)
-- [ ] Clicar nó → abre subtarefa; layout dagre + pan/zoom
-- [ ] Arrastar nó→nó → `POST /dependencies` (com feedback de ciclo inválido)
-- [ ] Botão **exportar Mermaid** (`?format=mermaid`)
-- [ ] Reuso para **fluxo do projeto** (nós = tarefas)
+### F1.5 — Task flow tab (ngx-graph) · 3 md
+> Feature from [doc 08](../08-fluxo-de-tarefas.md).
+- [ ] `TaskFlowComponent` consuming `GET /tasks/:code/flow` (`{ nodes, edges }`)
+- [ ] Node template: title, code, assignee, **color by status** + lock icon if blocked
+- [ ] Synthetic **Objective** (entry) and **Acceptance** (exit) nodes
+- [ ] Click node → open subtask; dagre layout + pan/zoom
+- [ ] Drag node→node → `POST /dependencies` (with invalid-cycle feedback)
+- [ ] **Export Mermaid** button (`?format=mermaid`)
+- [ ] Reuse for the **project flow** (nodes = tasks)
 
 ---
 
-## Fase 2 — Docs e atividade
+## Phase 2 — Docs and activity
 
-### F2.1 — Documentos markdown · 2.5 hd
+### F2.1 — Markdown documents · 2.5 md
 - [ ] `DocViewerComponent` (render `ngx-markdown`)
-- [ ] `DocEditorComponent` (edição + preview lado a lado)
-- [ ] Botão **exportar `.md`**
-- [ ] Docs no projeto e na tarefa
+- [ ] `DocEditorComponent` (side-by-side edit + preview)
+- [ ] **Export `.md`** button
+- [ ] Docs on the project and on the task
 
-### F2.2 — Aba de atividade/auditoria · 1.5 hd
-- [ ] Timeline de `ActivityLog` na tarefa e no projeto
-- [ ] Badge "via agente" quando a ação veio de API key
-
----
-
-## Fase 4 — Settings e visão
-
-### F4.1 — Gestão de membros · 1.5 hd
-- [ ] Tela de membros (listar, convidar, mudar papel, remover)
-- [ ] `roleGuard` esconde gestão para DEV/VIEWER
-
-### F4.2 — Gestão de API keys · 1.5 hd
-- [ ] Listar chaves (label, prefixo, lastUsed, expira)
-- [ ] Criar chave → mostrar segredo **uma vez** (copiar) + escolher escopos
-- [ ] Revogar chave
-
-### F4.3 — Dashboard do gerente · 2.5 hd
-- [ ] Progresso por projeto/empresa (tarefas por status, por assignee)
-- [ ] Filtros e busca (status, label, assignee, texto)
+### F2.2 — Activity/audit tab · 1.5 md
+- [ ] `ActivityLog` timeline on the task and the project
+- [ ] "via agent" badge when the action came from an API key
 
 ---
 
-## Transversal
+## Phase 4 — Settings and vision
 
-### FX.1 — Tipos gerados do Swagger · 1 hd
-- [ ] Configurar `ng-openapi-gen` (ou `openapi-generator`) apontando para `/api/docs-json`
-- [ ] Script `npm run gen:api` + usar os tipos nos services
+### F4.1 — Member management · 1.5 md
+- [ ] Members screen (list, invite, change role, remove)
+- [ ] `roleGuard` hides management from DEV/VIEWER
 
-### FX.2 — UX e tema · 1 hd
-- [ ] Responsivo + dark mode
-- [ ] Tratamento de erro padronizado (interceptor → toasts SweetAlert2)
+### F4.2 — API key management · 1.5 md
+- [ ] List keys (label, prefix, lastUsed, expiry)
+- [ ] Create key → show secret **once** (copy) + choose scopes
+- [ ] Revoke key
+
+### F4.3 — Manager dashboard · 2.5 md
+- [ ] Progress by project/company (tasks by status, by assignee)
+- [ ] Filters and search (status, label, assignee, text)
 
 ---
 
-## Checklist de qualidade (frontend)
+## Cross-cutting
 
-- [ ] Kanban com DnD fluido, update otimista e rollback testado
-- [ ] Nenhum `any` nos contratos de API (tipos do Swagger)
-- [ ] Telas de gestão protegidas por papel
-- [ ] Segredo de API key exibido só uma vez, com copiar
-- [ ] Lazy loading por rota; lint e build sem erros
-- [ ] Responsivo e dark mode validados
+### FX.1 — Types generated from Swagger · 1 md
+- [ ] Configure `ng-openapi-gen` (or `openapi-generator`) pointing at `/api/docs-json`
+- [ ] `npm run gen:api` script + use the types in the services
+
+### FX.2 — UX and theme · 1 md
+- [ ] Responsive + dark mode
+- [ ] Standardized error handling (interceptor → SweetAlert2 toasts)
+
+---
+
+## Quality checklist (frontend)
+
+- [ ] Kanban with smooth DnD, optimistic update and rollback tested
+- [ ] No `any` in the API contracts (Swagger types)
+- [ ] Management screens protected by role
+- [ ] API key secret shown only once, with copy
+- [ ] Lazy loading per route; lint and build without errors
+- [ ] Responsive and dark mode validated

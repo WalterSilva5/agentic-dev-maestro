@@ -1,33 +1,35 @@
-# Tarefas e checklists
+> 🇧🇷 [Versão em português](README.ptbr.md)
 
-> **Estado (2026-06-22):** estas listas são o **plano de execução** (com esforço em hd).
-> A implementação das Fases 0–2 está concluída e a 3–4 com ressalvas — o **estado real
-> e as pendências** estão no [CHECKLIST mestre](../CHECKLIST.md), fonte única de verdade.
+# Tasks and checklists
 
-Listas acionáveis por área, mais granulares que o [roadmap](../05-roadmap.md). Cada
-item é uma tarefa com **esforço em homem-dia (hd)** e uma checklist de subtarefas.
-**Sem alocação de pessoas nem cronograma** — isso é decisão da liderança.
+> **Status (2026-06-22):** these lists are the **execution plan** (with effort in md).
+> Phases 0–2 are fully implemented and 3–4 with caveats — the **actual status
+> and open items** are in the [master CHECKLIST](../CHECKLIST.md), the single source of truth.
 
-| Área | Arquivo | Cobre |
+Actionable lists by area, more granular than the [roadmap](../05-roadmap.md). Each
+item is a task with **effort in man-days (md)** and a checklist of subtasks.
+**No people allocation or schedule** — that is a leadership decision.
+
+| Area | File | Covers |
 |---|---|---|
-| Backend | [backend.md](backend.md) | NestJS, Prisma, multi-tenant, API keys, domínio, RBAC, bulk |
-| Frontend | [frontend.md](frontend.md) | Angular: auth, contexto, kanban (DnD nativo HTML5), docs, settings |
+| Backend | [backend.md](backend.md) | NestJS, Prisma, multi-tenant, API keys, domain, RBAC, bulk |
+| Frontend | [frontend.md](frontend.md) | Angular: auth, context, kanban (native HTML5 DnD), docs, settings |
 | Infra / DevOps | [devops-infra.md](devops-infra.md) | Docker, env, migrations/seed, CI, deploy |
-| MCP / Agentes | [mcp-agentes.md](mcp-agentes.md) | servidor MCP, tools, guia de uso por agente |
+| MCP / Agents | [mcp-agentes.md](mcp-agentes.md) | MCP server, tools, per-agent usage guide |
 
-## Convenção
+## Convention
 
-- `[ ]` a fazer · `[~]` em andamento · `[x]` feito.
-- Cada tarefa "pai" tem **esforço total** em hd; as subtarefas detalham o trabalho.
-- Mantenha em sincronia com o [roadmap](../05-roadmap.md) (fases 0–4) e o
-  [CHECKLIST mestre](../CHECKLIST.md) (definition of done do MVP).
+- `[ ]` to do · `[~]` in progress · `[x]` done.
+- Each "parent" task has a **total effort** in md; the subtasks detail the work.
+- Keep in sync with the [roadmap](../05-roadmap.md) (phases 0–4) and the
+  [master CHECKLIST](../CHECKLIST.md) (MVP definition of done).
 
-## Mapa fase → áreas
+## Phase → areas map
 
-| Fase | Backend | Frontend | Infra | MCP |
+| Phase | Backend | Frontend | Infra | MCP |
 |---|:--:|:--:|:--:|:--:|
-| 0 — Fundação multi-tenant | ✅ | — | ✅ | — |
-| 1 — Núcleo de tarefas/quadro | ✅ | ✅ | — | — |
-| 2 — Docs e API de agente | ✅ | ✅ | — | — |
-| 3 — MCP e integrações | ✅ | — | ✅ | ✅ |
-| 4 — Visão e polish | ✅ | ✅ | ✅ | — |
+| 0 — Multi-tenant foundation | ✅ | — | ✅ | — |
+| 1 — Task/board core | ✅ | ✅ | — | — |
+| 2 — Docs and agent API | ✅ | ✅ | — | — |
+| 3 — MCP and integrations | ✅ | — | ✅ | ✅ |
+| 4 — Vision and polish | ✅ | ✅ | ✅ | — |

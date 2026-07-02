@@ -1,96 +1,98 @@
-# Checklist mestre — Definition of Done
+> 🇧🇷 [Versão em português](CHECKLIST.ptbr.md)
 
-Visão única do que precisa estar pronto. Estado em 2026-06-25.
+# Master checklist — Definition of Done
 
-> Convenção: `[ ]` a fazer · `[~]` parcial · `[x]` feito.
+A single view of what needs to be ready. State as of 2026-06-25.
+
+> Convention: `[ ]` to do · `[~]` partial · `[x]` done.
 
 ---
 
-## 🚪 Gate 0 — Fundação multi-tenant ✅
+## 🚪 Gate 0 — Multi-tenant foundation ✅
 
-- [x] Projeto a partir do template; `docker compose` sobe mysql/redis/api/front
-- [x] `Company` + `Membership` + papéis (OWNER/MANAGER/TECH_LEAD/DEV/VIEWER)
-- [x] Guard de contexto + **isolamento por `companyId`**
-- [x] Autenticação por **API key** (hash sha256, escopos, expiração, revogação)
-- [x] Seed: empresa demo + OWNER + API key de agente
+- [x] Project from the template; `docker compose` brings up mysql/redis/api/front
+- [x] `Company` + `Membership` + roles (OWNER/MANAGER/TECH_LEAD/DEV/VIEWER)
+- [x] Context guard + **isolation by `companyId`**
+- [x] Authentication via **API key** (sha256 hash, scopes, expiration, revocation)
+- [x] Seed: demo company + OWNER + agent API key
 
-## 🚪 Gate 1 — Núcleo de tarefas e quadro ✅
+## 🚪 Gate 1 — Task and board core ✅
 
-- [x] Projetos com `key` e board padrão automático (5 colunas)
-- [x] Quadro com colunas configuráveis + `rank` lexicográfico
-- [x] Tarefas com código (`DEMO-42`), prioridade, estimativa (hd), labels
-- [x] Tarefas com **objetivo** e **critério de aceite**
-- [x] Subtarefas (auto-relacional)
-- [x] `move` (mudar coluna/status) — feito
-- [x] **Fluxo da tarefa:** `TaskDependency` (DAG validado, anticiclo) + `GET /flow`
-- [x] **Front:** kanban com drag-and-drop, update otimista + rollback
-- [x] **Front:** detalhe de tarefa (objetivo, aceite, comentários; subtarefas via fluxo)
-- [x] **Front:** aba de fluxo com nós por status + export Mermaid
+- [x] Projects with `key` and automatic default board (5 columns)
+- [x] Board with configurable columns + lexicographic `rank`
+- [x] Tasks with code (`DEMO-42`), priority, estimate (person-days), labels
+- [x] Tasks with **objective** and **acceptance criterion**
+- [x] Subtasks (self-relational)
+- [x] `move` (change column/status) — done
+- [x] **Task flow:** `TaskDependency` (validated DAG, anti-cycle) + `GET /flow`
+- [x] **Front:** kanban with drag-and-drop, optimistic update + rollback
+- [x] **Front:** task detail (objective, acceptance, comments; subtasks via flow)
+- [x] **Front:** flow tab with nodes by status + Mermaid export
 
-## 🚪 Gate 2 — Docs e API de agente → MVP funcional ✅
+## 🚪 Gate 2 — Docs and agent API → functional MVP ✅
 
-- [x] `Document` markdown (versão) em projeto/tarefa + export
-- [x] `POST /tasks/bulk` (decompose) em transação, com `dependsOn`
-- [x] Idempotência (`Idempotency-Key`) sem duplicar
-- [x] `ActivityLog` em toda escrita (humano vs. agente)
-- [x] **Front:** editor/visualizador markdown (textarea) + aba de atividade
+- [x] `Document` markdown (version) on project/task + export
+- [x] `POST /tasks/bulk` (decompose) in a transaction, with `dependsOn`
+- [x] Idempotency (`Idempotency-Key`) without duplication
+- [x] `ActivityLog` on every write (human vs. agent)
+- [x] **Front:** markdown editor/viewer (textarea) + activity tab
 
-## 🚪 Gate 3 — MCP e integrações ✅
+## 🚪 Gate 3 — MCP and integrations ✅
 
-- [x] Servidor MCP (`mcp/`) com 11 tools
-- [x] Webhooks de status (dispatch HMAC em `task.created/moved`)
+- [x] MCP server (`mcp/`) with 11 tools
+- [x] Status webhooks (HMAC dispatch on `task.created/moved`)
 
-## 🚪 Gate 4 — Visão e polish ✅
+## 🚪 Gate 4 — Overview and polish ✅
 
-- [x] Busca + filtros no `GET /tasks`
-- [x] Dashboard (progresso por projeto + atividade recente)
-- [x] Gestão de membros e API keys na UI
-- [x] Links de navegação (navbar) para as páginas do Maestro
+- [x] Search + filters on `GET /tasks`
+- [x] Dashboard (progress per project + recent activity)
+- [x] Member and API key management in the UI
+- [x] Navigation links (navbar) to the Maestro pages
 
-## 🚪 Gate 5 — Modulo de Estudos ✅
+## 🚪 Gate 5 — Studies Module ✅
 
-- [x] Modelos SQLAlchemy: StudyPlan, StudyTopic, StudySession
-- [x] Endpoints CRUD para planos, tópicos e sessões
-- [x] Cálculo de progresso automático
-- [x] GUI com lista de planos, detalhe com tópicos
-- [x] Sidebar "Estudos" no local-client
+- [x] SQLAlchemy models: StudyPlan, StudyTopic, StudySession
+- [x] CRUD endpoints for plans, topics and sessions
+- [x] Automatic progress calculation
+- [x] GUI with a list of plans, detail with topics
+- [x] "Studies" sidebar in the local-client
 
-## 🚪 Gate 6 — Edição/Deleção de Tarefas ✅
+## 🚪 Gate 6 — Task Editing/Deletion ✅
 
 - [x] Backend: `PATCH /tasks/:code` (update), `DELETE /tasks/:code` (soft delete)
 - [x] Backend: `PATCH /comments/:id` (update), `DELETE /comments/:id` (delete)
-- [x] Backend: Filtro `parentId` no `GET /tasks`
-- [x] Frontend: Cards clicáveis no board → abrem detalhes
-- [x] Frontend: Formulário de edição inline na task detail
-- [x] Frontend: Aba de subtarefas (criar/excluir, só título)
-- [x] Frontend: Edição/deleção inline de comentários
-- [x] Frontend: Seletor de coluna para mover tarefa
-- [x] Frontend: Card de descrição destacado
+- [x] Backend: `parentId` filter on `GET /tasks`
+- [x] Frontend: Clickable cards on the board → open details
+- [x] Frontend: Inline edit form in the task detail
+- [x] Frontend: Subtasks tab (create/delete, title only)
+- [x] Frontend: Inline comment editing/deletion
+- [x] Frontend: Column selector to move a task
+- [x] Frontend: Highlighted description card
 
 ## 🚪 Gate 7 — OpenCode Tools ✅
 
-- [x] 12 ferramentas customizadas (`.opencode/tools/maestro.ts`)
-- [x] 2 comandos: `/review` e `/decompose`
-- [x] Skill de uso da plataforma
-- [x] Config `opencode.jsonc`
+- [x] 12 custom tools (`.opencode/tools/maestro.ts`)
+- [x] 2 commands: `/review` and `/decompose`
+- [x] Platform usage skill
+- [x] `opencode.jsonc` config
 
-## 🚪 Gate 8 — Reorganização ✅
+## 🚪 Gate 8 — Reorganization ✅
 
-- [x] Web client movido para `web-client/`
-- [x] README geral + README do web client
-- [x] CLAUDE.md atualizado com novos caminhos
-- [x] Tema claro com melhor contraste (cards brancos, bordas visíveis)
-- [x] Sidebar sem scroll desnecessário
-- [x] Board view mostra lista de projetos quando nenhum selecionado
+- [x] Web client moved to `web-client/`
+- [x] General README + web client README
+- [x] CLAUDE.md updated with new paths
+- [x] Light theme with better contrast (white cards, visible borders)
+- [x] Sidebar without unnecessary scroll
+- [x] Board view shows a list of projects when none is selected
 
 ---
 
-## Pendências conhecidas (próximos passos)
+## Known pending items (next steps)
 
-1. Timer real para sessões de estudo
-2. Gamificação (streak, badges, XP)
-3. Importação de roadmaps em markdown
-4. Flashcards/revisão espaçada
-5. Compartilhamento de planos como template
-6. CI (lint + test + build) — não configurado
-7. Testes automatizados (RBAC, isolamento)
+1. Real timer for study sessions
+2. Gamification (streak, badges, XP)
+3. Roadmap import in markdown
+4. Flashcards/spaced repetition
+5. Sharing plans as templates
+6. CI (lint + test + build) — not configured
+7. Automated tests (RBAC, isolation)

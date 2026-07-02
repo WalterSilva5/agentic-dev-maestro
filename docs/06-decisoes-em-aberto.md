@@ -1,74 +1,76 @@
-# 06 — Decisões em aberto
+> 🇧🇷 [Versão em português](06-decisoes-em-aberto.ptbr.md)
 
-Escolhas que valem alinhar antes de codar. Cada uma tem uma **recomendação** para
-destravar — mude se discordar.
+# 06 — Open decisions
 
-## D1 — Frontend: Angular ou React? ✅ DECIDIDO: Angular
+Choices worth aligning on before coding. Each has a **recommendation** to
+unblock — change it if you disagree.
 
-Usaremos o **Angular** (`front/` do template — Angular 20 standalone + NgRx +
-CDK drag-drop). É o stack principal do dia a dia (`wsi-front-angular`) e o CDK já
-traz drag-and-drop pronto para o kanban. Arquitetura detalhada no
+## D1 — Frontend: Angular or React? ✅ DECIDED: Angular
+
+We will use **Angular** (`front/` from the template — Angular 20 standalone + NgRx +
+CDK drag-drop). It is the main day-to-day stack (`wsi-front-angular`) and the CDK already
+brings drag-and-drop ready for the kanban. Detailed architecture in
 [doc 07 — Frontend Angular](07-frontend-angular.md).
 
-O `front-react/` e o `front-flutter/` do template serão removidos do projeto.
+The template's `front-react/` and `front-flutter/` will be removed from the project.
 
-## D2 — Banco: manter MySQL ou ir de Postgres?
+## D2 — Database: keep MySQL or go with Postgres?
 
-O template é MySQL.
+The template is MySQL.
 
-- **MySQL** — zero atrito, já configurado no template/Docker.
-- **Postgres** — melhor para `jsonb` (changes do audit, scopes), índices parciais,
-  e `LISTEN/NOTIFY` se um dia quiser real-time.
+- **MySQL** — zero friction, already configured in the template/Docker.
+- **Postgres** — better for `jsonb` (audit changes, scopes), partial indexes,
+  and `LISTEN/NOTIFY` if we ever want real-time.
 
-> **Recomendação:** **manter MySQL** no MVP (reuso total do template). Migrar para
-> Postgres só se a auditoria/JSON pesar. Prisma facilita a troca depois.
+> **Recommendation:** **keep MySQL** in the MVP (full reuse of the template). Migrate to
+> Postgres only if auditing/JSON becomes a burden. Prisma makes the switch easy later.
 
-## D3 — Papel dedicado para agente (`AGENT`) ou reusar `DEV`?
+## D3 — Dedicated agent role (`AGENT`) or reuse `DEV`?
 
-- Reusar **DEV** + escopos restritos na chave: menos enums, simples.
-- Papel **AGENT** dedicado: auditoria e UI mais claras ("isso foi um agente").
+- Reuse **DEV** + restricted scopes on the key: fewer enums, simpler.
+- Dedicated **AGENT** role: clearer auditing and UI ("this was an agent").
 
-> **Recomendação:** começar com **DEV + escopos**; introduzir `AGENT` só se a
-> distinção visual/permissional virar necessidade real.
+> **Recommendation:** start with **DEV + scopes**; introduce `AGENT` only if the
+> visual/permission distinction becomes a real need.
 
-## D4 — Ordenação no kanban: rank fracionário (LexoRank) vs. `order` inteiro
+## D4 — Kanban ordering: fractional rank (LexoRank) vs. integer `order`
 
-- `order` inteiro: simples, mas reordenar exige reescrever várias linhas.
-- Rank fracionário/lexicográfico: mover = atualizar **uma** linha.
+- Integer `order`: simple, but reordering requires rewriting several rows.
+- Fractional/lexicographic rank: moving = updating **one** row.
 
-> **Recomendação:** **rank lexicográfico** (campo `rank` string). Move barato,
-> escala bem com agentes mexendo no quadro.
+> **Recommendation:** **lexicographic rank** (`rank` string field). Cheap to move,
+> scales well with agents working the board.
 
-## D5 — Status: colunas configuráveis vs. enum fixo
+## D5 — Status: configurable columns vs. fixed enum
 
-> **Recomendação:** **colunas configuráveis** (status = `Column`). Mais flexível e
-> já está no modelo de dados. Sem enum de status rígido.
+> **Recommendation:** **configurable columns** (status = `Column`). More flexible and
+> already in the data model. No rigid status enum.
 
-## D6 — Versionamento de documentos: campo `version` vs. tabela de histórico
+## D6 — Document versioning: `version` field vs. history table
 
-- `version` incremental no próprio doc: simples, guarda só a atual.
-- Tabela `DocumentVersion`: histórico completo, permite diff/rollback.
+- Incremental `version` on the doc itself: simple, keeps only the current one.
+- `DocumentVersion` table: full history, allows diff/rollback.
 
-> **Recomendação:** MVP com `version` simples; adicionar histórico completo numa
-> fase posterior se houver demanda por diff/rollback de specs.
+> **Recommendation:** MVP with simple `version`; add full history in a
+> later phase if there is demand for spec diff/rollback.
 
-## D7 — Real-time no quadro (websockets) agora ou depois?
+## D7 — Real-time on the board (websockets) now or later?
 
-> **Recomendação:** **depois.** No MVP, refetch/polling basta. Websockets (ou
-> Postgres LISTEN/NOTIFY) entram quando houver colaboração simultânea de verdade.
+> **Recommendation:** **later.** In the MVP, refetch/polling is enough. Websockets (or
+> Postgres LISTEN/NOTIFY) come in when there is real simultaneous collaboration.
 
-## D8 — Nome do produto ✅ DECIDIDO: Agentic Dev Maestro
+## D8 — Product name ✅ DECIDED: Agentic Dev Maestro
 
-Nome definido: **Agentic Dev Maestro** (repo `agentic-dev-maestro`); nome curto
-**Maestro**. Justificativa em [doc 01](01-conceito-e-escopo.md#nome-decidido).
+Name decided: **Agentic Dev Maestro** (repo `agentic-dev-maestro`); short name
+**Maestro**. Rationale in [doc 01](01-conceito-e-escopo.md#nome-decidido).
 
 ---
 
-## Próximos passos sugeridos
+## Suggested next steps
 
-1. ✅ Decididos: **D1 (Angular)** e **D8 (Agentic Dev Maestro)**.
-2. Clonar o template para a pasta do projeto e fazer o **vertical slice** da
-   [Fase 1](05-roadmap.md#fase-1--núcleo-de-tarefas-e-quadro): criar e mover uma
-   tarefa via API com API key, ponta a ponta.
-3. Validar o **Maestro Loop** com um agente real (Claude Code) chamando a API antes
-   de investir na UI rica.
+1. ✅ Decided: **D1 (Angular)** and **D8 (Agentic Dev Maestro)**.
+2. Clone the template into the project folder and build the **vertical slice** of
+   [Phase 1](05-roadmap.md#fase-1--núcleo-de-tarefas-e-quadro): create and move a
+   task via API with an API key, end to end.
+3. Validate the **Maestro Loop** with a real agent (Claude Code) calling the API before
+   investing in the rich UI.

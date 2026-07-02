@@ -1,6 +1,8 @@
+> 🇧🇷 [Versão em português](README.ptbr.md)
+
 # Frontend — Angular 20
 
-Aplicação web (SPA + PWA) do template fullstack. Consome a API NestJS em `../back`.
+Web application (SPA + PWA) of the fullstack template. Consumes the NestJS API in `../back`.
 
 ## Stack
 
@@ -10,30 +12,30 @@ Aplicação web (SPA + PWA) do template fullstack. Consome a API NestJS em `../b
 - SweetAlert2
 - Capacitor (PWA / mobile)
 
-## Desenvolvimento
+## Development
 
 ```bash
 npm install --legacy-peer-deps
-cp public/config.example.json public/config.json   # ajuste apiUrl se necessário
+cp public/config.example.json public/config.json   # adjust apiUrl if needed
 npm start                                           # http://localhost:4200
 ```
 
-> `--legacy-peer-deps` é necessário por conflitos de peer-deps no toolchain do Angular 20.
+> `--legacy-peer-deps` is required due to peer-dependency conflicts in the Angular 20 toolchain.
 
 ## Build
 
 ```bash
-npm run build      # saída em dist/fullstack-template-front/browser
+npm run build      # output in dist/fullstack-template-front/browser
 ```
 
-## Configuração
+## Configuration
 
-A aplicação carrega `public/config.json` em runtime (sem rebuild). Veja [`CONFIG.md`](CONFIG.md) para detalhes.
+The application loads `public/config.json` at runtime (no rebuild). See [`CONFIG.md`](CONFIG.md) for details.
 
-## Documentação para agentes
+## Documentation for agents
 
-Veja [`CLAUDE.md`](CLAUDE.md) e o `CLAUDE.md` na raiz do monorepo.
+See [`CLAUDE.md`](CLAUDE.md) and the `CLAUDE.md` at the monorepo root.
 
-## Licença
+## License
 
 MIT

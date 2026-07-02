@@ -1,28 +1,30 @@
+> 🇧🇷 [Versão em português](README.ptbr.md)
+
 # Credit Transaction Module
 
-Este módulo fornece funcionalidades para gerenciar e consultar transações de créditos dos usuários.
+This module provides functionality to manage and query users' credit transactions.
 
 ## Endpoints
 
 ### GET /credit-transactions
 
-Lista as transações do usuário autenticado com paginação e filtros.
+Lists the authenticated user's transactions with pagination and filters.
 
-**Parâmetros de Query (opcionais):**
+**Query Parameters (optional):**
 
-- `page`: Número da página (padrão: 1)
-- `limit`: Itens por página (padrão: 10, máximo: 100)
-- `type`: Tipo da transação (PURCHASE, USAGE, REFUND)
-- `startDate`: Data inicial (formato ISO string)
-- `endDate`: Data final (formato ISO string)
+- `page`: Page number (default: 1)
+- `limit`: Items per page (default: 10, maximum: 100)
+- `type`: Transaction type (PURCHASE, USAGE, REFUND)
+- `startDate`: Start date (ISO string format)
+- `endDate`: End date (ISO string format)
 
-**Exemplo:**
+**Example:**
 
 ```bash
 GET /credit-transactions?page=1&limit=20&type=PURCHASE&startDate=2025-01-01T00:00:00.000Z
 ```
 
-**Resposta:**
+**Response:**
 
 ```json
 {
@@ -54,40 +56,41 @@ GET /credit-transactions?page=1&limit=20&type=PURCHASE&startDate=2025-01-01T00:0
 
 ### GET /credit-transactions/:id
 
-Busca uma transação específica por ID (apenas para admins).
+Fetches a specific transaction by ID (admins only).
 
 ### GET /credit-transactions/admin/all
 
-Lista todas as transações de todos os usuários (apenas para admins).
+Lists all transactions from all users (admins only).
 
-## Estrutura do Módulo
+## Module Structure
 
 ```
 credit-transaction/
-├── credit-transaction.controller.ts    # Controlador REST
-├── credit-transaction.service.ts       # Lógica de negócio
-├── credit-transaction.module.ts        # Módulo principal
+├── credit-transaction.controller.ts    # REST controller
+├── credit-transaction.service.ts       # Business logic
+├── credit-transaction.module.ts        # Main module
 ├── dto/
-│   └── credit-transaction-filter.dto.ts # DTO para filtros
+│   └── credit-transaction-filter.dto.ts # Filter DTO
 ├── entities/
-│   └── credit-transaction.entity.ts     # Entidade da transação
+│   └── credit-transaction.entity.ts     # Transaction entity
 └── models/
-    └── credit-transaction.dto.ts        # DTO de resposta
+    └── credit-transaction.dto.ts        # Response DTO
 ```
 
-## Funcionalidades
+## Features
 
-- ✅ Listagem paginada de transações por usuário
-- ✅ Filtros por tipo de transação
-- ✅ Filtros por período de data
-- ✅ Inclusão de dados do usuário em cada transação
-- ✅ Ordenação por data de criação (mais recente primeiro)
-- ✅ Endpoints para admins consultarem transações específicas
-- ✅ Documentação Swagger automática
+- ✅ Paginated listing of transactions per user
+- ✅ Filters by transaction type
+- ✅ Filters by date range
+- ✅ Inclusion of user data in each transaction
+- ✅ Ordering by creation date (most recent first)
+- ✅ Endpoints for admins to query specific transactions
+- ✅ Automatic Swagger documentation
 
-## Próximas Implementações
+## Upcoming Implementations
 
-- [ ] Endpoint para admins listarem todas as transações
-- [ ] Filtros adicionais (valor mínimo/máximo)
-- [ ] Exportação de relatórios em CSV/PDF
-- [ ] Estatísticas agregadas por período
+- [ ] Endpoint for admins to list all transactions
+- [ ] Additional filters (minimum/maximum amount)
+- [ ] Report export in CSV/PDF
+- [ ] Aggregated statistics by period
+```

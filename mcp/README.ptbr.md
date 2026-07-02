@@ -1,4 +1,4 @@
-> 🇧🇷 [Versão em português](README.ptbr.md)
+> 🇬🇧 [English version](README.md)
 
 # agentic-dev-maestro-mcp
 
