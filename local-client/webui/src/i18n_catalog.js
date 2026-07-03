@@ -168,5 +168,12 @@ export const CATALOG = {
   "Criando...": "Creating...",
   "Anexos (usados como contexto):": "Attachments (used as context):",
   "Lendo os arquivos e montando os tópicos com IA — pode levar alguns segundos.": "Reading the files and building the topics with AI — this may take a few seconds.",
+  "Montar roadmap": "Build roadmap",
+  "Complemente o contexto": "Add some context",
+  "Responda para a IA montar um roadmap sob medida (deixe em branco o que não quiser responder).": "Answer so the AI can build a tailored roadmap (leave blank what you'd rather skip).",
+  "Outras informações relevantes (opcional)": "Other relevant info (optional)",
+  "Gerar roadmap": "Generate roadmap",
+  "Gerando...": "Generating...",
+  "Cancelar": "Cancel",
 },
 }

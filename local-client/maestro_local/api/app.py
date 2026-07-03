@@ -2134,22 +2134,24 @@ def assistant_chat(body: AssistantChat):
 
 
 class StudyAssistBody(BaseModel):
-    action: str          # explain | exercises | quiz | flashcards | ask | suggest_topics
+    action: str          # explain|exercises|quiz|flashcards|ask|roadmap_questions|suggest_topics
     topic: str = ""
     plan: str = ""
     question: str = ""
     existing: list[str] = []
+    context: str = ""    # respostas/contexto do estudante (fluxo de roadmap)
 
 
 @app.post("/api/study/assistant")
 def study_assistant(body: StudyAssistBody):
     """Assistente de estudo sob demanda. Retorna {action, result}: result é
-    markdown (texto) ou lista de {title, estimate_hours} (suggest_topics)."""
+    markdown (texto), lista de perguntas (roadmap_questions) ou lista de
+    {title, estimate_hours} (suggest_topics)."""
     from maestro_local.study.assistant import run_action
     try:
         result = run_action(
             body.action, topic=body.topic, plan=body.plan,
-            question=body.question, existing=body.existing,
+            question=body.question, existing=body.existing, context=body.context,
         )
         return {"action": body.action, "result": result}
     except Exception as e:  # noqa: BLE001

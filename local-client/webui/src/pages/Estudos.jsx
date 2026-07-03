@@ -55,6 +55,11 @@ export default function Estudos() {
   const [assistSuggested, setAssistSuggested] = useState([])
   const [assistAsk, setAssistAsk] = useState('')
 
+  // Fluxo de roadmap (agente pergunta → usuário complementa → gera tópicos)
+  const [roadmapQuestions, setRoadmapQuestions] = useState(null) // null | string[]
+  const [roadmapAnswers, setRoadmapAnswers] = useState({})
+  const [roadmapExtra, setRoadmapExtra] = useState('')
+
   const load = () =>
     getStudyPlans()
       .then(setPlans)
@@ -116,6 +121,9 @@ export default function Estudos() {
     setAssistSuggested([])
     setAssistAsk('')
     setAssistBusy(false)
+    setRoadmapQuestions(null)
+    setRoadmapAnswers({})
+    setRoadmapExtra('')
   }
 
   const onToggle = (planId) => {
@@ -150,6 +158,61 @@ export default function Estudos() {
       })
       if (action === 'suggest_topics') setAssistSuggested(result || [])
       else setAssistOutput(result || '')
+    } catch (e) {
+      setAssistOutput(e.response?.data?.detail || String(e.message || e))
+    } finally {
+      setAssistBusy(false)
+    }
+  }
+
+  // Passo 1 do roadmap: a IA gera perguntas para o usuário complementar o contexto
+  const startRoadmap = async (plan) => {
+    if (assistBusy) return
+    setAssistBusy(true)
+    setAssistSuggested([])
+    setAssistOutput('')
+    setRoadmapQuestions(null)
+    setRoadmapAnswers({})
+    setRoadmapExtra('')
+    try {
+      const { result } = await studyAssistant({
+        action: 'roadmap_questions',
+        plan: plan.title,
+        existing: topics.map((tp) => tp.title),
+      })
+      setRoadmapQuestions(Array.isArray(result) ? result : [])
+    } catch (e) {
+      setAssistOutput(e.response?.data?.detail || String(e.message || e))
+    } finally {
+      setAssistBusy(false)
+    }
+  }
+
+  const cancelRoadmap = () => {
+    setRoadmapQuestions(null)
+    setRoadmapAnswers({})
+    setRoadmapExtra('')
+  }
+
+  // Passo 2: gera os tópicos usando as respostas como contexto
+  const generateRoadmap = async (plan) => {
+    if (assistBusy) return
+    const parts = (roadmapQuestions || [])
+      .map((q, i) => (roadmapAnswers[i] || '').trim() && `${q}\n> ${roadmapAnswers[i].trim()}`)
+      .filter(Boolean)
+    if (roadmapExtra.trim()) parts.push(`Outras informações:\n> ${roadmapExtra.trim()}`)
+    const context = parts.join('\n\n')
+    setAssistBusy(true)
+    setAssistSuggested([])
+    try {
+      const { result } = await studyAssistant({
+        action: 'suggest_topics',
+        plan: plan.title,
+        existing: topics.map((tp) => tp.title),
+        context,
+      })
+      setAssistSuggested(result || [])
+      cancelRoadmap()
     } catch (e) {
       setAssistOutput(e.response?.data?.detail || String(e.message || e))
     } finally {
@@ -364,11 +427,44 @@ export default function Estudos() {
                   <button
                     className="ghost"
                     disabled={assistBusy}
-                    onClick={() => runAssist('suggest_topics', p)}
+                    onClick={() => startRoadmap(p)}
                   >
-                    {t("Sugerir tópicos")}
+                    {t("Montar roadmap")}
                   </button>
                 </div>
+
+                {roadmapQuestions && (
+                  <div className="card" style={{ marginTop: 8 }}>
+                    <strong>{t("Complemente o contexto")}</strong>
+                    <div className="muted" style={{ margin: '4px 0 8px' }}>
+                      {t("Responda para a IA montar um roadmap sob medida (deixe em branco o que não quiser responder).")}
+                    </div>
+                    {roadmapQuestions.map((q, i) => (
+                      <div key={i} style={{ marginBottom: 8 }}>
+                        <div style={{ fontSize: 13, marginBottom: 2 }}>{q}</div>
+                        <input
+                          style={{ width: '100%' }}
+                          value={roadmapAnswers[i] || ''}
+                          onChange={(e) => setRoadmapAnswers({ ...roadmapAnswers, [i]: e.target.value })}
+                        />
+                      </div>
+                    ))}
+                    <textarea
+                      placeholder={t("Outras informações relevantes (opcional)")}
+                      style={{ width: '100%', minHeight: 50 }}
+                      value={roadmapExtra}
+                      onChange={(e) => setRoadmapExtra(e.target.value)}
+                    />
+                    <div className="row" style={{ gap: 6, marginTop: 8 }}>
+                      <button disabled={assistBusy} onClick={() => generateRoadmap(p)}>
+                        {assistBusy ? t('Gerando...') : t('Gerar roadmap')}
+                      </button>
+                      <button className="ghost" disabled={assistBusy} onClick={cancelRoadmap}>
+                        {t('Cancelar')}
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 <div className="toolbar" style={{ marginTop: 8 }}>
                   <input

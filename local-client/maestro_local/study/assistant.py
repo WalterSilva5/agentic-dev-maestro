@@ -61,10 +61,28 @@ _SUGGEST_PROMPT = (
     "Monte a lista de tópicos essenciais para estudar \"{plan}\", em uma ordem "
     "de aprendizado coerente (do básico ao avançado).\n"
     "{existing_ctx}\n"
+    "{context}"
     "Retorne APENAS este JSON:\n"
     "{{\"topics\": [{{\"title\": \"nome do tópico\", \"estimate_hours\": número}}]}}\n"
     "Regras: 6 a 12 tópicos; títulos curtos; estimate_hours é um inteiro de horas "
-    "realista; NÃO repita tópicos que já existem."
+    "realista; NÃO repita tópicos que já existem. "
+    "Adapte a profundidade, o ritmo e o foco ao CONTEXTO do estudante quando fornecido."
+)
+
+_ROADMAP_QUESTIONS_SYSTEM = (
+    "Você é um mentor que monta roteiros de estudo personalizados. Antes de montar o roteiro, "
+    "você faz algumas perguntas objetivas ao estudante para adaptar o conteúdo. "
+    "Responda SEMPRE apenas com JSON válido, sem texto fora do JSON."
+)
+
+_ROADMAP_QUESTIONS_PROMPT = (
+    "O estudante quer um roteiro de estudos para o plano \"{plan}\".\n"
+    "{existing_ctx}\n"
+    "Gere de 3 a 5 perguntas curtas e objetivas para personalizar o roteiro "
+    "(ex.: nível atual, objetivo/meta, tempo disponível por semana, foco/subáreas de interesse, "
+    "pré-requisitos já dominados, formato preferido).\n"
+    "Retorne APENAS este JSON:\n"
+    "{{\"questions\": [\"pergunta 1\", \"pergunta 2\", ...]}}"
 )
 
 TEXT_ACTIONS = set(_PROMPTS.keys())
@@ -91,15 +109,41 @@ def generate_text(action: str, *, topic: str = "", plan: str = "", question: str
     return getattr(resp, "content", str(resp)).strip()
 
 
-def suggest_topics(plan: str, existing: list[str] | None = None) -> list[dict]:
-    """Sugere tópicos para um plano; devolve list[{title, estimate_hours}]."""
+def roadmap_questions(plan: str, existing: list[str] | None = None) -> list[str]:
+    """1ª etapa do fluxo de roadmap: perguntas para o estudante complementar o
+    contexto antes de gerar os tópicos. Devolve uma lista de perguntas."""
+    existing = existing or []
+    existing_ctx = (
+        "Tópicos que já existem no plano: " + ", ".join(existing)
+        if existing else "O plano ainda não tem tópicos."
+    )
+    llm = build_chat_model(temperature=0.4)
+    user = _ROADMAP_QUESTIONS_PROMPT.format(plan=plan, existing_ctx=existing_ctx)
+    resp = llm.invoke([("system", _ROADMAP_QUESTIONS_SYSTEM), ("user", user)])
+    parsed = _parse_json_response(getattr(resp, "content", str(resp)))
+    out = []
+    for q in (parsed.get("questions", []) if isinstance(parsed, dict) else []):
+        if isinstance(q, str) and q.strip():
+            out.append(q.strip())
+    return out or [
+        "Qual é o seu nível atual neste assunto?",
+        "Qual o seu objetivo com este plano?",
+        "Quanto tempo por semana você tem disponível?",
+        "Há alguma subárea ou foco específico?",
+    ]
+
+
+def suggest_topics(plan: str, existing: list[str] | None = None, context: str = "") -> list[dict]:
+    """2ª etapa: gera os tópicos considerando o CONTEXTO complementado pelo
+    estudante. Devolve list[{title, estimate_hours}]."""
     existing = existing or []
     llm = build_chat_model(temperature=0.3)
     existing_ctx = (
         "Tópicos que JÁ existem no plano (não repita): " + ", ".join(existing)
         if existing else "O plano ainda não tem tópicos."
     )
-    user = _SUGGEST_PROMPT.format(plan=plan, existing_ctx=existing_ctx)
+    ctx = f"CONTEXTO DO ESTUDANTE:\n{context.strip()}\n" if context and context.strip() else ""
+    user = _SUGGEST_PROMPT.format(plan=plan, existing_ctx=existing_ctx, context=ctx)
     resp = llm.invoke([("system", _SUGGEST_SYSTEM), ("user", user)])
     parsed = _parse_json_response(getattr(resp, "content", str(resp)))
     topics: list[dict] = []
@@ -115,10 +159,13 @@ def suggest_topics(plan: str, existing: list[str] | None = None) -> list[dict]:
 
 
 def run_action(action: str, *, topic: str = "", plan: str = "",
-               question: str = "", existing: list[str] | None = None):
-    """Despacha uma ação e devolve str (texto) ou list[dict] (suggest_topics)."""
+               question: str = "", existing: list[str] | None = None, context: str = ""):
+    """Despacha uma ação. Retorna str (texto), list[str] (roadmap_questions) ou
+    list[dict] (suggest_topics)."""
+    if action == "roadmap_questions":
+        return roadmap_questions(plan or topic, existing)
     if action == "suggest_topics":
-        return suggest_topics(plan or topic, existing)
+        return suggest_topics(plan or topic, existing, context)
     return generate_text(action, topic=topic, plan=plan, question=question)
 
 
@@ -180,19 +227,21 @@ class StudyAIWorker(QThread):
     failed = Signal(str, str)   # (action, error)
 
     def __init__(self, action: str, *, topic: str = "", plan: str = "",
-                 question: str = "", existing: list[str] | None = None, parent=None):
+                 question: str = "", existing: list[str] | None = None,
+                 context: str = "", parent=None):
         super().__init__(parent)
         self.action = action
         self.topic = topic or plan or ""
         self.plan = plan
         self.question = question
         self.existing = existing or []
+        self.context = context
 
     def run(self) -> None:
         try:
             payload = run_action(
                 self.action, topic=self.topic, plan=self.plan,
-                question=self.question, existing=self.existing,
+                question=self.question, existing=self.existing, context=self.context,
             )
             self.result.emit(self.action, payload)
         except Exception as e:  # noqa: BLE001

@@ -3,6 +3,7 @@
 from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtWidgets import (
     QComboBox,
+    QDialog,
     QFileDialog,
     QFormLayout,
     QFrame,
@@ -85,6 +86,70 @@ class PlanTopicsWorker(QThread):
             ))
         except Exception as e:  # noqa: BLE001
             self.failed.emit(str(e))
+
+
+class RoadmapDialog(QDialog):
+    """Fluxo de roadmap: mostra as perguntas da IA para o usuário complementar
+    o contexto antes de gerar os tópicos."""
+
+    def __init__(self, questions, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(_t("Complemente o contexto"))
+        self.resize(560, 500)
+        self._inputs = []
+        root = QVBoxLayout(self)
+        root.setSpacing(8)
+        intro = QLabel(_t("Responda para a IA montar um roadmap sob medida "
+                          "(deixe em branco o que não quiser responder)."))
+        intro.setWordWrap(True)
+        intro.setProperty("class", "hint")
+        root.addWidget(intro)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+        cont = QWidget()
+        v = QVBoxLayout(cont)
+        v.setContentsMargins(0, 0, 0, 0)
+        v.setSpacing(8)
+        for q in (questions or []):
+            lbl = QLabel(q)
+            lbl.setWordWrap(True)
+            inp = QLineEdit()
+            v.addWidget(lbl)
+            v.addWidget(inp)
+            self._inputs.append((q, inp))
+        extra_lbl = QLabel(_t("Outras informações relevantes (opcional)"))
+        v.addWidget(extra_lbl)
+        self.extra = QTextEdit()
+        self.extra.setMaximumHeight(80)
+        v.addWidget(self.extra)
+        v.addStretch()
+        scroll.setWidget(cont)
+        root.addWidget(scroll, 1)
+
+        btns = QHBoxLayout()
+        btns.addStretch()
+        cancel = QPushButton(_t("Cancelar"))
+        cancel.setCursor(Qt.PointingHandCursor)
+        cancel.clicked.connect(self.reject)
+        btns.addWidget(cancel)
+        gen = QPushButton(_t("Gerar roadmap"))
+        gen.setCursor(Qt.PointingHandCursor)
+        gen.clicked.connect(self.accept)
+        btns.addWidget(gen)
+        root.addLayout(btns)
+
+    def context(self) -> str:
+        parts = []
+        for q, inp in self._inputs:
+            a = inp.text().strip()
+            if a:
+                parts.append(f"{q}\n> {a}")
+        extra = self.extra.toPlainText().strip()
+        if extra:
+            parts.append(f"Outras informações:\n> {extra}")
+        return "\n\n".join(parts)
 
 
 def _status_color(status, t):
@@ -455,9 +520,10 @@ class StudyView(QWidget):
 
         suggest_row = QHBoxLayout()
         suggest_row.setSpacing(6)
-        self.suggest_btn = QPushButton(_t("Sugerir tópicos (roadmap)"))
+        self.suggest_btn = QPushButton(_t("Montar roadmap"))
         self.suggest_btn.setCursor(Qt.PointingHandCursor)
-        self.suggest_btn.clicked.connect(lambda: self._run_assist("suggest_topics"))
+        self.suggest_btn.setToolTip(_t("A IA faz algumas perguntas para montar um roadmap sob medida"))
+        self.suggest_btn.clicked.connect(self._start_roadmap)
         self.assist_buttons["suggest_topics"] = self.suggest_btn
         suggest_row.addWidget(self.suggest_btn)
         self.add_suggested_btn = QPushButton(_t("+ Adicionar ao plano"))
@@ -781,7 +847,7 @@ class StudyView(QWidget):
             s.close()
 
     # ---- Assistente de estudo ----
-    def _run_assist(self, action):
+    def _run_assist(self, action, context=""):
         if self._assist_worker is not None:
             return  # já há uma ação em andamento
         topic = self.assist_topic_combo.currentData() or ""
@@ -799,19 +865,33 @@ class StudyView(QWidget):
         labels = {
             "explain": _t("Explicando..."), "exercises": _t("Gerando exercícios..."),
             "quiz": _t("Montando quiz..."), "flashcards": _t("Gerando flashcards..."),
-            "suggest_topics": _t("Sugerindo tópicos..."), "ask": _t("Pensando..."),
+            "roadmap_questions": _t("Preparando perguntas..."),
+            "suggest_topics": _t("Montando o roadmap..."), "ask": _t("Pensando..."),
         }
         self.assist_status.setText(labels.get(action, _t("Processando...")))
         self._assist_worker = StudyAIWorker(
             action, topic=topic, plan=self._assist_plan_title,
-            question=question, existing=[e for e in existing if e],
+            question=question, existing=[e for e in existing if e], context=context,
         )
         self._assist_worker.result.connect(self._on_assist_result)
         self._assist_worker.failed.connect(self._on_assist_error)
         self._assist_worker.finished.connect(self._on_assist_finished)
         self._assist_worker.start()
 
+    def _start_roadmap(self):
+        """Passo 1 do fluxo de roadmap: a IA gera perguntas para o usuário."""
+        self._run_assist("roadmap_questions")
+
     def _on_assist_result(self, action, payload):
+        if action == "roadmap_questions":
+            questions = payload or []
+            dlg = RoadmapDialog(questions, self)
+            if dlg.exec() and dlg.context().strip():
+                # Passo 2: gera os tópicos com o contexto complementado
+                self._run_assist("suggest_topics", context=dlg.context())
+            else:
+                self.assist_status.setText("")
+            return
         if action == "suggest_topics":
             topics = payload or []
             self._suggested_topics = topics

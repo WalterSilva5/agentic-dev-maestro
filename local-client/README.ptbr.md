@@ -85,7 +85,7 @@ Módulo de aprendizado:
 - **Roadmap visual**: barra de progresso calculada pelo peso dos tópicos concluídos
 - **Sessões de estudo**: registrar tempo de estudo com notas e nível de confiança (1-5)
 - **Estatísticas**: horas totais, sessões por semana, planos ativos
-- **Assistente de estudo (sob demanda)**: no detalhe do plano, um painel com botões que acionam a IA para o tópico escolhido — **Explicar**, **Exercícios**, **Quiz** (com gabarito), **Flashcards** de revisão, **Sugerir tópicos (roadmap)** (adiciona os sugeridos ao plano com 1 clique, sem duplicar) e **Tirar dúvida** (pergunta livre). Nada é automático: você clica na ação que quer. Usa o provedor de IA configurado
+- **Assistente de estudo (sob demanda)**: no detalhe do plano, um painel com botões que acionam a IA para o tópico escolhido — **Explicar**, **Exercícios**, **Quiz** (com gabarito), **Flashcards** de revisão, **Montar roadmap** (um fluxo de agente: a IA primeiro faz algumas perguntas para você complementar o contexto — nível, objetivo, tempo disponível, foco — e só então gera uma lista de tópicos sob medida, adicionada ao plano com 1 clique, sem duplicar) e **Tirar dúvida** (pergunta livre). Nada é automático: você clica na ação que quer. Usa o provedor de IA configurado
 - **Anexos como contexto na criação**: ao criar um plano, dá para **anexar arquivos** (ebooks/documentos: `.txt`, `.md`, `.pdf`, `.docx`, `.epub`). O texto é extraído localmente e usado como **contexto junto com os campos** (título, categoria, descrição) para a IA gerar os **tópicos** do plano com estimativa de horas. Sem anexos, o plano é criado normalmente (vazio)
 
 ### Board Kanban (Alt+4)

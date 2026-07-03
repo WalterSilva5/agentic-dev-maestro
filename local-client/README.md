@@ -85,7 +85,7 @@ Learning module:
 - **Visual roadmap**: progress bar calculated from the weight of completed topics
 - **Study sessions**: log study time with notes and confidence level (1-5)
 - **Statistics**: total hours, sessions per week, active plans
-- **Study assistant (on demand)**: in the plan detail view, a panel with buttons that trigger the AI for the chosen topic — **Explain**, **Exercises**, **Quiz** (with answer key), review **Flashcards**, **Suggest topics (roadmap)** (adds the suggested ones to the plan with 1 click, without duplicating), and **Ask a question** (free-form question). Nothing is automatic: you click the action you want. Uses the configured AI provider
+- **Study assistant (on demand)**: in the plan detail view, a panel with buttons that trigger the AI for the chosen topic — **Explain**, **Exercises**, **Quiz** (with answer key), review **Flashcards**, **Build roadmap** (an agent flow: the AI first asks a few questions so you can add context — level, goal, available time, focus — and only then generates a tailored topic list, which you add to the plan with 1 click, without duplicating), and **Ask a question** (free-form question). Nothing is automatic: you click the action you want. Uses the configured AI provider
 - **Attachments as context during creation**: when creating a plan, you can **attach files** (ebooks/documents: `.txt`, `.md`, `.pdf`, `.docx`, `.epub`). The text is extracted locally and used as **context together with the fields** (title, category, description) for the AI to generate the plan's **topics** with estimated hours. Without attachments, the plan is created normally (empty)
 
 ### Kanban Board (Alt+4)
