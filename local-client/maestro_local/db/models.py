@@ -228,6 +228,42 @@ class Todo(Base):
     priority = Column(String(10), default="MEDIUM")
     notes = Column(Text)
     snoozed_until = Column(DateTime)       # adiar: silencia o lembrete até este momento
+    recurrence = Column(String(10), default="NONE")  # NONE | DAILY | WEEKLY | MONTHLY
+
+
+def advance_todo_recurrence(todo, now=None):
+    """Concluir um TODO recorrente reagenda para a próxima ocorrência.
+
+    Retorna True se o TODO foi reagendado (e portanto NÃO deve ser marcado
+    como concluído); False se não é recorrente/sem prazo.
+    """
+    rec = (todo.recurrence or "NONE").upper()
+    if rec == "NONE" or not todo.due_at:
+        return False
+    from datetime import timedelta
+    now = now or datetime.now()
+    due = todo.due_at
+
+    def _next(d):
+        if rec == "DAILY":
+            return d + timedelta(days=1)
+        if rec == "WEEKLY":
+            return d + timedelta(weeks=1)
+        # MONTHLY: mesmo dia no mês seguinte (ajusta p/ fim de mês curto)
+        import calendar
+        month = d.month % 12 + 1
+        year = d.year + (1 if d.month == 12 else 0)
+        day = min(d.day, calendar.monthrange(year, month)[1])
+        return d.replace(year=year, month=month, day=day)
+
+    due = _next(due)
+    while due <= now:  # pula ocorrências já passadas
+        due = _next(due)
+    todo.due_at = due
+    todo.snoozed_until = None
+    todo.done = False
+    todo.completed_at = None
+    return True
 
 
 class Recording(Base):
@@ -303,6 +339,8 @@ def _run_light_migrations(engine):
             tadds.append("ALTER TABLE todos ADD COLUMN notes TEXT")
         if "snoozed_until" not in tcols:
             tadds.append("ALTER TABLE todos ADD COLUMN snoozed_until DATETIME")
+        if "recurrence" not in tcols:
+            tadds.append("ALTER TABLE todos ADD COLUMN recurrence VARCHAR(10) DEFAULT 'NONE'")
         if tadds:
             with engine.begin() as conn:
                 for stmt in tadds:

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { NavLink, Route, Routes, Navigate } from 'react-router-dom'
 import Dashboard from './pages/Dashboard.jsx'
 import MeuDia from './pages/MeuDia.jsx'
@@ -12,11 +12,22 @@ import Labels from './pages/Labels.jsx'
 import Configuracoes from './pages/Configuracoes.jsx'
 import WorkspaceSelector from './components/WorkspaceSelector.jsx'
 import PendingTodosReminder from './components/PendingTodosReminder.jsx'
+import { getPendingTodos } from './api'
 import { getTheme, toggleTheme } from './theme'
 import { t } from './i18n'
 
 function Sidebar() {
   const [theme, setTheme] = useState(getTheme())
+  const [pendingCount, setPendingCount] = useState(0)
+
+  useEffect(() => {
+    const poll = () =>
+      getPendingTodos().then((p) => setPendingCount(p?.count || 0)).catch(() => {})
+    poll()
+    const id = setInterval(poll, 60000)
+    return () => clearInterval(id)
+  }, [])
+
   const nav = [
     ['/dashboard', t('Dashboard')],
     ['/meu-dia', t('Meu Dia')],
@@ -40,7 +51,21 @@ function Sidebar() {
       <WorkspaceSelector />
       <nav className="nav">
         {nav.map(([to, label]) => (
-          <NavLink key={to} to={to}>{label}</NavLink>
+          <NavLink key={to} to={to}>
+            {label}
+            {to === '/todos' && pendingCount > 0 && (
+              <span
+                style={{
+                  marginLeft: 6,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: 'var(--danger, #e5484d)',
+                }}
+              >
+                ⏰{pendingCount}
+              </span>
+            )}
+          </NavLink>
         ))}
       </nav>
       <button className="theme-toggle" onClick={() => setTheme(toggleTheme())}>

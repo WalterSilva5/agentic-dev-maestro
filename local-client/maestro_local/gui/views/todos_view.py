@@ -20,10 +20,14 @@ from maestro_local.gui.theme import PRIORITY_COLORS, current_theme
 from maestro_local.i18n import t as _t
 
 TODO_PRIORITIES = [("LOW", "Baixa"), ("MEDIUM", "Média"), ("HIGH", "Alta")]
+TODO_RECURRENCES = [
+    ("NONE", "Não repete"), ("DAILY", "Diária"),
+    ("WEEKLY", "Semanal"), ("MONTHLY", "Mensal"),
+]
 
 
 class TodoRow(QFrame):
-    def __init__(self, todo_data, on_toggle, on_delete):
+    def __init__(self, todo_data, on_toggle, on_delete, on_update):
         super().__init__()
         t = current_theme()
         self.setStyleSheet(
@@ -34,7 +38,7 @@ class TodoRow(QFrame):
 
         row = QHBoxLayout(self)
         row.setContentsMargins(12, 6, 10, 6)
-        row.setSpacing(10)
+        row.setSpacing(8)
 
         tid = todo_data["id"]
         done = todo_data["done"]
@@ -44,13 +48,6 @@ class TodoRow(QFrame):
         check.setCursor(Qt.PointingHandCursor)
         check.toggled.connect(lambda checked: on_toggle(tid, checked))
         row.addWidget(check)
-
-        # Bolinha de prioridade
-        prio = todo_data.get("priority", "MEDIUM")
-        dot = QLabel("●")
-        dot.setStyleSheet(f"color: {PRIORITY_COLORS.get(prio, t.text_muted)}; border: none; font-size: 12px;")
-        dot.setToolTip(dict(TODO_PRIORITIES).get(prio, prio))
-        row.addWidget(dot)
 
         text = QLabel(todo_data["text"])
         text.setWordWrap(True)
@@ -63,16 +60,73 @@ class TodoRow(QFrame):
             text.setStyleSheet(f"color: {t.text_primary}; font-size: 14px; border: none;")
         row.addWidget(text, 1)
 
-        # Horário agendado (vermelho se vencido)
+        small_combo = (
+            f"QComboBox {{ background: {t.bg_input}; border: 1px solid {t.border_light}; "
+            f"border-radius: 4px; padding: 2px 6px; font-size: 11px; color: {t.text_muted}; }}"
+        )
+
+        # Prioridade (edição inline)
+        prio_combo = QComboBox()
+        for val, label in TODO_PRIORITIES:
+            prio_combo.addItem(_t(label), val)
+        idx = prio_combo.findData(todo_data.get("priority", "MEDIUM"))
+        prio_combo.setCurrentIndex(idx if idx >= 0 else 1)
+        prio_combo.setStyleSheet(small_combo)
+        pc = PRIORITY_COLORS.get(todo_data.get("priority", "MEDIUM"), t.text_muted)
+        prio_combo.setStyleSheet(small_combo + f"QComboBox {{ border-left: 3px solid {pc}; }}")
+        prio_combo.currentIndexChanged.connect(
+            lambda _i, c=prio_combo: on_update(tid, "priority", c.currentData())
+        )
+        row.addWidget(prio_combo)
+
+        # Recorrência (edição inline)
+        rec_combo = QComboBox()
+        for val, label in TODO_RECURRENCES:
+            rec_combo.addItem(("🔁 " if val != "NONE" else "") + _t(label), val)
+        ridx = rec_combo.findData(todo_data.get("recurrence", "NONE"))
+        rec_combo.setCurrentIndex(ridx if ridx >= 0 else 0)
+        rec_combo.setStyleSheet(small_combo)
+        rec_combo.currentIndexChanged.connect(
+            lambda _i, c=rec_combo: on_update(tid, "recurrence", c.currentData())
+        )
+        row.addWidget(rec_combo)
+
+        # Prazo (edição inline: editar / limpar / definir)
         due = todo_data.get("due_at")
         if due:
             overdue = (not done) and due <= datetime.now()
-            due_lbl = QLabel(("⏰ " if overdue else "🕑 ") + due.strftime("%d/%m %H:%M"))
-            due_lbl.setStyleSheet(
-                f"color: {t.danger if overdue else t.text_muted}; font-size: 11px; "
-                f"font-weight: {'700' if overdue else '400'}; border: none;"
+            due_edit = QDateTimeEdit(QDateTime(due))
+            due_edit.setCalendarPopup(True)
+            due_edit.setDisplayFormat("dd/MM HH:mm")
+            due_edit.setFixedWidth(120)
+            due_edit.setStyleSheet(
+                f"QDateTimeEdit {{ background: {t.bg_input}; border: 1px solid "
+                f"{t.danger if overdue else t.border_light}; border-radius: 4px; "
+                f"padding: 2px 6px; font-size: 11px; "
+                f"color: {t.danger if overdue else t.text_muted}; }}"
             )
-            row.addWidget(due_lbl)
+            due_edit.setToolTip(_t("Vencido") if overdue else _t("Agendado"))
+            due_edit.dateTimeChanged.connect(
+                lambda qdt: on_update(tid, "due_at", qdt.toPython())
+            )
+            row.addWidget(due_edit)
+            clear_btn = QPushButton("🚫")
+            clear_btn.setFixedSize(22, 22)
+            clear_btn.setCursor(Qt.PointingHandCursor)
+            clear_btn.setToolTip(_t("Remover agendamento"))
+            clear_btn.setStyleSheet("background: transparent; border: none; font-size: 11px;")
+            clear_btn.clicked.connect(lambda: on_update(tid, "due_at_set", None))
+            row.addWidget(clear_btn)
+        else:
+            sched_btn = QPushButton("🕑")
+            sched_btn.setFixedSize(24, 24)
+            sched_btn.setCursor(Qt.PointingHandCursor)
+            sched_btn.setToolTip(_t("Agendar para daqui a 1h"))
+            sched_btn.setStyleSheet("background: transparent; border: none; font-size: 13px;")
+            sched_btn.clicked.connect(
+                lambda: on_update(tid, "due_at_set", QDateTime.currentDateTime().addSecs(3600).toPython())
+            )
+            row.addWidget(sched_btn)
 
         del_btn = QPushButton("✕")
         del_btn.setFixedSize(24, 24)
@@ -113,6 +167,12 @@ class TodosView(QWidget):
         self.prio_combo.setCurrentIndex(1)  # Média
         self.prio_combo.setFixedWidth(90)
         add_row.addWidget(self.prio_combo)
+
+        self.rec_combo = QComboBox()
+        for val, label in TODO_RECURRENCES:
+            self.rec_combo.addItem(("🔁 " if val != "NONE" else "") + _t(label), val)
+        self.rec_combo.setFixedWidth(110)
+        add_row.addWidget(self.rec_combo)
 
         self.sched_check = QCheckBox(_t("Agendar"))
         self.sched_check.toggled.connect(lambda on: self.due_edit.setEnabled(on))
@@ -186,8 +246,11 @@ class TodosView(QWidget):
                     data = {
                         "id": td.id, "text": td.text, "done": td.done,
                         "priority": td.priority or "MEDIUM", "due_at": td.due_at,
+                        "recurrence": td.recurrence or "NONE",
                     }
-                    self.rows_layout.addWidget(TodoRow(data, self._toggle, self._delete))
+                    self.rows_layout.addWidget(
+                        TodoRow(data, self._toggle, self._delete, self._update)
+                    )
                 self.counter.setText(_t("{done} de {total} concluídos").format(done=done, total=total))
 
             self.rows_layout.addStretch()
@@ -205,10 +268,12 @@ class TodosView(QWidget):
         try:
             max_order = s.query(Todo).count()
             s.add(Todo(text=text, sort_order=max_order,
-                       priority=self.prio_combo.currentData(), due_at=due))
+                       priority=self.prio_combo.currentData(), due_at=due,
+                       recurrence=self.rec_combo.currentData()))
             s.commit()
             self.input.clear()
             self.sched_check.setChecked(False)
+            self.rec_combo.setCurrentIndex(0)
             self.refresh()
         except Exception:
             s.rollback()
@@ -216,16 +281,43 @@ class TodosView(QWidget):
             s.close()
 
     def _toggle(self, todo_id, checked):
+        from maestro_local.db.models import advance_todo_recurrence
         s = get_session()
         try:
             td = s.query(Todo).get(todo_id)
             if td:
-                td.done = checked
-                td.completed_at = datetime.utcnow() if checked else None
+                if checked and advance_todo_recurrence(td):
+                    pass  # recorrente: reagendado para a próxima ocorrência
+                else:
+                    td.done = checked
+                    td.completed_at = datetime.utcnow() if checked else None
                 s.commit()
                 self.refresh()
         finally:
             s.close()
+
+    def _update(self, todo_id, field, value):
+        """Edição inline: prioridade, recorrência ou prazo.
+
+        "due_at" = edição pelo próprio QDateTimeEdit (salva sem refresh, para
+        não destruir o widget durante a edição); "due_at_set" = definir/limpar
+        (muda o layout da linha, então recarrega).
+        """
+        needs_refresh = field == "due_at_set"
+        if field == "due_at_set":
+            field = "due_at"
+        s = get_session()
+        try:
+            td = s.query(Todo).get(todo_id)
+            if td:
+                setattr(td, field, value)
+                if field == "due_at":
+                    td.snoozed_until = None  # reagendou: limpa o adiamento
+                s.commit()
+        finally:
+            s.close()
+        if needs_refresh:
+            self.refresh()
 
     def _delete(self, todo_id):
         s = get_session()

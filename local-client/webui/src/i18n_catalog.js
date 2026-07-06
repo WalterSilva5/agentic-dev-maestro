@@ -183,5 +183,13 @@ export const CATALOG = {
   "Ver": "View",
   "Adiar 10min": "Snooze 10min",
   "Dispensar": "Dismiss",
+  "Não repete": "No repeat",
+  "Diária": "Daily",
+  "Semanal": "Weekly",
+  "Mensal": "Monthly",
+  "Recorrência": "Recurrence",
+  "Prioridade": "Priority",
+  "Vencido": "Overdue",
+  "Remover agendamento": "Remove schedule",
 },
 }

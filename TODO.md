@@ -23,9 +23,11 @@ TODOs are now schedulable with periodic in-app reminders (desktop + web).
   a **count**, and **View / Snooze 10min / Dismiss** actions. Desktop via a
   `QTimer` + bottom banner; web via a polling toast in the app shell.
 - [x] Snooze silences the reminder for 10 min; dismiss hides until the next cycle.
-
-Follow-ups (optional): pending badge on the nav item; edit due/priority inline;
-recurring TODOs.
+- [x] Pending badge (⏰N) on the nav item (desktop: Dashboard item; web: TODOs item).
+- [x] Inline editing of priority, recurrence and due date on each row
+  (set/clear schedule included).
+- [x] Recurring TODOs (daily/weekly/monthly): completing a recurring TODO
+  reschedules it to the next future occurrence instead of marking it done.
 
 ---
 

@@ -1537,6 +1537,7 @@ class TodoCreate(BaseModel):
     dueAt: Optional[str] = None
     priority: Optional[str] = None
     notes: Optional[str] = None
+    recurrence: Optional[str] = None  # NONE | DAILY | WEEKLY | MONTHLY
 
 
 class TodoUpdate(BaseModel):
@@ -1545,6 +1546,7 @@ class TodoUpdate(BaseModel):
     dueAt: Optional[str] = None
     priority: Optional[str] = None
     notes: Optional[str] = None
+    recurrence: Optional[str] = None
 
 
 class TodoSnooze(BaseModel):
@@ -1559,6 +1561,7 @@ def _todo_dict(t: Todo) -> dict:
         "sortOrder": t.sort_order,
         "priority": t.priority or "MEDIUM",
         "notes": t.notes,
+        "recurrence": t.recurrence or "NONE",
         "dueAt": t.due_at.isoformat() if t.due_at else None,
         "snoozedUntil": t.snoozed_until.isoformat() if t.snoozed_until else None,
         "createdAt": t.created_at.isoformat() if t.created_at else None,
@@ -1602,7 +1605,7 @@ def create_todo(body: TodoCreate, s: Session = Depends(db)):
     t = Todo(
         text=text, sort_order=s.query(Todo).count(),
         priority=body.priority or "MEDIUM", notes=(body.notes or None),
-        due_at=_parse_dt(body.dueAt),
+        due_at=_parse_dt(body.dueAt), recurrence=(body.recurrence or "NONE").upper(),
     )
     s.add(t)
     s.commit()
@@ -1618,9 +1621,15 @@ def update_todo(todo_id: int, body: TodoUpdate, s: Session = Depends(db)):
     data = body.model_dump(exclude_unset=True)
     if body.text is not None:
         t.text = body.text.strip()
+    if "recurrence" in data:
+        t.recurrence = (body.recurrence or "NONE").upper()
     if body.done is not None:
-        t.done = body.done
-        t.completed_at = datetime.utcnow() if body.done else None
+        from maestro_local.db.models import advance_todo_recurrence
+        if body.done and advance_todo_recurrence(t):
+            pass  # recorrente: reagendado para a próxima ocorrência
+        else:
+            t.done = body.done
+            t.completed_at = datetime.utcnow() if body.done else None
     if "priority" in data:
         t.priority = body.priority or "MEDIUM"
     if "notes" in data:

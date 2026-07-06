@@ -8,15 +8,26 @@ const PRIORITIES = [
   ['HIGH', 'Alta'],
 ]
 
-function fmtDue(iso) {
+const RECURRENCES = [
+  ['NONE', 'Não repete'],
+  ['DAILY', 'Diária'],
+  ['WEEKLY', 'Semanal'],
+  ['MONTHLY', 'Mensal'],
+]
+
+// ISO local (sem fuso) para o input datetime-local (também usado para exibir)
+function toLocalInput(iso) {
+  if (!iso) return ''
   const d = new Date(iso)
-  return d.toLocaleString([], { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
 export default function Todos() {
   const [todos, setTodos] = useState([])
   const [text, setText] = useState('')
   const [priority, setPriority] = useState('MEDIUM')
+  const [recurrence, setRecurrence] = useState('NONE')
   const [dueAt, setDueAt] = useState('')
   const [error, setError] = useState('')
 
@@ -30,11 +41,22 @@ export default function Todos() {
   const onAdd = async () => {
     if (!text.trim()) return
     try {
-      await addTodo({ text: text.trim(), priority, dueAt: dueAt || null })
+      await addTodo({ text: text.trim(), priority, recurrence, dueAt: dueAt || null })
       setText('')
       setDueAt('')
       setPriority('MEDIUM')
+      setRecurrence('NONE')
       setError('')
+      load()
+    } catch (e) {
+      setError(e.response?.data?.detail || String(e.message || e))
+    }
+  }
+
+  // Edição inline (prioridade, recorrência, prazo)
+  const onEdit = async (id, patch) => {
+    try {
+      await updateTodo(id, patch)
       load()
     } catch (e) {
       setError(e.response?.data?.detail || String(e.message || e))
@@ -96,6 +118,13 @@ export default function Todos() {
             </option>
           ))}
         </select>
+        <select value={recurrence} onChange={(e) => setRecurrence(e.target.value)}>
+          {RECURRENCES.map(([v, l]) => (
+            <option key={v} value={v}>
+              {v !== 'NONE' ? '🔁 ' : ''}{t(l)}
+            </option>
+          ))}
+        </select>
         <input
           type="datetime-local"
           title={t('Agendar (opcional)')}
@@ -109,26 +138,58 @@ export default function Todos() {
         {sorted.map((td) => {
           const overdue = !td.done && td.dueAt && new Date(td.dueAt).getTime() <= now
           return (
-            <div key={td.id} className="row">
+            <div key={td.id} className="row" style={{ flexWrap: 'wrap', gap: 6 }}>
               <input type="checkbox" checked={!!td.done} onChange={() => onToggle(td)} />
-              <span className={`badge-prio ${td.priority || 'MEDIUM'}`}>{td.priority || 'MEDIUM'}</span>
               <span
-                style={{ flex: 1, textDecoration: td.done ? 'line-through' : 'none' }}
+                style={{ flex: 1, minWidth: 160, textDecoration: td.done ? 'line-through' : 'none' }}
                 className={td.done ? 'muted' : undefined}
               >
+                {td.recurrence && td.recurrence !== 'NONE' ? '🔁 ' : ''}
                 {td.text}
               </span>
+              <select
+                style={{ fontSize: 11 }}
+                value={td.priority || 'MEDIUM'}
+                onChange={(e) => onEdit(td.id, { priority: e.target.value })}
+                title={t('Prioridade')}
+              >
+                {PRIORITIES.map(([v, l]) => (
+                  <option key={v} value={v}>
+                    {t(l)}
+                  </option>
+                ))}
+              </select>
+              <select
+                style={{ fontSize: 11 }}
+                value={td.recurrence || 'NONE'}
+                onChange={(e) => onEdit(td.id, { recurrence: e.target.value })}
+                title={t('Recorrência')}
+              >
+                {RECURRENCES.map(([v, l]) => (
+                  <option key={v} value={v}>
+                    {v !== 'NONE' ? '🔁 ' : ''}{t(l)}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="datetime-local"
+                style={{
+                  fontSize: 11,
+                  color: overdue ? 'var(--danger, #e5484d)' : undefined,
+                  fontWeight: overdue ? 700 : 400,
+                }}
+                value={toLocalInput(td.dueAt)}
+                onChange={(e) => onEdit(td.id, { dueAt: e.target.value || null })}
+                title={overdue ? t('Vencido') : t('Agendar (opcional)')}
+              />
               {td.dueAt && (
-                <span
-                  className="muted"
-                  style={{
-                    color: overdue ? 'var(--danger, #e5484d)' : undefined,
-                    fontWeight: overdue ? 700 : 400,
-                  }}
+                <button
+                  className="ghost"
+                  onClick={() => onEdit(td.id, { dueAt: null })}
+                  title={t('Remover agendamento')}
                 >
-                  {overdue ? '⏰ ' : '🕑 '}
-                  {fmtDue(td.dueAt)}
-                </span>
+                  🚫
+                </button>
               )}
               <button className="ghost" onClick={() => onDelete(td.id)}>
                 ✕

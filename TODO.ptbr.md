@@ -23,9 +23,11 @@ TODOs agora são agendáveis com lembretes periódicos na interface (desktop + w
   com **contador** e ações **Ver / Adiar 10min / Dispensar**. Desktop via
   `QTimer` + banner inferior; web via toast com polling no shell do app.
 - [x] Adiar silencia por 10 min; dispensar esconde até o próximo ciclo.
-
-Melhorias futuras (opcional): badge de pendentes no menu; editar prazo/prioridade
-inline; TODOs recorrentes.
+- [x] Badge de pendentes (⏰N) no menu (desktop: item Dashboard; web: item TODOs).
+- [x] Edição inline de prioridade, recorrência e prazo em cada linha
+  (incluindo definir/remover agendamento).
+- [x] TODOs recorrentes (diária/semanal/mensal): concluir um recorrente
+  reagenda para a próxima ocorrência futura em vez de marcar como concluído.
 
 ---
 

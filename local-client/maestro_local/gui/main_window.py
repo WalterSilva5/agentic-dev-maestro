@@ -337,10 +337,22 @@ class MainWindow(QMainWindow):
         finally:
             s.close()
         self._pending_todo_ids = ids
+        self._update_nav_badge(len(ids))
         if ids:
             self.todo_reminder.show_count(len(ids))  # reaparece a cada ciclo enquanto houver pendentes
         else:
             self.todo_reminder.hide()
+
+    def _update_nav_badge(self, n):
+        """Badge ⏰N no item do menu que abriga os TODOs (Dashboard)."""
+        item = self.nav_list.item(0)
+        if item is None:
+            return
+        base = item.data(Qt.UserRole + 1)
+        if base is None:
+            base = item.text()
+            item.setData(Qt.UserRole + 1, base)
+        item.setText(f"{base}  ⏰{n}" if n else base)
 
     def _goto_todos(self):
         self.todo_reminder.hide()
