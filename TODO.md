@@ -7,44 +7,25 @@ person-days (pd) is an estimate; staffing/scheduling is up to leadership.
 
 ---
 
-## 🔴 Priority
+## ✅ Done
 
-### 1. Improve the TODOs module (scheduling + in-app reminders) — MAIN
+### 1. Improve the TODOs module (scheduling + in-app reminders) — MAIN ✅
 
-Today a TODO is minimal (text + done). Make it more explicit and add
-**scheduling** with **periodic in-app notifications**.
+TODOs are now schedulable with periodic in-app reminders (desktop + web).
 
-**Data model**
-- [ ] Add to `Todo`: `due_at` (scheduled date/time), and optionally `priority`,
-  `notes`, `remind` (toggles the reminder). Additive light migration
-  (`ALTER TABLE todos ADD COLUMN ...`), following the existing `init_db` pattern.
+- [x] `Todo`: added `due_at`, `priority`, `notes`, `snoozed_until` (additive
+  light migration in `_run_light_migrations`).
+- [x] API: create/update with `dueAt`/`priority`/`notes`; `GET /api/todos/pending`
+  (overdue & not snoozed); `POST /api/todos/{id}/snooze`. Scheduling uses local time.
+- [x] UI (desktop + web): date/time picker + priority per TODO; overdue is
+  highlighted in red.
+- [x] In-app notifications (in-app only): a periodic reminder (every 1 min) with
+  a **count**, and **View / Snooze 10min / Dismiss** actions. Desktop via a
+  `QTimer` + bottom banner; web via a polling toast in the app shell.
+- [x] Snooze silences the reminder for 10 min; dismiss hides until the next cycle.
 
-**API**
-- [ ] Create/update a TODO with `dueAt` (and the other fields).
-- [ ] Endpoint to list **pending/overdue** TODOs (`due_at <= now` and
-  `done = false`), used by the notification mechanism.
-
-**UI (desktop + web)**
-- [ ] Date/time picker per TODO; show the scheduled time.
-- [ ] Visual states: scheduled, **overdue/pending**, done.
-- [ ] Sort/filter by time and by pending status.
-
-**In-app notifications (in-app only — no OS notifications)**
-- [ ] When a TODO's scheduled time is reached, the app starts showing a
-  **periodic reminder** (e.g. a toast/banner every N minutes) indicating there
-  are pending tasks, with a **count** of overdue items.
-- [ ] Reminder actions: **complete**, **snooze** for X min, and **dismiss**
-  until the next cycle.
-- [ ] Desktop: a `QTimer` polling for pending items + a toast/banner widget
-  (reuse the existing in-window notification pattern).
-- [ ] Web: a polling interval against the pending endpoint + a toast in the UI.
-- [ ] A pending/overdue badge visible in the navigation (e.g. on the TODOs item).
-
-**Acceptance criteria**
-- A TODO scheduled for a time starts **reminding periodically** in the UI after
-  that time, until it is completed or snoozed.
-- The pending/overdue count is visible.
-- Nothing triggers an OS notification — everything stays inside the app.
+Follow-ups (optional): pending badge on the nav item; edit due/priority inline;
+recurring TODOs.
 
 ---
 

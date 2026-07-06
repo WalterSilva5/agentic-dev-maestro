@@ -224,6 +224,10 @@ class Todo(Base):
     sort_order = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
     completed_at = Column(DateTime)
+    due_at = Column(DateTime)              # quando o TODO deve ser feito (agendamento)
+    priority = Column(String(10), default="MEDIUM")
+    notes = Column(Text)
+    snoozed_until = Column(DateTime)       # adiar: silencia o lembrete até este momento
 
 
 class Recording(Base):
@@ -287,6 +291,21 @@ def _run_light_migrations(engine):
         if adds:
             with engine.begin() as conn:
                 for stmt in adds:
+                    conn.execute(text(stmt))
+    if "todos" in tables:
+        tcols = {c["name"] for c in insp.get_columns("todos")}
+        tadds = []
+        if "due_at" not in tcols:
+            tadds.append("ALTER TABLE todos ADD COLUMN due_at DATETIME")
+        if "priority" not in tcols:
+            tadds.append("ALTER TABLE todos ADD COLUMN priority VARCHAR(10) DEFAULT 'MEDIUM'")
+        if "notes" not in tcols:
+            tadds.append("ALTER TABLE todos ADD COLUMN notes TEXT")
+        if "snoozed_until" not in tcols:
+            tadds.append("ALTER TABLE todos ADD COLUMN snoozed_until DATETIME")
+        if tadds:
+            with engine.begin() as conn:
+                for stmt in tadds:
                     conn.execute(text(stmt))
 
 

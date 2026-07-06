@@ -1,8 +1,10 @@
 from datetime import datetime
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QDateTime, Qt
 from PySide6.QtWidgets import (
     QCheckBox,
+    QComboBox,
+    QDateTimeEdit,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -14,8 +16,10 @@ from PySide6.QtWidgets import (
 )
 
 from maestro_local.db.models import Todo, get_session
-from maestro_local.gui.theme import current_theme
+from maestro_local.gui.theme import PRIORITY_COLORS, current_theme
 from maestro_local.i18n import t as _t
+
+TODO_PRIORITIES = [("LOW", "Baixa"), ("MEDIUM", "Média"), ("HIGH", "Alta")]
 
 
 class TodoRow(QFrame):
@@ -41,6 +45,13 @@ class TodoRow(QFrame):
         check.toggled.connect(lambda checked: on_toggle(tid, checked))
         row.addWidget(check)
 
+        # Bolinha de prioridade
+        prio = todo_data.get("priority", "MEDIUM")
+        dot = QLabel("●")
+        dot.setStyleSheet(f"color: {PRIORITY_COLORS.get(prio, t.text_muted)}; border: none; font-size: 12px;")
+        dot.setToolTip(dict(TODO_PRIORITIES).get(prio, prio))
+        row.addWidget(dot)
+
         text = QLabel(todo_data["text"])
         text.setWordWrap(True)
         if done:
@@ -51,6 +62,17 @@ class TodoRow(QFrame):
         else:
             text.setStyleSheet(f"color: {t.text_primary}; font-size: 14px; border: none;")
         row.addWidget(text, 1)
+
+        # Horário agendado (vermelho se vencido)
+        due = todo_data.get("due_at")
+        if due:
+            overdue = (not done) and due <= datetime.now()
+            due_lbl = QLabel(("⏰ " if overdue else "🕑 ") + due.strftime("%d/%m %H:%M"))
+            due_lbl.setStyleSheet(
+                f"color: {t.danger if overdue else t.text_muted}; font-size: 11px; "
+                f"font-weight: {'700' if overdue else '400'}; border: none;"
+            )
+            row.addWidget(due_lbl)
 
         del_btn = QPushButton("✕")
         del_btn.setFixedSize(24, 24)
@@ -84,6 +106,23 @@ class TodosView(QWidget):
         self.input.setPlaceholderText(_t("Adicionar um TODO..."))
         self.input.returnPressed.connect(self._add)
         add_row.addWidget(self.input, 1)
+
+        self.prio_combo = QComboBox()
+        for val, label in TODO_PRIORITIES:
+            self.prio_combo.addItem(_t(label), val)
+        self.prio_combo.setCurrentIndex(1)  # Média
+        self.prio_combo.setFixedWidth(90)
+        add_row.addWidget(self.prio_combo)
+
+        self.sched_check = QCheckBox(_t("Agendar"))
+        self.sched_check.toggled.connect(lambda on: self.due_edit.setEnabled(on))
+        add_row.addWidget(self.sched_check)
+        self.due_edit = QDateTimeEdit(QDateTime.currentDateTime().addSecs(3600))
+        self.due_edit.setCalendarPopup(True)
+        self.due_edit.setDisplayFormat("dd/MM/yyyy HH:mm")
+        self.due_edit.setEnabled(False)
+        self.due_edit.setFixedWidth(150)
+        add_row.addWidget(self.due_edit)
 
         add_btn = QPushButton(_t("Adicionar"))
         add_btn.setFixedHeight(32)
@@ -144,7 +183,10 @@ class TodosView(QWidget):
                 self.counter.setText("")
             else:
                 for td in todos:
-                    data = {"id": td.id, "text": td.text, "done": td.done}
+                    data = {
+                        "id": td.id, "text": td.text, "done": td.done,
+                        "priority": td.priority or "MEDIUM", "due_at": td.due_at,
+                    }
                     self.rows_layout.addWidget(TodoRow(data, self._toggle, self._delete))
                 self.counter.setText(_t("{done} de {total} concluídos").format(done=done, total=total))
 
@@ -156,12 +198,17 @@ class TodosView(QWidget):
         text = self.input.text().strip()
         if not text:
             return
+        due = None
+        if self.sched_check.isChecked():
+            due = self.due_edit.dateTime().toPython()  # datetime local ~= utcnow base
         s = get_session()
         try:
             max_order = s.query(Todo).count()
-            s.add(Todo(text=text, sort_order=max_order))
+            s.add(Todo(text=text, sort_order=max_order,
+                       priority=self.prio_combo.currentData(), due_at=due))
             s.commit()
             self.input.clear()
+            self.sched_check.setChecked(False)
             self.refresh()
         except Exception:
             s.rollback()

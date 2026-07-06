@@ -27,7 +27,7 @@ from maestro_local.gui.theme import (
 )
 from maestro_local.config import get_active_workspace_id, get_workspace_db_path
 from maestro_local.i18n import t
-from maestro_local.db.models import switch_db
+from maestro_local.db.models import Todo, get_session, switch_db
 from maestro_local.gui.views.board_view import BoardView
 from maestro_local.gui.views.daily_view import DailyView
 from maestro_local.gui.views.dashboard_view import DashboardView
@@ -61,6 +61,49 @@ class ToastWidget(QLabel):
         self.show()
         self.raise_()
         self._timer.start(duration)
+
+
+class TodoReminder(QFrame):
+    """Banner de lembrete de TODOs pendentes (só na interface, canto inferior)."""
+
+    def __init__(self, parent, on_view, on_snooze, on_dismiss):
+        super().__init__(parent)
+        self.hide()
+        lay = QHBoxLayout(self)
+        lay.setContentsMargins(14, 10, 10, 10)
+        lay.setSpacing(10)
+        self._msg = QLabel("")
+        lay.addWidget(self._msg)
+        self._view = QPushButton(t("Ver"))
+        self._view.setCursor(Qt.PointingHandCursor)
+        self._view.clicked.connect(on_view)
+        lay.addWidget(self._view)
+        self._snooze = QPushButton(t("Adiar 10min"))
+        self._snooze.setProperty("flat", True)
+        self._snooze.setCursor(Qt.PointingHandCursor)
+        self._snooze.clicked.connect(on_snooze)
+        lay.addWidget(self._snooze)
+        self._close = QPushButton("✕")
+        self._close.setProperty("flat", True)
+        self._close.setFixedSize(24, 24)
+        self._close.setCursor(Qt.PointingHandCursor)
+        self._close.clicked.connect(on_dismiss)
+        lay.addWidget(self._close)
+
+    def show_count(self, n):
+        th = current_theme()
+        self.setStyleSheet(
+            f"TodoReminder {{ background: {th.bg_card}; border: 1px solid {th.warning}; "
+            f"border-radius: 10px; }}"
+        )
+        self._msg.setText("⏰ " + t("{n} tarefa(s) pendente(s)").format(n=n))
+        self._msg.setStyleSheet(f"color: {th.text_primary}; font-weight: 600; border: none;")
+        self.adjustSize()
+        p = self.parent()
+        if p:
+            self.move(p.width() - self.width() - 20, p.height() - self.height() - 20)
+        self.show()
+        self.raise_()
 
 
 class MainWindow(QMainWindow):
@@ -269,7 +312,66 @@ class MainWindow(QMainWindow):
         self._transcricoes_poll.timeout.connect(self._update_transcricoes_quick)
         self._transcricoes_poll.start()
 
+        # Lembrete periódico de TODOs pendentes (só na interface)
+        self.todo_reminder = TodoReminder(
+            self, self._goto_todos, self._snooze_todos, self._dismiss_todos)
+        self._pending_todo_ids = []
+        self._todo_timer = QTimer(self)
+        self._todo_timer.setInterval(60000)  # a cada 1 min
+        self._todo_timer.timeout.connect(self._check_todo_reminders)
+        self._todo_timer.start()
+        QTimer.singleShot(4000, self._check_todo_reminders)
+
         self._apply_theme()
+
+    # ---- Lembretes de TODOs ----
+    def _check_todo_reminders(self):
+        from datetime import datetime
+        s = get_session()
+        try:
+            now = datetime.now()
+            todos = s.query(Todo).filter(
+                Todo.done.is_(False), Todo.due_at.isnot(None), Todo.due_at <= now
+            ).all()
+            ids = [td.id for td in todos if not (td.snoozed_until and td.snoozed_until > now)]
+        finally:
+            s.close()
+        self._pending_todo_ids = ids
+        if ids:
+            self.todo_reminder.show_count(len(ids))  # reaparece a cada ciclo enquanto houver pendentes
+        else:
+            self.todo_reminder.hide()
+
+    def _goto_todos(self):
+        self.todo_reminder.hide()
+        self.nav_list.setCurrentRow(0)  # Dashboard (aba TODOs fica lá)
+        w = self.stack.currentWidget()
+        # tenta selecionar a aba TODOs no Dashboard
+        tabs = getattr(w, "_tabs", None)
+        if tabs is not None:
+            for i in range(tabs.count()):
+                if "TODO" in tabs.tabText(i).upper():
+                    tabs.setCurrentIndex(i)
+                    break
+
+    def _snooze_todos(self):
+        from datetime import datetime, timedelta
+        if self._pending_todo_ids:
+            s = get_session()
+            try:
+                until = datetime.now() + timedelta(minutes=10)
+                for tid in self._pending_todo_ids:
+                    td = s.query(Todo).get(tid)
+                    if td:
+                        td.snoozed_until = until
+                s.commit()
+            finally:
+                s.close()
+        self.todo_reminder.hide()
+
+    def _dismiss_todos(self):
+        # Esconde até o próximo ciclo (reaparece se ainda houver pendentes)
+        self.todo_reminder.hide()
 
     def _transcricoes_quick_toggle(self):
         self.nav_list.setCurrentRow(5)

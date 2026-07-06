@@ -11,6 +11,7 @@ import Todos from './pages/Todos.jsx'
 import Labels from './pages/Labels.jsx'
 import Configuracoes from './pages/Configuracoes.jsx'
 import WorkspaceSelector from './components/WorkspaceSelector.jsx'
+import PendingTodosReminder from './components/PendingTodosReminder.jsx'
 import { getTheme, toggleTheme } from './theme'
 import { t } from './i18n'
 
@@ -69,6 +70,7 @@ export default function App() {
           <Route path="*" element={<div className="muted">{t('Página não encontrada')}</div>} />
         </Routes>
       </main>
+      <PendingTodosReminder />
     </div>
   )
 }

@@ -51,9 +51,13 @@ export const deleteLabel = (id) => api.delete(`/labels/${id}`).then((r) => r.dat
 
 // TODOs
 export const getTodos = () => api.get('/todos').then((r) => r.data)
-export const addTodo = (text) => api.post('/todos', { text }).then((r) => r.data)
+export const addTodo = (body) =>
+  api.post('/todos', typeof body === 'string' ? { text: body } : body).then((r) => r.data)
 export const updateTodo = (id, body) => api.patch(`/todos/${id}`, body).then((r) => r.data)
 export const deleteTodo = (id) => api.delete(`/todos/${id}`).then((r) => r.data)
+export const getPendingTodos = () => api.get('/todos/pending').then((r) => r.data)
+export const snoozeTodo = (id, minutes = 10) =>
+  api.post(`/todos/${id}/snooze`, { minutes }).then((r) => r.data)
 
 // Estudos
 export const getStudyPlans = () => api.get('/study/plans').then((r) => r.data)

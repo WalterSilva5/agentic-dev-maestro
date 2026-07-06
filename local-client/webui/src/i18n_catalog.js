@@ -175,5 +175,13 @@ export const CATALOG = {
   "Gerar roadmap": "Generate roadmap",
   "Gerando...": "Generating...",
   "Cancelar": "Cancel",
+  "Baixa": "Low",
+  "Média": "Medium",
+  "Alta": "High",
+  "Agendar (opcional)": "Schedule (optional)",
+  "{n} tarefa(s) pendente(s)": "{n} pending task(s)",
+  "Ver": "View",
+  "Adiar 10min": "Snooze 10min",
+  "Dispensar": "Dismiss",
 },
 }

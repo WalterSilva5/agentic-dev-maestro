@@ -7,44 +7,25 @@ homem-dia (hd) é estimativa; staffing/cronograma fica a critério da liderança
 
 ---
 
-## 🔴 Prioridade
+## ✅ Concluído
 
-### 1. Melhorar o módulo de TODOs (agendamento + lembretes na interface) — PRINCIPAL
+### 1. Melhorar o módulo de TODOs (agendamento + lembretes na interface) — PRINCIPAL ✅
 
-Hoje o TODO é mínimo (texto + concluído). Torná-lo mais explícito e adicionar
-**agendamento** com **notificações periódicas dentro da aplicação**.
+TODOs agora são agendáveis com lembretes periódicos na interface (desktop + web).
 
-**Modelo de dados**
-- [ ] Adicionar ao `Todo`: `due_at` (data/hora agendada), e opcionalmente
-  `priority`, `notes`, `remind` (liga/desliga o lembrete). Migração leve
-  (`ALTER TABLE todos ADD COLUMN ...`), no padrão já usado em `init_db`.
+- [x] `Todo`: adicionados `due_at`, `priority`, `notes`, `snoozed_until`
+  (migração leve aditiva em `_run_light_migrations`).
+- [x] API: criar/editar com `dueAt`/`priority`/`notes`; `GET /api/todos/pending`
+  (vencidos e não adiados); `POST /api/todos/{id}/snooze`. Agendamento em hora local.
+- [x] UI (desktop + web): seletor de data/hora + prioridade por TODO; vencido
+  destacado em vermelho.
+- [x] Notificações na interface (só in-app): lembrete periódico (a cada 1 min)
+  com **contador** e ações **Ver / Adiar 10min / Dispensar**. Desktop via
+  `QTimer` + banner inferior; web via toast com polling no shell do app.
+- [x] Adiar silencia por 10 min; dispensar esconde até o próximo ciclo.
 
-**API**
-- [ ] Criar/editar TODO com `dueAt` (e demais campos).
-- [ ] Endpoint para listar TODOs **pendentes/vencidos** (`due_at <= agora` e
-  `done = false`), usado pelo mecanismo de notificação.
-
-**UI (desktop + web)**
-- [ ] Seletor de data/hora por TODO; exibir o horário agendado.
-- [ ] Estados visuais: agendado, **vencido/pendente**, concluído.
-- [ ] Ordenar/filtrar por horário e por pendência.
-
-**Notificações na interface (somente in-app — sem notificações do SO)**
-- [ ] Quando o horário de um TODO é atingido, a aplicação passa a exibir um
-  **lembrete periódico** (ex.: um toast/banner a cada N minutos) indicando que
-  há tarefas pendentes, com **contador** dos vencidos.
-- [ ] Ações no lembrete: **concluir**, **adiar (snooze)** por X min, e
-  **dispensar** até o próximo ciclo.
-- [ ] Desktop: `QTimer` verificando os pendentes periodicamente + um widget de
-  toast/banner (reaproveitar o padrão de notificação já existente na janela).
-- [ ] Web: intervalo de polling no endpoint de pendentes + toast na UI.
-- [ ] Badge/contador de pendentes visível na navegação (ex.: no item TODOs).
-
-**Critérios de aceite**
-- Um TODO agendado para um horário passa a **lembrar periodicamente** na
-  interface depois desse horário, até ser concluído ou adiado.
-- O contador de pendentes/vencidos fica visível.
-- Nada dispara notificação do sistema operacional — tudo é dentro do app.
+Melhorias futuras (opcional): badge de pendentes no menu; editar prazo/prioridade
+inline; TODOs recorrentes.
 
 ---
 

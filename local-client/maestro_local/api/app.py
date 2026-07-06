@@ -1534,11 +1534,21 @@ def list_activity(
 
 class TodoCreate(BaseModel):
     text: str
+    dueAt: Optional[str] = None
+    priority: Optional[str] = None
+    notes: Optional[str] = None
 
 
 class TodoUpdate(BaseModel):
     text: Optional[str] = None
     done: Optional[bool] = None
+    dueAt: Optional[str] = None
+    priority: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class TodoSnooze(BaseModel):
+    minutes: int = 10
 
 
 def _todo_dict(t: Todo) -> dict:
@@ -1547,6 +1557,10 @@ def _todo_dict(t: Todo) -> dict:
         "text": t.text,
         "done": t.done,
         "sortOrder": t.sort_order,
+        "priority": t.priority or "MEDIUM",
+        "notes": t.notes,
+        "dueAt": t.due_at.isoformat() if t.due_at else None,
+        "snoozedUntil": t.snoozed_until.isoformat() if t.snoozed_until else None,
         "createdAt": t.created_at.isoformat() if t.created_at else None,
         "completedAt": t.completed_at.isoformat() if t.completed_at else None,
     }
@@ -1561,12 +1575,35 @@ def list_todos(done: Optional[bool] = None, s: Session = Depends(db)):
     return [_todo_dict(t) for t in todos]
 
 
+@app.get("/api/todos/pending")
+def pending_todos(s: Session = Depends(db)):
+    """TODOs cujo horário já chegou e ainda não foram feitos (nem adiados).
+    Usado pelo lembrete periódico da interface. Agendamento em hora LOCAL."""
+    now = datetime.now()
+    todos = (
+        s.query(Todo)
+        .filter(
+            Todo.done.is_(False),
+            Todo.due_at.isnot(None),
+            Todo.due_at <= now,
+        )
+        .order_by(Todo.due_at)
+        .all()
+    )
+    pending = [t for t in todos if not (t.snoozed_until and t.snoozed_until > now)]
+    return {"count": len(pending), "items": [_todo_dict(t) for t in pending]}
+
+
 @app.post("/api/todos")
 def create_todo(body: TodoCreate, s: Session = Depends(db)):
     text = body.text.strip()
     if not text:
         raise HTTPException(status_code=400, detail="text é obrigatório")
-    t = Todo(text=text, sort_order=s.query(Todo).count())
+    t = Todo(
+        text=text, sort_order=s.query(Todo).count(),
+        priority=body.priority or "MEDIUM", notes=(body.notes or None),
+        due_at=_parse_dt(body.dueAt),
+    )
     s.add(t)
     s.commit()
     s.refresh(t)
@@ -1578,11 +1615,31 @@ def update_todo(todo_id: int, body: TodoUpdate, s: Session = Depends(db)):
     t = s.query(Todo).get(todo_id)
     if not t:
         raise HTTPException(status_code=404, detail="TODO não encontrado")
+    data = body.model_dump(exclude_unset=True)
     if body.text is not None:
         t.text = body.text.strip()
     if body.done is not None:
         t.done = body.done
         t.completed_at = datetime.utcnow() if body.done else None
+    if "priority" in data:
+        t.priority = body.priority or "MEDIUM"
+    if "notes" in data:
+        t.notes = body.notes or None
+    if "dueAt" in data:
+        t.due_at = _parse_dt(body.dueAt)
+        t.snoozed_until = None  # reagendou: limpa o adiamento
+    s.commit()
+    s.refresh(t)
+    return _todo_dict(t)
+
+
+@app.post("/api/todos/{todo_id}/snooze")
+def snooze_todo(todo_id: int, body: TodoSnooze, s: Session = Depends(db)):
+    t = s.query(Todo).get(todo_id)
+    if not t:
+        raise HTTPException(status_code=404, detail="TODO não encontrado")
+    from datetime import timedelta
+    t.snoozed_until = datetime.now() + timedelta(minutes=max(1, body.minutes))
     s.commit()
     s.refresh(t)
     return _todo_dict(t)
