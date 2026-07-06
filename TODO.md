@@ -53,6 +53,13 @@ Today a TODO is minimal (text + done). Make it more explicit and add
 Ideas that fit the architecture (reuse the AI provider, board/API, per-workspace
 SQLite, DevLog/comments, MCP).
 
+- [ ] **Password manager (KeePass-compatible)** (~4–5 pd) — a **local**
+  credentials/secrets vault that reads and writes the **`.kdbx`** format
+  (KeePass 2.x, via `pykeepass`), unlocked by a **master password** and/or key
+  file. Interoperates with existing KeePass vaults; search, organization by
+  groups and **copy-to-clipboard with auto-clear**. Always **local and
+  encrypted**; the master password is never persisted (vault locks on
+  inactivity). Extra security care since it handles credentials.
 - [ ] **Git/PR cockpit** (~4–6 pd) — current branch, uncommitted changes,
   commits and PRs (`git`/`gh`); link branch/commit → task (DevLog already has
   `COMMIT_REF`/`DEPLOY_LOG`); AI suggests a commit message / PR description.
