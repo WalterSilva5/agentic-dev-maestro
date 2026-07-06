@@ -54,12 +54,14 @@ Ideias que encaixam na arquitetura (reusam provedor de IA, board/API, SQLite por
 workspace, DevLog/comentários, MCP).
 
 - [ ] **Gerenciador de senhas (compatível com KeePass)** (~4–5 hd) — cofre de
-  credenciais/segredos **local**, lendo e gravando o formato **`.kdbx`**
-  (KeePass 2.x, via `pykeepass`), destravado por **senha-mestra** e/ou key file.
-  Interopera com vaults KeePass existentes; busca, organização por grupos e
-  **copiar para a área de transferência com auto-limpeza**. Sempre **local e
-  criptografado**; a senha-mestra nunca é persistida (cofre trava por
-  inatividade). Cuidado extra de segurança por lidar com credenciais.
+  credenciais/segredos **global** (um único para o app, **não por workspace**;
+  fica fora dos bancos de workspace, ex.: um `.kdbx` no diretório de config).
+  Lê e grava o formato **`.kdbx`** (KeePass 2.x, via `pykeepass`), destravado por
+  **senha-mestra** e/ou key file. Interopera com vaults KeePass existentes;
+  busca, organização por grupos e **copiar para a área de transferência com
+  auto-limpeza**. Sempre **local e criptografado**; a senha-mestra nunca é
+  persistida (cofre trava por inatividade). Cuidado extra de segurança por lidar
+  com credenciais.
 - [ ] **Cockpit de Git/PR** (~4–6 hd) — branch atual, mudanças não commitadas,
   commits e PRs (`git`/`gh`); liga branch/commit → tarefa (DevLog já tem
   `COMMIT_REF`/`DEPLOY_LOG`); IA sugere mensagem de commit/descrição de PR.
