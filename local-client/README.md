@@ -40,7 +40,7 @@ maestro --port 8888  # custom port
 ## What the application does
 
 On startup, Maestro opens:
-1. **Desktop GUI** (PySide6/Qt 6) — graphical interface with 10 screens in the menu (+ Metrics, TODOs, and Labels as Dashboard tabs)
+1. **Desktop GUI** (PySide6/Qt 6) — graphical interface with 12 screens in the menu (+ Metrics, TODOs, and Labels as Dashboard tabs)
 2. **REST API** (FastAPI/uvicorn) — `http://127.0.0.1:9777/api` in a daemon thread
 
 The initial screen is **My Day**, which works as the application's home.
@@ -129,7 +129,23 @@ Recording, transcription, and summarization of meetings and studies (migrated fr
 - **Global shortcut**: `Ctrl+Shift+R` starts/stops the recording (best-effort; may not work on Wayland)
 - **Quick access**: a widget in the sidebar starts the recording in 1 click and shows the elapsed time
 
-### Projects (Alt+7)
+### Passwords (Alt+7) — KeePass vault
+
+- **Global vault** (one for the whole app, **not per workspace**) stored outside the per-workspace databases at `~/.maestro-local/vault.kdbx` (path configurable)
+- Reads and writes the **`.kdbx`** format (KeePass 2.x via `pykeepass`); interoperates with existing KeePass vaults
+- **Unlocked by a master password** (and/or key file); the master password is **never persisted** — kept only in memory and discarded on lock
+- **Entries**: title, username, password, URL, group, notes; search and organization by groups; add/edit/delete
+- **Copy-to-clipboard with auto-clear** (25s) and **auto-lock on inactivity** (5 min)
+- Desktop-only (the vault runs in the local Python process)
+
+### Library (Alt+8) — snippets, prompts, runbooks and TODO import
+
+- **Snippets & Prompts**: reusable code snippets and AI prompts, with kind (SNIPPET/PROMPT), language, tags; search by text/tags/language; copy-to-clipboard with a use counter
+- **Runbooks**: setup/deploy/command cards with a category and one-click copy of the command
+- **Import from code**: scan a folder for `TODO/FIXME/HACK/XXX` comments and import selected ones as tasks (linked to `file:line`) in the chosen project
+- Available on desktop and on the web UI (`/biblioteca`); API `/api/snippets`, `/api/runbooks`, `/api/code/scan-todos`, `/api/code/import-todos`
+
+### Projects (Alt+9)
 
 - Create projects with a name, unique key (e.g.: DEMO, PROJ), and description
 - Each project automatically generates default board columns
@@ -151,7 +167,7 @@ Analytics dashboard:
 - **By priority**: Low/Medium/High/Urgent breakdown with percentage
 - **By project**: progress of each project with a bar
 
-### Skills (Alt+8)
+### Skills (Alt+0)
 
 Library of skills for AI agents:
 
@@ -161,11 +177,11 @@ Library of skills for AI agents:
 - **Preview**: view the skill's content before installing
 - **Target directory**: select the project where the skills will be installed
 
-### Instructions (Alt+9)
+### Instructions
 
 Restructured usage guide with 12 sections, including explanations of each screen, the workflow, the role of the agents, and review tasks.
 
-### Settings (Alt+0)
+### Settings
 
 General settings screen:
 

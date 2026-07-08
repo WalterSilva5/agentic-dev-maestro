@@ -40,7 +40,7 @@ maestro --port 8888  # porta customizada
 ## O que a aplicação faz
 
 Ao iniciar, o Maestro abre:
-1. **GUI desktop** (PySide6/Qt 6) — interface gráfica com 10 telas no menu (+ Métricas, TODOs e Labels como abas do Dashboard)
+1. **GUI desktop** (PySide6/Qt 6) — interface gráfica com 12 telas no menu (+ Métricas, TODOs e Labels como abas do Dashboard)
 2. **API REST** (FastAPI/uvicorn) — `http://127.0.0.1:9777/api` em thread daemon
 
 A tela inicial é **Meu Dia**, que funciona como home da aplicação.
@@ -129,7 +129,23 @@ Gravação, transcrição e resumo de reuniões e estudos (migrado do projeto ws
 - **Atalho global**: `Ctrl+Shift+R` inicia/para a gravação (best-effort; pode não funcionar em Wayland)
 - **Acesso rápido**: widget na sidebar inicia a gravação em 1 clique e mostra o tempo decorrido
 
-### Projetos (Alt+7)
+### Senhas (Alt+7) — cofre KeePass
+
+- **Cofre global** (um único para o app, **não por workspace**), fora dos bancos de workspace, em `~/.maestro-local/vault.kdbx` (caminho configurável)
+- Lê e grava o formato **`.kdbx`** (KeePass 2.x via `pykeepass`); interopera com vaults KeePass existentes
+- **Destravado por senha-mestra** (e/ou key file); a senha-mestra **nunca é persistida** — fica só em memória e é descartada ao travar
+- **Entradas**: título, usuário, senha, URL, grupo, notas; busca e organização por grupos; adicionar/editar/excluir
+- **Copiar para a área de transferência com auto-limpeza** (25s) e **auto-lock por inatividade** (5 min)
+- Apenas desktop (o cofre roda no processo Python local)
+
+### Biblioteca (Alt+8) — snippets, prompts, runbooks e importar TODO
+
+- **Snippets & Prompts**: snippets de código e prompts de IA reutilizáveis, com tipo (SNIPPET/PROMPT), linguagem, tags; busca por texto/tags/linguagem; copiar para a área de transferência com contador de uso
+- **Runbooks**: cartões de setup/deploy/comando com categoria e cópia do comando em 1 clique
+- **Importar do código**: varre uma pasta por comentários `TODO/FIXME/HACK/XXX` e importa os selecionados como tarefas (ligadas a `arquivo:linha`) no projeto escolhido
+- Disponível no desktop e na web (`/biblioteca`); API `/api/snippets`, `/api/runbooks`, `/api/code/scan-todos`, `/api/code/import-todos`
+
+### Projetos (Alt+9)
 
 - Criar projetos com nome, chave única (ex: DEMO, PROJ) e descrição
 - Cada projeto gera automaticamente colunas padrão no board
@@ -151,7 +167,7 @@ Dashboard analítico:
 - **Por prioridade**: breakdown Low/Medium/High/Urgent com percentual
 - **Por projeto**: progresso de cada projeto com barra
 
-### Skills (Alt+8)
+### Skills (Alt+0)
 
 Biblioteca de skills para agentes de IA:
 
@@ -161,11 +177,11 @@ Biblioteca de skills para agentes de IA:
 - **Preview**: ver o conteúdo da skill antes de instalar
 - **Diretório destino**: selecionar o projeto onde instalar as skills
 
-### Instruções (Alt+9)
+### Instruções
 
 Guia de uso reestruturado com 12 seções, incluindo explicações de cada tela, fluxo de trabalho, o papel dos agentes e tarefas de revisão.
 
-### Configurações (Alt+0)
+### Configurações
 
 Tela de configurações gerais:
 

@@ -36,7 +36,7 @@ TODOs agora são agendáveis com lembretes periódicos na interface (desktop + w
 Ideias que encaixam na arquitetura (reusam provedor de IA, board/API, SQLite por
 workspace, DevLog/comentários, MCP).
 
-- [ ] **Gerenciador de senhas (compatível com KeePass)** (~4–5 hd) — cofre de
+- [x] **Gerenciador de senhas (compatível com KeePass)** (~4–5 hd) — cofre de
   credenciais/segredos **global** (um único para o app, **não por workspace**;
   fica fora dos bancos de workspace, ex.: um `.kdbx` no diretório de config).
   Lê e grava o formato **`.kdbx`** (KeePass 2.x, via `pykeepass`), destravado por
@@ -50,8 +50,10 @@ workspace, DevLog/comentários, MCP).
   `COMMIT_REF`/`DEPLOY_LOG`); IA sugere mensagem de commit/descrição de PR.
 - [ ] **Time tracking + Pomodoro por tarefa** (~2–3 hd) — timer sobre a tarefa →
   registra tempo → alimenta cycle time real das Métricas + timesheet semanal.
-- [ ] **Biblioteca de snippets & prompts** (~2 hd) — snippets de código e prompts
-  de IA reutilizáveis (com variáveis), buscáveis por label (SQLite + FTS).
+- [x] **Biblioteca de snippets & prompts** (~2 hd) — snippets de código e prompts
+  de IA reutilizáveis, buscáveis por texto/tags/linguagem. View desktop
+  **Biblioteca** + web `/biblioteca`; API `/api/snippets`. Tipo SNIPPET|PROMPT,
+  copiar para área de transferência, contador de uso.
 - [ ] **Base de conhecimento (2º cérebro)** (~4 hd) — notas/wiki por projeto com
   backlinks e Q&A da IA sobre as notas (RAG no workspace); reusa `Document`.
 - [ ] **Intake/triagem de bugs** (~2 hd) — captura rápida (colar stacktrace) →
@@ -62,12 +64,15 @@ workspace, DevLog/comentários, MCP).
   executa e guarda histórico.
 - [ ] **Digest proativo (standup automático)** (~3 hd) — "feito/fazendo/
   bloqueios" a partir da atividade do board + commits + Meu Dia; resumo semanal.
-- [ ] **Importar TODO/FIXME do código** (~1–2 hd) — varre o repo por comentários
-  `TODO/FIXME` e importa como tarefas ligadas ao arquivo.
+- [x] **Importar TODO/FIXME do código** (~1–2 hd) — varre uma pasta por
+  `TODO/FIXME/HACK/XXX` e importa os selecionados como tarefas ligadas ao arquivo.
+  API `/api/code/scan-todos` + `/api/code/import-todos`; aba "Importar do código"
+  na Biblioteca (desktop + web).
 - [ ] **Assistente de code review** (~3 hd) — aponta um diff/branch → review da
   IA → posta como comentário `CODE_REVIEW` na tarefa.
-- [ ] **Runbooks/comandos do projeto** (~2 hd) — cartões de setup/deploy/comandos
-  com copiar-em-1-clique; IA gera do README.
+- [x] **Runbooks/comandos do projeto** (~2 hd) — cartões de setup/deploy/comandos
+  com copiar-em-1-clique. Aba "Runbooks" na Biblioteca (desktop) + web
+  `/biblioteca`; API `/api/runbooks` (categoria, contador de uso).
 
 ---
 

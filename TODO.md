@@ -36,7 +36,7 @@ TODOs are now schedulable with periodic in-app reminders (desktop + web).
 Ideas that fit the architecture (reuse the AI provider, board/API, per-workspace
 SQLite, DevLog/comments, MCP).
 
-- [ ] **Password manager (KeePass-compatible)** (~4–5 pd) — a **global**
+- [x] **Password manager (KeePass-compatible)** (~4–5 pd) — a **global**
   credentials/secrets vault (one for the whole app, **not per workspace**; kept
   outside the per-workspace databases, e.g. a single `.kdbx` in the config dir).
   Reads and writes the **`.kdbx`** format (KeePass 2.x, via `pykeepass`),
@@ -50,8 +50,10 @@ SQLite, DevLog/comments, MCP).
   `COMMIT_REF`/`DEPLOY_LOG`); AI suggests a commit message / PR description.
 - [ ] **Time tracking + Pomodoro per task** (~2–3 pd) — a timer on a task →
   logs time → feeds real cycle time into Metrics + a weekly timesheet.
-- [ ] **Snippets & prompt library** (~2 pd) — reusable code snippets and AI
-  prompts (with variables), searchable by label (SQLite + FTS).
+- [x] **Snippets & prompt library** (~2 pd) — reusable code snippets and AI
+  prompts, searchable by text/tags/language. Desktop **Library** view + web
+  `/biblioteca`; API `/api/snippets`. Kind SNIPPET|PROMPT, copy-to-clipboard,
+  use counter.
 - [ ] **Knowledge base (second brain)** (~4 pd) — per-project notes/wiki with
   backlinks and AI Q&A over your notes (RAG over the workspace); reuses `Document`.
 - [ ] **Bug intake/triage** (~2 pd) — quick capture (paste a stack trace) → AI
@@ -62,12 +64,15 @@ SQLite, DevLog/comments, MCP).
   them and keep a history.
 - [ ] **Proactive digest (automatic standup)** (~3 pd) — "done/doing/blockers"
   from board activity + commits + Daily Note; weekly summary.
-- [ ] **Import TODO/FIXME from code** (~1–2 pd) — scan the repo for `TODO/FIXME`
-  comments and import them as tasks linked to the file.
+- [x] **Import TODO/FIXME from code** (~1–2 pd) — scan a folder for
+  `TODO/FIXME/HACK/XXX` and import selected ones as tasks linked to the file.
+  API `/api/code/scan-todos` + `/api/code/import-todos`; "Import from code" tab
+  in the Library (desktop + web).
 - [ ] **Code review assistant** (~3 pd) — point at a diff/branch → AI review →
   posted as a `CODE_REVIEW` comment on the task.
-- [ ] **Project runbooks/commands** (~2 pd) — setup/deploy/command cards with
-  one-click copy; AI generates them from the README.
+- [x] **Project runbooks/commands** (~2 pd) — setup/deploy/command cards with
+  one-click copy. Desktop **Library** "Runbooks" tab + web `/biblioteca`; API
+  `/api/runbooks` (category, use counter).
 
 ---
 
