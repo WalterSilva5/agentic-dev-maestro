@@ -40,7 +40,7 @@ maestro --port 8888  # custom port
 ## What the application does
 
 On startup, Maestro opens:
-1. **Desktop GUI** (PySide6/Qt 6) — graphical interface with a lean menu (7 items) + a Tools hub that groups the extra features (+ Metrics, TODOs, and Labels as Dashboard tabs)
+1. **Desktop GUI** (PySide6/Qt 6) — graphical interface with a lean menu (9 items) + a Tools hub that groups the extra features (+ Metrics, TODOs, and Labels as Dashboard tabs)
 2. **REST API** (FastAPI/uvicorn) — `http://127.0.0.1:9777/api` in a daemon thread
 
 The initial screen is **My Day**, which works as the application's home.
@@ -162,7 +162,7 @@ Recording, transcription, and summarization of meetings and studies (migrated fr
 
 ### Tools (Alt+5) — hub of extra features
 
-To keep the sidebar lean, the extra features live behind a single **Tools** menu item that opens a **grid of icon cards** (a launcher). Clicking a card opens the feature and keeps **Tools** highlighted in the sidebar. Cards: **Studies**, **Meetings**, **Passwords**, **Library**, **API tester**, **Knowledge base**, **Practice English**, **Skills**, **Instructions**. On the web UI it is `/ferramentas` (cards: Studies, Metrics, Labels, Library, API tester, Knowledge base).
+To keep the sidebar lean, the extra features live behind a single **Tools** menu item that opens a **grid of icon cards** (a launcher). Clicking a card opens the feature and keeps **Tools** highlighted in the sidebar. Cards: **Studies**, **Meetings**, **Passwords**, **Library**, **API tester**, **Knowledge base**, **Practice English**. On the web UI it is `/ferramentas` (cards: Studies, Metrics, Labels, Library, API tester, Knowledge base).
 
 ### Practice English (in Tools)
 
@@ -195,7 +195,7 @@ Analytics dashboard:
 - **By priority**: Low/Medium/High/Urgent breakdown with percentage
 - **By project**: progress of each project with a bar
 
-### Skills
+### Skills (Alt+7)
 
 Library of skills for AI agents:
 
@@ -205,11 +205,11 @@ Library of skills for AI agents:
 - **Preview**: view the skill's content before installing
 - **Target directory**: select the project where the skills will be installed
 
-### Instructions
+### Instructions (Alt+8)
 
 Restructured usage guide with 12 sections, including explanations of each screen, the workflow, the role of the agents, and review tasks.
 
-### Settings (Alt+7)
+### Settings (Alt+9)
 
 General settings screen:
 

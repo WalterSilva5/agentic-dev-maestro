@@ -181,6 +181,8 @@ class MainWindow(QMainWindow):
             (t("Assistente"), "chat"),
             (t("Ferramentas"), "ferramentas"),
             (t("Projetos"), "projects"),
+            (t("Skills"), "skills"),
+            (t("Instruções"), "guide"),
             (t("Configurações"), "settings"),
         ]
         self._primary_keys = {k for _, k in nav_items}

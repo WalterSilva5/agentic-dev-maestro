@@ -22,8 +22,6 @@ HUB_ITEMS = [
     ("apitester", "🛰", "Testador de API", "Monte, execute e salve requisições HTTP"),
     ("kb", "🧠", "Base de conhecimento", "Notas com backlinks e Q&A por IA"),
     ("english", "🗣️", "Praticar Inglês", "Conversação por voz com feedback da IA"),
-    ("skills", "⚙", "Skills", "Skills para agentes de IA"),
-    ("guide", "❔", "Instruções", "Guia de uso do Maestro"),
 ]
 
 

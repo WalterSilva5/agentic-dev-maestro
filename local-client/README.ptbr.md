@@ -40,7 +40,7 @@ maestro --port 8888  # porta customizada
 ## O que a aplicação faz
 
 Ao iniciar, o Maestro abre:
-1. **GUI desktop** (PySide6/Qt 6) — interface gráfica com um menu enxuto (7 itens) + um hub Ferramentas que agrupa as funcionalidades extras (+ Métricas, TODOs e Labels como abas do Dashboard)
+1. **GUI desktop** (PySide6/Qt 6) — interface gráfica com um menu enxuto (9 itens) + um hub Ferramentas que agrupa as funcionalidades extras (+ Métricas, TODOs e Labels como abas do Dashboard)
 2. **API REST** (FastAPI/uvicorn) — `http://127.0.0.1:9777/api` em thread daemon
 
 A tela inicial é **Meu Dia**, que funciona como home da aplicação.
@@ -156,7 +156,7 @@ Gravação, transcrição e resumo de reuniões e estudos (migrado do projeto ws
 
 ### Ferramentas (Alt+5) — hub de funcionalidades extras
 
-Para manter o menu lateral enxuto, as funcionalidades extras ficam atrás de um único item **Ferramentas** que abre uma **grade de cards com ícone** (launcher). Clicar num card abre a funcionalidade e mantém **Ferramentas** destacado no menu. Cards: **Estudos**, **Reuniões**, **Senhas**, **Biblioteca**, **Testador de API**, **Base de conhecimento**, **Praticar Inglês**, **Skills**, **Instruções**. Na web é `/ferramentas` (cards: Estudos, Métricas, Labels, Biblioteca, Testador de API, Base).
+Para manter o menu lateral enxuto, as funcionalidades extras ficam atrás de um único item **Ferramentas** que abre uma **grade de cards com ícone** (launcher). Clicar num card abre a funcionalidade e mantém **Ferramentas** destacado no menu. Cards: **Estudos**, **Reuniões**, **Senhas**, **Biblioteca**, **Testador de API**, **Base de conhecimento**, **Praticar Inglês**. Na web é `/ferramentas` (cards: Estudos, Métricas, Labels, Biblioteca, Testador de API, Base).
 
 ### Praticar Inglês (no hub Ferramentas)
 
@@ -189,7 +189,7 @@ Dashboard analítico:
 - **Por prioridade**: breakdown Low/Medium/High/Urgent com percentual
 - **Por projeto**: progresso de cada projeto com barra
 
-### Skills
+### Skills (Alt+7)
 
 Biblioteca de skills para agentes de IA:
 
@@ -199,11 +199,11 @@ Biblioteca de skills para agentes de IA:
 - **Preview**: ver o conteúdo da skill antes de instalar
 - **Diretório destino**: selecionar o projeto onde instalar as skills
 
-### Instruções
+### Instruções (Alt+8)
 
 Guia de uso reestruturado com 12 seções, incluindo explicações de cada tela, fluxo de trabalho, o papel dos agentes e tarefas de revisão.
 
-### Configurações (Alt+7)
+### Configurações (Alt+9)
 
 Tela de configurações gerais:
 
