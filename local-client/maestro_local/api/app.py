@@ -22,6 +22,8 @@ from maestro_local.db.models import (
     Document,
     Label,
     Project,
+    Runbook,
+    Snippet,
     Sprint,
     StudyPlan,
     StudySession,
@@ -2333,6 +2335,312 @@ def put_settings(body: SettingsUpdate):
         cfg.setdefault("settings", {}).setdefault("transcricoes", {})["whisper_model"] = body.whisperModel
         save_config(cfg)
     return _settings_dict()
+
+
+# ---------------------------------------------------------------------------
+# Snippets & prompt library
+# ---------------------------------------------------------------------------
+
+
+def _snippet_dict(s: Snippet) -> dict:
+    return {
+        "id": s.id,
+        "title": s.title,
+        "content": s.content or "",
+        "kind": s.kind or "SNIPPET",
+        "language": s.language or "",
+        "tags": s.tags or "",
+        "projectId": s.project_id,
+        "useCount": s.use_count or 0,
+        "createdAt": s.created_at.isoformat() if s.created_at else None,
+        "updatedAt": s.updated_at.isoformat() if s.updated_at else None,
+    }
+
+
+class SnippetCreate(BaseModel):
+    title: str
+    content: str = ""
+    kind: str = "SNIPPET"
+    language: str = ""
+    tags: str = ""
+    projectId: Optional[int] = None
+
+
+class SnippetUpdate(BaseModel):
+    title: Optional[str] = None
+    content: Optional[str] = None
+    kind: Optional[str] = None
+    language: Optional[str] = None
+    tags: Optional[str] = None
+    projectId: Optional[int] = None
+
+
+@app.get("/api/snippets")
+def list_snippets(kind: Optional[str] = None, q: Optional[str] = None,
+                  projectId: Optional[int] = None, s: Session = Depends(db)):
+    query = s.query(Snippet)
+    if kind:
+        query = query.filter(Snippet.kind == kind.upper())
+    if projectId is not None:
+        query = query.filter(Snippet.project_id == projectId)
+    rows = query.order_by(Snippet.updated_at.desc()).all()
+    if q:
+        ql = q.lower()
+        rows = [r for r in rows if ql in f"{r.title} {r.content} {r.tags} {r.language}".lower()]
+    return [_snippet_dict(r) for r in rows]
+
+
+@app.post("/api/snippets")
+def create_snippet(body: SnippetCreate, s: Session = Depends(db)):
+    row = Snippet(
+        title=body.title.strip(), content=body.content or "",
+        kind=(body.kind or "SNIPPET").upper(), language=body.language or "",
+        tags=body.tags or "", project_id=body.projectId,
+    )
+    s.add(row)
+    s.commit()
+    s.refresh(row)
+    return _snippet_dict(row)
+
+
+@app.put("/api/snippets/{snippet_id}")
+def update_snippet(snippet_id: int, body: SnippetUpdate, s: Session = Depends(db)):
+    row = s.get(Snippet, snippet_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Snippet não encontrado")
+    if body.title is not None:
+        row.title = body.title.strip()
+    if body.content is not None:
+        row.content = body.content
+    if body.kind is not None:
+        row.kind = body.kind.upper()
+    if body.language is not None:
+        row.language = body.language
+    if body.tags is not None:
+        row.tags = body.tags
+    if body.projectId is not None:
+        row.project_id = body.projectId
+    s.commit()
+    s.refresh(row)
+    return _snippet_dict(row)
+
+
+@app.post("/api/snippets/{snippet_id}/use")
+def use_snippet(snippet_id: int, s: Session = Depends(db)):
+    row = s.get(Snippet, snippet_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Snippet não encontrado")
+    row.use_count = (row.use_count or 0) + 1
+    s.commit()
+    return {"ok": True, "useCount": row.use_count}
+
+
+@app.delete("/api/snippets/{snippet_id}")
+def delete_snippet(snippet_id: int, s: Session = Depends(db)):
+    row = s.get(Snippet, snippet_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Snippet não encontrado")
+    s.delete(row)
+    s.commit()
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# Runbooks / comandos de projeto
+# ---------------------------------------------------------------------------
+
+
+def _runbook_dict(r: Runbook) -> dict:
+    return {
+        "id": r.id,
+        "title": r.title,
+        "command": r.command or "",
+        "description": r.description or "",
+        "category": r.category or "",
+        "projectId": r.project_id,
+        "useCount": r.use_count or 0,
+        "sortOrder": r.sort_order or 0,
+        "createdAt": r.created_at.isoformat() if r.created_at else None,
+        "updatedAt": r.updated_at.isoformat() if r.updated_at else None,
+    }
+
+
+class RunbookCreate(BaseModel):
+    title: str
+    command: str = ""
+    description: str = ""
+    category: str = ""
+    projectId: Optional[int] = None
+
+
+class RunbookUpdate(BaseModel):
+    title: Optional[str] = None
+    command: Optional[str] = None
+    description: Optional[str] = None
+    category: Optional[str] = None
+    projectId: Optional[int] = None
+
+
+@app.get("/api/runbooks")
+def list_runbooks(q: Optional[str] = None, projectId: Optional[int] = None,
+                  s: Session = Depends(db)):
+    query = s.query(Runbook)
+    if projectId is not None:
+        query = query.filter(Runbook.project_id == projectId)
+    rows = query.order_by(Runbook.sort_order.asc(), Runbook.updated_at.desc()).all()
+    if q:
+        ql = q.lower()
+        rows = [r for r in rows if ql in f"{r.title} {r.command} {r.description} {r.category}".lower()]
+    return [_runbook_dict(r) for r in rows]
+
+
+@app.post("/api/runbooks")
+def create_runbook(body: RunbookCreate, s: Session = Depends(db)):
+    row = Runbook(
+        title=body.title.strip(), command=body.command or "",
+        description=body.description or "", category=body.category or "",
+        project_id=body.projectId,
+    )
+    s.add(row)
+    s.commit()
+    s.refresh(row)
+    return _runbook_dict(row)
+
+
+@app.put("/api/runbooks/{runbook_id}")
+def update_runbook(runbook_id: int, body: RunbookUpdate, s: Session = Depends(db)):
+    row = s.get(Runbook, runbook_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Runbook não encontrado")
+    if body.title is not None:
+        row.title = body.title.strip()
+    if body.command is not None:
+        row.command = body.command
+    if body.description is not None:
+        row.description = body.description
+    if body.category is not None:
+        row.category = body.category
+    if body.projectId is not None:
+        row.project_id = body.projectId
+    s.commit()
+    s.refresh(row)
+    return _runbook_dict(row)
+
+
+@app.post("/api/runbooks/{runbook_id}/use")
+def use_runbook(runbook_id: int, s: Session = Depends(db)):
+    row = s.get(Runbook, runbook_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Runbook não encontrado")
+    row.use_count = (row.use_count or 0) + 1
+    s.commit()
+    return {"ok": True, "useCount": row.use_count}
+
+
+@app.delete("/api/runbooks/{runbook_id}")
+def delete_runbook(runbook_id: int, s: Session = Depends(db)):
+    row = s.get(Runbook, runbook_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Runbook não encontrado")
+    s.delete(row)
+    s.commit()
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# Importar TODO/FIXME do código → tarefas
+# ---------------------------------------------------------------------------
+
+
+class ScanTodosBody(BaseModel):
+    path: str
+    markers: Optional[list] = None      # padrão: ["TODO", "FIXME", "HACK", "XXX"]
+    maxResults: int = 500
+
+
+class ImportTodosBody(BaseModel):
+    projectId: int
+    items: list                          # [{file, line, marker, text}]
+
+
+def _scan_code_markers(root: str, markers: list, max_results: int) -> list:
+    import os
+    import re
+    from pathlib import Path
+    root_path = Path(root).expanduser()
+    if not root_path.exists():
+        raise HTTPException(status_code=400, detail="Caminho não encontrado")
+    marker_re = re.compile(r"\b(" + "|".join(re.escape(m) for m in markers) + r")\b[:\s]+(.+)")
+    skip_dirs = {".git", "node_modules", "__pycache__", ".venv", "venv",
+                 "dist", "build", ".next", ".mypy_cache", ".pytest_cache", "target"}
+    text_ext = {".py", ".js", ".jsx", ".ts", ".tsx", ".java", ".go", ".rb",
+                ".c", ".h", ".cpp", ".hpp", ".cs", ".php", ".rs", ".kt", ".swift",
+                ".sh", ".sql", ".vue", ".css", ".scss", ".html", ".md", ".yaml", ".yml"}
+    out = []
+    for dirpath, dirnames, filenames in os.walk(root_path):
+        dirnames[:] = [d for d in dirnames if d not in skip_dirs]
+        for fn in filenames:
+            if Path(fn).suffix.lower() not in text_ext:
+                continue
+            fpath = Path(dirpath) / fn
+            try:
+                with open(fpath, "r", encoding="utf-8", errors="ignore") as fh:
+                    for i, line in enumerate(fh, 1):
+                        if len(line) > 400:
+                            continue
+                        m = marker_re.search(line)
+                        if m:
+                            out.append({
+                                "file": str(fpath.relative_to(root_path)),
+                                "line": i,
+                                "marker": m.group(1).upper(),
+                                "text": m.group(2).strip()[:280],
+                            })
+                            if len(out) >= max_results:
+                                return out
+            except (OSError, UnicodeError):
+                continue
+    return out
+
+
+@app.post("/api/code/scan-todos")
+def scan_todos(body: ScanTodosBody):
+    markers = [m.upper() for m in (body.markers or ["TODO", "FIXME", "HACK", "XXX"])]
+    items = _scan_code_markers(body.path, markers, max(1, min(body.maxResults, 2000)))
+    return {"count": len(items), "items": items}
+
+
+@app.post("/api/code/import-todos")
+def import_todos(body: ImportTodosBody, s: Session = Depends(db)):
+    project = s.get(Project, body.projectId)
+    if not project:
+        raise HTTPException(status_code=404, detail="Projeto não encontrado")
+    column = (
+        s.query(BoardColumn)
+        .filter(BoardColumn.project_id == project.id)
+        .order_by(BoardColumn.order.asc())
+        .first()
+    )
+    created = 0
+    for it in body.items:
+        marker = (it.get("marker") or "TODO").upper()
+        text = (it.get("text") or "").strip() or "(sem descrição)"
+        title = f"[{marker}] {text}"[:255]
+        loc = f"{it.get('file', '')}:{it.get('line', '')}"
+        project.task_seq = (project.task_seq or 0) + 1
+        task = Task(
+            project_id=project.id,
+            column_id=column.id if column else None,
+            number=project.task_seq,
+            title=title,
+            description=f"Importado de `{loc}`",
+            type="CHORE" if marker in ("TODO", "HACK", "XXX") else "BUG",
+        )
+        s.add(task)
+        created += 1
+    s.commit()
+    _log(s, "project", project.id, "import_todos", f"{created} tarefa(s) de TODO/FIXME")
+    return {"ok": True, "created": created}
 
 
 # ---------------------------------------------------------------------------

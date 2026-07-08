@@ -539,6 +539,7 @@ NAV_ICONS = {
     "chat": "✦",
     "transcricoes": "🎙",
     "vault": "🔒",
+    "library": "📇",
     "guide": "?",
     "settings": "⚡",
 }

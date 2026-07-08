@@ -434,3 +434,35 @@ class StudySession(Base):
 
     plan = relationship("StudyPlan", back_populates="sessions")
     topic = relationship("StudyTopic", back_populates="sessions")
+
+
+class Snippet(Base):
+    """Trecho de código reutilizável ou prompt de IA (biblioteca do workspace)."""
+    __tablename__ = "snippets"
+
+    id = Column(Integer, primary_key=True)
+    title = Column(String(255), nullable=False)
+    content = Column(Text, default="")
+    kind = Column(String(10), default="SNIPPET")   # SNIPPET | PROMPT
+    language = Column(String(40), default="")      # p/ realce/organização
+    tags = Column(String(500), default="")         # separadas por vírgula
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="SET NULL"))
+    use_count = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class Runbook(Base):
+    """Cartão de comando/runbook de projeto (setup/deploy/comandos frequentes)."""
+    __tablename__ = "runbooks"
+
+    id = Column(Integer, primary_key=True)
+    title = Column(String(255), nullable=False)
+    command = Column(Text, default="")             # comando(s) a executar
+    description = Column(Text, default="")
+    category = Column(String(60), default="")      # setup | deploy | test | ...
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="SET NULL"))
+    use_count = Column(Integer, default=0)
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
