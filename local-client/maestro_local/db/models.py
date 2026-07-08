@@ -452,6 +452,38 @@ class Snippet(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class ApiRequest(Base):
+    """Request HTTP salvo (mini-Postman) por workspace/projeto."""
+    __tablename__ = "api_requests"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(255), nullable=False)
+    method = Column(String(10), default="GET")
+    url = Column(Text, default="")
+    headers = Column(Text, default="")   # JSON string {header: valor}
+    body = Column(Text, default="")
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="SET NULL"))
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class ApiCall(Base):
+    """Histórico de execução de um request HTTP."""
+    __tablename__ = "api_calls"
+
+    id = Column(Integer, primary_key=True)
+    request_id = Column(Integer, ForeignKey("api_requests.id", ondelete="SET NULL"))
+    method = Column(String(10), default="GET")
+    url = Column(Text, default="")
+    status = Column(Integer)              # código HTTP (ou 0/None em erro de rede)
+    duration_ms = Column(Integer)
+    ok = Column(Boolean, default=False)
+    error = Column(Text, default="")
+    response_snippet = Column(Text, default="")  # início do corpo da resposta
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class Runbook(Base):
     """Cartão de comando/runbook de projeto (setup/deploy/comandos frequentes)."""
     __tablename__ = "runbooks"

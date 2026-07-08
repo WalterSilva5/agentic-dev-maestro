@@ -21,6 +21,8 @@ from maestro_local.db.models import (
     DailyNote,
     Document,
     Label,
+    ApiCall,
+    ApiRequest,
     Project,
     Runbook,
     Snippet,
@@ -2548,6 +2550,179 @@ def delete_runbook(runbook_id: int, s: Session = Depends(db)):
 
 
 # ---------------------------------------------------------------------------
+# Testador de API (mini-Postman): requests salvos + execução + histórico
+# ---------------------------------------------------------------------------
+
+
+def _api_request_dict(r: ApiRequest) -> dict:
+    return {
+        "id": r.id,
+        "name": r.name,
+        "method": r.method or "GET",
+        "url": r.url or "",
+        "headers": r.headers or "",
+        "body": r.body or "",
+        "projectId": r.project_id,
+        "createdAt": r.created_at.isoformat() if r.created_at else None,
+        "updatedAt": r.updated_at.isoformat() if r.updated_at else None,
+    }
+
+
+def _api_call_dict(c: ApiCall) -> dict:
+    return {
+        "id": c.id,
+        "requestId": c.request_id,
+        "method": c.method,
+        "url": c.url,
+        "status": c.status,
+        "durationMs": c.duration_ms,
+        "ok": c.ok,
+        "error": c.error or "",
+        "responseSnippet": c.response_snippet or "",
+        "createdAt": c.created_at.isoformat() if c.created_at else None,
+    }
+
+
+class ApiRequestBody(BaseModel):
+    name: str
+    method: str = "GET"
+    url: str = ""
+    headers: str = ""
+    body: str = ""
+    projectId: Optional[int] = None
+
+
+class ApiRunBody(BaseModel):
+    method: str = "GET"
+    url: str
+    headers: str = ""
+    body: str = ""
+    requestId: Optional[int] = None
+    save: bool = True
+
+
+@app.get("/api/http-requests")
+def list_api_requests(projectId: Optional[int] = None, s: Session = Depends(db)):
+    query = s.query(ApiRequest)
+    if projectId is not None:
+        query = query.filter(ApiRequest.project_id == projectId)
+    rows = query.order_by(ApiRequest.updated_at.desc()).all()
+    return [_api_request_dict(r) for r in rows]
+
+
+@app.post("/api/http-requests")
+def create_api_request(body: ApiRequestBody, s: Session = Depends(db)):
+    row = ApiRequest(
+        name=body.name.strip() or "Sem nome", method=(body.method or "GET").upper(),
+        url=body.url or "", headers=body.headers or "", body=body.body or "",
+        project_id=body.projectId,
+    )
+    s.add(row)
+    s.commit()
+    s.refresh(row)
+    return _api_request_dict(row)
+
+
+@app.put("/api/http-requests/{req_id}")
+def update_api_request(req_id: int, body: ApiRequestBody, s: Session = Depends(db)):
+    row = s.get(ApiRequest, req_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Request não encontrado")
+    row.name = body.name.strip() or row.name
+    row.method = (body.method or "GET").upper()
+    row.url = body.url or ""
+    row.headers = body.headers or ""
+    row.body = body.body or ""
+    if body.projectId is not None:
+        row.project_id = body.projectId
+    s.commit()
+    s.refresh(row)
+    return _api_request_dict(row)
+
+
+@app.delete("/api/http-requests/{req_id}")
+def delete_api_request(req_id: int, s: Session = Depends(db)):
+    row = s.get(ApiRequest, req_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Request não encontrado")
+    s.delete(row)
+    s.commit()
+    return {"ok": True}
+
+
+@app.get("/api/http-requests/history")
+def api_call_history(requestId: Optional[int] = None, limit: int = 30,
+                     s: Session = Depends(db)):
+    query = s.query(ApiCall)
+    if requestId is not None:
+        query = query.filter(ApiCall.request_id == requestId)
+    rows = query.order_by(ApiCall.created_at.desc()).limit(max(1, min(limit, 200))).all()
+    return [_api_call_dict(c) for c in rows]
+
+
+def _run_http_request(method: str, url: str, headers_raw: str, body: str) -> dict:
+    """Executa um request HTTP com a stdlib. Retorna dados p/ histórico + corpo."""
+    import json as _json
+    import time
+    import urllib.error
+    import urllib.request
+
+    method = (method or "GET").upper()
+    hdrs = {}
+    if headers_raw and headers_raw.strip():
+        try:
+            parsed = _json.loads(headers_raw)
+            if isinstance(parsed, dict):
+                hdrs = {str(k): str(v) for k, v in parsed.items()}
+        except (ValueError, TypeError):
+            # formato "Chave: valor" por linha
+            for line in headers_raw.splitlines():
+                if ":" in line:
+                    k, v = line.split(":", 1)
+                    hdrs[k.strip()] = v.strip()
+
+    data = body.encode("utf-8") if body and method in ("POST", "PUT", "PATCH", "DELETE") else None
+    req = urllib.request.Request(url, data=data, headers=hdrs, method=method)
+    start = time.monotonic()
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            raw = resp.read()
+            duration = int((time.monotonic() - start) * 1000)
+            text = raw.decode("utf-8", errors="replace")
+            return {
+                "ok": True, "status": resp.status, "durationMs": duration,
+                "error": "", "body": text,
+                "headers": dict(resp.headers.items()),
+            }
+    except urllib.error.HTTPError as e:
+        duration = int((time.monotonic() - start) * 1000)
+        raw = e.read().decode("utf-8", errors="replace") if hasattr(e, "read") else ""
+        return {"ok": False, "status": e.code, "durationMs": duration,
+                "error": f"HTTP {e.code}: {e.reason}", "body": raw, "headers": {}}
+    except Exception as e:  # noqa: BLE001  (timeout, DNS, conexão, URL inválida)
+        duration = int((time.monotonic() - start) * 1000)
+        return {"ok": False, "status": None, "durationMs": duration,
+                "error": str(e), "body": "", "headers": {}}
+
+
+@app.post("/api/http-requests/run")
+def run_api_request(body: ApiRunBody, s: Session = Depends(db)):
+    if not body.url.strip():
+        raise HTTPException(status_code=400, detail="URL vazia")
+    result = _run_http_request(body.method, body.url.strip(), body.headers, body.body)
+    if body.save:
+        call = ApiCall(
+            request_id=body.requestId, method=(body.method or "GET").upper(),
+            url=body.url.strip(), status=result["status"],
+            duration_ms=result["durationMs"], ok=result["ok"],
+            error=result["error"], response_snippet=(result["body"] or "")[:2000],
+        )
+        s.add(call)
+        s.commit()
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Intake / triagem de bugs (IA → tarefa BUG)
 # ---------------------------------------------------------------------------
 
@@ -2722,7 +2897,7 @@ def _mount_webui(_app):
     @_app.get("/{full_path:path}", include_in_schema=False)
     def _spa(full_path: str):
         # rotas /api/* já foram tratadas acima; aqui é o SPA React
-        if full_path.startswith("api"):
+        if full_path == "api" or full_path.startswith("api/"):
             raise HTTPException(status_code=404, detail="Not Found")
         candidate = dist / full_path
         if full_path and candidate.is_file():

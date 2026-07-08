@@ -35,6 +35,7 @@ from maestro_local.gui.views.chat_view import ChatView
 from maestro_local.gui.views.transcricoes_view import TranscricoesView
 from maestro_local.gui.views.vault_view import VaultView
 from maestro_local.gui.views.library_view import LibraryView
+from maestro_local.gui.views.api_tester_view import ApiTesterView
 from maestro_local.gui.views.guide_view import GuideView
 from maestro_local.gui.views.settings_view import SettingsView
 from maestro_local.gui.views.projects_view import ProjectsView
@@ -178,6 +179,7 @@ class MainWindow(QMainWindow):
             (t("Reuniões"), "transcricoes"),
             (t("Senhas"), "vault"),
             (t("Biblioteca"), "library"),
+            (t("Testador de API"), "apitester"),
             (t("Projetos"), "projects"),
             (t("Skills"), "skills"),
             (t("Instruções"), "guide"),
@@ -256,6 +258,7 @@ class MainWindow(QMainWindow):
         self.transcricoes_view = TranscricoesView()
         self.vault_view = VaultView()
         self.library_view = LibraryView()
+        self.api_tester_view = ApiTesterView()
         self.projects_view = ProjectsView()
         self.skills_view = SkillsView()
         self.guide_view = GuideView()
@@ -271,6 +274,7 @@ class MainWindow(QMainWindow):
         self.stack.addWidget(self.transcricoes_view)
         self.stack.addWidget(self.vault_view)
         self.stack.addWidget(self.library_view)
+        self.stack.addWidget(self.api_tester_view)
         self.stack.addWidget(self.projects_view)
         self.stack.addWidget(self.skills_view)
         self.stack.addWidget(self.guide_view)

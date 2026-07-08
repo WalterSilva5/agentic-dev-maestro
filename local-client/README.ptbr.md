@@ -40,7 +40,7 @@ maestro --port 8888  # porta customizada
 ## O que a aplicação faz
 
 Ao iniciar, o Maestro abre:
-1. **GUI desktop** (PySide6/Qt 6) — interface gráfica com 12 telas no menu (+ Métricas, TODOs e Labels como abas do Dashboard)
+1. **GUI desktop** (PySide6/Qt 6) — interface gráfica com 13 telas no menu (+ Métricas, TODOs e Labels como abas do Dashboard)
 2. **API REST** (FastAPI/uvicorn) — `http://127.0.0.1:9777/api` em thread daemon
 
 A tela inicial é **Meu Dia**, que funciona como home da aplicação.
@@ -145,7 +145,13 @@ Gravação, transcrição e resumo de reuniões e estudos (migrado do projeto ws
 - **Importar do código**: varre uma pasta por comentários `TODO/FIXME/HACK/XXX` e importa os selecionados como tarefas (ligadas a `arquivo:linha`) no projeto escolhido
 - Disponível no desktop e na web (`/biblioteca`); API `/api/snippets`, `/api/runbooks`, `/api/code/scan-todos`, `/api/code/import-todos`
 
-### Projetos (Alt+9)
+### Testador de API (Alt+9) — mini-Postman
+
+- **Monta/executa requisições HTTP**: método, URL, headers (JSON ou `Chave: valor` por linha), corpo; executa via stdlib (sem dependências extras)
+- **Salva requests** por workspace e recarrega; **histórico de execução** (status, duração, URL)
+- Disponível no desktop e na web (`/api-tester`); API `/api/http-requests` (+ `/run`, `/history`)
+
+### Projetos (Alt+0)
 
 - Criar projetos com nome, chave única (ex: DEMO, PROJ) e descrição
 - Cada projeto gera automaticamente colunas padrão no board
@@ -167,7 +173,7 @@ Dashboard analítico:
 - **Por prioridade**: breakdown Low/Medium/High/Urgent com percentual
 - **Por projeto**: progresso de cada projeto com barra
 
-### Skills (Alt+0)
+### Skills
 
 Biblioteca de skills para agentes de IA:
 

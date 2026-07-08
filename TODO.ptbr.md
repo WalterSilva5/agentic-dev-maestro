@@ -61,8 +61,9 @@ workspace, DevLog/comentários, MCP).
   BUG. API `/api/bugs/triage`; aba "Triagem de bugs" na Biblioteca (desktop + web).
 - [ ] **Retrospectiva de sprint** (~2 hd) — ao concluir a sprint, "o que foi
   bem/mal/ações" com a IA; ações viram tarefas.
-- [ ] **Testador de API (mini-Postman)** (~3 hd) — salva requests por projeto,
-  executa e guarda histórico.
+- [x] **Testador de API (mini-Postman)** (~3 hd) — monta/executa/salva requisições
+  HTTP e guarda histórico de execução. API `/api/http-requests` (+ `/run`,
+  `/history`); tela dedicada no desktop e web (`/api-tester`).
 - [ ] **Digest proativo (standup automático)** (~3 hd) — "feito/fazendo/
   bloqueios" a partir da atividade do board + commits + Meu Dia; resumo semanal.
 - [x] **Importar TODO/FIXME do código** (~1–2 hd) — varre uma pasta por

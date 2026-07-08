@@ -10,6 +10,7 @@ import Metricas from './pages/Metricas.jsx'
 import Todos from './pages/Todos.jsx'
 import Labels from './pages/Labels.jsx'
 import Biblioteca from './pages/Biblioteca.jsx'
+import ApiTester from './pages/ApiTester.jsx'
 import Configuracoes from './pages/Configuracoes.jsx'
 import WorkspaceSelector from './components/WorkspaceSelector.jsx'
 import PendingTodosReminder from './components/PendingTodosReminder.jsx'
@@ -39,6 +40,7 @@ function Sidebar() {
     ['/todos', t('TODOs')],
     ['/labels', t('Labels')],
     ['/biblioteca', t('Biblioteca')],
+    ['/api-tester', t('Testador de API')],
     ['/configuracoes', t('Configurações')],
   ]
   return (
@@ -94,6 +96,7 @@ export default function App() {
           <Route path="/todos" element={<Todos />} />
           <Route path="/labels" element={<Labels />} />
           <Route path="/biblioteca" element={<Biblioteca />} />
+          <Route path="/api-tester" element={<ApiTester />} />
           <Route path="/configuracoes" element={<Configuracoes />} />
           <Route path="*" element={<div className="muted">{t('Página não encontrada')}</div>} />
         </Routes>

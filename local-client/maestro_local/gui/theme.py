@@ -540,6 +540,7 @@ NAV_ICONS = {
     "transcricoes": "🎙",
     "vault": "🔒",
     "library": "📇",
+    "apitester": "🛰",
     "guide": "?",
     "settings": "⚡",
 }

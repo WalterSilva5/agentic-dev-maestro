@@ -114,4 +114,12 @@ export const importTodos = (body) => api.post('/code/import-todos', body).then((
 // Triagem de bugs
 export const triageBug = (body) => api.post('/bugs/triage', body).then((r) => r.data)
 
+// Testador de API (mini-Postman)
+export const getApiRequests = (params = {}) => api.get('/http-requests', { params }).then((r) => r.data)
+export const createApiRequest = (body) => api.post('/http-requests', body).then((r) => r.data)
+export const updateApiRequest = (id, body) => api.put(`/http-requests/${id}`, body).then((r) => r.data)
+export const deleteApiRequest = (id) => api.delete(`/http-requests/${id}`).then((r) => r.data)
+export const runApiRequest = (body) => api.post('/http-requests/run', body).then((r) => r.data)
+export const getApiHistory = (params = {}) => api.get('/http-requests/history', { params }).then((r) => r.data)
+
 export const getHealth = () => api.get('/health').then((r) => r.data)

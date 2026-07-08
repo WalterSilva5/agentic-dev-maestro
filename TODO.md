@@ -61,8 +61,9 @@ SQLite, DevLog/comments, MCP).
   task. API `/api/bugs/triage`; "Bug triage" tab in the Library (desktop + web).
 - [ ] **Sprint retrospective** (~2 pd) — on sprint completion, "what went
   well/badly/actions" with AI; actions become tasks.
-- [ ] **API tester (mini-Postman)** (~3 pd) — save requests per project, run
-  them and keep a history.
+- [x] **API tester (mini-Postman)** (~3 pd) — build/run/save HTTP requests and
+  keep an execution history. API `/api/http-requests` (+ `/run`, `/history`);
+  dedicated screen on desktop and web (`/api-tester`).
 - [ ] **Proactive digest (automatic standup)** (~3 pd) — "done/doing/blockers"
   from board activity + commits + Daily Note; weekly summary.
 - [x] **Import TODO/FIXME from code** (~1–2 pd) — scan a folder for

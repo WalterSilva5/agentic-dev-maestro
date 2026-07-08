@@ -40,7 +40,7 @@ maestro --port 8888  # custom port
 ## What the application does
 
 On startup, Maestro opens:
-1. **Desktop GUI** (PySide6/Qt 6) — graphical interface with 12 screens in the menu (+ Metrics, TODOs, and Labels as Dashboard tabs)
+1. **Desktop GUI** (PySide6/Qt 6) — graphical interface with 13 screens in the menu (+ Metrics, TODOs, and Labels as Dashboard tabs)
 2. **REST API** (FastAPI/uvicorn) — `http://127.0.0.1:9777/api` in a daemon thread
 
 The initial screen is **My Day**, which works as the application's home.
@@ -145,7 +145,13 @@ Recording, transcription, and summarization of meetings and studies (migrated fr
 - **Import from code**: scan a folder for `TODO/FIXME/HACK/XXX` comments and import selected ones as tasks (linked to `file:line`) in the chosen project
 - Available on desktop and on the web UI (`/biblioteca`); API `/api/snippets`, `/api/runbooks`, `/api/code/scan-todos`, `/api/code/import-todos`
 
-### Projects (Alt+9)
+### API tester (Alt+9) — mini-Postman
+
+- **Build/run HTTP requests**: method, URL, headers (JSON or `Key: value` per line), body; runs via the stdlib (no extra deps)
+- **Save requests** per workspace and reload them; **execution history** (status, duration, URL)
+- Available on desktop and on the web UI (`/api-tester`); API `/api/http-requests` (+ `/run`, `/history`)
+
+### Projects (Alt+0)
 
 - Create projects with a name, unique key (e.g.: DEMO, PROJ), and description
 - Each project automatically generates default board columns
@@ -167,7 +173,7 @@ Analytics dashboard:
 - **By priority**: Low/Medium/High/Urgent breakdown with percentage
 - **By project**: progress of each project with a bar
 
-### Skills (Alt+0)
+### Skills
 
 Library of skills for AI agents:
 
