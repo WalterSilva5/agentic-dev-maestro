@@ -12,6 +12,7 @@ import Labels from './pages/Labels.jsx'
 import Biblioteca from './pages/Biblioteca.jsx'
 import ApiTester from './pages/ApiTester.jsx'
 import Base from './pages/Base.jsx'
+import Ferramentas from './pages/Ferramentas.jsx'
 import Configuracoes from './pages/Configuracoes.jsx'
 import WorkspaceSelector from './components/WorkspaceSelector.jsx'
 import PendingTodosReminder from './components/PendingTodosReminder.jsx'
@@ -31,18 +32,15 @@ function Sidebar() {
     return () => clearInterval(id)
   }, [])
 
+  // Menu enxuto: essenciais + hub "Ferramentas" (extras: estudos, métricas,
+  // labels, biblioteca, testador de API, base).
   const nav = [
     ['/dashboard', t('Dashboard')],
     ['/meu-dia', t('Meu Dia')],
-    ['/estudos', t('Estudos')],
     ['/projetos', t('Projetos')],
     ['/assistente', t('Assistente')],
-    ['/metricas', t('Métricas')],
     ['/todos', t('TODOs')],
-    ['/labels', t('Labels')],
-    ['/biblioteca', t('Biblioteca')],
-    ['/api-tester', t('Testador de API')],
-    ['/base', t('Base')],
+    ['/ferramentas', t('Ferramentas')],
     ['/configuracoes', t('Configurações')],
   ]
   return (
@@ -100,6 +98,7 @@ export default function App() {
           <Route path="/biblioteca" element={<Biblioteca />} />
           <Route path="/api-tester" element={<ApiTester />} />
           <Route path="/base" element={<Base />} />
+          <Route path="/ferramentas" element={<Ferramentas />} />
           <Route path="/configuracoes" element={<Configuracoes />} />
           <Route path="*" element={<div className="muted">{t('Página não encontrada')}</div>} />
         </Routes>

@@ -40,7 +40,7 @@ maestro --port 8888  # porta customizada
 ## O que a aplicação faz
 
 Ao iniciar, o Maestro abre:
-1. **GUI desktop** (PySide6/Qt 6) — interface gráfica com 14 telas no menu (+ Métricas, TODOs e Labels como abas do Dashboard)
+1. **GUI desktop** (PySide6/Qt 6) — interface gráfica com um menu enxuto (7 itens) + um hub Ferramentas que agrupa as funcionalidades extras (+ Métricas, TODOs e Labels como abas do Dashboard)
 2. **API REST** (FastAPI/uvicorn) — `http://127.0.0.1:9777/api` em thread daemon
 
 A tela inicial é **Meu Dia**, que funciona como home da aplicação.
@@ -76,7 +76,7 @@ Hub central do workspace, organizado em **abas**:
 - **Visão geral**: Pomodoro em destaque, cards de resumo (tarefas ativas, concluídas, vencidas, em progresso), tarefas vencidas clicáveis, atividade recente e progresso por projeto
 - **Métricas**, **TODOs** e **Labels** (antes eram páginas próprias)
 
-### Estudos (Alt+3)
+### Estudos (no hub Ferramentas)
 
 Módulo de aprendizado:
 
@@ -88,7 +88,7 @@ Módulo de aprendizado:
 - **Assistente de estudo (sob demanda)**: no detalhe do plano, um painel com botões que acionam a IA para o tópico escolhido — **Explicar**, **Exercícios**, **Quiz** (com gabarito), **Flashcards** de revisão, **Montar roadmap** (um fluxo de agente: a IA primeiro faz algumas perguntas para você complementar o contexto — nível, objetivo, tempo disponível, foco — e só então gera uma lista de tópicos sob medida, adicionada ao plano com 1 clique, sem duplicar) e **Tirar dúvida** (pergunta livre). Nada é automático: você clica na ação que quer. Usa o provedor de IA configurado
 - **Anexos como contexto na criação**: ao criar um plano, dá para **anexar arquivos** (ebooks/documentos: `.txt`, `.md`, `.pdf`, `.docx`, `.epub`). O texto é extraído localmente e usado como **contexto junto com os campos** (título, categoria, descrição) para a IA gerar os **tópicos** do plano com estimativa de horas. Sem anexos, o plano é criado normalmente (vazio)
 
-### Board Kanban (Alt+4)
+### Board Kanban (Alt+3)
 
 Board de tarefas por projeto:
 
@@ -104,7 +104,7 @@ Board de tarefas por projeto:
 - **Task detail**: dialog completo com título, descrição, tipo, prioridade, assignee, due date, labels, checklist (Definition of Done), dependências, comentários com markdown
 - **Tarefas de revisão**: agentes sempre criam tarefas com `requiresHuman: true` para o desenvolvedor validar alterações
 
-### Assistente (Alt+5)
+### Assistente (Alt+4)
 
 Assistente de IA interno que roda com seu próprio provedor:
 
@@ -113,7 +113,7 @@ Assistente de IA interno que roda com seu próprio provedor:
 - **Execução assíncrona**: roda em thread separada, sem travar a interface
 - **Configuração**: provedor ativo definido em Configurações → Provedores de IA (Base URL, API Key e Modelo)
 
-### Reuniões (Alt+6)
+### Reuniões (no hub Ferramentas)
 
 Gravação, transcrição e resumo de reuniões e estudos (migrado do projeto wsi-cronista):
 
@@ -129,7 +129,7 @@ Gravação, transcrição e resumo de reuniões e estudos (migrado do projeto ws
 - **Atalho global**: `Ctrl+Shift+R` inicia/para a gravação (best-effort; pode não funcionar em Wayland)
 - **Acesso rápido**: widget na sidebar inicia a gravação em 1 clique e mostra o tempo decorrido
 
-### Senhas (Alt+7) — cofre KeePass
+### Senhas (no hub Ferramentas) — cofre KeePass
 
 - **Cofre global** (um único para o app, **não por workspace**), fora dos bancos de workspace, em `~/.maestro-local/vault.kdbx` (caminho configurável)
 - Lê e grava o formato **`.kdbx`** (KeePass 2.x via `pykeepass`); interopera com vaults KeePass existentes
@@ -138,7 +138,7 @@ Gravação, transcrição e resumo de reuniões e estudos (migrado do projeto ws
 - **Copiar para a área de transferência com auto-limpeza** (25s) e **auto-lock por inatividade** (5 min)
 - Apenas desktop (o cofre roda no processo Python local)
 
-### Biblioteca (Alt+8) — hub de ferramentas de dev (abas)
+### Biblioteca (no hub Ferramentas) — hub de ferramentas de dev (abas)
 
 - **Snippets & Prompts**: snippets de código e prompts de IA reutilizáveis, com tipo (SNIPPET/PROMPT), linguagem, tags; busca por texto/tags/linguagem; copiar para a área de transferência com contador de uso
 - **Runbooks**: cartões de setup/deploy/comando com categoria e cópia do comando em 1 clique
@@ -148,13 +148,17 @@ Gravação, transcrição e resumo de reuniões e estudos (migrado do projeto ws
 - **Git**: cockpit do repositório — branch, ahead/behind, mudanças staged/unstaged/untracked, commits recentes e PRs abertos (via `gh`, somente leitura)
 - Disponível no desktop e na web (`/biblioteca`); API `/api/snippets`, `/api/runbooks`, `/api/code/scan-todos`, `/api/code/import-todos`, `/api/bugs/triage`, `/api/code/review`, `/api/git/status`
 
-### Testador de API (Alt+9) — mini-Postman
+### Testador de API (no hub Ferramentas) — mini-Postman
 
 - **Monta/executa requisições HTTP**: método, URL, headers (JSON ou `Chave: valor` por linha), corpo; executa via stdlib (sem dependências extras)
 - **Salva requests** por workspace e recarrega; **histórico de execução** (status, duração, URL)
 - Disponível no desktop e na web (`/api-tester`); API `/api/http-requests` (+ `/run`, `/history`)
 
-### Projetos (Alt+0)
+### Ferramentas (Alt+5) — hub de funcionalidades extras
+
+Para manter o menu lateral enxuto, as funcionalidades extras ficam atrás de um único item **Ferramentas** que abre uma **grade de cards com ícone** (launcher). Clicar num card abre a funcionalidade e mantém **Ferramentas** destacado no menu. Cards: **Estudos**, **Reuniões**, **Senhas**, **Biblioteca**, **Testador de API**, **Base de conhecimento**, **Skills**, **Instruções**. Na web é `/ferramentas` (cards: Estudos, Métricas, Labels, Biblioteca, Testador de API, Base).
+
+### Projetos (Alt+6)
 
 - Criar projetos com nome, chave única (ex: DEMO, PROJ) e descrição
 - Cada projeto gera automaticamente colunas padrão no board
@@ -190,7 +194,7 @@ Biblioteca de skills para agentes de IA:
 
 Guia de uso reestruturado com 12 seções, incluindo explicações de cada tela, fluxo de trabalho, o papel dos agentes e tarefas de revisão.
 
-### Configurações
+### Configurações (Alt+7)
 
 Tela de configurações gerais:
 

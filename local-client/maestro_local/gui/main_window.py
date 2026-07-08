@@ -37,6 +37,7 @@ from maestro_local.gui.views.vault_view import VaultView
 from maestro_local.gui.views.library_view import LibraryView
 from maestro_local.gui.views.api_tester_view import ApiTesterView
 from maestro_local.gui.views.kb_view import KBView
+from maestro_local.gui.views.tools_hub_view import ToolsHubView
 from maestro_local.gui.views.guide_view import GuideView
 from maestro_local.gui.views.settings_view import SettingsView
 from maestro_local.gui.views.projects_view import ProjectsView
@@ -171,22 +172,17 @@ class MainWindow(QMainWindow):
         # Navigation list
         self.nav_list = QListWidget()
         self.nav_list.setObjectName("navList")
+        # Menu enxuto: essenciais do dia a dia + hub "Ferramentas" (extras).
         nav_items = [
             (t("Dashboard"), "dashboard"),
             (t("Meu Dia"), "daily"),
-            (t("Estudos"), "study"),
             (t("Board"), "board"),
             (t("Assistente"), "chat"),
-            (t("Reuniões"), "transcricoes"),
-            (t("Senhas"), "vault"),
-            (t("Biblioteca"), "library"),
-            (t("Testador de API"), "apitester"),
-            (t("Base"), "kb"),
+            (t("Ferramentas"), "ferramentas"),
             (t("Projetos"), "projects"),
-            (t("Skills"), "skills"),
-            (t("Instruções"), "guide"),
             (t("Configurações"), "settings"),
         ]
+        self._primary_keys = {k for _, k in nav_items}
         for label, key in nav_items:
             icon = NAV_ICONS.get(key, "")
             item = QListWidgetItem(f"  {icon}   {label}")
@@ -194,12 +190,14 @@ class MainWindow(QMainWindow):
             self.nav_list.addItem(item)
 
         self.nav_list.currentRowChanged.connect(self._on_nav)
+        # itemClicked garante reabrir uma tela do hub mesmo com "Ferramentas" já selecionada
+        self.nav_list.itemClicked.connect(lambda it: self._open_key(it.data(Qt.UserRole)))
         sb_layout.addWidget(self.nav_list)
 
         # Transcrições — acesso rápido à gravação
         self.transcricoes_quick = TranscricoesQuickWidget()
         self.transcricoes_quick.toggle_requested.connect(self._transcricoes_quick_toggle)
-        self.transcricoes_quick.open_requested.connect(lambda: self.nav_list.setCurrentRow(5))
+        self.transcricoes_quick.open_requested.connect(lambda: self._open_key("transcricoes"))
         sb_layout.addWidget(self.transcricoes_quick)
 
         sb_layout.addSpacing(12)
@@ -262,6 +260,7 @@ class MainWindow(QMainWindow):
         self.library_view = LibraryView()
         self.api_tester_view = ApiTesterView()
         self.kb_view = KBView()
+        self.tools_hub_view = ToolsHubView(lambda key: self._open_key(key))
         self.projects_view = ProjectsView()
         self.skills_view = SkillsView()
         self.guide_view = GuideView()
@@ -279,7 +278,27 @@ class MainWindow(QMainWindow):
         self.stack.addWidget(self.library_view)
         self.stack.addWidget(self.api_tester_view)
         self.stack.addWidget(self.kb_view)
+        self.stack.addWidget(self.tools_hub_view)
         self.stack.addWidget(self.projects_view)
+
+        # Navegação por chave (o menu não mapeia mais 1:1 por posição no stack)
+        self._view_by_key = {
+            "dashboard": self.dashboard_view,
+            "daily": self.daily_view,
+            "study": self.study_view,
+            "board": self.board_view,
+            "chat": self.chat_view,
+            "transcricoes": self.transcricoes_view,
+            "vault": self.vault_view,
+            "library": self.library_view,
+            "apitester": self.api_tester_view,
+            "kb": self.kb_view,
+            "ferramentas": self.tools_hub_view,
+            "projects": self.projects_view,
+            "skills": self.skills_view,
+            "guide": self.guide_view,
+            "settings": self.settings_view,
+        }
         self.stack.addWidget(self.skills_view)
         self.stack.addWidget(self.guide_view)
         self.stack.addWidget(self.settings_view)
@@ -295,7 +314,7 @@ class MainWindow(QMainWindow):
         self.dashboard_view.project_clicked.connect(self._open_board)
 
         # Default to Meu Dia view
-        self.nav_list.setCurrentRow(1)
+        self._open_key("daily")
 
         # Status bar
         self.status = QStatusBar()
@@ -312,8 +331,8 @@ class MainWindow(QMainWindow):
         escape_shortcut = QShortcut(QKeySequence("Escape"), self)
         escape_shortcut.activated.connect(self._close_search)
 
-        for i in range(10):
-            shortcut = QShortcut(QKeySequence(f"Alt+{i + 1}" if i < 9 else "Alt+0"), self)
+        for i in range(min(9, self.nav_list.count())):
+            shortcut = QShortcut(QKeySequence(f"Alt+{i + 1}"), self)
             shortcut.activated.connect(lambda idx=i: self.nav_list.setCurrentRow(idx))
 
         self._notif_timer = QTimer(self)
@@ -372,7 +391,7 @@ class MainWindow(QMainWindow):
 
     def _goto_todos(self):
         self.todo_reminder.hide()
-        self.nav_list.setCurrentRow(0)  # Dashboard (aba TODOs fica lá)
+        self._open_key("dashboard")  # Dashboard (aba TODOs fica lá)
         w = self.stack.currentWidget()
         # tenta selecionar a aba TODOs no Dashboard
         tabs = getattr(w, "_tabs", None)
@@ -402,7 +421,7 @@ class MainWindow(QMainWindow):
         self.todo_reminder.hide()
 
     def _transcricoes_quick_toggle(self):
-        self.nav_list.setCurrentRow(5)
+        self._open_key("transcricoes")
         self.transcricoes_view.toggle_record_external()
 
     def _update_transcricoes_quick(self):
@@ -520,14 +539,35 @@ class MainWindow(QMainWindow):
         self._refresh_all()
 
     def _on_nav(self, row):
-        self.stack.setCurrentIndex(row)
-        w = self.stack.currentWidget()
+        item = self.nav_list.item(row)
+        if item is not None:
+            self._open_key(item.data(Qt.UserRole))
+
+    def _nav_row_for(self, key):
+        for i in range(self.nav_list.count()):
+            if self.nav_list.item(i).data(Qt.UserRole) == key:
+                return i
+        return None
+
+    def _open_key(self, key):
+        """Troca a tela pela chave. Telas do hub 'Ferramentas' destacam o item
+        'Ferramentas' no menu (que não as lista diretamente)."""
+        w = self._view_by_key.get(key)
+        if w is None:
+            return
+        self.stack.setCurrentWidget(w)
         if hasattr(w, "refresh"):
             w.refresh()
+        nav_key = key if key in self._primary_keys else "ferramentas"
+        row = self._nav_row_for(nav_key)
+        if row is not None and row != self.nav_list.currentRow():
+            self.nav_list.blockSignals(True)
+            self.nav_list.setCurrentRow(row)
+            self.nav_list.blockSignals(False)
 
     def _open_board(self, project_id):
         self.board_view.set_project(project_id)
-        self.nav_list.setCurrentRow(3)
+        self._open_key("board")
 
     def _open_task_from_dashboard(self, task_id):
         from maestro_local.gui.views.task_detail_dialog import TaskDetailDialog
@@ -619,7 +659,7 @@ class MainWindow(QMainWindow):
         self._close_search()
         if task and hasattr(self.board_view, "open_task_detail"):
             self.board_view.open_task_detail(task)
-            self.nav_list.setCurrentRow(3)
+            self._open_key("board")
 
     # --- Notifications ---
 

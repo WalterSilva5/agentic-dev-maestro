@@ -542,6 +542,7 @@ NAV_ICONS = {
     "library": "📇",
     "apitester": "🛰",
     "kb": "🧠",
+    "ferramentas": "🧰",
     "guide": "?",
     "settings": "⚡",
 }

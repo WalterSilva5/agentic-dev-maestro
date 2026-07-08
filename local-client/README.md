@@ -40,7 +40,7 @@ maestro --port 8888  # custom port
 ## What the application does
 
 On startup, Maestro opens:
-1. **Desktop GUI** (PySide6/Qt 6) — graphical interface with 14 screens in the menu (+ Metrics, TODOs, and Labels as Dashboard tabs)
+1. **Desktop GUI** (PySide6/Qt 6) — graphical interface with a lean menu (7 items) + a Tools hub that groups the extra features (+ Metrics, TODOs, and Labels as Dashboard tabs)
 2. **REST API** (FastAPI/uvicorn) — `http://127.0.0.1:9777/api` in a daemon thread
 
 The initial screen is **My Day**, which works as the application's home.
@@ -76,7 +76,7 @@ Central hub of the workspace, organized into **tabs**:
 - **Overview**: Pomodoro highlighted, summary cards (active, completed, overdue, in-progress tasks), clickable overdue tasks, recent activity, and progress by project
 - **Metrics**, **TODOs**, and **Labels** (previously their own pages)
 
-### Studies (Alt+3)
+### Studies (in Tools)
 
 Learning module:
 
@@ -88,7 +88,7 @@ Learning module:
 - **Study assistant (on demand)**: in the plan detail view, a panel with buttons that trigger the AI for the chosen topic — **Explain**, **Exercises**, **Quiz** (with answer key), review **Flashcards**, **Build roadmap** (an agent flow: the AI first asks a few questions so you can add context — level, goal, available time, focus — and only then generates a tailored topic list, which you add to the plan with 1 click, without duplicating), and **Ask a question** (free-form question). Nothing is automatic: you click the action you want. Uses the configured AI provider
 - **Attachments as context during creation**: when creating a plan, you can **attach files** (ebooks/documents: `.txt`, `.md`, `.pdf`, `.docx`, `.epub`). The text is extracted locally and used as **context together with the fields** (title, category, description) for the AI to generate the plan's **topics** with estimated hours. Without attachments, the plan is created normally (empty)
 
-### Kanban Board (Alt+4)
+### Kanban Board (Alt+3)
 
 Task board by project:
 
@@ -104,7 +104,7 @@ Task board by project:
 - **Task detail**: full dialog with title, description, type, priority, assignee, due date, labels, checklist (Definition of Done), dependencies, comments with markdown
 - **Review tasks**: agents always create tasks with `requiresHuman: true` for the developer to validate changes
 
-### Assistant (Alt+5)
+### Assistant (Alt+4)
 
 Internal AI assistant that runs with your own provider:
 
@@ -113,7 +113,7 @@ Internal AI assistant that runs with your own provider:
 - **Asynchronous execution**: runs in a separate thread, without freezing the interface
 - **Configuration**: active provider defined in Settings → AI Providers (Base URL, API Key, and Model)
 
-### Meetings (Alt+6)
+### Meetings (in Tools)
 
 Recording, transcription, and summarization of meetings and studies (migrated from the wsi-cronista project):
 
@@ -129,7 +129,7 @@ Recording, transcription, and summarization of meetings and studies (migrated fr
 - **Global shortcut**: `Ctrl+Shift+R` starts/stops the recording (best-effort; may not work on Wayland)
 - **Quick access**: a widget in the sidebar starts the recording in 1 click and shows the elapsed time
 
-### Passwords (Alt+7) — KeePass vault
+### Passwords (in Tools) — KeePass vault
 
 - **Global vault** (one for the whole app, **not per workspace**) stored outside the per-workspace databases at `~/.maestro-local/vault.kdbx` (path configurable)
 - Reads and writes the **`.kdbx`** format (KeePass 2.x via `pykeepass`); interoperates with existing KeePass vaults
@@ -138,7 +138,7 @@ Recording, transcription, and summarization of meetings and studies (migrated fr
 - **Copy-to-clipboard with auto-clear** (25s) and **auto-lock on inactivity** (5 min)
 - Desktop-only (the vault runs in the local Python process)
 
-### Library (Alt+8) — dev tools hub (tabs)
+### Library (in Tools) — dev tools hub (tabs)
 
 - **Snippets & Prompts**: reusable code snippets and AI prompts, with kind (SNIPPET/PROMPT), language, tags; search by text/tags/language; copy-to-clipboard with a use counter
 - **Runbooks**: setup/deploy/command cards with a category and one-click copy of the command
@@ -148,19 +148,23 @@ Recording, transcription, and summarization of meetings and studies (migrated fr
 - **Git**: repository cockpit — branch, ahead/behind, staged/unstaged/untracked changes, recent commits and open PRs (via `gh`, read-only)
 - Available on desktop and on the web UI (`/biblioteca`); API `/api/snippets`, `/api/runbooks`, `/api/code/scan-todos`, `/api/code/import-todos`, `/api/bugs/triage`, `/api/code/review`, `/api/git/status`
 
-### API tester (Alt+9) — mini-Postman
+### API tester (in Tools) — mini-Postman
 
 - **Build/run HTTP requests**: method, URL, headers (JSON or `Key: value` per line), body; runs via the stdlib (no extra deps)
 - **Save requests** per workspace and reload them; **execution history** (status, duration, URL)
 - Available on desktop and on the web UI (`/api-tester`); API `/api/http-requests` (+ `/run`, `/history`)
 
-### Knowledge base (Alt+0) — second brain
+### Knowledge base (in Tools) — second brain
 
 - **Notes/wiki** (reuses `Document` with type `KB`) with `[[title]]` **backlinks** shown per note
 - **AI Q&A over your notes** (RAG-lite: keyword retrieval + answer citing the notes used)
 - Available on desktop and on the web UI (`/base`); API `/api/kb/notes`, `/api/kb/ask`
 
-### Projects
+### Tools (Alt+5) — hub of extra features
+
+To keep the sidebar lean, the extra features live behind a single **Tools** menu item that opens a **grid of icon cards** (a launcher). Clicking a card opens the feature and keeps **Tools** highlighted in the sidebar. Cards: **Studies**, **Meetings**, **Passwords**, **Library**, **API tester**, **Knowledge base**, **Skills**, **Instructions**. On the web UI it is `/ferramentas` (cards: Studies, Metrics, Labels, Library, API tester, Knowledge base).
+
+### Projects (Alt+6)
 
 - Create projects with a name, unique key (e.g.: DEMO, PROJ), and description
 - Each project automatically generates default board columns
@@ -196,7 +200,7 @@ Library of skills for AI agents:
 
 Restructured usage guide with 12 sections, including explanations of each screen, the workflow, the role of the agents, and review tasks.
 
-### Settings
+### Settings (Alt+7)
 
 General settings screen:
 
