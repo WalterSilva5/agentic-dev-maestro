@@ -45,9 +45,9 @@ SQLite, DevLog/comments, MCP).
   auto-clear**. Always **local and encrypted**; the master password is never
   persisted (vault locks on inactivity). Extra security care since it handles
   credentials.
-- [ ] **Git/PR cockpit** (~4–6 pd) — current branch, uncommitted changes,
-  commits and PRs (`git`/`gh`); link branch/commit → task (DevLog already has
-  `COMMIT_REF`/`DEPLOY_LOG`); AI suggests a commit message / PR description.
+- [x] **Git/PR cockpit** (~4–6 pd) — current branch, ahead/behind, uncommitted
+  changes (staged/unstaged/untracked), recent commits and open PRs (`git`/`gh`,
+  read-only). API `/api/git/status`; "Git" tab in the Library (desktop + web).
 - [ ] **Time tracking + Pomodoro per task** (~2–3 pd) — a timer on a task →
   logs time → feeds real cycle time into Metrics + a weekly timesheet.
 - [x] **Snippets & prompt library** (~2 pd) — reusable code snippets and AI

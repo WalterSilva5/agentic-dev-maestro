@@ -14,6 +14,7 @@ import {
   importTodos,
   triageBug,
   codeReview,
+  gitStatus,
   getProjects,
 } from '../api'
 import { t } from '../i18n'
@@ -414,6 +415,82 @@ function CodeReviewTab() {
   )
 }
 
+function GitTab() {
+  const [path, setPath] = useState('')
+  const [st, setSt] = useState(null)
+  const [status, setStatus] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const load = async () => {
+    if (!path.trim()) return setStatus(t('Informe o caminho do repositório'))
+    setLoading(true)
+    setStatus('')
+    try {
+      const r = await gitStatus(path.trim(), true)
+      setSt(r)
+    } catch (e) {
+      setStatus(e.response?.data?.detail || String(e.message || e))
+      setSt(null)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div>
+      <p className="subtitle">{t('Estado do repositório: branch, mudanças, commits e PRs (via gh).')}</p>
+      <div className="card">
+        <div className="toolbar">
+          <input style={{ flex: 1 }} placeholder={t('Pasta do repositório...')} value={path}
+            onChange={(e) => setPath(e.target.value)} />
+          <button onClick={load} disabled={loading}>{loading ? t('Carregando...') : t('Atualizar')}</button>
+        </div>
+        {status && <div className="muted" style={{ marginTop: 8 }}>{status}</div>}
+      </div>
+
+      {st && (
+        <div className="card" style={{ marginTop: 12, fontSize: 13 }}>
+          <div className="row" style={{ gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+            <span><b>🌿 {st.branch}</b></span>
+            <span className="muted">↑{st.ahead} ↓{st.behind}</span>
+            <span style={{ color: st.clean ? 'var(--success, #2f9e44)' : 'var(--warning, #f08c00)' }}>
+              {st.clean ? t('Limpo') : t('Com alterações')}
+            </span>
+          </div>
+
+          {(st.staged?.length > 0 || st.unstaged?.length > 0 || st.untracked?.length > 0) && (
+            <div style={{ marginTop: 8 }}>
+              {st.staged?.length > 0 && <div><b>{t('Staged')}</b><ul style={{ margin: '2px 0 6px' }}>{st.staged.map((x, i) => <li key={i}><code>{x}</code></li>)}</ul></div>}
+              {st.unstaged?.length > 0 && <div><b>{t('Não-staged')}</b><ul style={{ margin: '2px 0 6px' }}>{st.unstaged.map((x, i) => <li key={i}><code>{x}</code></li>)}</ul></div>}
+              {st.untracked?.length > 0 && <div><b>{t('Não rastreados')}</b><ul style={{ margin: '2px 0 6px' }}>{st.untracked.map((x, i) => <li key={i}><code>{x}</code></li>)}</ul></div>}
+            </div>
+          )}
+
+          {st.prs?.length > 0 && (
+            <div style={{ marginTop: 8 }}>
+              <b>{t('Pull requests')}</b>
+              <ul style={{ margin: '2px 0 6px' }}>
+                {st.prs.map((p) => (
+                  <li key={p.number}><a href={p.url} target="_blank" rel="noreferrer">#{p.number}</a> {p.title} <span className="muted">({p.branch})</span></li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div style={{ marginTop: 8 }}>
+            <b>{t('Commits recentes')}</b>
+            <ul style={{ margin: '2px 0' }}>
+              {st.commits.map((c, i) => (
+                <li key={i}><code>{c.hash}</code> {c.subject} <span className="muted">— {c.author}, {c.when}</span></li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Biblioteca() {
   const [tab, setTab] = useState('snippets')
   const tabs = [
@@ -422,6 +499,7 @@ export default function Biblioteca() {
     ['import', t('Importar do código')],
     ['triage', t('Triagem de bugs')],
     ['review', t('Code review')],
+    ['git', t('Git')],
   ]
   return (
     <div>
@@ -437,6 +515,7 @@ export default function Biblioteca() {
       {tab === 'import' && <ImportTab />}
       {tab === 'triage' && <TriageTab />}
       {tab === 'review' && <CodeReviewTab />}
+      {tab === 'git' && <GitTab />}
     </div>
   )
 }

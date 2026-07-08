@@ -138,12 +138,15 @@ Gravação, transcrição e resumo de reuniões e estudos (migrado do projeto ws
 - **Copiar para a área de transferência com auto-limpeza** (25s) e **auto-lock por inatividade** (5 min)
 - Apenas desktop (o cofre roda no processo Python local)
 
-### Biblioteca (Alt+8) — snippets, prompts, runbooks e importar TODO
+### Biblioteca (Alt+8) — hub de ferramentas de dev (abas)
 
 - **Snippets & Prompts**: snippets de código e prompts de IA reutilizáveis, com tipo (SNIPPET/PROMPT), linguagem, tags; busca por texto/tags/linguagem; copiar para a área de transferência com contador de uso
 - **Runbooks**: cartões de setup/deploy/comando com categoria e cópia do comando em 1 clique
 - **Importar do código**: varre uma pasta por comentários `TODO/FIXME/HACK/XXX` e importa os selecionados como tarefas (ligadas a `arquivo:linha`) no projeto escolhido
-- Disponível no desktop e na web (`/biblioteca`); API `/api/snippets`, `/api/runbooks`, `/api/code/scan-todos`, `/api/code/import-todos`
+- **Triagem de bugs**: cola um stacktrace/relato → a IA classifica título/severidade/causa provável/passos → vira tarefa BUG
+- **Code review**: aponta um repo + base (branch/ref) → a IA revisa o diff git (resumo, problemas por severidade, sugestões), opcionalmente postado como comentário `CODE_REVIEW` na tarefa
+- **Git**: cockpit do repositório — branch, ahead/behind, mudanças staged/unstaged/untracked, commits recentes e PRs abertos (via `gh`, somente leitura)
+- Disponível no desktop e na web (`/biblioteca`); API `/api/snippets`, `/api/runbooks`, `/api/code/scan-todos`, `/api/code/import-todos`, `/api/bugs/triage`, `/api/code/review`, `/api/git/status`
 
 ### Testador de API (Alt+9) — mini-Postman
 

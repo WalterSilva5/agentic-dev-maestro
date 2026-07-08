@@ -157,6 +157,7 @@ class LibraryView(QWidget):
         self.tabs.addTab(self._build_import_tab(), _t("Importar do código"))
         self.tabs.addTab(self._build_triage_tab(), _t("Triagem de bugs"))
         self.tabs.addTab(self._build_review_tab(), _t("Code review"))
+        self.tabs.addTab(self._build_git_tab(), _t("Git"))
         layout.addWidget(self.tabs, 1)
 
         self.refresh()
@@ -783,6 +784,76 @@ class LibraryView(QWidget):
                 self.rev_status.setText(_t("Erro") + f": {e}")
             finally:
                 s.close()
+
+    # ---- Git cockpit tab ----
+    def _build_git_tab(self):
+        w = QWidget()
+        lay = QVBoxLayout(w)
+        lay.setContentsMargins(0, 8, 0, 0)
+        lay.setSpacing(8)
+
+        info = QLabel(_t("Estado do repositório: branch, mudanças, commits e PRs (via gh)."))
+        info.setObjectName("subtitle")
+        info.setWordWrap(True)
+        lay.addWidget(info)
+
+        row = QHBoxLayout()
+        self.git_path = QLineEdit()
+        self.git_path.setPlaceholderText(_t("Pasta do repositório..."))
+        row.addWidget(self.git_path, 1)
+        pick = QPushButton(_t("Escolher..."))
+        pick.setCursor(Qt.PointingHandCursor)
+        pick.clicked.connect(lambda: self.git_path.setText(
+            QFileDialog.getExistingDirectory(self, _t("Escolher pasta")) or self.git_path.text()))
+        row.addWidget(pick)
+        refresh = QPushButton(_t("Atualizar"))
+        refresh.setCursor(Qt.PointingHandCursor)
+        refresh.clicked.connect(self._load_git)
+        row.addWidget(refresh)
+        lay.addLayout(row)
+
+        self.git_status_lbl = QLabel("")
+        self.git_status_lbl.setObjectName("subtitle")
+        lay.addWidget(self.git_status_lbl)
+
+        self.git_result = QPlainTextEdit()
+        self.git_result.setReadOnly(True)
+        lay.addWidget(self.git_result, 1)
+        return w
+
+    def _load_git(self):
+        from maestro_local.gittools import git_status, gh_prs
+        path = self.git_path.text().strip()
+        if not path:
+            self.git_status_lbl.setText(_t("Informe o caminho do repositório"))
+            return
+        try:
+            st = git_status(path)
+        except Exception as e:  # noqa: BLE001
+            self.git_status_lbl.setText(_t("Erro") + f": {e}")
+            self.git_result.clear()
+            return
+        prs = gh_prs(path)
+        self.git_status_lbl.setText(
+            f"🌿 {st['branch']}  ↑{st['ahead']} ↓{st['behind']}  "
+            + (_t("Limpo") if st["clean"] else _t("Com alterações")))
+        lines = []
+        if st["staged"]:
+            lines.append(_t("Staged") + ":")
+            lines += [f"  {x}" for x in st["staged"]]
+        if st["unstaged"]:
+            lines.append(_t("Não-staged") + ":")
+            lines += [f"  {x}" for x in st["unstaged"]]
+        if st["untracked"]:
+            lines.append(_t("Não rastreados") + ":")
+            lines += [f"  {x}" for x in st["untracked"]]
+        if prs:
+            lines.append("\n" + _t("Pull requests") + ":")
+            lines += [f"  #{p['number']} {p['title']} ({p['branch']})" for p in prs]
+        lines.append("\n" + _t("Commits recentes") + ":")
+        lines += [f"  {c['hash']} {c['subject']} — {c['author']}, {c['when']}"
+                  for c in st["commits"]]
+        self.git_result.setPlainText("\n".join(lines))
 
     def _create_bug_task(self):
         from maestro_local.triage import build_task_description

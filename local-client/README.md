@@ -138,12 +138,15 @@ Recording, transcription, and summarization of meetings and studies (migrated fr
 - **Copy-to-clipboard with auto-clear** (25s) and **auto-lock on inactivity** (5 min)
 - Desktop-only (the vault runs in the local Python process)
 
-### Library (Alt+8) — snippets, prompts, runbooks and TODO import
+### Library (Alt+8) — dev tools hub (tabs)
 
 - **Snippets & Prompts**: reusable code snippets and AI prompts, with kind (SNIPPET/PROMPT), language, tags; search by text/tags/language; copy-to-clipboard with a use counter
 - **Runbooks**: setup/deploy/command cards with a category and one-click copy of the command
 - **Import from code**: scan a folder for `TODO/FIXME/HACK/XXX` comments and import selected ones as tasks (linked to `file:line`) in the chosen project
-- Available on desktop and on the web UI (`/biblioteca`); API `/api/snippets`, `/api/runbooks`, `/api/code/scan-todos`, `/api/code/import-todos`
+- **Bug triage**: paste a stack trace/report → AI classifies title/severity/probable cause/steps → becomes a BUG task
+- **Code review**: point at a repo + base (branch/ref) → AI reviews the git diff (summary, issues by severity, suggestions), optionally posted as a `CODE_REVIEW` comment on a task
+- **Git**: repository cockpit — branch, ahead/behind, staged/unstaged/untracked changes, recent commits and open PRs (via `gh`, read-only)
+- Available on desktop and on the web UI (`/biblioteca`); API `/api/snippets`, `/api/runbooks`, `/api/code/scan-todos`, `/api/code/import-todos`, `/api/bugs/triage`, `/api/code/review`, `/api/git/status`
 
 ### API tester (Alt+9) — mini-Postman
 

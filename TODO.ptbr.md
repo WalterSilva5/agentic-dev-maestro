@@ -45,9 +45,10 @@ workspace, DevLog/comentários, MCP).
   auto-limpeza**. Sempre **local e criptografado**; a senha-mestra nunca é
   persistida (cofre trava por inatividade). Cuidado extra de segurança por lidar
   com credenciais.
-- [ ] **Cockpit de Git/PR** (~4–6 hd) — branch atual, mudanças não commitadas,
-  commits e PRs (`git`/`gh`); liga branch/commit → tarefa (DevLog já tem
-  `COMMIT_REF`/`DEPLOY_LOG`); IA sugere mensagem de commit/descrição de PR.
+- [x] **Cockpit de Git/PR** (~4–6 hd) — branch atual, ahead/behind, mudanças não
+  commitadas (staged/unstaged/untracked), commits recentes e PRs abertos
+  (`git`/`gh`, somente leitura). API `/api/git/status`; aba "Git" na Biblioteca
+  (desktop + web).
 - [ ] **Time tracking + Pomodoro por tarefa** (~2–3 hd) — timer sobre a tarefa →
   registra tempo → alimenta cycle time real das Métricas + timesheet semanal.
 - [x] **Biblioteca de snippets & prompts** (~2 hd) — snippets de código e prompts

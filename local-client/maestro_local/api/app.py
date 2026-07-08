@@ -2862,6 +2862,25 @@ def get_digest(days: int = 1, s: Session = Depends(db)):
 
 
 # ---------------------------------------------------------------------------
+# Cockpit de Git/PR (somente leitura)
+# ---------------------------------------------------------------------------
+
+
+@app.get("/api/git/status")
+def git_status_endpoint(path: str, prs: bool = False):
+    from maestro_local.gittools import git_status, gh_prs
+    if not path.strip():
+        raise HTTPException(status_code=400, detail="Caminho do repositório vazio")
+    try:
+        status = git_status(path.strip())
+    except RuntimeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if prs:
+        status["prs"] = gh_prs(path.strip())
+    return status
+
+
+# ---------------------------------------------------------------------------
 # Assistente de code review (diff → IA → comentário CODE_REVIEW)
 # ---------------------------------------------------------------------------
 
