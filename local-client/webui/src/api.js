@@ -111,4 +111,7 @@ export const deleteRunbook = (id) => api.delete(`/runbooks/${id}`).then((r) => r
 export const scanTodos = (body) => api.post('/code/scan-todos', body).then((r) => r.data)
 export const importTodos = (body) => api.post('/code/import-todos', body).then((r) => r.data)
 
+// Triagem de bugs
+export const triageBug = (body) => api.post('/bugs/triage', body).then((r) => r.data)
+
 export const getHealth = () => api.get('/health').then((r) => r.data)

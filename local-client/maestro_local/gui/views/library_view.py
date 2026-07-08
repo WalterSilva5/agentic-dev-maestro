@@ -2,6 +2,7 @@
 importação de TODO/FIXME do código para o board."""
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QApplication,
     QComboBox,
     QDialog,
     QDialogButtonBox,
@@ -153,6 +154,7 @@ class LibraryView(QWidget):
         self.tabs.addTab(self._build_snippets_tab(), _t("Snippets & Prompts"))
         self.tabs.addTab(self._build_runbooks_tab(), _t("Runbooks"))
         self.tabs.addTab(self._build_import_tab(), _t("Importar do código"))
+        self.tabs.addTab(self._build_triage_tab(), _t("Triagem de bugs"))
         layout.addWidget(self.tabs, 1)
 
         self.refresh()
@@ -528,9 +530,13 @@ class LibraryView(QWidget):
         s = get_session()
         try:
             projects = s.query(Project).order_by(Project.name).all()
-            self.imp_project.clear()
-            for p in projects:
-                self.imp_project.addItem(f"{p.key} — {p.name}", p.id)
+            combos = [self.imp_project]
+            if hasattr(self, "tri_project"):
+                combos.append(self.tri_project)
+            for combo in combos:
+                combo.clear()
+                for p in projects:
+                    combo.addItem(f"{p.key} — {p.name}", p.id)
         finally:
             s.close()
 
@@ -594,3 +600,116 @@ class LibraryView(QWidget):
             s.close()
         self.imp_status.setText(_t("Tarefas criadas") + f": {created}")
         self.imp_list.clear()
+
+    # ---- Triage tab ----
+    def _build_triage_tab(self):
+        w = QWidget()
+        lay = QVBoxLayout(w)
+        lay.setContentsMargins(0, 8, 0, 0)
+        lay.setSpacing(8)
+
+        info = QLabel(_t("Cole um stacktrace/relato. A IA classifica e você cria uma tarefa BUG."))
+        info.setObjectName("subtitle")
+        info.setWordWrap(True)
+        lay.addWidget(info)
+
+        self.tri_input = QPlainTextEdit()
+        self.tri_input.setPlaceholderText(_t("Cole aqui o stacktrace ou a descrição do problema..."))
+        self.tri_input.setMinimumHeight(120)
+        lay.addWidget(self.tri_input)
+
+        row = QHBoxLayout()
+        tri_btn = QPushButton(_t("Triar com IA"))
+        tri_btn.setCursor(Qt.PointingHandCursor)
+        tri_btn.clicked.connect(self._run_triage)
+        row.addWidget(tri_btn)
+        row.addStretch()
+        lay.addLayout(row)
+
+        self.tri_result = QLabel("")
+        self.tri_result.setWordWrap(True)
+        self.tri_result.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        lay.addWidget(self.tri_result)
+
+        row2 = QHBoxLayout()
+        row2.addWidget(QLabel(_t("Projeto:")))
+        self.tri_project = QComboBox()
+        row2.addWidget(self.tri_project, 1)
+        self.tri_create = QPushButton(_t("Criar tarefa BUG"))
+        self.tri_create.setCursor(Qt.PointingHandCursor)
+        self.tri_create.setEnabled(False)
+        self.tri_create.clicked.connect(self._create_bug_task)
+        row2.addWidget(self.tri_create)
+        lay.addLayout(row2)
+
+        self.tri_status = QLabel("")
+        self.tri_status.setObjectName("subtitle")
+        lay.addWidget(self.tri_status)
+        lay.addStretch()
+        self._last_triage = None
+        return w
+
+    def _run_triage(self):
+        from maestro_local.triage import triage_bug
+        text = self.tri_input.toPlainText().strip()
+        if not text:
+            return
+        self.tri_status.setText(_t("Triando..."))
+        self.tri_result.setText("")
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+        try:
+            triage = triage_bug(text)
+        except Exception as e:  # noqa: BLE001
+            self.tri_status.setText(_t("Erro na triagem") + f": {e}")
+            self._last_triage = None
+            self.tri_create.setEnabled(False)
+            return
+        finally:
+            QApplication.restoreOverrideCursor()
+        self._last_triage = triage
+        steps = "".join(f"<li>{s}</li>" for s in triage.get("steps", []))
+        self.tri_result.setText(
+            f"<b>{triage['title']}</b><br>"
+            f"<b>{_t('Severidade')}:</b> {triage['severity']} · "
+            f"<b>{_t('Prioridade')}:</b> {triage['priority']}<br>"
+            f"<b>{_t('Resumo')}:</b> {triage.get('summary', '')}<br>"
+            + (f"<b>{_t('Causa provável')}:</b> {triage['probable_cause']}<br>" if triage.get("probable_cause") else "")
+            + (f"<b>{_t('Passos')}:</b><ul>{steps}</ul>" if steps else "")
+        )
+        self.tri_status.setText("")
+        self.tri_create.setEnabled(True)
+
+    def _create_bug_task(self):
+        from maestro_local.triage import build_task_description
+        if not self._last_triage:
+            return
+        pid = self.tri_project.currentData()
+        if not pid:
+            self.tri_status.setText(_t("Selecione um projeto"))
+            return
+        text = self.tri_input.toPlainText().strip()
+        triage = self._last_triage
+        s = get_session()
+        try:
+            project = s.get(Project, pid)
+            column = (s.query(BoardColumn)
+                      .filter(BoardColumn.project_id == project.id)
+                      .order_by(BoardColumn.order.asc()).first())
+            project.task_seq = (project.task_seq or 0) + 1
+            number = project.task_seq
+            s.add(Task(
+                project_id=project.id,
+                column_id=column.id if column else None,
+                number=number,
+                title=triage["title"],
+                description=build_task_description(text, triage),
+                type="BUG",
+                priority=triage["priority"],
+                requires_human=True,
+            ))
+            s.commit()
+            code = f"{project.key}-{number}"
+        finally:
+            s.close()
+        self.tri_status.setText(_t("Tarefa criada") + f": {code}")
+        self.tri_create.setEnabled(False)

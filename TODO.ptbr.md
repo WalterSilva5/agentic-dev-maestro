@@ -56,8 +56,9 @@ workspace, DevLog/comentários, MCP).
   copiar para área de transferência, contador de uso.
 - [ ] **Base de conhecimento (2º cérebro)** (~4 hd) — notas/wiki por projeto com
   backlinks e Q&A da IA sobre as notas (RAG no workspace); reusa `Document`.
-- [ ] **Intake/triagem de bugs** (~2 hd) — captura rápida (colar stacktrace) →
-  IA classifica severidade/tipo → vira tarefa (skill `bug-triage`).
+- [x] **Intake/triagem de bugs** (~2 hd) — captura rápida (colar stacktrace) →
+  IA classifica severidade/tipo/título (+ causa provável e passos) → vira tarefa
+  BUG. API `/api/bugs/triage`; aba "Triagem de bugs" na Biblioteca (desktop + web).
 - [ ] **Retrospectiva de sprint** (~2 hd) — ao concluir a sprint, "o que foi
   bem/mal/ações" com a IA; ações viram tarefas.
 - [ ] **Testador de API (mini-Postman)** (~3 hd) — salva requests por projeto,

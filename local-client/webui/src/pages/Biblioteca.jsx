@@ -12,6 +12,7 @@ import {
   deleteRunbook,
   scanTodos,
   importTodos,
+  triageBug,
   getProjects,
 } from '../api'
 import { t } from '../i18n'
@@ -265,12 +266,91 @@ function ImportTab() {
   )
 }
 
+function TriageTab() {
+  const [text, setText] = useState('')
+  const [triage, setTriage] = useState(null)
+  const [projects, setProjects] = useState([])
+  const [projectId, setProjectId] = useState('')
+  const [status, setStatus] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    getProjects().then((ps) => {
+      setProjects(ps)
+      if (ps[0]) setProjectId(String(ps[0].id))
+    }).catch(() => {})
+  }, [])
+
+  const run = async () => {
+    if (!text.trim()) return
+    setLoading(true)
+    setStatus(t('Triando...'))
+    setTriage(null)
+    try {
+      const r = await triageBug({ text })
+      setTriage(r.triage)
+      setStatus('')
+    } catch (e) {
+      setStatus(e.response?.data?.detail || String(e.message || e))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const createTask = async () => {
+    if (!projectId) return setStatus(t('Selecione um projeto'))
+    try {
+      const r = await triageBug({ text, projectId: Number(projectId), create: true })
+      setStatus(`${t('Tarefa criada')}: ${r.task?.code || ''}`)
+    } catch (e) {
+      setStatus(e.response?.data?.detail || String(e.message || e))
+    }
+  }
+
+  return (
+    <div>
+      <p className="subtitle">{t('Cole um stacktrace/relato. A IA classifica e você cria uma tarefa BUG.')}</p>
+      <div className="card">
+        <textarea rows={6} placeholder={t('Cole aqui o stacktrace ou a descrição do problema...')}
+          value={text} style={{ width: '100%', fontFamily: 'monospace' }}
+          onChange={(e) => setText(e.target.value)} />
+        <div className="row" style={{ gap: 8, marginTop: 8 }}>
+          <button onClick={run} disabled={loading}>{t('Triar com IA')}</button>
+        </div>
+      </div>
+
+      {triage && (
+        <div className="card" style={{ marginTop: 12 }}>
+          <div style={{ fontWeight: 600 }}>{triage.title}</div>
+          <div className="muted" style={{ margin: '4px 0' }}>
+            {t('Severidade')}: <b>{triage.severity}</b> · {t('Prioridade')}: <b>{triage.priority}</b>
+          </div>
+          {triage.summary && <div>{triage.summary}</div>}
+          {triage.probable_cause && <div style={{ marginTop: 4 }}><b>{t('Causa provável')}:</b> {triage.probable_cause}</div>}
+          {triage.steps?.length > 0 && (
+            <ul>{triage.steps.map((s, i) => <li key={i}>{s}</li>)}</ul>
+          )}
+          <div className="row" style={{ gap: 8, marginTop: 8, alignItems: 'center' }}>
+            <span>{t('Projeto:')}</span>
+            <select value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+              {projects.map((p) => <option key={p.id} value={p.id}>{p.key} — {p.name}</option>)}
+            </select>
+            <button onClick={createTask}>{t('Criar tarefa BUG')}</button>
+          </div>
+        </div>
+      )}
+      {status && <div className="muted" style={{ marginTop: 8 }}>{status}</div>}
+    </div>
+  )
+}
+
 export default function Biblioteca() {
   const [tab, setTab] = useState('snippets')
   const tabs = [
     ['snippets', t('Snippets & Prompts')],
     ['runbooks', t('Runbooks')],
     ['import', t('Importar do código')],
+    ['triage', t('Triagem de bugs')],
   ]
   return (
     <div>
@@ -284,6 +364,7 @@ export default function Biblioteca() {
       {tab === 'snippets' && <SnippetsTab />}
       {tab === 'runbooks' && <RunbooksTab />}
       {tab === 'import' && <ImportTab />}
+      {tab === 'triage' && <TriageTab />}
     </div>
   )
 }

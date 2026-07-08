@@ -56,8 +56,9 @@ SQLite, DevLog/comments, MCP).
   use counter.
 - [ ] **Knowledge base (second brain)** (~4 pd) — per-project notes/wiki with
   backlinks and AI Q&A over your notes (RAG over the workspace); reuses `Document`.
-- [ ] **Bug intake/triage** (~2 pd) — quick capture (paste a stack trace) → AI
-  classifies severity/type → becomes a task (`bug-triage` skill).
+- [x] **Bug intake/triage** (~2 pd) — quick capture (paste a stack trace) → AI
+  classifies severity/type/title (+ probable cause and steps) → becomes a BUG
+  task. API `/api/bugs/triage`; "Bug triage" tab in the Library (desktop + web).
 - [ ] **Sprint retrospective** (~2 pd) — on sprint completion, "what went
   well/badly/actions" with AI; actions become tasks.
 - [ ] **API tester (mini-Postman)** (~3 pd) — save requests per project, run

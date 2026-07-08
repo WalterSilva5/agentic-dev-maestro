@@ -2548,6 +2548,58 @@ def delete_runbook(runbook_id: int, s: Session = Depends(db)):
 
 
 # ---------------------------------------------------------------------------
+# Intake / triagem de bugs (IA → tarefa BUG)
+# ---------------------------------------------------------------------------
+
+
+class BugTriageBody(BaseModel):
+    text: str
+    projectId: Optional[int] = None   # se informado (+ create), cria a tarefa
+    create: bool = False
+
+
+@app.post("/api/bugs/triage")
+def bug_triage(body: BugTriageBody, s: Session = Depends(db)):
+    from maestro_local.triage import triage_bug, build_task_description
+    if not body.text.strip():
+        raise HTTPException(status_code=400, detail="Relato vazio")
+    try:
+        triage = triage_bug(body.text)
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=400, detail=str(e))
+
+    result = {"triage": triage, "task": None}
+    if body.create and body.projectId:
+        project = s.get(Project, body.projectId)
+        if not project:
+            raise HTTPException(status_code=404, detail="Projeto não encontrado")
+        column = (
+            s.query(BoardColumn)
+            .filter(BoardColumn.project_id == project.id)
+            .order_by(BoardColumn.order.asc())
+            .first()
+        )
+        project.task_seq = (project.task_seq or 0) + 1
+        task = Task(
+            project_id=project.id,
+            column_id=column.id if column else None,
+            number=project.task_seq,
+            title=triage["title"],
+            description=build_task_description(body.text, triage),
+            type="BUG",
+            priority=triage["priority"],
+            requires_human=True,
+        )
+        s.add(task)
+        s.flush()
+        _log(s, "task", task.id, "created", f"Bug triado {project.key}-{task.number}")
+        s.commit()
+        s.refresh(task)
+        result["task"] = _task_full(task)
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Importar TODO/FIXME do código → tarefas
 # ---------------------------------------------------------------------------
 
