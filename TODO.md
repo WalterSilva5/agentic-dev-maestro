@@ -59,8 +59,10 @@ SQLite, DevLog/comments, MCP).
 - [x] **Bug intake/triage** (~2 pd) — quick capture (paste a stack trace) → AI
   classifies severity/type/title (+ probable cause and steps) → becomes a BUG
   task. API `/api/bugs/triage`; "Bug triage" tab in the Library (desktop + web).
-- [ ] **Sprint retrospective** (~2 pd) — on sprint completion, "what went
-  well/badly/actions" with AI; actions become tasks.
+- [x] **Sprint retrospective** (~2 pd) — per sprint, AI generates "what went
+  well/badly/actions" (stored on the sprint); actions become CHORE tasks. API
+  `/api/sprints/{id}/retrospective` (+ `/actions`); "Retrospective" button in the
+  Sprint Planning tab (web) and the Sprint manager dialog (desktop).
 - [x] **API tester (mini-Postman)** (~3 pd) — build/run/save HTTP requests and
   keep an execution history. API `/api/http-requests` (+ `/run`, `/history`);
   dedicated screen on desktop and web (`/api-tester`).

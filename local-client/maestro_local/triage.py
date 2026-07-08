@@ -60,6 +60,55 @@ def triage_bug(text: str) -> dict:
     }
 
 
+_RETRO_SYSTEM = (
+    "Você é um facilitador ágil conduzindo a retrospectiva de uma sprint. "
+    "Responda SEMPRE apenas com JSON válido, sem texto fora do JSON. Em português."
+)
+
+_RETRO_PROMPT = (
+    "Com base nos dados da sprint abaixo, gere uma retrospectiva objetiva.\n\n"
+    "{context}\n\n"
+    "Responda com JSON no formato exato:\n"
+    "{{\n"
+    '  "well": ["o que foi bem 1", "o que foi bem 2"],\n'
+    '  "badly": ["o que foi mal / pode melhorar 1", "..."],\n'
+    '  "actions": [{{"title": "ação de melhoria acionável"}}]\n'
+    "}}"
+)
+
+
+def generate_sprint_retro(context: str) -> dict:
+    """Gera a retrospectiva de uma sprint via IA a partir de um resumo textual."""
+    from maestro_local.ai.providers import build_chat_model
+    from maestro_local.transcricoes.summarizer import _parse_json_response
+
+    llm = build_chat_model(temperature=0.4)
+    resp = llm.invoke([("system", _RETRO_SYSTEM),
+                       ("user", _RETRO_PROMPT.format(context=context))])
+    parsed = _parse_json_response(getattr(resp, "content", str(resp)))
+    if not isinstance(parsed, dict):
+        raise ValueError("Resposta da IA não é um objeto JSON")
+
+    def _strlist(v):
+        if isinstance(v, list):
+            return [str(x) for x in v if str(x).strip()]
+        return [str(v)] if v else []
+
+    actions = []
+    for a in (parsed.get("actions") or []):
+        if isinstance(a, dict):
+            title = str(a.get("title") or "").strip()
+        else:
+            title = str(a).strip()
+        if title:
+            actions.append({"title": title[:255]})
+    return {
+        "well": _strlist(parsed.get("well")),
+        "badly": _strlist(parsed.get("badly")),
+        "actions": actions,
+    }
+
+
 def build_task_description(text: str, triage: dict) -> str:
     """Monta a descrição da tarefa a partir do relato e da triagem."""
     parts = []

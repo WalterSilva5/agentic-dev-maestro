@@ -7,6 +7,9 @@ import {
   completeSprint,
   deleteSprint,
   updateTask,
+  getSprintRetro,
+  generateSprintRetro,
+  createRetroActions,
 } from '../api'
 import { t, tf } from '../i18n'
 
@@ -19,6 +22,40 @@ export default function SprintPlanning({ projectId, onChanged }) {
   const [tasks, setTasks] = useState([]) // todas as tarefas não-arquivadas (achatadas)
   const [error, setError] = useState('')
   const [newSprint, setNewSprint] = useState({ name: '', goal: '', capacity: '', startDate: '', endDate: '' })
+  const [retros, setRetros] = useState({}) // { [sprintId]: { retro, loading } }
+
+  const openRetro = async (sp) => {
+    setRetros((r) => ({ ...r, [sp.id]: { ...(r[sp.id] || {}), open: true } }))
+    if (retros[sp.id]?.retro) return
+    try {
+      const r = await getSprintRetro(sp.id)
+      setRetros((prev) => ({ ...prev, [sp.id]: { open: true, retro: r.retro } }))
+    } catch (e) {
+      setError(e.response?.data?.detail || String(e.message || e))
+    }
+  }
+
+  const runRetro = async (sp) => {
+    setRetros((r) => ({ ...r, [sp.id]: { ...(r[sp.id] || {}), open: true, loading: true } }))
+    try {
+      const r = await generateSprintRetro(sp.id)
+      setRetros((prev) => ({ ...prev, [sp.id]: { open: true, retro: r.retro, loading: false } }))
+    } catch (e) {
+      setRetros((prev) => ({ ...prev, [sp.id]: { ...(prev[sp.id] || {}), loading: false } }))
+      setError(e.response?.data?.detail || String(e.message || e))
+    }
+  }
+
+  const retroToTasks = async (sp) => {
+    const actions = retros[sp.id]?.retro?.actions || []
+    if (!actions.length) return
+    try {
+      await createRetroActions(sp.id, actions.map((a) => a.title))
+      refreshAll()
+    } catch (e) {
+      setError(e.response?.data?.detail || String(e.message || e))
+    }
+  }
 
   const load = () => {
     getSprints(projectId)
@@ -197,6 +234,7 @@ export default function SprintPlanning({ projectId, onChanged }) {
                 {sp.status !== 'CONCLUIDA' && (
                   <button className="ghost" style={{ fontSize: 11 }} onClick={() => complete(sp)}>{t('Concluir')}</button>
                 )}
+                <button className="ghost" style={{ fontSize: 11 }} onClick={() => openRetro(sp)}>{t('Retrospectiva')}</button>
                 <button
                   className="ghost"
                   style={{ fontSize: 11 }}
@@ -207,6 +245,37 @@ export default function SprintPlanning({ projectId, onChanged }) {
                   {t('Excluir')}
                 </button>
               </div>
+              {retros[sp.id]?.open && (
+                <div className="card" style={{ marginBottom: 6, fontSize: 12 }}>
+                  <div className="row" style={{ gap: 6, marginBottom: 4 }}>
+                    <button className="ghost" style={{ fontSize: 11 }} disabled={retros[sp.id]?.loading} onClick={() => runRetro(sp)}>
+                      {retros[sp.id]?.loading ? t('Gerando...') : (retros[sp.id]?.retro ? t('Regerar com IA') : t('Gerar com IA'))}
+                    </button>
+                    <button className="ghost" style={{ fontSize: 11 }} onClick={() => setRetros((r) => ({ ...r, [sp.id]: { ...r[sp.id], open: false } }))}>
+                      {t('Fechar')}
+                    </button>
+                  </div>
+                  {retros[sp.id]?.retro ? (
+                    <div>
+                      {retros[sp.id].retro.well?.length > 0 && (
+                        <div><b>👍 {t('O que foi bem')}</b><ul style={{ margin: '2px 0 6px' }}>{retros[sp.id].retro.well.map((x, i) => <li key={i}>{x}</li>)}</ul></div>
+                      )}
+                      {retros[sp.id].retro.badly?.length > 0 && (
+                        <div><b>👎 {t('O que pode melhorar')}</b><ul style={{ margin: '2px 0 6px' }}>{retros[sp.id].retro.badly.map((x, i) => <li key={i}>{x}</li>)}</ul></div>
+                      )}
+                      {retros[sp.id].retro.actions?.length > 0 && (
+                        <div>
+                          <b>✅ {t('Ações')}</b>
+                          <ul style={{ margin: '2px 0 6px' }}>{retros[sp.id].retro.actions.map((a, i) => <li key={i}>{a.title}</li>)}</ul>
+                          <button className="ghost" style={{ fontSize: 11 }} onClick={() => retroToTasks(sp)}>{t('Criar tarefas das ações')}</button>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    !retros[sp.id]?.loading && <div className="muted">{t('Sem retrospectiva ainda. Gere com IA.')}</div>
+                  )}
+                </div>
+              )}
               {list.map((task) => (
                 <TaskCard key={task.id} task={task} />
               ))}

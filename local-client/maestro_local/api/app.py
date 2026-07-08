@@ -935,6 +935,91 @@ def complete_sprint(sprint_id: int, body: SprintComplete, s: Session = Depends(d
     return {**_sprint_dict(sp), "movedUnfinished": moved}
 
 
+def _sprint_retro_context(sp: Sprint) -> str:
+    """Monta um resumo textual da sprint para a IA gerar a retrospectiva."""
+    tasks = [t for t in sp.tasks if t.deleted_at is None]
+    done = [t for t in tasks if t.column and t.column.is_done]
+    pending = [t for t in tasks if not (t.column and t.column.is_done)]
+    lines = [
+        f"Sprint: {sp.name}",
+        f"Meta: {sp.goal or '(sem meta)'}",
+        f"Capacidade: {sp.capacity if sp.capacity is not None else '(não definida)'} homem-dia",
+        f"Tarefas concluídas ({len(done)}):",
+    ]
+    lines += [f"  - [{t.type}] {t.title}" for t in done] or ["  (nenhuma)"]
+    lines.append(f"Tarefas não concluídas ({len(pending)}):")
+    lines += [f"  - [{t.type}] {t.title}" for t in pending] or ["  (nenhuma)"]
+    return "\n".join(lines)
+
+
+@app.get("/api/sprints/{sprint_id}/retrospective")
+def get_sprint_retro(sprint_id: int, s: Session = Depends(db)):
+    sp = s.query(Sprint).filter(Sprint.id == sprint_id).first()
+    if not sp:
+        raise HTTPException(404, "Sprint not found")
+    import json as _json
+    retro = None
+    if sp.retro_json:
+        try:
+            retro = _json.loads(sp.retro_json)
+        except ValueError:
+            retro = None
+    return {"sprintId": sp.id, "retro": retro}
+
+
+@app.post("/api/sprints/{sprint_id}/retrospective")
+def generate_sprint_retrospective(sprint_id: int, s: Session = Depends(db)):
+    sp = s.query(Sprint).filter(Sprint.id == sprint_id).first()
+    if not sp:
+        raise HTTPException(404, "Sprint not found")
+    from maestro_local.triage import generate_sprint_retro
+    import json as _json
+    try:
+        retro = generate_sprint_retro(_sprint_retro_context(sp))
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=400, detail=str(e))
+    sp.retro_json = _json.dumps(retro, ensure_ascii=False)
+    s.commit()
+    return {"sprintId": sp.id, "retro": retro}
+
+
+class RetroActionsBody(BaseModel):
+    titles: list
+
+
+@app.post("/api/sprints/{sprint_id}/retrospective/actions")
+def create_retro_actions(sprint_id: int, body: RetroActionsBody, s: Session = Depends(db)):
+    sp = s.query(Sprint).filter(Sprint.id == sprint_id).first()
+    if not sp:
+        raise HTTPException(404, "Sprint not found")
+    project = sp.project
+    column = (
+        s.query(BoardColumn)
+        .filter(BoardColumn.project_id == project.id)
+        .order_by(BoardColumn.order.asc())
+        .first()
+    )
+    created = 0
+    for title in body.titles:
+        title = str(title).strip()
+        if not title:
+            continue
+        project.task_seq = (project.task_seq or 0) + 1
+        s.add(Task(
+            project_id=project.id,
+            column_id=column.id if column else None,
+            number=project.task_seq,
+            title=f"[Retro] {title}"[:255],
+            description=f"Ação de melhoria da retrospectiva da sprint '{sp.name}'",
+            type="CHORE",
+            requires_human=True,
+        ))
+        created += 1
+    s.commit()
+    _log(s, "project", project.id, "retro_actions", f"{created} ação(ões) da retro de {sp.name}")
+    return {"ok": True, "created": created}
+
+
 @app.delete("/api/sprints/{sprint_id}")
 def delete_sprint(sprint_id: int, s: Session = Depends(db)):
     sp = s.query(Sprint).filter(Sprint.id == sprint_id).first()

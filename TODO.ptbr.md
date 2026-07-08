@@ -59,8 +59,10 @@ workspace, DevLog/comentários, MCP).
 - [x] **Intake/triagem de bugs** (~2 hd) — captura rápida (colar stacktrace) →
   IA classifica severidade/tipo/título (+ causa provável e passos) → vira tarefa
   BUG. API `/api/bugs/triage`; aba "Triagem de bugs" na Biblioteca (desktop + web).
-- [ ] **Retrospectiva de sprint** (~2 hd) — ao concluir a sprint, "o que foi
-  bem/mal/ações" com a IA; ações viram tarefas.
+- [x] **Retrospectiva de sprint** (~2 hd) — por sprint, a IA gera "o que foi
+  bem/mal/ações" (guardada na sprint); ações viram tarefas CHORE. API
+  `/api/sprints/{id}/retrospective` (+ `/actions`); botão "Retrospectiva" na aba
+  Planejamento de Sprints (web) e no diálogo de sprints (desktop).
 - [x] **Testador de API (mini-Postman)** (~3 hd) — monta/executa/salva requisições
   HTTP e guarda histórico de execução. API `/api/http-requests` (+ `/run`,
   `/history`); tela dedicada no desktop e web (`/api-tester`).

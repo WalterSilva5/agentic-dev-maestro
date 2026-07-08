@@ -33,6 +33,10 @@ export const updateSprint = (id, body) => api.patch(`/sprints/${id}`, body).then
 export const completeSprint = (id, body) =>
   api.post(`/sprints/${id}/complete`, body || {}).then((r) => r.data)
 export const deleteSprint = (id) => api.delete(`/sprints/${id}`).then((r) => r.data)
+export const getSprintRetro = (id) => api.get(`/sprints/${id}/retrospective`).then((r) => r.data)
+export const generateSprintRetro = (id) => api.post(`/sprints/${id}/retrospective`).then((r) => r.data)
+export const createRetroActions = (id, titles) =>
+  api.post(`/sprints/${id}/retrospective/actions`, { titles }).then((r) => r.data)
 
 // Checklist
 export const addChecklist = (code, title) => api.post(`/tasks/${code}/checklist`, { title }).then((r) => r.data)

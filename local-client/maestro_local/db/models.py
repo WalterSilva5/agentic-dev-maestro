@@ -74,6 +74,7 @@ class Sprint(Base):
     start_date = Column(DateTime)
     end_date = Column(DateTime)
     capacity = Column(Float)  # capacidade planejada (mesma unidade de estimate_md: homem-dia)
+    retro_json = Column(Text)  # retrospectiva gerada: {well, badly, actions}
     sort_order = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -328,6 +329,11 @@ def _run_light_migrations(engine):
             with engine.begin() as conn:
                 for stmt in adds:
                     conn.execute(text(stmt))
+    if "sprints" in tables:
+        scols = {c["name"] for c in insp.get_columns("sprints")}
+        if "retro_json" not in scols:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE sprints ADD COLUMN retro_json TEXT"))
     if "todos" in tables:
         tcols = {c["name"] for c in insp.get_columns("todos")}
         tadds = []

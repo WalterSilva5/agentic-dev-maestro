@@ -5,6 +5,7 @@ from datetime import date, datetime
 from PySide6.QtCore import QMimeData, QPoint, QPropertyAnimation, QRect, QSize, QTimer, Qt, Signal
 from PySide6.QtGui import QColor, QDrag, QPainter, QPixmap
 from PySide6.QtWidgets import (
+    QApplication,
     QComboBox,
     QDialog,
     QDoubleSpinBox,
@@ -960,6 +961,10 @@ class SprintManagerDialog(QDialog):
             comp.setCursor(Qt.PointingHandCursor)
             comp.clicked.connect(lambda _=False, sid=sp.id: self._complete(sid))
             btns.addWidget(comp)
+        retro = QPushButton(_t("Retrospectiva"))
+        retro.setCursor(Qt.PointingHandCursor)
+        retro.clicked.connect(lambda _=False, sid=sp.id: self._retro(sid))
+        btns.addWidget(retro)
         dele = QPushButton(_t("Excluir"))
         dele.setCursor(Qt.PointingHandCursor)
         dele.setStyleSheet(f"QPushButton {{ color: {t.danger}; }}")
@@ -967,6 +972,87 @@ class SprintManagerDialog(QDialog):
         btns.addWidget(dele)
         v.addLayout(btns)
         return row
+
+    def _retro(self, sprint_id):
+        import json as _json
+
+        from maestro_local.api.app import _sprint_retro_context
+        from maestro_local.triage import generate_sprint_retro
+        s = get_session()
+        try:
+            sp = s.query(Sprint).get(sprint_id)
+            if not sp:
+                return
+            retro = None
+            if sp.retro_json:
+                try:
+                    retro = _json.loads(sp.retro_json)
+                except ValueError:
+                    retro = None
+            if retro is None:
+                QApplication.setOverrideCursor(Qt.WaitCursor)
+                try:
+                    retro = generate_sprint_retro(_sprint_retro_context(sp))
+                except Exception as e:  # noqa: BLE001
+                    QApplication.restoreOverrideCursor()
+                    QMessageBox.warning(self, _t("Retrospectiva"), _t("Erro na retrospectiva") + f": {e}")
+                    return
+                finally:
+                    QApplication.restoreOverrideCursor()
+                sp.retro_json = _json.dumps(retro, ensure_ascii=False)
+                s.commit()
+            project_id = sp.project_id
+            sprint_name = sp.name
+        finally:
+            s.close()
+
+        parts = []
+        if retro.get("well"):
+            parts.append("👍 " + _t("O que foi bem") + "\n" + "\n".join(f"• {x}" for x in retro["well"]))
+        if retro.get("badly"):
+            parts.append("👎 " + _t("O que pode melhorar") + "\n" + "\n".join(f"• {x}" for x in retro["badly"]))
+        if retro.get("actions"):
+            parts.append("✅ " + _t("Ações") + "\n" + "\n".join(f"• {a['title']}" for a in retro["actions"]))
+        box = QMessageBox(self)
+        box.setWindowTitle(_t("Retrospectiva") + f" — {sprint_name}")
+        box.setText("\n\n".join(parts) or _t("Sem conteúdo."))
+        if retro.get("actions"):
+            create_btn = box.addButton(_t("Criar tarefas das ações"), QMessageBox.AcceptRole)
+        else:
+            create_btn = None
+        box.addButton(_t("Fechar"), QMessageBox.RejectRole)
+        box.exec()
+        if create_btn and box.clickedButton() is create_btn:
+            self._create_retro_tasks(project_id, sprint_name, [a["title"] for a in retro["actions"]])
+
+    def _create_retro_tasks(self, project_id, sprint_name, titles):
+        s = get_session()
+        try:
+            project = s.query(Project).get(project_id)
+            column = (s.query(BoardColumn)
+                      .filter(BoardColumn.project_id == project_id)
+                      .order_by(BoardColumn.order.asc()).first())
+            created = 0
+            for title in titles:
+                title = str(title).strip()
+                if not title:
+                    continue
+                project.task_seq = (project.task_seq or 0) + 1
+                s.add(Task(
+                    project_id=project_id,
+                    column_id=column.id if column else None,
+                    number=project.task_seq,
+                    title=f"[Retro] {title}"[:255],
+                    description=f"Ação de melhoria da retrospectiva da sprint '{sprint_name}'",
+                    type="CHORE",
+                    requires_human=True,
+                ))
+                created += 1
+            s.commit()
+        finally:
+            s.close()
+        QMessageBox.information(self, _t("Retrospectiva"), _t("Tarefas criadas") + f": {created}")
+        self._load()
 
     def _activate(self, sprint_id):
         s = get_session()
