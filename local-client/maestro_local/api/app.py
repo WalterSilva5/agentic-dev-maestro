@@ -1599,6 +1599,56 @@ def delete_document(doc_id: int, s: Session = Depends(db)):
 
 
 # ---------------------------------------------------------------------------
+# Base de conhecimento (2º cérebro): notas KB + backlinks + Q&A (RAG-lite)
+# ---------------------------------------------------------------------------
+
+
+def _kb_notes(s: Session, project_id: Optional[int]) -> list[Document]:
+    q = s.query(Document).filter(Document.type == "KB")
+    if project_id is not None:
+        q = q.filter(Document.project_id == project_id)
+    return q.order_by(Document.updated_at.desc()).all()
+
+
+@app.get("/api/kb/notes")
+def kb_notes(projectId: Optional[int] = None, q: Optional[str] = None,
+             s: Session = Depends(db)):
+    from maestro_local.kb import backlinks
+    notes = _kb_notes(s, projectId)
+    dicts = [{"id": d.id, "title": d.title, "body": d.body or "",
+              "projectId": d.project_id,
+              "updatedAt": d.updated_at.isoformat() if d.updated_at else None}
+             for d in notes]
+    links = backlinks(dicts)
+    for d in dicts:
+        d["backlinks"] = links.get(d["id"], [])
+    if q:
+        ql = q.lower()
+        dicts = [d for d in dicts if ql in f"{d['title']} {d['body']}".lower()]
+    return dicts
+
+
+class KbAskBody(BaseModel):
+    question: str
+    projectId: Optional[int] = None
+
+
+@app.post("/api/kb/ask")
+def kb_ask(body: KbAskBody, s: Session = Depends(db)):
+    from maestro_local.kb import answer
+    if not body.question.strip():
+        raise HTTPException(status_code=400, detail="Pergunta vazia")
+    notes = [{"id": d.id, "title": d.title, "body": d.body or ""}
+             for d in _kb_notes(s, body.projectId)]
+    if not notes:
+        return {"answer": "Nenhuma nota na base de conhecimento ainda.", "sources": []}
+    try:
+        return answer(notes, body.question)
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ---------------------------------------------------------------------------
 # Activity
 # ---------------------------------------------------------------------------
 

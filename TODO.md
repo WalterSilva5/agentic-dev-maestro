@@ -55,8 +55,10 @@ SQLite, DevLog/comments, MCP).
   prompts, searchable by text/tags/language. Desktop **Library** view + web
   `/biblioteca`; API `/api/snippets`. Kind SNIPPET|PROMPT, copy-to-clipboard,
   use counter.
-- [ ] **Knowledge base (second brain)** (~4 pd) — per-project notes/wiki with
-  backlinks and AI Q&A over your notes (RAG over the workspace); reuses `Document`.
+- [x] **Knowledge base (second brain)** (~4 pd) — notes/wiki (reuses `Document`
+  type=KB) with `[[title]]` backlinks and AI Q&A over your notes (RAG-lite:
+  keyword retrieval + cited answer). API `/api/kb/notes`, `/api/kb/ask`;
+  dedicated "Knowledge" screen (desktop + web `/base`).
 - [x] **Bug intake/triage** (~2 pd) — quick capture (paste a stack trace) → AI
   classifies severity/type/title (+ probable cause and steps) → becomes a BUG
   task. API `/api/bugs/triage`; "Bug triage" tab in the Library (desktop + web).

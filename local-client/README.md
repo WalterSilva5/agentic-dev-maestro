@@ -40,7 +40,7 @@ maestro --port 8888  # custom port
 ## What the application does
 
 On startup, Maestro opens:
-1. **Desktop GUI** (PySide6/Qt 6) — graphical interface with 13 screens in the menu (+ Metrics, TODOs, and Labels as Dashboard tabs)
+1. **Desktop GUI** (PySide6/Qt 6) — graphical interface with 14 screens in the menu (+ Metrics, TODOs, and Labels as Dashboard tabs)
 2. **REST API** (FastAPI/uvicorn) — `http://127.0.0.1:9777/api` in a daemon thread
 
 The initial screen is **My Day**, which works as the application's home.
@@ -154,7 +154,13 @@ Recording, transcription, and summarization of meetings and studies (migrated fr
 - **Save requests** per workspace and reload them; **execution history** (status, duration, URL)
 - Available on desktop and on the web UI (`/api-tester`); API `/api/http-requests` (+ `/run`, `/history`)
 
-### Projects (Alt+0)
+### Knowledge base (Alt+0) — second brain
+
+- **Notes/wiki** (reuses `Document` with type `KB`) with `[[title]]` **backlinks** shown per note
+- **AI Q&A over your notes** (RAG-lite: keyword retrieval + answer citing the notes used)
+- Available on desktop and on the web UI (`/base`); API `/api/kb/notes`, `/api/kb/ask`
+
+### Projects
 
 - Create projects with a name, unique key (e.g.: DEMO, PROJ), and description
 - Each project automatically generates default board columns

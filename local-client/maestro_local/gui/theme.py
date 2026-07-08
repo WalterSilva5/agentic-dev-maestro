@@ -541,6 +541,7 @@ NAV_ICONS = {
     "vault": "🔒",
     "library": "📇",
     "apitester": "🛰",
+    "kb": "🧠",
     "guide": "?",
     "settings": "⚡",
 }

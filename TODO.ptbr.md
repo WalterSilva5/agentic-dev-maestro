@@ -56,8 +56,10 @@ workspace, DevLog/comentários, MCP).
   de IA reutilizáveis, buscáveis por texto/tags/linguagem. View desktop
   **Biblioteca** + web `/biblioteca`; API `/api/snippets`. Tipo SNIPPET|PROMPT,
   copiar para área de transferência, contador de uso.
-- [ ] **Base de conhecimento (2º cérebro)** (~4 hd) — notas/wiki por projeto com
-  backlinks e Q&A da IA sobre as notas (RAG no workspace); reusa `Document`.
+- [x] **Base de conhecimento (2º cérebro)** (~4 hd) — notas/wiki (reusa `Document`
+  type=KB) com backlinks `[[título]]` e Q&A da IA sobre as notas (RAG-lite:
+  recuperação por palavras-chave + resposta com citações). API `/api/kb/notes`,
+  `/api/kb/ask`; tela dedicada "Base" (desktop + web `/base`).
 - [x] **Intake/triagem de bugs** (~2 hd) — captura rápida (colar stacktrace) →
   IA classifica severidade/tipo/título (+ causa provável e passos) → vira tarefa
   BUG. API `/api/bugs/triage`; aba "Triagem de bugs" na Biblioteca (desktop + web).

@@ -40,7 +40,7 @@ maestro --port 8888  # porta customizada
 ## O que a aplicação faz
 
 Ao iniciar, o Maestro abre:
-1. **GUI desktop** (PySide6/Qt 6) — interface gráfica com 13 telas no menu (+ Métricas, TODOs e Labels como abas do Dashboard)
+1. **GUI desktop** (PySide6/Qt 6) — interface gráfica com 14 telas no menu (+ Métricas, TODOs e Labels como abas do Dashboard)
 2. **API REST** (FastAPI/uvicorn) — `http://127.0.0.1:9777/api` em thread daemon
 
 A tela inicial é **Meu Dia**, que funciona como home da aplicação.
