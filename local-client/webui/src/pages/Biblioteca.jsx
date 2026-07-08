@@ -13,6 +13,7 @@ import {
   scanTodos,
   importTodos,
   triageBug,
+  codeReview,
   getProjects,
 } from '../api'
 import { t } from '../i18n'
@@ -344,6 +345,75 @@ function TriageTab() {
   )
 }
 
+function CodeReviewTab() {
+  const [path, setPath] = useState('')
+  const [base, setBase] = useState('')
+  const [taskCode, setTaskCode] = useState('')
+  const [review, setReview] = useState(null)
+  const [status, setStatus] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const run = async (post) => {
+    if (!path.trim()) return setStatus(t('Informe o caminho do repositório'))
+    setLoading(true)
+    setStatus(t('Revisando...'))
+    try {
+      const r = await codeReview({
+        path, base, taskCode: post && taskCode.trim() ? taskCode.trim() : undefined,
+      })
+      setReview(r.review)
+      setStatus(r.posted ? `${t('Comentário postado na tarefa')}` : '')
+    } catch (e) {
+      setStatus(e.response?.data?.detail || String(e.message || e))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const sevColor = (s) => s === 'HIGH' ? 'var(--danger, #e5484d)' : s === 'MEDIUM' ? 'var(--warning, #f08c00)' : 'var(--muted)'
+
+  return (
+    <div>
+      <p className="subtitle">{t('Aponte um repositório e uma base (branch/ref). A IA revisa o diff.')}</p>
+      <div className="card">
+        <input style={{ width: '100%' }} placeholder={t('Pasta do repositório...')} value={path}
+          onChange={(e) => setPath(e.target.value)} />
+        <div className="toolbar" style={{ marginTop: 8 }}>
+          <input style={{ flex: 1 }} placeholder={t('Base (ex.: main, HEAD~1) — vazio = alterações locais')} value={base}
+            onChange={(e) => setBase(e.target.value)} />
+          <input style={{ width: 140 }} placeholder={t('Tarefa (ex.: PROJ-1)')} value={taskCode}
+            onChange={(e) => setTaskCode(e.target.value)} />
+        </div>
+        <div className="row" style={{ gap: 8, marginTop: 8 }}>
+          <button onClick={() => run(false)} disabled={loading}>{loading ? t('Revisando...') : t('Revisar com IA')}</button>
+          <button className="ghost" onClick={() => run(true)} disabled={loading || !taskCode.trim()}>{t('Revisar e comentar na tarefa')}</button>
+          {status && <span className="muted">{status}</span>}
+        </div>
+      </div>
+
+      {review && (
+        <div className="card" style={{ marginTop: 12, fontSize: 13 }}>
+          {review.summary && <p style={{ marginTop: 0 }}>{review.summary}</p>}
+          {review.issues?.length > 0 && (
+            <div>
+              <b>{t('Problemas')}</b>
+              <ul style={{ margin: '2px 0 8px' }}>
+                {review.issues.map((it, i) => (
+                  <li key={i}><b style={{ color: sevColor(it.severity) }}>[{it.severity}]</b> {it.file && <code>{it.file}</code>} — {it.note}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {review.suggestions?.length > 0 && (
+            <div><b>{t('Sugestões')}</b><ul style={{ margin: '2px 0' }}>{review.suggestions.map((x, i) => <li key={i}>{x}</li>)}</ul></div>
+          )}
+          {review.truncated && <div className="muted">{t('(diff truncado para revisão)')}</div>}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Biblioteca() {
   const [tab, setTab] = useState('snippets')
   const tabs = [
@@ -351,6 +421,7 @@ export default function Biblioteca() {
     ['runbooks', t('Runbooks')],
     ['import', t('Importar do código')],
     ['triage', t('Triagem de bugs')],
+    ['review', t('Code review')],
   ]
   return (
     <div>
@@ -365,6 +436,7 @@ export default function Biblioteca() {
       {tab === 'runbooks' && <RunbooksTab />}
       {tab === 'import' && <ImportTab />}
       {tab === 'triage' && <TriageTab />}
+      {tab === 'review' && <CodeReviewTab />}
     </div>
   )
 }

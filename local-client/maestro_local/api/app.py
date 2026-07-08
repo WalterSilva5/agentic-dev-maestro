@@ -2862,6 +2862,43 @@ def get_digest(days: int = 1, s: Session = Depends(db)):
 
 
 # ---------------------------------------------------------------------------
+# Assistente de code review (diff → IA → comentário CODE_REVIEW)
+# ---------------------------------------------------------------------------
+
+
+class CodeReviewBody(BaseModel):
+    path: str
+    base: str = ""                 # ref/base do diff (vazio = working tree)
+    taskCode: Optional[str] = None  # se informado, posta como comentário CODE_REVIEW
+
+
+@app.post("/api/code/review")
+def code_review(body: CodeReviewBody, s: Session = Depends(db)):
+    from maestro_local.codereview import get_git_diff, review_diff, review_to_markdown
+    if not body.path.strip():
+        raise HTTPException(status_code=400, detail="Caminho do repositório vazio")
+    try:
+        diff = get_git_diff(body.path.strip(), body.base)
+    except RuntimeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    try:
+        review = review_diff(diff)
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=400, detail=str(e))
+
+    posted = None
+    if body.taskCode:
+        task = _resolve_task(body.taskCode, s)
+        c = Comment(task_id=task.id, body=review_to_markdown(review), type="CODE_REVIEW")
+        s.add(c)
+        s.flush()
+        _log(s, "task", task.id, "code_review", "Review de IA postado")
+        s.commit()
+        posted = {"taskId": task.id, "commentId": c.id}
+    return {"review": review, "posted": posted}
+
+
+# ---------------------------------------------------------------------------
 # Intake / triagem de bugs (IA → tarefa BUG)
 # ---------------------------------------------------------------------------
 

@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
 
 from maestro_local.db.models import (
     BoardColumn,
+    Comment,
     Project,
     Runbook,
     Snippet,
@@ -155,6 +156,7 @@ class LibraryView(QWidget):
         self.tabs.addTab(self._build_runbooks_tab(), _t("Runbooks"))
         self.tabs.addTab(self._build_import_tab(), _t("Importar do código"))
         self.tabs.addTab(self._build_triage_tab(), _t("Triagem de bugs"))
+        self.tabs.addTab(self._build_review_tab(), _t("Code review"))
         layout.addWidget(self.tabs, 1)
 
         self.refresh()
@@ -678,6 +680,109 @@ class LibraryView(QWidget):
         )
         self.tri_status.setText("")
         self.tri_create.setEnabled(True)
+
+    # ---- Code review tab ----
+    def _build_review_tab(self):
+        w = QWidget()
+        lay = QVBoxLayout(w)
+        lay.setContentsMargins(0, 8, 0, 0)
+        lay.setSpacing(8)
+
+        info = QLabel(_t("Aponte um repositório e uma base (branch/ref). A IA revisa o diff."))
+        info.setObjectName("subtitle")
+        info.setWordWrap(True)
+        lay.addWidget(info)
+
+        row = QHBoxLayout()
+        self.rev_path = QLineEdit()
+        self.rev_path.setPlaceholderText(_t("Pasta do repositório..."))
+        row.addWidget(self.rev_path, 1)
+        pick = QPushButton(_t("Escolher..."))
+        pick.setCursor(Qt.PointingHandCursor)
+        pick.clicked.connect(lambda: self.rev_path.setText(
+            QFileDialog.getExistingDirectory(self, _t("Escolher pasta")) or self.rev_path.text()))
+        row.addWidget(pick)
+        lay.addLayout(row)
+
+        row2 = QHBoxLayout()
+        self.rev_base = QLineEdit()
+        self.rev_base.setPlaceholderText(_t("Base (ex.: main, HEAD~1) — vazio = alterações locais"))
+        row2.addWidget(self.rev_base, 1)
+        self.rev_task = QLineEdit()
+        self.rev_task.setPlaceholderText(_t("Tarefa (ex.: PROJ-1)"))
+        self.rev_task.setFixedWidth(140)
+        row2.addWidget(self.rev_task)
+        lay.addLayout(row2)
+
+        row3 = QHBoxLayout()
+        rev_btn = QPushButton(_t("Revisar com IA"))
+        rev_btn.setCursor(Qt.PointingHandCursor)
+        rev_btn.clicked.connect(lambda: self._run_review(post=False))
+        row3.addWidget(rev_btn)
+        rev_post = QPushButton(_t("Revisar e comentar na tarefa"))
+        rev_post.setCursor(Qt.PointingHandCursor)
+        rev_post.clicked.connect(lambda: self._run_review(post=True))
+        row3.addWidget(rev_post)
+        row3.addStretch()
+        self.rev_status = QLabel("")
+        self.rev_status.setObjectName("subtitle")
+        row3.addWidget(self.rev_status)
+        lay.addLayout(row3)
+
+        self.rev_result = QPlainTextEdit()
+        self.rev_result.setReadOnly(True)
+        lay.addWidget(self.rev_result, 1)
+        return w
+
+    def _run_review(self, post=False):
+        from maestro_local.codereview import get_git_diff, review_diff, review_to_markdown
+        path = self.rev_path.text().strip()
+        if not path:
+            self.rev_status.setText(_t("Informe o caminho do repositório"))
+            return
+        self.rev_status.setText(_t("Revisando..."))
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+        try:
+            diff = get_git_diff(path, self.rev_base.text().strip())
+            review = review_diff(diff)
+        except Exception as e:  # noqa: BLE001
+            self.rev_status.setText(_t("Erro") + f": {e}")
+            return
+        finally:
+            QApplication.restoreOverrideCursor()
+
+        lines = []
+        if review.get("summary"):
+            lines.append(review["summary"] + "\n")
+        if review.get("issues"):
+            lines.append(_t("Problemas") + ":")
+            for it in review["issues"]:
+                loc = f" {it['file']}" if it.get("file") else ""
+                lines.append(f"  [{it['severity']}]{loc} — {it['note']}")
+        if review.get("suggestions"):
+            lines.append("\n" + _t("Sugestões") + ":")
+            lines += [f"  - {sug}" for sug in review["suggestions"]]
+        if review.get("truncated"):
+            lines.append("\n" + _t("(diff truncado para revisão)"))
+        self.rev_result.setPlainText("\n".join(lines))
+        self.rev_status.setText("")
+
+        if post:
+            code = self.rev_task.text().strip()
+            if not code:
+                self.rev_status.setText(_t("Informe a tarefa"))
+                return
+            s = get_session()
+            try:
+                from maestro_local.api.app import _resolve_task
+                task = _resolve_task(code, s)
+                s.add(Comment(task_id=task.id, body=review_to_markdown(review), type="CODE_REVIEW"))
+                s.commit()
+                self.rev_status.setText(_t("Comentário postado na tarefa"))
+            except Exception as e:  # noqa: BLE001
+                self.rev_status.setText(_t("Erro") + f": {e}")
+            finally:
+                s.close()
 
     def _create_bug_task(self):
         from maestro_local.triage import build_task_description

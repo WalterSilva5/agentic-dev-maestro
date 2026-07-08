@@ -73,8 +73,10 @@ workspace, DevLog/comentários, MCP).
   `TODO/FIXME/HACK/XXX` e importa os selecionados como tarefas ligadas ao arquivo.
   API `/api/code/scan-todos` + `/api/code/import-todos`; aba "Importar do código"
   na Biblioteca (desktop + web).
-- [ ] **Assistente de code review** (~3 hd) — aponta um diff/branch → review da
-  IA → posta como comentário `CODE_REVIEW` na tarefa.
+- [x] **Assistente de code review** (~3 hd) — aponta um repo + base (branch/ref) →
+  a IA revisa o diff git (resumo, problemas por severidade, sugestões),
+  opcionalmente postado como comentário `CODE_REVIEW` na tarefa. API
+  `/api/code/review`; aba "Code review" na Biblioteca (desktop + web).
 - [x] **Runbooks/comandos do projeto** (~2 hd) — cartões de setup/deploy/comandos
   com copiar-em-1-clique. Aba "Runbooks" na Biblioteca (desktop) + web
   `/biblioteca`; API `/api/runbooks` (categoria, contador de uso).

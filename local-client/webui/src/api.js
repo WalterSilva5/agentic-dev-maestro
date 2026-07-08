@@ -118,6 +118,9 @@ export const importTodos = (body) => api.post('/code/import-todos', body).then((
 // Triagem de bugs
 export const triageBug = (body) => api.post('/bugs/triage', body).then((r) => r.data)
 
+// Code review assistant
+export const codeReview = (body) => api.post('/code/review', body).then((r) => r.data)
+
 // Testador de API (mini-Postman)
 export const getApiRequests = (params = {}) => api.get('/http-requests', { params }).then((r) => r.data)
 export const createApiRequest = (body) => api.post('/http-requests', body).then((r) => r.data)

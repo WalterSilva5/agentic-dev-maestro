@@ -73,8 +73,10 @@ SQLite, DevLog/comments, MCP).
   `TODO/FIXME/HACK/XXX` and import selected ones as tasks linked to the file.
   API `/api/code/scan-todos` + `/api/code/import-todos`; "Import from code" tab
   in the Library (desktop + web).
-- [ ] **Code review assistant** (~3 pd) — point at a diff/branch → AI review →
-  posted as a `CODE_REVIEW` comment on the task.
+- [x] **Code review assistant** (~3 pd) — point at a repo + base (branch/ref) →
+  AI reviews the git diff (summary, issues by severity, suggestions), optionally
+  posted as a `CODE_REVIEW` comment on a task. API `/api/code/review`;
+  "Code review" tab in the Library (desktop + web).
 - [x] **Project runbooks/commands** (~2 pd) — setup/deploy/command cards with
   one-click copy. Desktop **Library** "Runbooks" tab + web `/biblioteca`; API
   `/api/runbooks` (category, use counter).
