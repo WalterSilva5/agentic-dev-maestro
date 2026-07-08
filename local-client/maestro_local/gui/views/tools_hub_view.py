@@ -22,6 +22,7 @@ HUB_ITEMS = [
     ("apitester", "🛰", "Testador de API", "Monte, execute e salve requisições HTTP"),
     ("kb", "🧠", "Base de conhecimento", "Notas com backlinks e Q&A por IA"),
     ("english", "🗣️", "Praticar Inglês", "Conversação por voz com feedback da IA"),
+    ("translate", "🌐", "Tradutor", "Traduza texto entre idiomas (estilo Google Tradutor)"),
 ]
 
 

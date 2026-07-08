@@ -8,6 +8,7 @@ const ITEMS = [
   ['/biblioteca', '📇', 'Biblioteca', 'Snippets, runbooks, triagem, code review, git, tempo'],
   ['/api-tester', '🛰', 'Testador de API', 'Monte, execute e salve requisições HTTP'],
   ['/base', '🧠', 'Base de conhecimento', 'Notas com backlinks e Q&A por IA'],
+  ['/traducao', '🌐', 'Tradutor', 'Traduza texto entre idiomas (estilo Google Tradutor)'],
 ]
 
 export default function Ferramentas() {

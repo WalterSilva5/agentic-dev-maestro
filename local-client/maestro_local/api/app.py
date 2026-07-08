@@ -2990,6 +2990,34 @@ def delete_timelog(log_id: int, s: Session = Depends(db)):
 
 
 # ---------------------------------------------------------------------------
+# Tradutor
+# ---------------------------------------------------------------------------
+
+
+class TranslateBody(BaseModel):
+    text: str
+    source: str = "auto"
+    target: str = "en"
+
+
+@app.get("/api/translate/languages")
+def translate_languages():
+    from maestro_local.translate import LANGUAGES
+    return LANGUAGES
+
+
+@app.post("/api/translate")
+def translate_endpoint(body: TranslateBody):
+    from maestro_local.translate import translate
+    if not body.text.strip():
+        raise HTTPException(status_code=400, detail="Texto vazio")
+    try:
+        return translate(body.text, body.source, body.target)
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ---------------------------------------------------------------------------
 # Praticar inglês (conversação por IA)
 # ---------------------------------------------------------------------------
 

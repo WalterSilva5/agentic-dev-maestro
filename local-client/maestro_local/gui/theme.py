@@ -544,6 +544,7 @@ NAV_ICONS = {
     "kb": "🧠",
     "ferramentas": "🧰",
     "english": "🗣️",
+    "translate": "🌐",
     "guide": "?",
     "settings": "⚡",
 }

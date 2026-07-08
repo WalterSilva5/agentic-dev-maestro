@@ -141,6 +141,9 @@ export const getApiHistory = (params = {}) => api.get('/http-requests/history', 
 // Digest proativo (standup)
 export const getDigest = (days = 1) => api.get('/digest', { params: { days } }).then((r) => r.data)
 
+// Tradutor
+export const translateText = (body) => api.post('/translate', body).then((r) => r.data)
+
 // Base de conhecimento (2º cérebro)
 export const getKbNotes = (params = {}) => api.get('/kb/notes', { params }).then((r) => r.data)
 export const createKbNote = (body) => api.post('/documents', { ...body, type: 'KB' }).then((r) => r.data)

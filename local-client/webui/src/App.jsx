@@ -13,6 +13,7 @@ import Biblioteca from './pages/Biblioteca.jsx'
 import ApiTester from './pages/ApiTester.jsx'
 import Base from './pages/Base.jsx'
 import Ferramentas from './pages/Ferramentas.jsx'
+import Traducao from './pages/Traducao.jsx'
 import Configuracoes from './pages/Configuracoes.jsx'
 import WorkspaceSelector from './components/WorkspaceSelector.jsx'
 import PendingTodosReminder from './components/PendingTodosReminder.jsx'
@@ -99,6 +100,7 @@ export default function App() {
           <Route path="/api-tester" element={<ApiTester />} />
           <Route path="/base" element={<Base />} />
           <Route path="/ferramentas" element={<Ferramentas />} />
+          <Route path="/traducao" element={<Traducao />} />
           <Route path="/configuracoes" element={<Configuracoes />} />
           <Route path="*" element={<div className="muted">{t('Página não encontrada')}</div>} />
         </Routes>
