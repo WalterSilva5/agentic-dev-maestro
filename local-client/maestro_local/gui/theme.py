@@ -538,6 +538,7 @@ NAV_ICONS = {
     "skills": "⚙",
     "chat": "✦",
     "transcricoes": "🎙",
+    "vault": "🔒",
     "guide": "?",
     "settings": "⚡",
 }

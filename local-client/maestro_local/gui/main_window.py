@@ -33,6 +33,7 @@ from maestro_local.gui.views.daily_view import DailyView
 from maestro_local.gui.views.dashboard_view import DashboardView
 from maestro_local.gui.views.chat_view import ChatView
 from maestro_local.gui.views.transcricoes_view import TranscricoesView
+from maestro_local.gui.views.vault_view import VaultView
 from maestro_local.gui.views.guide_view import GuideView
 from maestro_local.gui.views.settings_view import SettingsView
 from maestro_local.gui.views.projects_view import ProjectsView
@@ -174,6 +175,7 @@ class MainWindow(QMainWindow):
             (t("Board"), "board"),
             (t("Assistente"), "chat"),
             (t("Reuniões"), "transcricoes"),
+            (t("Senhas"), "vault"),
             (t("Projetos"), "projects"),
             (t("Skills"), "skills"),
             (t("Instruções"), "guide"),
@@ -250,6 +252,7 @@ class MainWindow(QMainWindow):
         self.board_view = BoardView()
         self.chat_view = ChatView()
         self.transcricoes_view = TranscricoesView()
+        self.vault_view = VaultView()
         self.projects_view = ProjectsView()
         self.skills_view = SkillsView()
         self.guide_view = GuideView()
@@ -263,6 +266,7 @@ class MainWindow(QMainWindow):
         self.stack.addWidget(self.board_view)
         self.stack.addWidget(self.chat_view)
         self.stack.addWidget(self.transcricoes_view)
+        self.stack.addWidget(self.vault_view)
         self.stack.addWidget(self.projects_view)
         self.stack.addWidget(self.skills_view)
         self.stack.addWidget(self.guide_view)
