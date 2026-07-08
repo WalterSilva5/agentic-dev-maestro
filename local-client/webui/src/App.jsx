@@ -9,6 +9,7 @@ import Assistente from './pages/Assistente.jsx'
 import Metricas from './pages/Metricas.jsx'
 import Todos from './pages/Todos.jsx'
 import Labels from './pages/Labels.jsx'
+import Biblioteca from './pages/Biblioteca.jsx'
 import Configuracoes from './pages/Configuracoes.jsx'
 import WorkspaceSelector from './components/WorkspaceSelector.jsx'
 import PendingTodosReminder from './components/PendingTodosReminder.jsx'
@@ -37,6 +38,7 @@ function Sidebar() {
     ['/metricas', t('Métricas')],
     ['/todos', t('TODOs')],
     ['/labels', t('Labels')],
+    ['/biblioteca', t('Biblioteca')],
     ['/configuracoes', t('Configurações')],
   ]
   return (
@@ -91,6 +93,7 @@ export default function App() {
           <Route path="/metricas" element={<Metricas />} />
           <Route path="/todos" element={<Todos />} />
           <Route path="/labels" element={<Labels />} />
+          <Route path="/biblioteca" element={<Biblioteca />} />
           <Route path="/configuracoes" element={<Configuracoes />} />
           <Route path="*" element={<div className="muted">{t('Página não encontrada')}</div>} />
         </Routes>

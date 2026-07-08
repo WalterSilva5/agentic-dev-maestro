@@ -93,4 +93,22 @@ export const assistantChat = (messages) => api.post('/assistant/chat', { message
 export const getSettings = () => api.get('/settings').then((r) => r.data)
 export const updateSettings = (body) => api.put('/settings', body).then((r) => r.data)
 
+// Biblioteca — snippets & prompts
+export const getSnippets = (params = {}) => api.get('/snippets', { params }).then((r) => r.data)
+export const createSnippet = (body) => api.post('/snippets', body).then((r) => r.data)
+export const updateSnippet = (id, body) => api.put(`/snippets/${id}`, body).then((r) => r.data)
+export const useSnippet = (id) => api.post(`/snippets/${id}/use`).then((r) => r.data)
+export const deleteSnippet = (id) => api.delete(`/snippets/${id}`).then((r) => r.data)
+
+// Biblioteca — runbooks / comandos
+export const getRunbooks = (params = {}) => api.get('/runbooks', { params }).then((r) => r.data)
+export const createRunbook = (body) => api.post('/runbooks', body).then((r) => r.data)
+export const updateRunbook = (id, body) => api.put(`/runbooks/${id}`, body).then((r) => r.data)
+export const useRunbook = (id) => api.post(`/runbooks/${id}/use`).then((r) => r.data)
+export const deleteRunbook = (id) => api.delete(`/runbooks/${id}`).then((r) => r.data)
+
+// Importar TODO/FIXME do código
+export const scanTodos = (body) => api.post('/code/scan-todos', body).then((r) => r.data)
+export const importTodos = (body) => api.post('/code/import-todos', body).then((r) => r.data)
+
 export const getHealth = () => api.get('/health').then((r) => r.data)
