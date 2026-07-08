@@ -125,6 +125,11 @@ export const codeReview = (body) => api.post('/code/review', body).then((r) => r
 export const gitStatus = (path, prs = true) =>
   api.get('/git/status', { params: { path, prs } }).then((r) => r.data)
 
+// Time tracking
+export const getTimeLogs = (limit = 50) => api.get('/timelogs', { params: { limit } }).then((r) => r.data)
+export const logTime = (body) => api.post('/timelogs', body).then((r) => r.data)
+export const deleteTimeLog = (id) => api.delete(`/timelogs/${id}`).then((r) => r.data)
+
 // Testador de API (mini-Postman)
 export const getApiRequests = (params = {}) => api.get('/http-requests', { params }).then((r) => r.data)
 export const createApiRequest = (body) => api.post('/http-requests', body).then((r) => r.data)

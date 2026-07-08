@@ -1,6 +1,6 @@
 """Biblioteca do desenvolvedor: snippets & prompts, runbooks de comandos e
 importação de TODO/FIXME do código para o board."""
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -29,6 +29,7 @@ from maestro_local.db.models import (
     Runbook,
     Snippet,
     Task,
+    TimeLog,
     get_session,
 )
 from maestro_local.gui.theme import current_theme
@@ -158,6 +159,7 @@ class LibraryView(QWidget):
         self.tabs.addTab(self._build_triage_tab(), _t("Triagem de bugs"))
         self.tabs.addTab(self._build_review_tab(), _t("Code review"))
         self.tabs.addTab(self._build_git_tab(), _t("Git"))
+        self.tabs.addTab(self._build_time_tab(), _t("Tempo"))
         layout.addWidget(self.tabs, 1)
 
         self.refresh()
@@ -854,6 +856,178 @@ class LibraryView(QWidget):
         lines += [f"  {c['hash']} {c['subject']} — {c['author']}, {c['when']}"
                   for c in st["commits"]]
         self.git_result.setPlainText("\n".join(lines))
+
+    # ---- Time tracking tab ----
+    def _build_time_tab(self):
+        w = QWidget()
+        lay = QVBoxLayout(w)
+        lay.setContentsMargins(0, 8, 0, 0)
+        lay.setSpacing(8)
+
+        info = QLabel(_t("Cronômetro e registro de tempo por tarefa. Total da semana e por tarefa."))
+        info.setObjectName("subtitle")
+        info.setWordWrap(True)
+        lay.addWidget(info)
+
+        top = QHBoxLayout()
+        self.time_task = QLineEdit()
+        self.time_task.setPlaceholderText(_t("Tarefa (ex.: PROJ-1)"))
+        self.time_task.setFixedWidth(140)
+        top.addWidget(self.time_task)
+        self.time_note = QLineEdit()
+        self.time_note.setPlaceholderText(_t("Nota (opcional)"))
+        top.addWidget(self.time_note, 1)
+        lay.addLayout(top)
+
+        ctrl = QHBoxLayout()
+        self.time_display = QLabel("0m00s")
+        self.time_display.setStyleSheet("font-size: 22px; font-family: monospace;")
+        ctrl.addWidget(self.time_display)
+        self.time_btn = QPushButton(_t("Iniciar"))
+        self.time_btn.setCursor(Qt.PointingHandCursor)
+        self.time_btn.clicked.connect(self._toggle_timer)
+        ctrl.addWidget(self.time_btn)
+        ctrl.addWidget(QLabel("|"))
+        self.time_minutes = QLineEdit()
+        self.time_minutes.setPlaceholderText(_t("min"))
+        self.time_minutes.setFixedWidth(60)
+        ctrl.addWidget(self.time_minutes)
+        manual = QPushButton(_t("Registrar manual"))
+        manual.setCursor(Qt.PointingHandCursor)
+        manual.clicked.connect(self._log_manual)
+        ctrl.addWidget(manual)
+        ctrl.addStretch()
+        lay.addLayout(ctrl)
+
+        self.time_week = QLabel("")
+        self.time_week.setStyleSheet("font-weight: 600;")
+        lay.addWidget(self.time_week)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("QScrollArea { border: none; }")
+        self.time_container = QWidget()
+        self.time_layout = QVBoxLayout(self.time_container)
+        self.time_layout.setSpacing(4)
+        self.time_layout.addStretch()
+        scroll.setWidget(self.time_container)
+        lay.addWidget(scroll, 1)
+
+        self._timer_seconds = 0
+        self._timer_running = False
+        self._qtimer = QTimer(self)
+        self._qtimer.setInterval(1000)
+        self._qtimer.timeout.connect(self._tick)
+        self._reload_time()
+        return w
+
+    @staticmethod
+    def _fmt_dur(sec):
+        h, m, s = sec // 3600, (sec % 3600) // 60, sec % 60
+        return f"{h}h{m:02d}" if h else f"{m}m{s:02d}s"
+
+    def _tick(self):
+        self._timer_seconds += 1
+        self.time_display.setText(self._fmt_dur(self._timer_seconds))
+
+    def _toggle_timer(self):
+        if self._timer_running:
+            self._qtimer.stop()
+            self._timer_running = False
+            self.time_btn.setText(_t("Iniciar"))
+            if self._timer_seconds > 0:
+                self._save_time(self._timer_seconds)
+            self._timer_seconds = 0
+            self.time_display.setText("0m00s")
+        else:
+            self._timer_running = True
+            self.time_btn.setText(_t("Parar e registrar"))
+            self._qtimer.start()
+
+    def _log_manual(self):
+        try:
+            mins = int(self.time_minutes.text().strip())
+        except ValueError:
+            return
+        if mins <= 0:
+            return
+        self._save_time(mins * 60)
+        self.time_minutes.clear()
+
+    def _save_time(self, seconds):
+        from datetime import datetime as _dt
+        code = self.time_task.text().strip()
+        task_id = None
+        s = get_session()
+        try:
+            if code:
+                from maestro_local.api.app import _resolve_task
+                try:
+                    task = _resolve_task(code, s)
+                    task_id = task.id
+                    code = f"{task.project.key}-{task.number}"
+                except Exception:  # noqa: BLE001
+                    pass
+            s.add(TimeLog(task_id=task_id, task_code=code, seconds=seconds,
+                          note=self.time_note.text().strip(), started_at=_dt.now()))
+            s.commit()
+        finally:
+            s.close()
+        self._reload_time()
+
+    def _reload_time(self):
+        from datetime import datetime as _dt, timedelta
+        while self.time_layout.count() > 1:
+            item = self.time_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        s = get_session()
+        try:
+            week_start = _dt.now() - timedelta(days=7)
+            week = s.query(TimeLog).filter(TimeLog.created_at >= week_start).all()
+            total = sum(t.seconds or 0 for t in week)
+            by_task = {}
+            for t in week:
+                k = t.task_code or "—"
+                by_task[k] = by_task.get(k, 0) + (t.seconds or 0)
+            parts = ", ".join(f"{k}: {self._fmt_dur(v)}" for k, v in
+                              sorted(by_task.items(), key=lambda kv: -kv[1]))
+            self.time_week.setText(_t("Esta semana") + f": {self._fmt_dur(total)}"
+                                   + (f"  ({parts})" if parts else ""))
+            logs = s.query(TimeLog).order_by(TimeLog.created_at.desc()).limit(50).all()
+            for l in logs:
+                self.time_layout.insertWidget(self.time_layout.count() - 1, self._time_row(l))
+        finally:
+            s.close()
+
+    def _time_row(self, l):
+        row = QFrame()
+        h = QHBoxLayout(row)
+        h.setContentsMargins(2, 2, 2, 2)
+        txt = self._fmt_dur(l.seconds or 0)
+        if l.task_code:
+            txt += f" · {l.task_code}"
+        if l.note:
+            txt += f" — {l.note}"
+        lbl = QLabel(txt)
+        h.addWidget(lbl, 1)
+        dele = QPushButton("✕")
+        dele.setFixedWidth(28)
+        dele.setCursor(Qt.PointingHandCursor)
+        dele.clicked.connect(lambda _, lid=l.id: self._delete_time(lid))
+        h.addWidget(dele)
+        return row
+
+    def _delete_time(self, lid):
+        s = get_session()
+        try:
+            row = s.get(TimeLog, lid)
+            if row:
+                s.delete(row)
+                s.commit()
+        finally:
+            s.close()
+        self._reload_time()
 
     def _create_bug_task(self):
         from maestro_local.triage import build_task_description

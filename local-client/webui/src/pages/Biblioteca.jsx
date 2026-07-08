@@ -15,6 +15,9 @@ import {
   triageBug,
   codeReview,
   gitStatus,
+  getTimeLogs,
+  logTime,
+  deleteTimeLog,
   getProjects,
 } from '../api'
 import { t } from '../i18n'
@@ -491,6 +494,93 @@ function GitTab() {
   )
 }
 
+function fmtDur(sec) {
+  const h = Math.floor(sec / 3600)
+  const m = Math.floor((sec % 3600) / 60)
+  const s = sec % 60
+  return h > 0 ? `${h}h${String(m).padStart(2, '0')}` : `${m}m${String(s).padStart(2, '0')}s`
+}
+
+function TimeTab() {
+  const [data, setData] = useState({ logs: [], weekSeconds: 0, weekByTask: [] })
+  const [running, setRunning] = useState(false)
+  const [elapsed, setElapsed] = useState(0)
+  const [taskCode, setTaskCode] = useState('')
+  const [note, setNote] = useState('')
+  const [minutes, setMinutes] = useState('')
+
+  const load = () => getTimeLogs(50).then(setData).catch(() => {})
+  useEffect(() => {
+    load()
+  }, [])
+
+  useEffect(() => {
+    if (!running) return undefined
+    const id = setInterval(() => setElapsed((e) => e + 1), 1000)
+    return () => clearInterval(id)
+  }, [running])
+
+  const stop = async () => {
+    setRunning(false)
+    if (elapsed > 0) {
+      await logTime({ seconds: elapsed, taskCode: taskCode.trim() || undefined, note })
+      load()
+    }
+    setElapsed(0)
+  }
+
+  const logManual = async () => {
+    const mins = parseInt(minutes, 10)
+    if (!mins || mins <= 0) return
+    await logTime({ seconds: mins * 60, taskCode: taskCode.trim() || undefined, note })
+    setMinutes('')
+    load()
+  }
+
+  return (
+    <div>
+      <p className="subtitle">{t('Cronômetro e registro de tempo por tarefa. Total da semana e por tarefa.')}</p>
+      <div className="card">
+        <div className="toolbar">
+          <input placeholder={t('Tarefa (ex.: PROJ-1)')} value={taskCode} onChange={(e) => setTaskCode(e.target.value)} style={{ width: 140 }} />
+          <input placeholder={t('Nota (opcional)')} value={note} onChange={(e) => setNote(e.target.value)} style={{ flex: 1 }} />
+        </div>
+        <div className="row" style={{ gap: 12, marginTop: 10, alignItems: 'center' }}>
+          <span style={{ fontSize: 24, fontFamily: 'monospace' }}>{fmtDur(elapsed)}</span>
+          {!running
+            ? <button onClick={() => setRunning(true)}>{t('Iniciar')}</button>
+            : <button className="danger" onClick={stop}>{t('Parar e registrar')}</button>}
+          <span className="muted">|</span>
+          <input placeholder={t('min')} value={minutes} onChange={(e) => setMinutes(e.target.value)} style={{ width: 70 }} />
+          <button className="ghost" onClick={logManual}>{t('Registrar manual')}</button>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginTop: 12 }}>
+        <b>{t('Esta semana')}: {fmtDur(data.weekSeconds)}</b>
+        {data.weekByTask.length > 0 && (
+          <ul style={{ margin: '6px 0' }}>
+            {data.weekByTask.map((r) => (
+              <li key={r.taskCode}><b>{r.taskCode}</b> — {fmtDur(r.seconds)}</li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="card" style={{ marginTop: 12 }}>
+        <b>{t('Registros recentes')}</b>
+        {data.logs.map((l) => (
+          <div key={l.id} className="row" style={{ justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', fontSize: 13 }}>
+            <span>{fmtDur(l.seconds)} {l.taskCode && <b>· {l.taskCode}</b>} {l.note && <span className="muted">— {l.note}</span>}</span>
+            <button className="danger" onClick={() => deleteTimeLog(l.id).then(load)}>✕</button>
+          </div>
+        ))}
+        {data.logs.length === 0 && <div className="muted">{t('Nenhum registro ainda.')}</div>}
+      </div>
+    </div>
+  )
+}
+
 export default function Biblioteca() {
   const [tab, setTab] = useState('snippets')
   const tabs = [
@@ -500,6 +590,7 @@ export default function Biblioteca() {
     ['triage', t('Triagem de bugs')],
     ['review', t('Code review')],
     ['git', t('Git')],
+    ['time', t('Tempo')],
   ]
   return (
     <div>
@@ -516,6 +607,7 @@ export default function Biblioteca() {
       {tab === 'triage' && <TriageTab />}
       {tab === 'review' && <CodeReviewTab />}
       {tab === 'git' && <GitTab />}
+      {tab === 'time' && <TimeTab />}
     </div>
   )
 }

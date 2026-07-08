@@ -458,6 +458,19 @@ class Snippet(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class TimeLog(Base):
+    """Registro de tempo trabalhado (opcionalmente ligado a uma tarefa)."""
+    __tablename__ = "time_logs"
+
+    id = Column(Integer, primary_key=True)
+    task_id = Column(Integer, ForeignKey("tasks.id", ondelete="SET NULL"))
+    task_code = Column(String(40), default="")   # snapshot legível (ex.: PROJ-1)
+    seconds = Column(Integer, default=0, nullable=False)
+    note = Column(Text, default="")
+    started_at = Column(DateTime)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class ApiRequest(Base):
     """Request HTTP salvo (mini-Postman) por workspace/projeto."""
     __tablename__ = "api_requests"

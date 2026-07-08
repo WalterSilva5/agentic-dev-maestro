@@ -49,8 +49,9 @@ workspace, DevLog/comentários, MCP).
   commitadas (staged/unstaged/untracked), commits recentes e PRs abertos
   (`git`/`gh`, somente leitura). API `/api/git/status`; aba "Git" na Biblioteca
   (desktop + web).
-- [ ] **Time tracking + Pomodoro por tarefa** (~2–3 hd) — timer sobre a tarefa →
-  registra tempo → alimenta cycle time real das Métricas + timesheet semanal.
+- [x] **Time tracking + Pomodoro por tarefa** (~2–3 hd) — cronômetro (+ registro
+  manual) grava tempo opcionalmente sobre uma tarefa; total semanal e por tarefa.
+  API `/api/timelogs`; aba "Tempo" na Biblioteca (desktop + web).
 - [x] **Biblioteca de snippets & prompts** (~2 hd) — snippets de código e prompts
   de IA reutilizáveis, buscáveis por texto/tags/linguagem. View desktop
   **Biblioteca** + web `/biblioteca`; API `/api/snippets`. Tipo SNIPPET|PROMPT,

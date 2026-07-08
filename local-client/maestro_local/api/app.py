@@ -31,6 +31,7 @@ from maestro_local.db.models import (
     StudySession,
     StudyTopic,
     Task,
+    TimeLog,
     TaskChecklist,
     TaskDependency,
     Todo,
@@ -2859,6 +2860,83 @@ def get_digest(days: int = 1, s: Session = Depends(db)):
     except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=400, detail=str(e))
     return result
+
+
+# ---------------------------------------------------------------------------
+# Time tracking / timesheet
+# ---------------------------------------------------------------------------
+
+
+def _timelog_dict(t: TimeLog) -> dict:
+    return {
+        "id": t.id,
+        "taskId": t.task_id,
+        "taskCode": t.task_code or "",
+        "seconds": t.seconds or 0,
+        "note": t.note or "",
+        "startedAt": t.started_at.isoformat() if t.started_at else None,
+        "createdAt": t.created_at.isoformat() if t.created_at else None,
+    }
+
+
+class TimeLogBody(BaseModel):
+    seconds: int
+    taskCode: Optional[str] = None
+    note: str = ""
+
+
+@app.get("/api/timelogs")
+def list_timelogs(limit: int = 50, s: Session = Depends(db)):
+    from datetime import datetime as _dt, timedelta
+    rows = (s.query(TimeLog).order_by(TimeLog.created_at.desc())
+            .limit(max(1, min(limit, 200))).all())
+    week_start = _dt.now() - timedelta(days=7)
+    week_total = sum(
+        (t.seconds or 0) for t in s.query(TimeLog)
+        .filter(TimeLog.created_at >= week_start).all()
+    )
+    by_task = {}
+    for t in s.query(TimeLog).filter(TimeLog.created_at >= week_start).all():
+        key = t.task_code or "—"
+        by_task[key] = by_task.get(key, 0) + (t.seconds or 0)
+    return {
+        "logs": [_timelog_dict(t) for t in rows],
+        "weekSeconds": week_total,
+        "weekByTask": [{"taskCode": k, "seconds": v} for k, v in
+                       sorted(by_task.items(), key=lambda kv: -kv[1])],
+    }
+
+
+@app.post("/api/timelogs")
+def create_timelog(body: TimeLogBody, s: Session = Depends(db)):
+    from datetime import datetime as _dt
+    if body.seconds <= 0:
+        raise HTTPException(status_code=400, detail="Duração inválida")
+    task_id = None
+    task_code = (body.taskCode or "").strip()
+    if task_code:
+        try:
+            task = _resolve_task(task_code, s)
+            task_id = task.id
+            task_code = f"{task.project.key}-{task.number}"
+        except HTTPException:
+            pass  # mantém o código digitado mesmo sem casar com tarefa
+    row = TimeLog(task_id=task_id, task_code=task_code, seconds=body.seconds,
+                  note=body.note or "", started_at=_dt.now())
+    s.add(row)
+    s.commit()
+    s.refresh(row)
+    return _timelog_dict(row)
+
+
+@app.delete("/api/timelogs/{log_id}")
+def delete_timelog(log_id: int, s: Session = Depends(db)):
+    row = s.get(TimeLog, log_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Registro não encontrado")
+    s.delete(row)
+    s.commit()
+    return {"ok": True}
 
 
 # ---------------------------------------------------------------------------

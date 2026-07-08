@@ -48,8 +48,9 @@ SQLite, DevLog/comments, MCP).
 - [x] **Git/PR cockpit** (~4–6 pd) — current branch, ahead/behind, uncommitted
   changes (staged/unstaged/untracked), recent commits and open PRs (`git`/`gh`,
   read-only). API `/api/git/status`; "Git" tab in the Library (desktop + web).
-- [ ] **Time tracking + Pomodoro per task** (~2–3 pd) — a timer on a task →
-  logs time → feeds real cycle time into Metrics + a weekly timesheet.
+- [x] **Time tracking + Pomodoro per task** (~2–3 pd) — a stopwatch (+ manual
+  entry) logs time optionally against a task; weekly total and per-task
+  breakdown. API `/api/timelogs`; "Time" tab in the Library (desktop + web).
 - [x] **Snippets & prompt library** (~2 pd) — reusable code snippets and AI
   prompts, searchable by text/tags/language. Desktop **Library** view + web
   `/biblioteca`; API `/api/snippets`. Kind SNIPPET|PROMPT, copy-to-clipboard,
