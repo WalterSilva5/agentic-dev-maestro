@@ -2808,6 +2808,60 @@ def run_api_request(body: ApiRunBody, s: Session = Depends(db)):
 
 
 # ---------------------------------------------------------------------------
+# Digest proativo (standup automático)
+# ---------------------------------------------------------------------------
+
+
+def _digest_context(s: Session, days: int) -> str:
+    from datetime import datetime as _dt, timedelta
+    since = _dt.now() - timedelta(days=days)
+
+    active = [t for t in s.query(Task).filter(Task.deleted_at.is_(None)).all()
+              if t.archived_at is None]
+    done = [t for t in active if t.column and t.column.is_done
+            and (t.done_at is None or t.done_at >= since)]
+    doing = [t for t in active if t.column and not t.column.is_done
+             and t.column.order and t.column.order > 0]
+
+    recent_activity = (
+        s.query(ActivityLog)
+        .filter(ActivityLog.created_at >= since)
+        .order_by(ActivityLog.created_at.desc())
+        .limit(30).all()
+    )
+    notes = (
+        s.query(DailyNote)
+        .order_by(DailyNote.date.desc())
+        .limit(3).all()
+    )
+
+    lines = [f"Período: últimos {days} dia(s)."]
+    lines.append(f"Tarefas concluídas ({len(done)}):")
+    lines += [f"  - [{t.type}] {t.title}" for t in done[:20]] or ["  (nenhuma)"]
+    lines.append(f"Tarefas em andamento ({len(doing)}):")
+    lines += [f"  - [{t.type}] {t.title} (coluna: {t.column.name if t.column else '-'})"
+              for t in doing[:20]] or ["  (nenhuma)"]
+    if recent_activity:
+        lines.append("Atividade recente:")
+        lines += [f"  - {a.action}: {a.detail or ''}" for a in recent_activity[:15]]
+    for n in notes:
+        if n.body and n.body.strip():
+            lines.append(f"Nota do dia {n.date}:\n{n.body.strip()[:600]}")
+    return "\n".join(lines)
+
+
+@app.get("/api/digest")
+def get_digest(days: int = 1, s: Session = Depends(db)):
+    from maestro_local.digest import generate_digest
+    context = _digest_context(s, max(1, min(days, 30)))
+    try:
+        result = generate_digest(context)
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=400, detail=str(e))
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Intake / triagem de bugs (IA → tarefa BUG)
 # ---------------------------------------------------------------------------
 

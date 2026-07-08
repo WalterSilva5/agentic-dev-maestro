@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getMetrics, getActivity, getProjects } from '../api'
+import { getMetrics, getActivity, getProjects, getDigest } from '../api'
 import { t } from '../i18n'
 
 function fmtWhen(iso) {
@@ -14,7 +14,17 @@ export default function Dashboard() {
   const [activity, setActivity] = useState([])
   const [projects, setProjects] = useState([])
   const [error, setError] = useState('')
+  const [digest, setDigest] = useState(null)
+  const [digestLoading, setDigestLoading] = useState(false)
   const nav = useNavigate()
+
+  const runDigest = () => {
+    setDigestLoading(true)
+    getDigest(1)
+      .then(setDigest)
+      .catch((e) => setError(e.response?.data?.detail || String(e.message || e)))
+      .finally(() => setDigestLoading(false))
+  }
 
   useEffect(() => {
     Promise.all([getMetrics(), getActivity(15), getProjects()])
@@ -47,6 +57,31 @@ export default function Dashboard() {
             <div className="lbl">{c.lbl}</div>
           </div>
         ))}
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+          <h4 style={{ margin: 0, color: 'var(--muted)' }}>{t('Digest (standup)')}</h4>
+          <button className="ghost" onClick={runDigest} disabled={digestLoading}>
+            {digestLoading ? t('Gerando...') : t('Gerar com IA')}
+          </button>
+        </div>
+        {digest ? (
+          <div style={{ marginTop: 8, fontSize: 13 }}>
+            {digest.summary && <p style={{ marginTop: 0 }}>{digest.summary}</p>}
+            {digest.done?.length > 0 && (
+              <div><b>✅ {t('Feito')}</b><ul style={{ margin: '2px 0 6px' }}>{digest.done.map((x, i) => <li key={i}>{x}</li>)}</ul></div>
+            )}
+            {digest.doing?.length > 0 && (
+              <div><b>🔨 {t('Fazendo')}</b><ul style={{ margin: '2px 0 6px' }}>{digest.doing.map((x, i) => <li key={i}>{x}</li>)}</ul></div>
+            )}
+            {digest.blockers?.length > 0 && (
+              <div><b>🚧 {t('Bloqueios')}</b><ul style={{ margin: '2px 0 6px' }}>{digest.blockers.map((x, i) => <li key={i}>{x}</li>)}</ul></div>
+            )}
+          </div>
+        ) : (
+          <div className="muted" style={{ marginTop: 6 }}>{t('Gere um resumo "feito/fazendo/bloqueios" do seu trabalho recente.')}</div>
+        )}
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}>

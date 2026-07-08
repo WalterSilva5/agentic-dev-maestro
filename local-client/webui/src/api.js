@@ -126,4 +126,7 @@ export const deleteApiRequest = (id) => api.delete(`/http-requests/${id}`).then(
 export const runApiRequest = (body) => api.post('/http-requests/run', body).then((r) => r.data)
 export const getApiHistory = (params = {}) => api.get('/http-requests/history', { params }).then((r) => r.data)
 
+// Digest proativo (standup)
+export const getDigest = (days = 1) => api.get('/digest', { params: { days } }).then((r) => r.data)
+
 export const getHealth = () => api.get('/health').then((r) => r.data)

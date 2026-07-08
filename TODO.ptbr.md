@@ -66,8 +66,9 @@ workspace, DevLog/comentários, MCP).
 - [x] **Testador de API (mini-Postman)** (~3 hd) — monta/executa/salva requisições
   HTTP e guarda histórico de execução. API `/api/http-requests` (+ `/run`,
   `/history`); tela dedicada no desktop e web (`/api-tester`).
-- [ ] **Digest proativo (standup automático)** (~3 hd) — "feito/fazendo/
-  bloqueios" a partir da atividade do board + commits + Meu Dia; resumo semanal.
+- [x] **Digest proativo (standup automático)** (~3 hd) — IA gera "feito/fazendo/
+  bloqueios" + resumo a partir do estado do board, atividade recente e notas do
+  Meu Dia. API `/api/digest`; card "Digest (standup)" no Dashboard (desktop + web).
 - [x] **Importar TODO/FIXME do código** (~1–2 hd) — varre uma pasta por
   `TODO/FIXME/HACK/XXX` e importa os selecionados como tarefas ligadas ao arquivo.
   API `/api/code/scan-todos` + `/api/code/import-todos`; aba "Importar do código"

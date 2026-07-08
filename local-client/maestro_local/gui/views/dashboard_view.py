@@ -2,10 +2,12 @@ from datetime import date, datetime, timedelta
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
+    QApplication,
     QFrame,
     QHBoxLayout,
     QLabel,
     QProgressBar,
+    QPushButton,
     QScrollArea,
     QSizePolicy,
     QTabWidget,
@@ -75,6 +77,29 @@ class DashboardView(QWidget):
             card = self._make_summary_card(label)
             self._summary_cards[key] = card
             self._cards_row.addWidget(card["frame"])
+
+        # Digest proativo (standup gerado por IA)
+        self._digest_section = QFrame()
+        self._digest_section.setProperty("class", "card")
+        digest_layout = QVBoxLayout(self._digest_section)
+        digest_layout.setContentsMargins(12, 10, 12, 10)
+        digest_layout.setSpacing(8)
+        digest_head = QHBoxLayout()
+        digest_title = QLabel(_t("Digest (standup)"))
+        digest_title.setProperty("class", "cardTitle")
+        digest_head.addWidget(digest_title)
+        digest_head.addStretch()
+        self._digest_btn = QPushButton(_t("Gerar com IA"))
+        self._digest_btn.setCursor(Qt.PointingHandCursor)
+        self._digest_btn.clicked.connect(self._run_digest)
+        digest_head.addWidget(self._digest_btn)
+        digest_layout.addLayout(digest_head)
+        self._digest_result = QLabel(_t('Gere um resumo "feito/fazendo/bloqueios" do seu trabalho recente.'))
+        self._digest_result.setWordWrap(True)
+        self._digest_result.setObjectName("subtitle")
+        self._digest_result.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        digest_layout.addWidget(self._digest_result)
+        self._layout.addWidget(self._digest_section)
 
         self._overdue_section = QFrame()
         self._overdue_section.setProperty("class", "card")
@@ -161,6 +186,40 @@ class DashboardView(QWidget):
 
     def refresh(self):
         self._refresh_active_tab()
+
+    def _run_digest(self):
+        from maestro_local.api.app import _digest_context
+        from maestro_local.digest import generate_digest
+        self._digest_btn.setEnabled(False)
+        self._digest_result.setText(_t("Gerando..."))
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+        s = get_session()
+        try:
+            context = _digest_context(s, 1)
+        finally:
+            s.close()
+        try:
+            d = generate_digest(context)
+        except Exception as e:  # noqa: BLE001
+            self._digest_result.setText(_t("Erro no digest") + f": {e}")
+            return
+        finally:
+            QApplication.restoreOverrideCursor()
+            self._digest_btn.setEnabled(True)
+
+        def _sec(emoji, label, items):
+            if not items:
+                return ""
+            lis = "".join(f"<li>{x}</li>" for x in items)
+            return f"<b>{emoji} {label}</b><ul>{lis}</ul>"
+
+        html = ""
+        if d.get("summary"):
+            html += f"<p>{d['summary']}</p>"
+        html += _sec("✅", _t("Feito"), d.get("done"))
+        html += _sec("🔨", _t("Fazendo"), d.get("doing"))
+        html += _sec("🚧", _t("Bloqueios"), d.get("blockers"))
+        self._digest_result.setText(html or _t("Sem conteúdo."))
 
     def _refresh_overview(self):
         s = get_session()

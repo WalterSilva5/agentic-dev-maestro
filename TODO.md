@@ -66,8 +66,9 @@ SQLite, DevLog/comments, MCP).
 - [x] **API tester (mini-Postman)** (~3 pd) — build/run/save HTTP requests and
   keep an execution history. API `/api/http-requests` (+ `/run`, `/history`);
   dedicated screen on desktop and web (`/api-tester`).
-- [ ] **Proactive digest (automatic standup)** (~3 pd) — "done/doing/blockers"
-  from board activity + commits + Daily Note; weekly summary.
+- [x] **Proactive digest (automatic standup)** (~3 pd) — AI "done/doing/blockers"
+  + summary from board state, recent activity and Daily Notes. API `/api/digest`;
+  "Digest (standup)" card on the Dashboard (desktop + web).
 - [x] **Import TODO/FIXME from code** (~1–2 pd) — scan a folder for
   `TODO/FIXME/HACK/XXX` and import selected ones as tasks linked to the file.
   API `/api/code/scan-todos` + `/api/code/import-todos`; "Import from code" tab
