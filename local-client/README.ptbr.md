@@ -156,7 +156,16 @@ Gravação, transcrição e resumo de reuniões e estudos (migrado do projeto ws
 
 ### Ferramentas (Alt+5) — hub de funcionalidades extras
 
-Para manter o menu lateral enxuto, as funcionalidades extras ficam atrás de um único item **Ferramentas** que abre uma **grade de cards com ícone** (launcher). Clicar num card abre a funcionalidade e mantém **Ferramentas** destacado no menu. Cards: **Estudos**, **Reuniões**, **Senhas**, **Biblioteca**, **Testador de API**, **Base de conhecimento**, **Skills**, **Instruções**. Na web é `/ferramentas` (cards: Estudos, Métricas, Labels, Biblioteca, Testador de API, Base).
+Para manter o menu lateral enxuto, as funcionalidades extras ficam atrás de um único item **Ferramentas** que abre uma **grade de cards com ícone** (launcher). Clicar num card abre a funcionalidade e mantém **Ferramentas** destacado no menu. Cards: **Estudos**, **Reuniões**, **Senhas**, **Biblioteca**, **Testador de API**, **Base de conhecimento**, **Praticar Inglês**, **Skills**, **Instruções**. Na web é `/ferramentas` (cards: Estudos, Métricas, Labels, Biblioteca, Testador de API, Base).
+
+### Praticar Inglês (no hub Ferramentas)
+
+Prática de inglês conversacional simples e eficaz (ideias destiladas do projeto avulso *wsi-talk*, sem o peso):
+
+- **Parceiro de conversa por IA por nível** (Iniciante / Intermediário / Avançado / Livre) com tema opcional; a IA mantém o seu nível e faz uma pergunta a cada turno
+- **Coaching gentil a cada turno**: versão corrigida/mais natural da sua frase, uma dica curta em português e 0-3 palavras úteis com **pronúncia reescrita em português** (ex.: `outside` → *áutsáid*) e significado
+- **Sugestão de resposta** para cada pergunta
+- **Entrada por voz**: grava no microfone → transcrito pelo Whisper offline (inglês) → enviado automaticamente. Digitar também funciona. Só desktop, in-process; sem persistência (sessão efêmera)
 
 ### Projetos (Alt+6)
 

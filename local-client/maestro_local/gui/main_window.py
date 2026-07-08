@@ -38,6 +38,7 @@ from maestro_local.gui.views.library_view import LibraryView
 from maestro_local.gui.views.api_tester_view import ApiTesterView
 from maestro_local.gui.views.kb_view import KBView
 from maestro_local.gui.views.tools_hub_view import ToolsHubView
+from maestro_local.gui.views.english_view import EnglishView
 from maestro_local.gui.views.guide_view import GuideView
 from maestro_local.gui.views.settings_view import SettingsView
 from maestro_local.gui.views.projects_view import ProjectsView
@@ -260,6 +261,7 @@ class MainWindow(QMainWindow):
         self.library_view = LibraryView()
         self.api_tester_view = ApiTesterView()
         self.kb_view = KBView()
+        self.english_view = EnglishView()
         self.tools_hub_view = ToolsHubView(lambda key: self._open_key(key))
         self.projects_view = ProjectsView()
         self.skills_view = SkillsView()
@@ -278,6 +280,7 @@ class MainWindow(QMainWindow):
         self.stack.addWidget(self.library_view)
         self.stack.addWidget(self.api_tester_view)
         self.stack.addWidget(self.kb_view)
+        self.stack.addWidget(self.english_view)
         self.stack.addWidget(self.tools_hub_view)
         self.stack.addWidget(self.projects_view)
 
@@ -293,6 +296,7 @@ class MainWindow(QMainWindow):
             "library": self.library_view,
             "apitester": self.api_tester_view,
             "kb": self.kb_view,
+            "english": self.english_view,
             "ferramentas": self.tools_hub_view,
             "projects": self.projects_view,
             "skills": self.skills_view,

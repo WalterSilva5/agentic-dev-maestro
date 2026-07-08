@@ -162,7 +162,16 @@ Recording, transcription, and summarization of meetings and studies (migrated fr
 
 ### Tools (Alt+5) — hub of extra features
 
-To keep the sidebar lean, the extra features live behind a single **Tools** menu item that opens a **grid of icon cards** (a launcher). Clicking a card opens the feature and keeps **Tools** highlighted in the sidebar. Cards: **Studies**, **Meetings**, **Passwords**, **Library**, **API tester**, **Knowledge base**, **Skills**, **Instructions**. On the web UI it is `/ferramentas` (cards: Studies, Metrics, Labels, Library, API tester, Knowledge base).
+To keep the sidebar lean, the extra features live behind a single **Tools** menu item that opens a **grid of icon cards** (a launcher). Clicking a card opens the feature and keeps **Tools** highlighted in the sidebar. Cards: **Studies**, **Meetings**, **Passwords**, **Library**, **API tester**, **Knowledge base**, **Practice English**, **Skills**, **Instructions**. On the web UI it is `/ferramentas` (cards: Studies, Metrics, Labels, Library, API tester, Knowledge base).
+
+### Practice English (in Tools)
+
+Simple-but-effective conversational English practice (ideas distilled from the standalone *wsi-talk* project, without the weight):
+
+- **AI conversation partner by level** (Beginner / Intermediate / Advanced / Free) with an optional topic; the AI stays at your level and asks one follow-up question per turn
+- **Gentle coaching per turn**: a corrected/more natural version of your message, a short tip in Portuguese, and 0-3 useful words with **Portuguese pronunciation respelling** (e.g. `outside` → *áutsáid*) and meaning
+- **Sample answer hint** for each question
+- **Voice input**: record with the mic → transcribed by the offline Whisper (English) → sent automatically. Typing also works. Desktop-only, in-process; no persistence (ephemeral session)
 
 ### Projects (Alt+6)
 

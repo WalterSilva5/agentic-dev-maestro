@@ -2990,6 +2990,43 @@ def delete_timelog(log_id: int, s: Session = Depends(db)):
 
 
 # ---------------------------------------------------------------------------
+# Praticar inglês (conversação por IA)
+# ---------------------------------------------------------------------------
+
+
+class EnglishStartBody(BaseModel):
+    level: str = "INTERMEDIATE"
+    topic: str = ""
+
+
+class EnglishMessageBody(BaseModel):
+    level: str = "INTERMEDIATE"
+    topic: str = ""
+    history: list = []
+    message: str
+
+
+@app.post("/api/english/start")
+def english_start(body: EnglishStartBody):
+    from maestro_local.english import start
+    try:
+        return start(body.level, body.topic)
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.post("/api/english/message")
+def english_message(body: EnglishMessageBody):
+    from maestro_local.english import converse
+    if not body.message.strip():
+        raise HTTPException(status_code=400, detail="Mensagem vazia")
+    try:
+        return converse(body.level, body.topic, body.history, body.message)
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ---------------------------------------------------------------------------
 # Cockpit de Git/PR (somente leitura)
 # ---------------------------------------------------------------------------
 
