@@ -38,6 +38,29 @@ def invoke_text(messages, temperature: float = 0.3, provider: dict | None = None
     return getattr(resp, "content", str(resp))
 
 
+def invoke_vision(image_bytes: bytes, prompt: str, mime: str = "image/png",
+                  temperature: float = 0.2, provider: dict | None = None) -> str:
+    """Envia uma imagem + prompt para um modelo com visão e retorna texto.
+
+    A imagem vai como data URL base64 no formato multimodal do OpenAI/LangChain.
+    Levanta exceção se o provedor/modelo ativo não suportar visão — o chamador
+    deve tratar o fallback (ex.: registrar só o nome do arquivo).
+    """
+    import base64
+
+    from langchain_core.messages import HumanMessage
+
+    b64 = base64.b64encode(image_bytes).decode("ascii")
+    url = f"data:{mime};base64,{b64}"
+    model = get_chat_model(temperature, provider)
+    msg = HumanMessage(content=[
+        {"type": "text", "text": prompt},
+        {"type": "image_url", "image_url": {"url": url}},
+    ])
+    resp = model.invoke([msg])
+    return getattr(resp, "content", str(resp))
+
+
 def invoke_json(messages, schema=None, temperature: float = 0.2,
                 provider: dict | None = None) -> dict:
     """Chamada que retorna um dict.

@@ -128,7 +128,7 @@ class LiveExtractWorker(QThread):
         try:
             state_json = json.dumps(self.state, ensure_ascii=False)
             user = LIVE_EXTRACT_USER.format(
-                context=_clamp_transcript(self.context, 600),
+                context=_clamp_transcript(self.context, 1500),
                 state=state_json,
                 new_text=_clamp_transcript(self.new_text, 1500),
             )
@@ -148,6 +148,39 @@ class LiveExtractWorker(QThread):
             self.failed.emit(str(e))
 
 
+VISION_CONTEXT_SYSTEM = """Você lê uma imagem (captura de tela, foto, diagrama, slide ou documento)
+adicionada como CONTEXTO de uma reunião. Descreva objetivamente o conteúdo relevante e TRANSCREVA
+qualquer texto legível (títulos, itens, código, números, tabelas). Não invente. Seja conciso e
+responda em português do Brasil, em texto corrido/tópicos — sem comentários sobre a qualidade da imagem."""
+
+
+class VisionContextWorker(QThread):
+    """Extrai texto/descrição de uma imagem para usar como contexto da reunião."""
+
+    done = Signal(str, str)   # (label, texto extraído)
+    failed = Signal(str, str)  # (label, erro)
+
+    def __init__(self, label: str, image_bytes: bytes, mime: str = "image/png", parent=None):
+        super().__init__(parent)
+        self.label = label
+        self.image_bytes = image_bytes
+        self.mime = mime
+
+    def run(self) -> None:
+        from maestro_local.ai.llm import invoke_vision
+        try:
+            text = invoke_vision(
+                self.image_bytes,
+                "Descreva e transcreva o conteúdo útil desta imagem para servir de contexto à reunião.",
+                mime=self.mime,
+                temperature=0.1,
+            )
+            self.done.emit(self.label, (text or "").strip())
+        except Exception as e:  # noqa: BLE001
+            logger.warning("Vision context falhou (%s): %s", self.label, e)
+            self.failed.emit(self.label, str(e))
+
+
 class LiveAskWorker(QThread):
     """Responde uma pergunta pontual com base no transcript (e no contexto)."""
 
@@ -164,7 +197,7 @@ class LiveAskWorker(QThread):
         from maestro_local.ai.llm import invoke_text
         try:
             user = LIVE_ASK_USER.format(
-                context=_clamp_transcript(self.context, 600),
+                context=_clamp_transcript(self.context, 1500),
                 transcript=_clamp_transcript(self.transcript),
                 question=self.question,
             )

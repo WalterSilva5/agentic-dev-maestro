@@ -5,8 +5,9 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QThread, QTimer, Signal
+from PySide6.QtCore import QBuffer, QByteArray, QIODevice, Qt, QThread, QTimer, Signal
 from PySide6.QtWidgets import (
+    QApplication,
     QCheckBox,
     QComboBox,
     QFileDialog,
@@ -16,12 +17,14 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QListWidget,
     QListWidgetItem,
+    QMenu,
     QProgressBar,
     QPushButton,
     QScrollArea,
     QSplitter,
     QTabWidget,
     QTextEdit,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -51,6 +54,9 @@ from maestro_local.db.models import (
 )
 from maestro_local.gui.theme import current_theme
 from maestro_local.i18n import t
+
+
+IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp"}
 
 
 def _whisper_settings():
@@ -160,6 +166,9 @@ class TranscricoesView(QWidget):
         self._analyzer = None
         self._elapsed = 0
         self._current = {"transcript": "", "duration": 0.0, "language": "", "audio_path": ""}
+        # Contexto extra da reunião (arquivos/imagens/tela) → alimenta o copiloto.
+        self._context_items: list[dict] = []   # {label, text}
+        self._vision_workers: list = []         # workers de visão em andamento
 
         # Estado do assistente ao vivo
         self._live_transcriber = None
@@ -285,6 +294,34 @@ class TranscricoesView(QWidget):
         self.live_check.toggled.connect(self._on_live_toggled)
         row4.addWidget(self.live_check)
         cl.addLayout(row4)
+
+        # ---- Contexto adicional (arquivos/imagens/tela) para o copiloto ----
+        row5 = QHBoxLayout()
+        row5.setSpacing(8)
+        self.context_btn = QToolButton()
+        self.context_btn.setText(t("➕ Adicionar contexto"))
+        self.context_btn.setCursor(Qt.PointingHandCursor)
+        self.context_btn.setPopupMode(QToolButton.InstantPopup)
+        self.context_btn.setToolTip(
+            t("Anexa arquivos (imagem, PDF, texto…) ou uma captura de tela como contexto "
+              "para o assistente da reunião. Pode ser usado a qualquer momento.")
+        )
+        ctx_menu = QMenu(self.context_btn)
+        ctx_menu.addAction(t("Arquivo (imagem, PDF, texto…)"), self._add_context_file)
+        ctx_menu.addAction(t("Capturar tela"), self._capture_screen_context)
+        self.context_btn.setMenu(ctx_menu)
+        row5.addWidget(self.context_btn)
+        self.context_summary = QLabel(t("Nenhum contexto adicionado"))
+        self.context_summary.setObjectName("subtitle")
+        row5.addWidget(self.context_summary, 1)
+        cl.addLayout(row5)
+
+        self.context_container = QWidget()
+        self._context_layout = QVBoxLayout(self.context_container)
+        self._context_layout.setContentsMargins(0, 0, 0, 0)
+        self._context_layout.setSpacing(4)
+        self.context_container.setVisible(False)
+        cl.addWidget(self.context_container)
 
         right.addWidget(ctrl)
 
@@ -885,6 +922,140 @@ class TranscricoesView(QWidget):
         self.ask_btn.setEnabled(True)
         self.ask_answer.setText(t("Erro: {error}").format(error=err))
 
+    # ----------------------- Contexto adicional -----------------------
+    def _add_context_file(self):
+        """Anexa arquivos (imagem/PDF/texto…) como contexto da reunião."""
+        exts = "*.png *.jpg *.jpeg *.gif *.bmp *.webp *.pdf *.txt *.md *.log *.json *.csv *.docx *.epub"
+        paths, _ = QFileDialog.getOpenFileNames(
+            self, t("Adicionar contexto"), "",
+            t("Contexto (imagem, PDF, texto)") + f" ({exts});;" + t("Todos os arquivos") + " (*)",
+        )
+        for path in paths or []:
+            self._ingest_context_path(path)
+
+    def _ingest_context_path(self, path: str):
+        p = Path(path)
+        ext = p.suffix.lower()
+        try:
+            data = p.read_bytes()
+        except Exception as e:  # noqa: BLE001
+            self.status_label.setText(t("Erro ao ler arquivo: {error}").format(error=e))
+            return
+        if ext in IMAGE_EXTS:
+            mime = "image/jpeg" if ext in (".jpg", ".jpeg") else f"image/{ext.lstrip('.')}"
+            self._run_vision(p.name, data, mime)
+            return
+        from maestro_local.study.ingest import extract_text
+        text = extract_text(data, p.name)
+        if not text:
+            self.status_label.setText(t("Não foi possível extrair texto de {name}.").format(name=p.name))
+            return
+        self._add_context_item(p.name, text)
+        self.status_label.setText(t("Contexto adicionado: {label}").format(label=p.name))
+
+    def _capture_screen_context(self):
+        """Minimiza a janela, captura a tela e usa como contexto (via visão da IA)."""
+        win = self.window()
+        win.showMinimized()
+        # Pequeno atraso para a janela sair da frente antes do print.
+        QTimer.singleShot(400, self._do_grab_screen)
+
+    def _do_grab_screen(self):
+        win = self.window()
+        pix = None
+        try:
+            screen = QApplication.primaryScreen()
+            if screen is not None:
+                pix = screen.grabWindow(0)
+        finally:
+            win.showNormal()
+            win.raise_()
+            win.activateWindow()
+        if pix is None or pix.isNull():
+            self.status_label.setText(t("Não foi possível capturar a tela."))
+            return
+        ba = QByteArray()
+        buf = QBuffer(ba)
+        buf.open(QIODevice.WriteOnly)
+        pix.save(buf, "PNG")
+        buf.close()
+        n = sum(1 for it in self._context_items if it["label"].startswith("Captura de tela")) + 1
+        self._run_vision(f"Captura de tela {n}", bytes(ba.data()), "image/png")
+
+    def _run_vision(self, label: str, image_bytes: bytes, mime: str):
+        if not self._provider_ready():
+            self.status_label.setText(t("Configure um provedor de IA para ler imagens/telas."))
+            return
+        from maestro_local.transcricoes.live_assistant import VisionContextWorker
+        self.status_label.setText(t("Lendo imagem com IA: {label}…").format(label=label))
+        w = VisionContextWorker(label, image_bytes, mime)
+        w.done.connect(self._on_vision_done)
+        w.failed.connect(self._on_vision_failed)
+        w.finished.connect(lambda w=w: self._vision_workers.remove(w) if w in self._vision_workers else None)
+        self._vision_workers.append(w)
+        w.start()
+
+    def _on_vision_done(self, label: str, text: str):
+        if not text:
+            self.status_label.setText(t("A imagem não retornou texto útil."))
+            return
+        self._add_context_item(label, text)
+        self.status_label.setText(t("Contexto adicionado: {label}").format(label=label))
+
+    def _on_vision_failed(self, label: str, err: str):
+        self.status_label.setText(
+            t("Falha ao ler imagem ({label}): {err}").format(label=label, err=err)
+        )
+
+    def _add_context_item(self, label: str, text: str):
+        self._context_items.append({"label": label, "text": text})
+        self._render_context()
+        self._refresh_live_context()
+
+    def _remove_context_item(self, idx: int):
+        if 0 <= idx < len(self._context_items):
+            self._context_items.pop(idx)
+            self._render_context()
+            self._refresh_live_context()
+
+    def _render_context(self):
+        while self._context_layout.count():
+            item = self._context_layout.takeAt(0)
+            w = item.widget()
+            if w is not None:
+                w.setParent(None)
+                w.deleteLater()
+        for i, it in enumerate(self._context_items):
+            chip = QFrame()
+            chip.setProperty("card", "true")
+            h = QHBoxLayout(chip)
+            h.setContentsMargins(8, 4, 8, 4)
+            h.setSpacing(6)
+            preview = " ".join(it["text"].split())
+            if len(preview) > 70:
+                preview = preview[:70] + "…"
+            lbl = QLabel(f"📎 {it['label']} — {preview}")
+            lbl.setToolTip(it["text"][:2000])
+            h.addWidget(lbl, 1)
+            rm = QToolButton()
+            rm.setText("×")
+            rm.setCursor(Qt.PointingHandCursor)
+            rm.setToolTip(t("Remover contexto"))
+            rm.clicked.connect(lambda _=False, idx=i: self._remove_context_item(idx))
+            h.addWidget(rm)
+            self._context_layout.addWidget(chip)
+        n = len(self._context_items)
+        self.context_container.setVisible(n > 0)
+        self.context_summary.setText(
+            t("Nenhum contexto adicionado") if n == 0
+            else t("{n} item(ns) de contexto anexado(s)").format(n=n)
+        )
+
+    def _refresh_live_context(self):
+        """Atualiza o contexto do copiloto ao vivo quando o usuário anexa/remove itens."""
+        if self._live_transcriber is not None:
+            self._live_context = self._meeting_context()
+
     def _meeting_context(self) -> str:
         """Monta o contexto do workspace + projeto selecionado para o copiloto.
 
@@ -927,6 +1098,11 @@ class TranscricoesView(QWidget):
                         parts.append(t("Tarefas em aberto:") + "\n" + "\n".join(titles[:12]))
             finally:
                 s.close()
+        if self._context_items:
+            parts.append(t("## Contexto anexado à reunião"))
+            for it in self._context_items:
+                body = (it.get("text") or "").strip()[:3000]
+                parts.append(f"### {it['label']}\n{body}")
         return "\n".join(parts).strip()
 
     # ------------------------- Ações → tarefas -------------------------
