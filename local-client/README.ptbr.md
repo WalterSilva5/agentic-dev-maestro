@@ -209,6 +209,8 @@ Guia de uso reestruturado com 12 seções, incluindo explicações de cada tela,
 
 ### Configurações (Alt+9)
 
+- **Iniciar junto com o computador** (Linux): um toggle que cria/remove um `~/.config/autostart/agentic-dev-maestro.desktop` para o Maestro abrir automaticamente no login (XDG autostart)
+
 Tela de configurações gerais:
 
 - **Provedores de IA**: cadastrar e selecionar provedores compatíveis com OpenAI (LM Studio, Ollama, OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Gemini, Together, opencode) usados pelo Assistente e pelas Transcrições. Campos de Base URL, API Key e Modelo, com botão de testar conexão e adicionar novos provedores

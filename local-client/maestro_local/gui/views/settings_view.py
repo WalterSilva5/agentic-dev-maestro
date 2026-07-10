@@ -73,6 +73,7 @@ class SettingsView(QWidget):
         self._build_transcricoes_section()
         self._build_pomodoro_section()
         self._build_notification_section()
+        self._build_startup_section()
 
         self.cards_layout.addStretch()
         scroll.setWidget(container)
@@ -365,6 +366,46 @@ class SettingsView(QWidget):
         row.addWidget(self.pomodoro_duration)
         row.addStretch()
         layout.addLayout(row)
+
+    def _build_startup_section(self):
+        from maestro_local import autostart
+        card, layout = self._make_card("🚀", t("Inicialização"))
+
+        desc = QLabel(
+            t("Inicia o Maestro automaticamente ao ligar o computador (no login).")
+        )
+        desc.setWordWrap(True)
+        desc.setProperty("class", "hint")
+        layout.addWidget(desc)
+
+        self.startup_check = QCheckBox(t("Iniciar junto com o computador"))
+        if autostart.is_supported():
+            self.startup_check.setChecked(autostart.is_enabled())
+        else:
+            self.startup_check.setEnabled(False)
+            self.startup_check.setToolTip(t("Disponível apenas no Linux."))
+        # conecta depois de definir o estado, para não disparar ao carregar
+        self.startup_check.toggled.connect(self._on_startup_toggled)
+        layout.addWidget(self.startup_check)
+
+        self.startup_status = QLabel("")
+        self.startup_status.setProperty("class", "hint")
+        layout.addWidget(self.startup_status)
+
+    def _on_startup_toggled(self, on):
+        from maestro_local import autostart
+        try:
+            autostart.set_enabled(on)
+            self.startup_status.setText(
+                t("Ativado — o Maestro abrirá automaticamente no próximo login.")
+                if on else t("Desativado — o Maestro não abrirá sozinho.")
+            )
+        except Exception as e:  # noqa: BLE001
+            self.startup_status.setText(t("Erro: {error}").format(error=e))
+            # reverte visualmente sem redisparar o sinal
+            self.startup_check.blockSignals(True)
+            self.startup_check.setChecked(autostart.is_enabled())
+            self.startup_check.blockSignals(False)
 
     def _build_notification_section(self):
         card, layout = self._make_card("🔔", t("Notificações push"))

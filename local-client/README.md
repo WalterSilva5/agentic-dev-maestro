@@ -215,6 +215,8 @@ Restructured usage guide with 12 sections, including explanations of each screen
 
 ### Settings (Alt+9)
 
+- **Start with the computer** (Linux): a toggle that creates/removes a `~/.config/autostart/agentic-dev-maestro.desktop` so Maestro opens automatically at login (XDG autostart)
+
 General settings screen:
 
 - **AI Providers**: register and select OpenAI-compatible providers (LM Studio, Ollama, OpenAI, OpenRouter, Groq, DeepSeek, Mistral, Gemini, Together, opencode) used by the Assistant and by Transcriptions. Base URL, API Key, and Model fields, with a button to test the connection and add new providers
