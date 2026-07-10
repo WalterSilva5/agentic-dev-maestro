@@ -282,6 +282,8 @@ class Recording(Base):
     language = Column(String(20), default="")
     audio_path = Column(String(500), default="")
     tags = Column(Text, default="[]")  # JSON list
+    sort_order = Column(Integer, default=0)  # ordenação manual no histórico
+    archived_at = Column(DateTime)           # arquivamento (None = ativa)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -334,6 +336,17 @@ def _run_light_migrations(engine):
         if "retro_json" not in scols:
             with engine.begin() as conn:
                 conn.execute(text("ALTER TABLE sprints ADD COLUMN retro_json TEXT"))
+    if "recordings" in tables:
+        rcols = {c["name"] for c in insp.get_columns("recordings")}
+        radds = []
+        if "sort_order" not in rcols:
+            radds.append("ALTER TABLE recordings ADD COLUMN sort_order INTEGER DEFAULT 0")
+        if "archived_at" not in rcols:
+            radds.append("ALTER TABLE recordings ADD COLUMN archived_at DATETIME")
+        if radds:
+            with engine.begin() as conn:
+                for stmt in radds:
+                    conn.execute(text(stmt))
     if "todos" in tables:
         tcols = {c["name"] for c in insp.get_columns("todos")}
         tadds = []

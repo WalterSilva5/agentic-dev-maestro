@@ -7,6 +7,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QBuffer, QByteArray, QIODevice, Qt, QThread, QTimer, Signal
 from PySide6.QtWidgets import (
+    QAbstractItemView,
     QApplication,
     QCheckBox,
     QComboBox,
@@ -14,6 +15,7 @@ from PySide6.QtWidgets import (
     QDialogButtonBox,
     QFileDialog,
     QFrame,
+    QMessageBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -216,12 +218,20 @@ class TranscricoesView(QWidget):
         self.search.setPlaceholderText(t("Buscar nas gravações..."))
         self.search.textChanged.connect(self._load_history)
         left.addWidget(self.search)
+        self.show_archived_check = QCheckBox(t("Mostrar arquivadas"))
+        self.show_archived_check.toggled.connect(self._load_history)
+        left.addWidget(self.show_archived_check)
         self.history = QListWidget()
         self.history.setStyleSheet(
             "QListWidget::item { padding: 8px 6px; min-height: 34px; "
             "border-bottom: 1px solid rgba(128,128,128,0.15); }"
         )
         self.history.itemClicked.connect(self._open_recording)
+        # Reordenar arrastando + menu de contexto (excluir/arquivar)
+        self.history.setDragDropMode(QAbstractItemView.InternalMove)
+        self.history.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.history.customContextMenuRequested.connect(self._history_context_menu)
+        self.history.model().rowsMoved.connect(self._persist_history_order)
         left.addWidget(self.history, 1)
         left_widget.setMinimumWidth(170)
         left_widget.setMaximumWidth(420)
@@ -1629,21 +1639,103 @@ class TranscricoesView(QWidget):
         self.status_label.setText(t("Markdown copiado para a área de transferência."))
 
     # ------------------------- Histórico -------------------------
+    def _rec_name(self, r) -> str:
+        """Nome da reunião com a data/hora de criação como PREFIXO."""
+        when = r.created_at.strftime("%d/%m/%Y %H:%M") if r.created_at else ""
+        base = (r.title or r.topic or "").strip()
+        if base and when:
+            return f"{when} — {base}"
+        return base or when or t("(sem título)")
+
     def _load_history(self):
+        # Evita re-persistir ordem enquanto repovoa a lista.
+        self.history.blockSignals(True)
         self.history.clear()
         query = self.search.text().strip().lower()
+        show_archived = self.show_archived_check.isChecked()
         s = get_session()
         try:
-            recs = s.query(Recording).order_by(Recording.created_at.desc()).limit(100).all()
+            q = s.query(Recording)
+            if not show_archived:
+                q = q.filter(Recording.archived_at == None)  # noqa: E711
+            recs = q.order_by(Recording.sort_order.asc(),
+                              Recording.created_at.desc()).limit(200).all()
             for r in recs:
                 hay = f"{r.title} {r.topic} {r.transcript}".lower()
                 if query and query not in hay:
                     continue
                 icon = "📓" if r.kind == "study" else "🗣"
-                when = r.created_at.strftime("%d/%m %H:%M") if r.created_at else ""
-                item = QListWidgetItem(f"{icon}  {r.title or t('(sem título)')}\n{when}")
+                archived = "  🗄" if r.archived_at else ""
+                item = QListWidgetItem(f"{icon}  {self._rec_name(r)}{archived}")
                 item.setData(Qt.UserRole, r.id)
                 self.history.addItem(item)
+        finally:
+            s.close()
+            self.history.blockSignals(False)
+
+    def _history_context_menu(self, pos):
+        item = self.history.itemAt(pos)
+        if item is None:
+            return
+        rec_id = item.data(Qt.UserRole)
+        s = get_session()
+        try:
+            r = s.query(Recording).get(rec_id)
+            archived = bool(r and r.archived_at)
+        finally:
+            s.close()
+        menu = QMenu(self.history)
+        menu.addAction(t("Abrir"), lambda: self._open_recording(item))
+        menu.addAction(
+            t("Desarquivar") if archived else t("Arquivar"),
+            lambda: self._archive_recording(rec_id, not archived))
+        menu.addSeparator()
+        menu.addAction(t("Excluir"), lambda: self._delete_recording(rec_id))
+        menu.exec(self.history.mapToGlobal(pos))
+
+    def _archive_recording(self, rec_id, archive: bool):
+        s = get_session()
+        try:
+            r = s.query(Recording).get(rec_id)
+            if r is not None:
+                r.archived_at = datetime.utcnow() if archive else None
+                s.commit()
+        finally:
+            s.close()
+        self.status_label.setText(
+            t("Reunião arquivada.") if archive else t("Reunião desarquivada."))
+        self._load_history()
+
+    def _delete_recording(self, rec_id):
+        resp = QMessageBox.question(
+            self, t("Excluir reunião"),
+            t("Excluir esta reunião permanentemente? Esta ação não pode ser desfeita."),
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if resp != QMessageBox.Yes:
+            return
+        s = get_session()
+        try:
+            r = s.query(Recording).get(rec_id)
+            if r is not None:
+                s.delete(r)
+                s.commit()
+        finally:
+            s.close()
+        if self._current.get("rec_id") == rec_id:
+            self._current["rec_id"] = None
+        self.status_label.setText(t("Reunião excluída."))
+        self._load_history()
+
+    def _persist_history_order(self, *args):
+        """Grava a ordem manual (sort_order) após arrastar itens no histórico."""
+        s = get_session()
+        try:
+            for i in range(self.history.count()):
+                rid = self.history.item(i).data(Qt.UserRole)
+                r = s.query(Recording).get(rid)
+                if r is not None:
+                    r.sort_order = i
+            s.commit()
         finally:
             s.close()
 
