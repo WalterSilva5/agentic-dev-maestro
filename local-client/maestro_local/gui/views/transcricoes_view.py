@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QThread, QTimer, Signal
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -116,7 +117,8 @@ class TranscricoesView(QWidget):
         self._live_transcript = ""       # transcrição ao vivo acumulada
         self._live_pending = ""          # texto novo ainda não enviado à IA
         self._live_secs_since = 0        # segundos desde a última extração
-        self._live_state = {"action_items": [], "decisions": [], "open_questions": []}
+        self._live_state = {"action_items": [], "decisions": [], "open_questions": [],
+                            "resolved_questions": [], "plan": [], "tips": []}
 
         self._tick = QTimer(self)
         self._tick.setInterval(1000)
@@ -124,10 +126,17 @@ class TranscricoesView(QWidget):
 
         root = QHBoxLayout(self)
         root.setContentsMargins(14, 14, 14, 14)
-        root.setSpacing(12)
+        root.setSpacing(0)
+        # Splitter horizontal: histórico (esq) x conteúdo (dir), arrastável.
+        self._main_split = QSplitter(Qt.Horizontal)
+        self._main_split.setChildrenCollapsible(False)
+        self._main_split.setHandleWidth(10)
+        root.addWidget(self._main_split)
 
         # ---- Coluna esquerda: histórico ----
-        left = QVBoxLayout()
+        left_widget = QWidget()
+        left = QVBoxLayout(left_widget)
+        left.setContentsMargins(0, 0, 8, 0)
         left.setSpacing(6)
         htitle = QLabel(t("Histórico"))
         htitle.setProperty("class", "cardTitle")
@@ -137,13 +146,20 @@ class TranscricoesView(QWidget):
         self.search.textChanged.connect(self._load_history)
         left.addWidget(self.search)
         self.history = QListWidget()
-        self.history.setFixedWidth(240)
+        self.history.setStyleSheet(
+            "QListWidget::item { padding: 8px 6px; min-height: 34px; "
+            "border-bottom: 1px solid rgba(128,128,128,0.15); }"
+        )
         self.history.itemClicked.connect(self._open_recording)
         left.addWidget(self.history, 1)
-        root.addLayout(left)
+        left_widget.setMinimumWidth(200)
+        left_widget.setMaximumWidth(420)
+        self._main_split.addWidget(left_widget)
 
         # ---- Coluna direita: gravação + transcrição ----
-        right = QVBoxLayout()
+        right_widget = QWidget()
+        right = QVBoxLayout(right_widget)
+        right.setContentsMargins(8, 0, 0, 0)
         right.setSpacing(10)
 
         title = QLabel(t("Reuniões"))
@@ -241,7 +257,7 @@ class TranscricoesView(QWidget):
         self.transcript_edit.setPlaceholderText(t("A transcrição aparecerá aqui..."))
         right.addWidget(self.transcript_edit, 1)
 
-        # Ações
+        # Ações — linha 1: documento da reunião
         actions = QHBoxLayout()
         actions.setSpacing(8)
         self.analyze_btn = QPushButton(t("Analisar com IA"))
@@ -250,28 +266,43 @@ class TranscricoesView(QWidget):
         self.analyze_btn.clicked.connect(self._analyze)
         actions.addWidget(self.analyze_btn)
         self.save_day_btn = QPushButton(t("Salvar no Meu Dia"))
+        self.save_day_btn.setProperty("flat", "true")
         self.save_day_btn.setFixedHeight(32)
         self.save_day_btn.setCursor(Qt.PointingHandCursor)
         self.save_day_btn.clicked.connect(self._save_to_day)
         self.save_day_btn.setEnabled(False)
         actions.addWidget(self.save_day_btn)
         self.export_btn = QPushButton(t("Exportar (.md)"))
+        self.export_btn.setProperty("flat", "true")
         self.export_btn.setFixedHeight(32)
         self.export_btn.setCursor(Qt.PointingHandCursor)
         self.export_btn.setToolTip(t("Exporta um markdown único com todos os itens de todas as abas + transcrição."))
         self.export_btn.clicked.connect(self._export_markdown)
         actions.addWidget(self.export_btn)
+        self.copy_btn = QPushButton(t("Copiar (.md)"))
+        self.copy_btn.setProperty("flat", "true")
+        self.copy_btn.setFixedHeight(32)
+        self.copy_btn.setCursor(Qt.PointingHandCursor)
+        self.copy_btn.setToolTip(t("Copia o markdown completo da reunião para a área de transferência."))
+        self.copy_btn.clicked.connect(self._copy_markdown)
+        actions.addWidget(self.copy_btn)
         actions.addStretch()
-        actions.addWidget(QLabel(t("Projeto:")))
+        right.addLayout(actions)
+
+        # Ações — linha 2: ponte para o board
+        actions2 = QHBoxLayout()
+        actions2.setSpacing(8)
+        actions2.addStretch()
+        actions2.addWidget(QLabel(t("Projeto:")))
         self.proj_combo = QComboBox()
-        self.proj_combo.setMinimumWidth(140)
-        actions.addWidget(self.proj_combo)
+        self.proj_combo.setMinimumWidth(160)
+        actions2.addWidget(self.proj_combo)
         self.tasks_btn = QPushButton(t("Criar tarefas das ações"))
         self.tasks_btn.setFixedHeight(32)
         self.tasks_btn.setCursor(Qt.PointingHandCursor)
         self.tasks_btn.clicked.connect(self._actions_to_tasks)
-        actions.addWidget(self.tasks_btn)
-        right.addLayout(actions)
+        actions2.addWidget(self.tasks_btn)
+        right.addLayout(actions2)
 
         # Resultado markdown
         self.result_edit = QTextEdit()
@@ -279,7 +310,10 @@ class TranscricoesView(QWidget):
         self.result_edit.setVisible(False)
         right.addWidget(self.result_edit, 1)
 
-        root.addLayout(right, 1)
+        self._main_split.addWidget(right_widget)
+        self._main_split.setStretchFactor(0, 0)
+        self._main_split.setStretchFactor(1, 1)
+        self._main_split.setSizes([260, 900])
 
         self.refresh()
 
@@ -351,7 +385,8 @@ class TranscricoesView(QWidget):
         lst.setUniformItemSizes(False)
         lst.setStyleSheet(
             "QListWidget { border: none; font-size: 13px; } "
-            "QListWidget::item { padding: 6px 8px; border-bottom: 1px solid rgba(128,128,128,0.15); }"
+            "QListWidget::item { padding: 10px 10px; min-height: 30px; "
+            "border-bottom: 1px solid rgba(128,128,128,0.18); }"
         )
         return lst
 
@@ -397,6 +432,8 @@ class TranscricoesView(QWidget):
         self.live_actions_list = self._make_live_list()
         self.live_decisions_list = self._make_live_list()
         self.live_questions_list = self._make_live_list()
+        self.live_questions_list.setToolTip(t("Dê um duplo-clique para alternar entre em aberto e resolvida."))
+        self.live_questions_list.itemDoubleClicked.connect(self._toggle_question_resolved)
         self.live_tabs.addTab(self.live_plan_list, "🗺 " + t("Plano"))
         self.live_tabs.addTab(self.live_tips_list, "💡 " + t("Dicas"))
         self.live_tabs.addTab(self.live_actions_list, "✅ " + t("Ações"))
@@ -532,7 +569,8 @@ class TranscricoesView(QWidget):
         self._live_pending = ""
         self._live_secs_since = 0
         self._live_state = {
-            "action_items": [], "decisions": [], "open_questions": [], "plan": [], "tips": [],
+            "action_items": [], "decisions": [], "open_questions": [],
+            "resolved_questions": [], "plan": [], "tips": [],
         }
         self._live_context = self._meeting_context()
         self.live_transcript_edit.clear()
@@ -630,18 +668,52 @@ class TranscricoesView(QWidget):
         for d in self._live_state.get("decisions", []):
             self.live_decisions_list.addItem(f"✓ {d}")
         self.live_questions_list.clear()
-        for q in self._live_state.get("open_questions", []):
-            self.live_questions_list.addItem(f"? {q}")
+        opens = self._live_state.get("open_questions", [])
+        resolved = self._live_state.get("resolved_questions", [])
+        for q in opens:
+            it = QListWidgetItem(f"❓ {q}")
+            it.setData(Qt.UserRole, ("open", q))
+            self.live_questions_list.addItem(it)
+        for q in resolved:
+            it = QListWidgetItem(f"✅ {q}")
+            font = it.font()
+            font.setStrikeOut(True)
+            it.setFont(font)
+            it.setForeground(QColor(current_theme().text_muted))
+            it.setData(Qt.UserRole, ("resolved", q))
+            self.live_questions_list.addItem(it)
 
-        def _tab(idx, label, widget):
-            n = widget.count()
+        def _tab(idx, label, n):
             self.live_tabs.setTabText(idx, t(label) + (f" ({n})" if n else ""))
 
-        _tab(0, "Plano", self.live_plan_list)
-        _tab(1, "Dicas", self.live_tips_list)
-        _tab(2, "Ações", self.live_actions_list)
-        _tab(3, "Decisões", self.live_decisions_list)
-        _tab(4, "Perguntas", self.live_questions_list)
+        _tab(0, "🗺 Plano", self.live_plan_list.count())
+        _tab(1, "💡 Dicas", self.live_tips_list.count())
+        _tab(2, "✅ Ações", self.live_actions_list.count())
+        _tab(3, "📌 Decisões", self.live_decisions_list.count())
+        # Perguntas: conta só as em aberto (resolvidas aparecem riscadas)
+        _tab(4, "❓ Perguntas", len(opens))
+
+    def _toggle_question_resolved(self, item):
+        """Duplo-clique: alterna uma pergunta entre 'em aberto' e 'resolvida'."""
+        data = item.data(Qt.UserRole)
+        if not data:
+            return
+        kind, q = data
+        opens = list(self._live_state.get("open_questions", []))
+        resolved = list(self._live_state.get("resolved_questions", []))
+        if kind == "open":
+            if q in opens:
+                opens.remove(q)
+            if q not in resolved:
+                resolved.append(q)
+        else:
+            if q in resolved:
+                resolved.remove(q)
+            if q not in opens:
+                opens.append(q)
+        self._live_state["open_questions"] = opens
+        self._live_state["resolved_questions"] = resolved
+        self._refresh_live_panels()
 
     def _ask_meeting(self):
         question = self.ask_input.text().strip()
@@ -920,27 +992,35 @@ class TranscricoesView(QWidget):
             s.close()
         self.status_label.setText(t("Resumo adicionado ao relatório do Meu Dia."))
 
-    def _export_markdown(self):
-        """Exporta um markdown único e estruturado com todos os itens de todas
-        as abas do assistente ao vivo + (opcional) resumo da IA + transcrição."""
+    def _build_meeting_markdown(self):
+        """Monta o markdown completo da reunião (ou None se não há nada)."""
         from maestro_local.transcricoes import markdown_gen
         transcript = (self._current.get("transcript") or self._live_transcript
                       or self.transcript_edit.toPlainText() or "").strip()
         summary_md = (self._current.get("markdown") or self.result_edit.toPlainText() or "").strip()
         has_live = any(self._live_state.get(k) for k in
-                       ("plan", "tips", "action_items", "decisions", "open_questions"))
+                       ("plan", "tips", "action_items", "decisions",
+                        "open_questions", "resolved_questions"))
         if not (has_live or transcript or summary_md):
-            self.status_label.setText(t("Nada para exportar ainda — grave/analise uma reunião primeiro."))
-            return
+            return None
         kind = self.kind_combo.currentData()
         topic = self.topic_input.text().strip() if kind == "study" else ""
-        md = markdown_gen.live_meeting_to_markdown(
+        return markdown_gen.live_meeting_to_markdown(
             title=self._current.get("title", ""), kind=kind,
             date_str=datetime.now().strftime("%d/%m/%Y %H:%M"),
             duration=self._current.get("duration") or float(self._elapsed),
             topic=topic, state=self._live_state,
             transcript=transcript, summary_md=summary_md,
         )
+
+    def _export_markdown(self):
+        """Exporta um markdown único e estruturado com todos os itens de todas
+        as abas do assistente ao vivo + (opcional) resumo da IA + transcrição."""
+        md = self._build_meeting_markdown()
+        if md is None:
+            self.status_label.setText(t("Nada para exportar ainda — grave/analise uma reunião primeiro."))
+            return
+        kind = self.kind_combo.currentData()
         default_name = ("estudo" if kind == "study" else "reuniao") + \
             "-" + datetime.now().strftime("%Y%m%d-%H%M") + ".md"
         path, _ = QFileDialog.getSaveFileName(
@@ -954,6 +1034,15 @@ class TranscricoesView(QWidget):
             self.status_label.setText(t("Erro ao salvar: {error}").format(error=e))
             return
         self.status_label.setText(t("Exportado: {path}").format(path=path))
+
+    def _copy_markdown(self):
+        md = self._build_meeting_markdown()
+        if md is None:
+            self.status_label.setText(t("Nada para exportar ainda — grave/analise uma reunião primeiro."))
+            return
+        from PySide6.QtWidgets import QApplication
+        QApplication.clipboard().setText(md)
+        self.status_label.setText(t("Markdown copiado para a área de transferência."))
 
     # ------------------------- Histórico -------------------------
     def _load_history(self):

@@ -180,6 +180,7 @@ class MainWindow(QMainWindow):
             (t("Meu Dia"), "daily"),
             (t("Board"), "board"),
             (t("Assistente"), "chat"),
+            (t("Reuniões"), "transcricoes"),
             (t("Ferramentas"), "ferramentas"),
             (t("Projetos"), "projects"),
             (t("Skills"), "skills"),

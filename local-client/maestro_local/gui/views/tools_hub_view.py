@@ -16,7 +16,6 @@ from maestro_local.i18n import t as _t
 # (chave, ícone, rótulo, descrição)
 HUB_ITEMS = [
     ("study", "📚", "Estudos", "Planos, tópicos e assistente de estudo"),
-    ("transcricoes", "🎙", "Reuniões", "Gravar, transcrever e resumir"),
     ("vault", "🔒", "Senhas", "Cofre de senhas KeePass"),
     ("library", "📇", "Biblioteca", "Snippets, runbooks, triagem, code review, git, tempo"),
     ("apitester", "🛰", "Testador de API", "Monte, execute e salve requisições HTTP"),

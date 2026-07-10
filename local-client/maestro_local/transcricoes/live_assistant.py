@@ -32,14 +32,17 @@ Responda SEMPRE apenas com JSON válido nesta estrutura:
 {
     "action_items": [{"description": "ação", "assignee": "responsável ou null"}],
     "decisions": ["decisão tomada"],
-    "open_questions": ["pergunta em aberto"],
+    "open_questions": ["pergunta ainda em aberto"],
+    "resolved_questions": ["pergunta que já foi respondida durante a reunião"],
     "plan": ["passo objetivo do plano de ação, em ordem de execução"],
     "tips": ["dica/observação proativa do assistente"]
 }
 
 Regras:
 - NUNCA remova action_items/decisions que já existiam, a não ser que o trecho novo os torne resolvidos.
-- Se uma pergunta em aberto for respondida, mova-a para decisions (ou remova).
+- Se uma pergunta que estava em "open_questions" for respondida durante a reunião, MOVA-A para
+  "resolved_questions" (mantendo o texto original da pergunta) — NÃO a apague. Uma pergunta nunca
+  deve estar nas duas listas ao mesmo tempo.
 - "plan": derive um plano de ação prático do que foi discutido/decidido (5 a 8 passos no máximo);
   refine-o a cada trecho novo em vez de recomeçar. Se houver contexto de projeto, alinhe os passos a ele.
 - "tips": sugestões proativas do copiloto — riscos, pontos esquecidos, boas práticas, dependências,
@@ -78,6 +81,7 @@ EMPTY_STATE = {
     "action_items": [],
     "decisions": [],
     "open_questions": [],
+    "resolved_questions": [],
     "plan": [],
     "tips": [],
 }
@@ -121,8 +125,15 @@ class LiveExtractWorker(QThread):
                 return
             merged = {
                 key: parsed.get(key, self.state.get(key, []))
-                for key in ("action_items", "decisions", "open_questions", "plan", "tips")
+                for key in ("action_items", "decisions", "open_questions",
+                            "resolved_questions", "plan", "tips")
             }
+            # Garante que uma pergunta resolvida não continue aparecendo como aberta.
+            resolved = {str(q).strip().lower() for q in merged.get("resolved_questions", [])}
+            merged["open_questions"] = [
+                q for q in merged.get("open_questions", [])
+                if str(q).strip().lower() not in resolved
+            ]
             self.done.emit(merged)
         except Exception as e:  # noqa: BLE001
             logger.warning("Live extract falhou: %s", e)

@@ -95,6 +95,11 @@ def live_meeting_to_markdown(
         out.append("## ❓ Perguntas em aberto")
         out += [f"- {q}" for q in questions]
         out.append("")
+    resolved = state.get("resolved_questions") or []
+    if resolved:
+        out.append("## ✅ Perguntas resolvidas")
+        out += [f"- [x] {q}" for q in resolved]
+        out.append("")
 
     if summary_md and summary_md.strip():
         body = summary_md.strip().splitlines()

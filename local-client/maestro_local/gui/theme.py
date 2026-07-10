@@ -192,35 +192,42 @@ QListWidget#navList {{
     outline: none;
 }}
 QListWidget#navList::item {{
-    padding: 9px 12px;
-    margin: 3px 2px;
-    border-radius: 8px;
-    border: 1px solid transparent;
+    padding: 11px 14px;
+    margin: 4px 4px;
+    border-radius: 10px;
+    border: 1px solid {t.border_light};
+    background-color: {t.bg_card};
     color: {t.text_secondary};
     font-weight: 600;
 }}
 QListWidget#navList::item:hover {{
     background-color: {t.bg_hover};
-    border: 1px solid {t.border};
+    border: 1px solid {t.accent};
     color: {t.text_primary};
 }}
 QListWidget#navList::item:selected {{
     background-color: {t.accent};
     color: {t.text_on_accent};
-    border: 1px solid {t.accent};
+    border: 1px solid {t.accent_pressed};
+    font-weight: 700;
 }}
 QPushButton {{
     background-color: {t.accent};
     color: {t.text_on_accent};
-    border: none;
-    border-radius: 6px;
-    padding: 5px 14px;
+    border: 1px solid {t.accent_pressed};
+    border-radius: 8px;
+    padding: 6px 16px;
     min-height: 18px;
     font-weight: 600;
     font-size: 12px;
 }}
-QPushButton:hover {{ background-color: {t.accent_hover}; }}
+QPushButton:hover {{ background-color: {t.accent_hover}; border-color: {t.accent}; }}
 QPushButton:pressed {{ background-color: {t.accent_pressed}; }}
+QPushButton:disabled {{
+    background-color: {t.bg_selected};
+    color: {t.text_muted};
+    border-color: {t.border};
+}}
 QPushButton:focus {{
     outline: none;
     border: 2px solid {t.border_focus};
@@ -230,8 +237,8 @@ QPushButton[flat="true"], QPushButton#flatBtn {{
     color: {t.text_secondary};
     font-weight: 600;
     border: 1px solid {t.border};
-    border-radius: 6px;
-    padding: 5px 12px;
+    border-radius: 8px;
+    padding: 6px 14px;
 }}
 QPushButton[flat="true"]:hover, QPushButton#flatBtn:hover {{
     background-color: {t.bg_hover};
