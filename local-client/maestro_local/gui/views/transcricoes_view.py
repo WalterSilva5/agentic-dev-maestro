@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QProgressBar,
     QPushButton,
+    QSplitter,
     QTabWidget,
     QTextEdit,
     QVBoxLayout,
@@ -219,7 +220,7 @@ class TranscricoesView(QWidget):
         # ---- Painel do assistente ao vivo (visível só durante gravação ao vivo) ----
         self.live_box = self._build_live_box()
         self.live_box.setVisible(False)
-        right.addWidget(self.live_box, 3)
+        right.addWidget(self.live_box, 6)
 
         # Progresso de transcrição
         self.progress = QProgressBar()
@@ -231,7 +232,8 @@ class TranscricoesView(QWidget):
         right.addWidget(self.status_label)
 
         # Transcrição
-        right.addWidget(QLabel(t("Transcrição:")))
+        self.transcript_label = QLabel(t("Transcrição:"))
+        right.addWidget(self.transcript_label)
         self.transcript_edit = QTextEdit()
         self.transcript_edit.setPlaceholderText(t("A transcrição aparecerá aqui..."))
         right.addWidget(self.transcript_edit, 1)
@@ -332,6 +334,18 @@ class TranscricoesView(QWidget):
         self.topic_input.setVisible(self.kind_combo.currentData() == "study")
 
     # ------------------------- Painel ao vivo -------------------------
+    def _make_live_list(self) -> QListWidget:
+        """Lista das abas ao vivo: itens com quebra de linha, espaçados e legíveis."""
+        lst = QListWidget()
+        lst.setWordWrap(True)
+        lst.setSpacing(4)
+        lst.setUniformItemSizes(False)
+        lst.setStyleSheet(
+            "QListWidget { border: none; font-size: 13px; } "
+            "QListWidget::item { padding: 6px 8px; border-bottom: 1px solid rgba(128,128,128,0.15); }"
+        )
+        return lst
+
     def _build_live_box(self) -> QFrame:
         box = QFrame()
         box.setProperty("class", "card")
@@ -349,28 +363,43 @@ class TranscricoesView(QWidget):
         head.addWidget(self.live_status)
         v.addLayout(head)
 
-        # Transcrição ao vivo em cima (altura limitada)
-        v.addWidget(QLabel(t("Transcrição ao vivo")))
+        # Splitter vertical: transcrição ao vivo (topo) x abas do assistente
+        # (embaixo). O usuário pode arrastar para ampliar as abas.
+        split = QSplitter(Qt.Vertical)
+        split.setChildrenCollapsible(False)
+
+        trans_pane = QWidget()
+        tp = QVBoxLayout(trans_pane)
+        tp.setContentsMargins(0, 0, 0, 0)
+        tp.setSpacing(4)
+        tp.addWidget(QLabel(t("Transcrição ao vivo")))
         self.live_transcript_edit = QTextEdit()
         self.live_transcript_edit.setReadOnly(True)
         self.live_transcript_edit.setPlaceholderText(t("A transcrição aparecerá aqui em tempo real..."))
-        self.live_transcript_edit.setMaximumHeight(120)
-        v.addWidget(self.live_transcript_edit)
+        tp.addWidget(self.live_transcript_edit)
+        trans_pane.setMinimumHeight(80)
+        split.addWidget(trans_pane)
 
-        # Abas do assistente em largura total (as 5 cabem sem sobrepor)
+        # Abas do assistente (as 5) — ampliadas e com quebra de linha nos itens
         self.live_tabs = QTabWidget()
-        self.live_tabs.setMinimumHeight(160)
-        self.live_plan_list = QListWidget()
-        self.live_tips_list = QListWidget()
-        self.live_actions_list = QListWidget()
-        self.live_decisions_list = QListWidget()
-        self.live_questions_list = QListWidget()
-        self.live_tabs.addTab(self.live_plan_list, t("Plano"))
-        self.live_tabs.addTab(self.live_tips_list, t("Dicas"))
-        self.live_tabs.addTab(self.live_actions_list, t("Ações"))
-        self.live_tabs.addTab(self.live_decisions_list, t("Decisões"))
-        self.live_tabs.addTab(self.live_questions_list, t("Perguntas"))
-        v.addWidget(self.live_tabs, 1)
+        self.live_tabs.setMinimumHeight(320)
+        self.live_plan_list = self._make_live_list()
+        self.live_tips_list = self._make_live_list()
+        self.live_actions_list = self._make_live_list()
+        self.live_decisions_list = self._make_live_list()
+        self.live_questions_list = self._make_live_list()
+        self.live_tabs.addTab(self.live_plan_list, "🗺 " + t("Plano"))
+        self.live_tabs.addTab(self.live_tips_list, "💡 " + t("Dicas"))
+        self.live_tabs.addTab(self.live_actions_list, "✅ " + t("Ações"))
+        self.live_tabs.addTab(self.live_decisions_list, "📌 " + t("Decisões"))
+        self.live_tabs.addTab(self.live_questions_list, "❓ " + t("Perguntas"))
+        split.addWidget(self.live_tabs)
+
+        # Prioriza as abas: transcrição menor, abas bem maiores
+        split.setStretchFactor(0, 1)
+        split.setStretchFactor(1, 4)
+        split.setSizes([120, 480])
+        v.addWidget(split, 1)
 
         # Perguntar à reunião
         ask = QHBoxLayout()
@@ -492,6 +521,11 @@ class TranscricoesView(QWidget):
         self.live_questions_list.clear()
         self.ask_answer.setVisible(False)
         self.live_box.setVisible(True)
+        # Dá o palco ao painel ao vivo: esconde transcrição estática e resumo
+        # (que só interessam depois da gravação).
+        self.transcript_label.setVisible(False)
+        self.transcript_edit.setVisible(False)
+        self.result_edit.setVisible(False)
         ai_ok = self._provider_ready()
         self.ask_input.setEnabled(ai_ok)
         self.ask_btn.setEnabled(ai_ok)
@@ -509,6 +543,9 @@ class TranscricoesView(QWidget):
             self._live_transcriber.stop()
             self._live_transcriber.wait(3000)
             self._live_transcriber = None
+        # Restaura a transcrição estática para revisar/analisar o resultado final.
+        self.transcript_label.setVisible(True)
+        self.transcript_edit.setVisible(True)
         if self.live_box.isVisible():
             self.live_status.setText(t("Sessão ao vivo encerrada."))
 
