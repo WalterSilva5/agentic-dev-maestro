@@ -23,18 +23,54 @@ Maestro is a local tool for developers who want to organize their daily work, ma
 
 ## Installation with an AI agent
 
-Ask your AI agent (Claude Code, Cursor, etc.) to install Maestro automatically. Just send something like:
+You can ask an AI agent (Claude Code, Cursor, etc.) to install Maestro end-to-end. This section has everything the agent needs: the prerequisites to install and the exact steps. A one-line prompt to kick it off:
 
-> Clone the repository https://github.com/WalterSilva5/agentic-dev-maestro.git, run install.sh in the local-client directory, create a desktop shortcut for run.sh, and explain to me how to use the application.
+> Read the "Installation with an AI agent" section of the README at https://github.com/WalterSilva5/agentic-dev-maestro.git, install the prerequisites for my OS, clone the repo, run `local-client/install.sh`, create a desktop shortcut for `local-client/run.sh`, then explain how to use the app.
 
-The agent will:
+### Prerequisites the agent must install
 
-1. Clone the repository
-2. Run `local-client/install.sh` (creates a venv + installs dependencies)
-3. Create a `.desktop` shortcut on the desktop pointing to `local-client/run.sh`
-4. Explain the main features: kanban board, my day, skills, agent API
+Install these **system packages** first. The Python libraries are handled by `install.sh` inside a virtualenv — do **not** install them globally.
 
-After installation, open Maestro from the shortcut or run `local-client/run.sh`. On the **Skills** tab, install the skills into your project's directory — they teach the agent how to use the Maestro API to create tasks, document progress, and generate reports.
+| Dependency | Why | Required |
+| --- | --- | --- |
+| **git** | clone the repository | yes |
+| **Python 3.10+** (with the `venv` module) | runs the app | yes |
+| **pulseaudio-utils** (`parec` / `pactl`) | system-audio capture for Meetings / Transcriptions | Linux, for meetings |
+| **Node.js 18+ and npm** | builds the optional web UI served by the API | optional |
+
+Install per OS:
+
+```bash
+# Debian / Ubuntu
+sudo apt update && sudo apt install -y git python3 python3-venv python3-pip pulseaudio-utils nodejs npm
+
+# Arch / Manjaro
+sudo pacman -S --needed git python nodejs npm libpulse
+
+# Fedora
+sudo dnf install -y git python3 python3-pip nodejs npm pulseaudio-utils
+
+# macOS (Homebrew)
+brew install git python node
+
+# Windows: use WSL2 (Ubuntu) and follow the Debian/Ubuntu line above
+```
+
+> **Meetings / Transcriptions** capture system audio through PulseAudio's `parec` — a **Linux** feature. Without `pulseaudio-utils` the rest of the app still runs; only recording is disabled.
+>
+> **AI features** (assistant, meeting copilot, image/screen context) need an OpenAI-compatible provider configured in **Settings** (e.g. LM Studio locally, or a paid endpoint). Reading images/screenshots as meeting context requires a **vision-capable** model.
+
+### Steps
+
+The agent should:
+
+1. Install the prerequisites above for the user's OS.
+2. Clone the repository: `git clone https://github.com/WalterSilva5/agentic-dev-maestro.git`
+3. Run the installer: `cd agentic-dev-maestro/local-client && ./install.sh` — creates a `.venv`, installs the Python deps (`pip install -e .`), and builds the web UI when `npm` is present.
+4. Start it: `./run.sh` (optionally `--port 8888`). The desktop GUI opens and the API + web UI serve at `http://127.0.0.1:9777/`.
+5. *(Optional)* Create a `.desktop` shortcut on the desktop pointing to `local-client/run.sh`.
+6. Open **Settings** and configure an AI provider (base URL, model, API key) to enable the assistant and the meeting copilot.
+7. On the **Skills** tab, install the skills into the user's project directory — they teach the agent how to use the Maestro API to create tasks, document progress, and generate reports.
 
 ## Features
 
@@ -204,9 +240,15 @@ Data lives in `~/.maestro-local/`:
 
 ## Requirements
 
-- Python 3.10+
-- Operating system: Linux, macOS, or Windows
+- Python 3.10+ (with the `venv` module)
+- git
+- Operating system: Linux, macOS, or Windows (Windows via WSL2)
 - Qt 6 (installed automatically with PySide6)
+- `pulseaudio-utils` (`parec` / `pactl`) — Linux only, for Meetings/Transcriptions recording
+- Node.js 18+ and npm — optional, to build the web UI
+- An OpenAI-compatible AI provider — optional, to enable the assistant and meeting copilot (a vision-capable model is needed to read images/screens as context)
+
+See [Installation with an AI agent](#installation-with-an-ai-agent) for the per-OS install commands.
 
 ## License
 

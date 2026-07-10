@@ -23,18 +23,54 @@ O Maestro é uma ferramenta local para desenvolvedores que querem organizar seu 
 
 ## Instalação com agente de IA
 
-Peça ao seu agente de IA (Claude Code, Cursor, etc.) para instalar o Maestro automaticamente. Basta enviar algo como:
+Você pode pedir a um agente de IA (Claude Code, Cursor, etc.) para instalar o Maestro de ponta a ponta. Esta seção tem tudo que o agente precisa: os pré-requisitos a instalar e os passos exatos. Um prompt de uma linha para começar:
 
-> Clone o repositório https://github.com/WalterSilva5/agentic-dev-maestro.git, execute o install.sh no diretório local-client, crie um atalho na área de trabalho para o run.sh e me explique como usar a aplicação.
+> Leia a seção "Instalação com agente de IA" do README em https://github.com/WalterSilva5/agentic-dev-maestro.git, instale os pré-requisitos para o meu SO, clone o repositório, execute o `local-client/install.sh`, crie um atalho na área de trabalho para o `local-client/run.sh` e me explique como usar a aplicação.
 
-O agente vai:
+### Pré-requisitos que o agente deve instalar
 
-1. Clonar o repositório
-2. Executar `local-client/install.sh` (cria venv + instala dependências)
-3. Criar um atalho `.desktop` na área de trabalho apontando para `local-client/run.sh`
-4. Explicar as funcionalidades principais: board kanban, meu dia, skills, API para agentes
+Instale estes **pacotes de sistema** primeiro. As bibliotecas Python são tratadas pelo `install.sh` dentro de um virtualenv — **não** as instale globalmente.
 
-Após a instalação, abra o Maestro pelo atalho ou execute `local-client/run.sh`. Na aba **Skills**, instale as skills no diretório do seu projeto — elas ensinam o agente a usar a API do Maestro para criar tarefas, documentar progresso e gerar relatórios.
+| Dependência | Para quê | Obrigatório |
+| --- | --- | --- |
+| **git** | clonar o repositório | sim |
+| **Python 3.10+** (com o módulo `venv`) | executa a aplicação | sim |
+| **pulseaudio-utils** (`parec` / `pactl`) | captura do áudio do sistema em Reuniões / Transcrições | Linux, para reuniões |
+| **Node.js 18+ e npm** | builda a web UI opcional servida pela API | opcional |
+
+Instalação por SO:
+
+```bash
+# Debian / Ubuntu
+sudo apt update && sudo apt install -y git python3 python3-venv python3-pip pulseaudio-utils nodejs npm
+
+# Arch / Manjaro
+sudo pacman -S --needed git python nodejs npm libpulse
+
+# Fedora
+sudo dnf install -y git python3 python3-pip nodejs npm pulseaudio-utils
+
+# macOS (Homebrew)
+brew install git python node
+
+# Windows: use o WSL2 (Ubuntu) e siga a linha do Debian/Ubuntu acima
+```
+
+> **Reuniões / Transcrições** capturam o áudio do sistema via `parec` do PulseAudio — recurso **Linux**. Sem o `pulseaudio-utils` o resto da aplicação continua funcionando; só a gravação fica desabilitada.
+>
+> **Recursos de IA** (assistente, copiloto de reunião, contexto por imagem/tela) precisam de um provedor compatível com OpenAI configurado em **Configurações** (ex.: LM Studio local ou um endpoint pago). Ler imagens/capturas de tela como contexto exige um modelo **com visão**.
+
+### Passos
+
+O agente deve:
+
+1. Instalar os pré-requisitos acima para o SO do usuário.
+2. Clonar o repositório: `git clone https://github.com/WalterSilva5/agentic-dev-maestro.git`
+3. Rodar o instalador: `cd agentic-dev-maestro/local-client && ./install.sh` — cria um `.venv`, instala as dependências Python (`pip install -e .`) e builda a web UI quando o `npm` está presente.
+4. Executar: `./run.sh` (opcionalmente `--port 8888`). A GUI desktop abre e a API + web UI ficam em `http://127.0.0.1:9777/`.
+5. *(Opcional)* Criar um atalho `.desktop` na área de trabalho apontando para `local-client/run.sh`.
+6. Abrir **Configurações** e configurar um provedor de IA (base URL, modelo, API key) para habilitar o assistente e o copiloto de reunião.
+7. Na aba **Skills**, instalar as skills no diretório do projeto do usuário — elas ensinam o agente a usar a API do Maestro para criar tarefas, documentar progresso e gerar relatórios.
 
 ## Funcionalidades
 
@@ -204,9 +240,15 @@ Os dados ficam em `~/.maestro-local/`:
 
 ## Requisitos
 
-- Python 3.10+
-- Sistema operacional: Linux, macOS ou Windows
+- Python 3.10+ (com o módulo `venv`)
+- git
+- Sistema operacional: Linux, macOS ou Windows (Windows via WSL2)
 - Qt 6 (instalado automaticamente com PySide6)
+- `pulseaudio-utils` (`parec` / `pactl`) — só Linux, para gravação em Reuniões/Transcrições
+- Node.js 18+ e npm — opcional, para buildar a web UI
+- Provedor de IA compatível com OpenAI — opcional, para habilitar o assistente e o copiloto de reunião (modelo com visão é necessário para ler imagens/telas como contexto)
+
+Veja [Instalação com agente de IA](#instalação-com-agente-de-ia) para os comandos de instalação por SO.
 
 ## Licença
 
