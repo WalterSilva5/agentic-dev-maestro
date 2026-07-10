@@ -86,8 +86,18 @@ Board com drag-and-drop, colunas customizáveis por projeto, filtros por tipo/pr
 ### Assistente
 Assistente de IA interno que roda com seu próprio provedor (LM Studio local, opencode ou qualquer API compatível com OpenAI). Ele lê o board, sugere prioridades, solicita revisões de tarefas, cria TODOs e comenta tarefas — tudo dentro da aplicação. Construído com LangGraph e ferramentas internas. Configurável em Configurações → Provedores de IA.
 
-### Transcrições
-Grava reuniões e sessões de estudo (microfone e/ou áudio do sistema via PipeWire/PulseAudio), transcreve localmente com faster-whisper e gera resumos estruturados com IA: reuniões viram pontos-chave/decisões/ações; estudos viram conceitos/exercícios/tópicos relacionados. Um **modo de preparação** permite preparar a reunião antes de começar — escreva a pauta/objetivos e anexe contexto (arquivos, PDFs, imagens ou uma captura de tela; imagens/telas são lidas por um modelo com visão) para que o copiloto ao vivo já inicie sabendo do que se trata. Durante a reunião você também pode deixar o assistente **ver um monitor específico** (captura periódica lida por um modelo com visão) para ajudar a resolver tarefas na tela — ativável/desativável a qualquer momento. Também é possível trocar o workspace/projeto de destino pela própria tela da reunião. Dá para **importar uma reunião a partir de transcrições externas** (ex.: exportação do Meet/Teams — texto, VTT/SRT, PDF, DOCX) e rodar a mesma análise (plano, ações, decisões, perguntas). Histórico pesquisável (excluir, arquivar, reordenar; reuniões nomeadas com prefixo de data/hora), atalho global Ctrl+Shift+R e botão para salvar o resumo no Meu Dia. Funcionalidades migradas do projeto wsi-cronista.
+### Transcrições (Reuniões)
+Grava reuniões e sessões de estudo (microfone e/ou áudio do sistema via PipeWire/PulseAudio), transcreve localmente com faster-whisper e gera resumos estruturados com IA — reuniões viram pontos-chave/decisões/ações; estudos viram conceitos/exercícios/tópicos relacionados. Recursos específicos de reunião:
+
+- **Modo de preparação** — prepare a reunião antes de começar: escreva a pauta/objetivos e anexe contexto (arquivos, PDFs, imagens ou uma captura de tela; imagens/telas são lidas por um modelo com visão) para o copiloto ao vivo já iniciar sabendo do que se trata.
+- **Copiloto ao vivo** — transcreve e extrai plano, dicas, ações, decisões e perguntas & respostas em tempo real (liga/desliga a qualquer momento), além do campo "perguntar à reunião".
+- **Ver um monitor** — deixe o assistente ver periodicamente uma tela escolhida (lida por um modelo com visão) para ajudar a resolver tarefas na tela; ativável/desativável durante a reunião.
+- **Importar de transcrições externas** — crie uma reunião a partir de uma exportação do Meet/Teams (texto, VTT/SRT, PDF, DOCX) e rode a mesma análise.
+- **Destino workspace/projeto** — troque o workspace/projeto de destino pela própria tela da reunião.
+- **Histórico** — pesquisável; excluir, arquivar e reordenar gravações; reuniões nomeadas com prefixo de data/hora.
+- Atalho global **Ctrl+Shift+R** e botão para salvar o resumo no Meu Dia.
+
+Funcionalidades migradas do projeto wsi-cronista.
 
 ### Projetos
 Criar e gerenciar projetos com chave única (ex: DEMO). Cada projeto tem suas colunas de board, tarefas, labels e métricas próprias.

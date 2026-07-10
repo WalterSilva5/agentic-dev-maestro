@@ -86,8 +86,18 @@ Board with drag-and-drop, columns customizable per project, filters by type/prio
 ### Assistant
 Internal AI assistant that runs with your own provider (local LM Studio, opencode, or any OpenAI-compatible API). It reads the board, suggests priorities, requests task reviews, creates TODOs, and comments on tasks — all within the application. Built with LangGraph and internal tools. Configurable under Settings → AI Providers.
 
-### Transcriptions
-Records meetings and study sessions (microphone and/or system audio via PipeWire/PulseAudio), transcribes locally with faster-whisper, and generates structured summaries with AI: meetings become key points/decisions/action items; study sessions become concepts/exercises/related topics. A **preparation mode** lets you brief the meeting before it starts — write the agenda/goals and attach context (files, PDFs, images, or a screenshot; images/screens are read by a vision model) so the live copilot begins already aware of what the meeting is about. During the meeting you can also let the assistant **watch a specific monitor** (periodic screen capture read by a vision model) to help solve on-screen tasks — toggleable at any time. You can also switch the target workspace/project from the meeting screen. You can **import a meeting from external transcripts** (e.g. a Meet/Teams export — text, VTT/SRT, PDF, DOCX) and run the same analysis (plan, actions, decisions, questions) on them. Searchable history (delete, archive, reorder; meetings are named with a date/time prefix), global Ctrl+Shift+R shortcut, and a button to save the summary to My Day. Features migrated from the wsi-cronista project.
+### Transcriptions (Meetings)
+Records meetings and study sessions (microphone and/or system audio via PipeWire/PulseAudio), transcribes locally with faster-whisper, and generates structured summaries with AI — meetings become key points/decisions/action items; study sessions become concepts/exercises/related topics. Meeting-specific capabilities:
+
+- **Preparation mode** — brief the meeting before it starts: write the agenda/goals and attach context (files, PDFs, images, or a screenshot; images/screens are read by a vision model) so the live copilot begins already aware of what it's about.
+- **Live copilot** — transcribes and extracts plan, tips, actions, decisions, and Q&A in real time (toggle any time), plus an "ask the meeting" box.
+- **Watch a monitor** — let the assistant periodically see a chosen screen (read by a vision model) to help solve on-screen tasks; toggleable during the meeting.
+- **Import from external transcripts** — create a meeting from a Meet/Teams export (text, VTT/SRT, PDF, DOCX) and run the same analysis.
+- **Workspace/project routing** — switch the target workspace/project from the meeting screen.
+- **History** — searchable; delete, archive, and reorder recordings; meetings are named with a date/time prefix.
+- Global **Ctrl+Shift+R** shortcut and a button to save the summary to My Day.
+
+Features migrated from the wsi-cronista project.
 
 ### Projects
 Create and manage projects with a unique key (e.g., DEMO). Each project has its own board columns, tasks, labels, and metrics.
