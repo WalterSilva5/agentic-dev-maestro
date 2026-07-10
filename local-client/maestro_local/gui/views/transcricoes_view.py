@@ -118,13 +118,17 @@ class AnalyzeWorker(QThread):
 
 
 class _QACard(QFrame):
-    """Card de pergunta+resposta da reunião. Duplo-clique alterna resolvida."""
+    """Card de pergunta+resposta da reunião. Duplo-clique (no card) alterna
+    resolvida; o campo de resposta é editável — o agente preenche e o usuário
+    pode adicionar/corrigir respostas manualmente."""
     toggled = Signal(int)
+    answered = Signal(int, str)   # (índice, texto da resposta editada)
 
     def __init__(self, index: int, question: str, answer: str, resolved: bool, theme):
         super().__init__()
         self._index = index
-        self.setToolTip(t("Duplo-clique para marcar como resolvida / reabrir."))
+        self._orig_answer = (answer or "").strip()
+        self.setToolTip(t("Duplo-clique no card para marcar como resolvida / reabrir."))
         border = theme.success if resolved else theme.border
         self.setStyleSheet(
             f"_QACard {{ background: {theme.bg_card}; border: 1px solid {border}; "
@@ -141,20 +145,22 @@ class _QACard(QFrame):
             f"border: none; background: transparent;")
         lay.addWidget(q)
 
-        if answer:
-            a = QLabel("↳ " + answer)
-            a.setWordWrap(True)
-            a.setTextInteractionFlags(Qt.TextSelectableByMouse)
-            a.setStyleSheet(
-                f"color: {theme.text_secondary}; font-size: 12px; border: none; "
-                f"background: {theme.bg_badge}; border-radius: 6px; padding: 6px 8px;")
-            lay.addWidget(a)
-        elif not resolved:
-            pend = QLabel(t("(aguardando resposta)"))
-            pend.setStyleSheet(
-                f"color: {theme.text_muted}; font-size: 11px; font-style: italic; "
-                f"border: none; background: transparent;")
-            lay.addWidget(pend)
+        # Campo de resposta editável (agente preenche; usuário pode adicionar/editar).
+        self._answer_edit = QLineEdit(answer or "")
+        self._answer_edit.setPlaceholderText(t("Adicionar resposta…"))
+        self._answer_edit.setStyleSheet(
+            f"QLineEdit {{ color: {theme.text_secondary}; font-size: 12px; "
+            f"background: {theme.bg_badge}; border: 1px solid {theme.border}; "
+            f"border-radius: 6px; padding: 5px 8px; }}")
+        self._answer_edit.returnPressed.connect(self._emit_answer)
+        self._answer_edit.editingFinished.connect(self._emit_answer)
+        lay.addWidget(self._answer_edit)
+
+    def _emit_answer(self):
+        txt = self._answer_edit.text().strip()
+        if txt != self._orig_answer:
+            self._orig_answer = txt   # evita reemitir o mesmo valor
+            self.answered.emit(self._index, txt)
 
     def mouseDoubleClickEvent(self, event):  # noqa: N802
         self.toggled.emit(self._index)
@@ -707,6 +713,7 @@ class TranscricoesView(QWidget):
                 continue
             card = _QACard(i, question, answer, resolved, theme)
             card.toggled.connect(self._toggle_question_resolved)
+            card.answered.connect(self._set_question_answer)
             self._questions_layout.insertWidget(self._questions_layout.count() - 1, card)
 
     def _build_live_box(self) -> QFrame:
@@ -962,9 +969,23 @@ class TranscricoesView(QWidget):
         self._live_extractor.failed.connect(self._on_live_extract_error)
         self._live_extractor.start()
 
+    def _preserve_answers(self, new_state: dict) -> dict:
+        """Mantém respostas já dadas (manuais ou do agente) quando o agente
+        reemite as perguntas sem a resposta — evita perder edições manuais."""
+        old = {str(q.get("question", "")).strip(): q
+               for q in self._live_state.get("questions", []) if isinstance(q, dict)}
+        for q in new_state.get("questions", []):
+            if not isinstance(q, dict):
+                continue
+            prev = old.get(str(q.get("question", "")).strip())
+            if prev and not str(q.get("answer") or "").strip() and str(prev.get("answer") or "").strip():
+                q["answer"] = prev["answer"]
+                q["resolved"] = prev.get("resolved", q.get("resolved"))
+        return new_state
+
     def _on_live_extracted(self, state: dict):
         self._live_extractor = None
-        self._live_state = state
+        self._live_state = self._preserve_answers(state)
         self._refresh_live_panels()
         if self._live_transcriber is not None:
             self.live_status.setText(t("Transcrevendo ao vivo..."))
@@ -1014,6 +1035,21 @@ class TranscricoesView(QWidget):
             q["resolved"] = not q.get("resolved")
         else:  # normaliza string para dict
             questions[index] = {"question": str(q), "answer": "", "resolved": True}
+        self._refresh_live_panels()
+
+    def _set_question_answer(self, index, text):
+        """Define/edita manualmente a resposta de uma pergunta gerada pelo agente."""
+        questions = self._live_state.get("questions", [])
+        if not (0 <= index < len(questions)):
+            return
+        q = questions[index]
+        text = (text or "").strip()
+        if isinstance(q, dict):
+            q["answer"] = text
+            # Responder marca como resolvida; limpar a resposta não reabre sozinho.
+            q["resolved"] = bool(text) or bool(q.get("resolved"))
+        else:
+            questions[index] = {"question": str(q), "answer": text, "resolved": bool(text)}
         self._refresh_live_panels()
 
     def _ask_meeting(self):
@@ -1615,7 +1651,7 @@ class TranscricoesView(QWidget):
 
     def _on_analyze_extracted(self, state: dict):
         self._analyze_extractor = None
-        self._live_state = state
+        self._live_state = self._preserve_answers(state)
         self._refresh_live_panels()
         self.live_status.setText(t("Itens gerados a partir da transcrição."))
 

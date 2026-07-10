@@ -456,6 +456,8 @@ CATALOG = {
   "Analisar com IA": "Analyze with AI",
   "Salvar no Meu Dia": "Save to My Day",
   "Duplo-clique para marcar como resolvida / reabrir.": "Double-click to mark as resolved / reopen.",
+  "Duplo-clique no card para marcar como resolvida / reabrir.": "Double-click the card to mark as resolved / reopen.",
+  "Adicionar resposta…": "Add answer…",
   "(aguardando resposta)": "(awaiting answer)",
   "As perguntas levantadas na reunião aparecerão aqui — com a resposta assim que forem respondidas.": "Questions raised in the meeting will appear here — with the answer as soon as they're answered.",
   "Gerando itens (plano, ações, decisões, perguntas)...": "Generating items (plan, actions, decisions, questions)...",
