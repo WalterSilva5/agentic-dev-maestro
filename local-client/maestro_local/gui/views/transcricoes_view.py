@@ -210,8 +210,10 @@ class TranscricoesView(QWidget):
         row4.addStretch()
         self.live_check = QCheckBox(t("Assistente ao vivo"))
         self.live_check.setToolTip(
-            t("Transcreve e extrai ações/decisões durante a gravação (mais uso de CPU/IA).")
+            t("Transcreve e extrai ações/decisões durante a gravação (mais uso de CPU/IA). "
+              "Pode ser ligado/desligado a qualquer momento, inclusive no meio da gravação.")
         )
+        self.live_check.toggled.connect(self._on_live_toggled)
         row4.addWidget(self.live_check)
         cl.addLayout(row4)
 
@@ -501,6 +503,19 @@ class TranscricoesView(QWidget):
     def _provider_ready(self) -> bool:
         p = get_active_ai_provider()
         return bool(p and p.get("model"))
+
+    def _on_live_toggled(self, on: bool):
+        """Liga/desliga o assistente ao vivo a qualquer momento. Se já está
+        gravando, ativa/desativa na hora; senão, é só preferência para a
+        próxima gravação."""
+        if not self.is_recording():
+            return
+        if on:
+            if self._live_transcriber is None:
+                self._start_live()
+        else:
+            self._stop_live()
+            self.live_box.setVisible(False)
 
     def _start_live(self):
         from maestro_local.transcricoes.transcriber import LiveTranscriber
