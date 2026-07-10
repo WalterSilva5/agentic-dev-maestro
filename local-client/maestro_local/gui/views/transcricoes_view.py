@@ -1634,11 +1634,41 @@ class TranscricoesView(QWidget):
             r = s.query(Recording).get(rec_id)
             if not r:
                 return
+            # O estado de trabalho passa a apontar para ESTA gravação (rec_id
+            # correto para reanalisar/salvar sem sobrescrever outra).
+            try:
+                tags = json.loads(r.tags) if r.tags else []
+            except Exception:  # noqa: BLE001
+                tags = []
+            self._current = {
+                "rec_id": r.id,
+                "transcript": r.transcript or "",
+                "markdown": r.markdown or "",
+                "summary_json": r.summary_json or "",
+                "duration": r.duration or 0.0,
+                "language": r.language or "",
+                "audio_path": r.audio_path or "",
+                "title": r.title or "",
+                "tags": tags,
+            }
+            # Limpa os painéis do ao vivo/análise da gravação anterior — senão as
+            # abas (plano/ações/perguntas) ficam presas na primeira analisada.
+            self._live_transcript = r.transcript or ""
+            self._live_pending = ""
+            self._live_state = {"action_items": [], "decisions": [], "questions": [],
+                                "plan": [], "tips": []}
+            self._refresh_live_panels()
+            self._render_questions([])
+            self.live_transcript_edit.clear()
+            self.live_box.setVisible(False)
+
+            # Mostra a transcrição + resumo estáticos desta gravação.
+            self.transcript_label.setVisible(True)
+            self.transcript_edit.setVisible(True)
             self.transcript_edit.setPlainText(r.transcript or "")
-            self.result_edit.setVisible(True)
+            self.result_edit.setVisible(bool(r.markdown))
             self.result_edit.setPlainText(r.markdown or "")
             self.save_day_btn.setEnabled(bool(r.markdown))
-            self._current["markdown"] = r.markdown or ""
             idx = self.kind_combo.findData(r.kind)
             if idx >= 0:
                 self.kind_combo.setCurrentIndex(idx)
