@@ -114,6 +114,7 @@ class TranscricoesView(QWidget):
         self._live_transcriber = None
         self._live_extractor = None
         self._live_asker = None
+        self._analyze_extractor = None
         self._live_transcript = ""       # transcrição ao vivo acumulada
         self._live_pending = ""          # texto novo ainda não enviado à IA
         self._live_secs_since = 0        # segundos desde a última extração
@@ -944,6 +945,41 @@ class TranscricoesView(QWidget):
         self._analyzer.done.connect(self._on_analyzed)
         self._analyzer.failed.connect(self._on_analyze_error)
         self._analyzer.start()
+
+        # Se o assistente ao vivo NÃO foi usado (abas vazias), gera as tabelas de
+        # itens (plano, dicas, ações, decisões, perguntas) a partir da transcrição
+        # completa — a mesma extração do ao vivo.
+        has_live = any(self._live_state.get(k) for k in
+                       ("plan", "tips", "action_items", "decisions", "open_questions"))
+        if not has_live:
+            self._start_analyze_extract(transcript)
+
+    def _start_analyze_extract(self, transcript):
+        from maestro_local.transcricoes.live_assistant import EMPTY_STATE, LiveExtractWorker
+        self._live_state = dict(EMPTY_STATE)
+        self._refresh_live_panels()
+        self._live_transcript = transcript
+        self.live_transcript_edit.setPlainText(transcript)
+        self.live_box.setVisible(True)
+        ai_ok = self._provider_ready()
+        self.ask_input.setEnabled(ai_ok)
+        self.ask_btn.setEnabled(ai_ok)
+        self.live_status.setText(t("Gerando itens (plano, ações, decisões, perguntas)..."))
+        self._analyze_extractor = LiveExtractWorker(
+            dict(EMPTY_STATE), transcript, context=self._meeting_context())
+        self._analyze_extractor.done.connect(self._on_analyze_extracted)
+        self._analyze_extractor.failed.connect(self._on_analyze_extract_error)
+        self._analyze_extractor.start()
+
+    def _on_analyze_extracted(self, state: dict):
+        self._analyze_extractor = None
+        self._live_state = state
+        self._refresh_live_panels()
+        self.live_status.setText(t("Itens gerados a partir da transcrição."))
+
+    def _on_analyze_extract_error(self, err: str):
+        self._analyze_extractor = None
+        self.live_status.setText(t("Erro ao gerar itens: {error}").format(error=err))
 
     def _on_analyzed(self, payload):
         md, summary, title, tags, duration, language = payload

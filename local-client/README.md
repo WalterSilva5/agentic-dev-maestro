@@ -125,6 +125,7 @@ Recording, transcription, and summarization of meetings and studies (migrated fr
 - **Study assistant**: generates a summary, key concepts, practical exercises, related topics, and resources
 - **Reused AI**: the analysis uses the provider configured in AI Providers (LM Studio/opencode)
 - **Meeting → board**: the "Create tasks from actions" button turns the action items (from the live view or the summary) into tasks (type CHORE, `requires_human`) in the chosen project
+- **Analyze fills the tabs too**: if you only recorded/transcribed (without the live assistant), clicking **"Analyze with AI"** also runs the same extraction over the full transcript and populates the item tabs (plan, tips, actions, decisions, questions) — not just the markdown summary
 - **Auto-resolved questions**: when an open question is answered during the meeting, the assistant moves it to **resolved** (struck-through, not counted as open); double-click a question to toggle it manually
 - **Export/Copy (.md)**: save or copy a single structured markdown with **all items from every live tab** (plan, tips, actions, decisions, open + resolved questions) + the AI summary (if any) + the transcript — a complete meeting document
 - **Resizable + roomier**: the history/content split is draggable, the live tabs and item rows are larger and wrap long text
