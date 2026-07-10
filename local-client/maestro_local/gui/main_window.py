@@ -261,6 +261,7 @@ class MainWindow(QMainWindow):
         self.board_view = BoardView()
         self.chat_view = ChatView()
         self.transcricoes_view = TranscricoesView()
+        self.transcricoes_view.workspace_change_requested.connect(self._on_workspace_changed)
         self.vault_view = VaultView()
         self.library_view = LibraryView()
         self.api_tester_view = ApiTesterView()

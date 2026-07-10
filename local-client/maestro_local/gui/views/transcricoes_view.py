@@ -29,7 +29,9 @@ from PySide6.QtWidgets import (
 from maestro_local.config import (
     get_active_ai_provider,
     get_active_workspace_id,
+    list_workspaces,
     load_config,
+    set_active_workspace,
 )
 from maestro_local.transcricoes import audio as audio_backend
 from maestro_local.transcricoes.constants import (
@@ -146,9 +148,14 @@ class _QACard(QFrame):
 
 
 class TranscricoesView(QWidget):
+    # Emitido quando o usuário troca o workspace pela própria tela de reuniões;
+    # a janela principal faz a troca de banco + refresh geral.
+    workspace_change_requested = Signal(str)
+
     def __init__(self):
         super().__init__()
         self._session = None
+        self._loading_ws = False
         self._transcriber = None
         self._analyzer = None
         self._elapsed = 0
@@ -338,6 +345,14 @@ class TranscricoesView(QWidget):
         actions2 = QHBoxLayout()
         actions2.setSpacing(8)
         actions2.addStretch()
+        actions2.addWidget(QLabel(t("Workspace:")))
+        self.ws_combo = QComboBox()
+        self.ws_combo.setMinimumWidth(140)
+        self.ws_combo.setToolTip(
+            t("Workspace de destino da reunião. Troque aqui caso esteja gravando para o workspace errado.")
+        )
+        self.ws_combo.currentIndexChanged.connect(self._on_ws_combo_changed)
+        actions2.addWidget(self.ws_combo)
         actions2.addWidget(QLabel(t("Projeto:")))
         self.proj_combo = QComboBox()
         self.proj_combo.setMinimumWidth(160)
@@ -365,9 +380,56 @@ class TranscricoesView(QWidget):
     # ------------------------------------------------------------------
     def refresh(self):
         self._populate_devices()
+        self._populate_workspaces()
         self._populate_projects()
         self._load_history()
         self._check_provider()
+
+    def _populate_workspaces(self):
+        """Preenche o seletor de workspace com o ativo selecionado (sem disparar troca)."""
+        self._loading_ws = True
+        try:
+            self.ws_combo.clear()
+            active = get_active_workspace_id()
+            for ws in list_workspaces():
+                self.ws_combo.addItem(ws.get("name", ws["id"]), ws["id"])
+            idx = self.ws_combo.findData(active)
+            if idx >= 0:
+                self.ws_combo.setCurrentIndex(idx)
+        finally:
+            self._loading_ws = False
+
+    def _on_ws_combo_changed(self):
+        """Troca o workspace de destino da reunião a partir da própria tela.
+
+        Move a gravação atual (se já existir) para o workspace escolhido, evitando
+        que a reunião fique salva no workspace errado.
+        """
+        if self._loading_ws:
+            return
+        ws_id = self.ws_combo.currentData()
+        if not ws_id or ws_id == get_active_workspace_id():
+            return
+        transcript = self.transcript_edit.toPlainText().strip()
+        # Remove a gravação do workspace atual — será recriada no destino.
+        old_rec_id = self._current.get("rec_id")
+        if old_rec_id and transcript:
+            s = get_session()
+            try:
+                rec = s.query(Recording).get(old_rec_id)
+                if rec is not None:
+                    s.delete(rec)
+                    s.commit()
+            finally:
+                s.close()
+        self._current["rec_id"] = None
+        set_active_workspace(ws_id)
+        # A janela principal troca o banco ativo e faz o refresh geral (síncrono).
+        self.workspace_change_requested.emit(ws_id)
+        if transcript:
+            self._persist_recording()  # recria a reunião no workspace de destino
+            self.status_label.setText(t("Reunião movida para o workspace selecionado."))
+            self._load_history()
 
     def _populate_projects(self):
         current = self.proj_combo.currentData()
@@ -417,6 +479,18 @@ class TranscricoesView(QWidget):
                 self.mic_combo.addItem(s.description, s.name)
         if self.mic_combo.count() == 0:
             self.mic_combo.addItem(t("Nenhum microfone"), None)
+        # Seleciona o dispositivo de áudio do sistema padrão (monitor), em vez de
+        # deixar "Nenhum", quando houver algum disponível.
+        default_mon = audio_backend.default_monitor()
+        if default_mon is not None:
+            idx = self.monitor_combo.findData(default_mon.name)
+            if idx >= 0:
+                self.monitor_combo.setCurrentIndex(idx)
+        default_mic = audio_backend.default_mic()
+        if default_mic is not None:
+            idx = self.mic_combo.findData(default_mic.name)
+            if idx >= 0:
+                self.mic_combo.setCurrentIndex(idx)
 
     def _on_kind_changed(self):
         self.topic_input.setVisible(self.kind_combo.currentData() == "study")
