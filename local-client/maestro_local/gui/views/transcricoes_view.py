@@ -60,6 +60,9 @@ from maestro_local.i18n import t
 
 IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp"}
 
+# Intervalo entre capturas quando o "assistente vê a tela" está ligado (segundos).
+SCREEN_WATCH_SECONDS = 40
+
 
 def _whisper_settings():
     cfg = load_config().get("settings", {}).get("transcricoes", {})
@@ -171,6 +174,10 @@ class TranscricoesView(QWidget):
         # Contexto extra da reunião (arquivos/imagens/tela) → alimenta o copiloto.
         self._context_items: list[dict] = []   # {label, text}
         self._vision_workers: list = []         # workers de visão em andamento
+        # Observador de tela ao vivo (o agente "vê" um monitor durante a reunião)
+        self._screen_timer = None
+        self._screen_watch_worker = None
+        self._screen_watch_text = ""            # última leitura da tela observada
 
         # Estado do assistente ao vivo
         self._live_transcriber = None
@@ -351,6 +358,26 @@ class TranscricoesView(QWidget):
         self.context_container.setVisible(False)
         cl.addWidget(self.context_container)
 
+        # ---- Observador de tela: o agente "vê" um monitor durante a reunião ----
+        row6 = QHBoxLayout()
+        row6.setSpacing(8)
+        self.screen_watch_check = QCheckBox(t("👁 Assistente vê a tela"))
+        self.screen_watch_check.setToolTip(
+            t("Captura periodicamente o monitor selecionado e envia à IA para ajudar a "
+              "resolver tarefas com base no que está na tela. Usa um provedor com visão e "
+              "consome mais IA. Pode ligar/desligar a qualquer momento durante a reunião.")
+        )
+        self.screen_watch_check.toggled.connect(self._on_screen_watch_toggled)
+        row6.addWidget(self.screen_watch_check)
+        self.screen_combo = QComboBox()
+        self.screen_combo.setMinimumWidth(200)
+        row6.addWidget(self.screen_combo, 1)
+        cl.addLayout(row6)
+        self.screen_watch_status = QLabel("")
+        self.screen_watch_status.setObjectName("subtitle")
+        self.screen_watch_status.setVisible(False)
+        cl.addWidget(self.screen_watch_status)
+
         right.addWidget(ctrl)
 
         # ---- Painel do assistente ao vivo (visível só durante gravação ao vivo) ----
@@ -445,10 +472,26 @@ class TranscricoesView(QWidget):
     # ------------------------------------------------------------------
     def refresh(self):
         self._populate_devices()
+        self._populate_screens()
         self._populate_workspaces()
         self._populate_projects()
         self._load_history()
         self._check_provider()
+
+    def _populate_screens(self):
+        """Lista os monitores disponíveis para o observador de tela."""
+        current = self.screen_combo.currentIndex()
+        self.screen_combo.blockSignals(True)
+        self.screen_combo.clear()
+        for i, s in enumerate(QApplication.screens()):
+            geo = s.geometry()
+            name = s.name() or t("Monitor {n}").format(n=i + 1)
+            self.screen_combo.addItem(
+                t("Monitor {n} — {name} ({w}×{h})").format(
+                    n=i + 1, name=name, w=geo.width(), h=geo.height()), i)
+        if 0 <= current < self.screen_combo.count():
+            self.screen_combo.setCurrentIndex(current)
+        self.screen_combo.blockSignals(False)
 
     def _populate_workspaces(self):
         """Preenche o seletor de workspace com o ativo selecionado (sem disparar troca)."""
@@ -743,6 +786,9 @@ class TranscricoesView(QWidget):
         self._tick.stop()
         self.record_btn.setText(t("● Gravar e transcrever"))
         self._stop_live()
+        # Encerra o observador de tela junto com a gravação (para de consumir IA).
+        if self.screen_watch_check.isChecked():
+            self.screen_watch_check.setChecked(False)
         if not self._session:
             return
         out = _recordings_dir() / f"rec-{datetime.now().strftime('%Y%m%d-%H%M%S')}.wav"
@@ -1087,6 +1133,78 @@ class TranscricoesView(QWidget):
         if self._live_transcriber is not None:
             self._live_context = self._meeting_context()
 
+    # -------------------- Observador de tela ao vivo ------------------
+    def _on_screen_watch_toggled(self, on: bool):
+        if on:
+            if not self._provider_ready():
+                self.screen_watch_check.setChecked(False)
+                self.status_label.setText(
+                    t("Configure um provedor de IA (com visão) para o assistente ver a tela."))
+                return
+            self._start_screen_watch()
+        else:
+            self._stop_screen_watch()
+
+    def _start_screen_watch(self):
+        if self._screen_timer is None:
+            self._screen_timer = QTimer(self)
+            self._screen_timer.timeout.connect(self._capture_watched_screen)
+        self._screen_timer.start(SCREEN_WATCH_SECONDS * 1000)
+        self.screen_watch_status.setVisible(True)
+        self.screen_watch_status.setText(t("👁 Observando a tela… (captura a cada {s}s)")
+                                         .format(s=SCREEN_WATCH_SECONDS))
+        self._capture_watched_screen()  # primeira leitura imediata
+
+    def _stop_screen_watch(self):
+        if self._screen_timer is not None:
+            self._screen_timer.stop()
+        # Para de "ver" a tela: descarta a última leitura para não vazar contexto antigo.
+        self._screen_watch_text = ""
+        self.screen_watch_status.setVisible(False)
+        self._refresh_live_context()
+
+    def _capture_watched_screen(self):
+        if self._screen_watch_worker is not None:
+            return  # leitura anterior ainda em andamento — evita empilhar
+        if not self._provider_ready():
+            return
+        screens = QApplication.screens()
+        idx = self.screen_combo.currentData()
+        idx = idx if isinstance(idx, int) else self.screen_combo.currentIndex()
+        if idx is None or idx < 0 or idx >= len(screens):
+            return
+        screen = screens[idx]
+        geo = screen.geometry()
+        pix = screen.grabWindow(0, geo.x(), geo.y(), geo.width(), geo.height())
+        if pix is None or pix.isNull():
+            self.screen_watch_status.setText(t("Não foi possível capturar o monitor selecionado."))
+            return
+        if pix.width() > 1280:  # reduz o payload enviado à IA
+            pix = pix.scaledToWidth(1280, Qt.SmoothTransformation)
+        ba = QByteArray()
+        buf = QBuffer(ba)
+        buf.open(QIODevice.WriteOnly)
+        pix.save(buf, "PNG")
+        buf.close()
+        from maestro_local.transcricoes.live_assistant import VisionContextWorker
+        w = VisionContextWorker(t("Tela ao vivo"), bytes(ba.data()), "image/png")
+        w.done.connect(self._on_screen_watch_captured)
+        w.failed.connect(self._on_screen_watch_failed)
+        w.finished.connect(lambda: setattr(self, "_screen_watch_worker", None))
+        self._screen_watch_worker = w
+        w.start()
+
+    def _on_screen_watch_captured(self, label: str, text: str):
+        if text and self.screen_watch_check.isChecked():
+            self._screen_watch_text = text
+            self._refresh_live_context()
+            self.screen_watch_status.setText(
+                t("👁 Tela lida — o assistente está usando o conteúdo do monitor."))
+
+    def _on_screen_watch_failed(self, label: str, err: str):
+        self.screen_watch_status.setText(
+            t("Falha ao ler a tela ({err}). Verifique o provedor de IA com visão.").format(err=err))
+
     # ---------------------------- Dicas -------------------------------
     def _show_tips(self):
         """Modal com dicas de uso para tirar mais proveito das reuniões."""
@@ -1187,6 +1305,9 @@ class TranscricoesView(QWidget):
             for it in self._context_items:
                 body = (it.get("text") or "").strip()[:3000]
                 parts.append(f"### {it['label']}\n{body}")
+        if self._screen_watch_text:
+            parts.append(t("## Tela observada agora (ao vivo)") + "\n"
+                         + self._screen_watch_text[:3000])
         return "\n".join(parts).strip()
 
     # ------------------------- Ações → tarefas -------------------------
