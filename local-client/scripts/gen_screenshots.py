@@ -107,25 +107,18 @@ def main():
     win.show()
     app.processEvents()
 
-    nav = win.nav_list
-
-    def go(row):
-        nav.setCurrentRow(row)
+    def go(key):
+        # Navega por CHAVE (o menu não é mais 1:1 com a posição no stack).
+        win._open_key(key)
         app.processEvents()
-        w = win.stack.currentWidget()
-        if hasattr(w, "refresh"):
-            try:
-                w.refresh()
-            except Exception:  # noqa: BLE001
-                pass
         app.processEvents()
 
     # Dashboard, Meu Dia
-    go(0); grab(win, app, "dashboard-light")
-    go(1); grab(win, app, "meudia-light")
+    go("dashboard"); grab(win, app, "dashboard-light")
+    go("daily"); grab(win, app, "meudia-light")
 
     # Estudos — abre o primeiro plano para mostrar o assistente
-    go(2)
+    go("study")
     try:
         plan = models.get_session()
         p = plan.query(models.StudyPlan).first()
@@ -139,7 +132,7 @@ def main():
     grab(win, app, "estudos-light")
 
     # Board (aba de fluxo) + Planejamento de Sprints — abre o projeto demo
-    go(3)
+    go("board")
     try:
         bs = models.get_session()
         mst = bs.query(models.Project).filter(models.Project.key == "MST").first()
@@ -158,27 +151,38 @@ def main():
     win.board_view.tabs.setCurrentIndex(0)
 
     # Assistente (chat)
-    go(4); grab(win, app, "chat-light")
+    go("chat"); grab(win, app, "chat-light")
 
     # Reuniões — mostra o painel ao vivo (copiloto) populado
-    go(5)
+    go("transcricoes")
     tv = win.transcricoes_view
     tv.live_box.setVisible(True)
     tv._live_state = {
         "action_items": [{"description": "Ajustar validação do CSV", "assignee": "Ana"}],
         "decisions": ["Adotar dark mode no dashboard"],
-        "open_questions": ["Qual limite de linhas na exportação?"],
+        "questions": [
+            {"question": "Qual limite de linhas na exportação?",
+             "answer": "Até 50 mil linhas por arquivo.", "resolved": True},
+            {"question": "Precisamos versionar os relatórios?",
+             "answer": "", "resolved": False},
+        ],
         "plan": ["Levantar requisitos", "Prototipar UI", "Implementar e testar"],
         "tips": ["Validar acessibilidade do tema", "Cobrir exportação com testes"],
     }
     tv._refresh_live_panels()
+    # Contexto anexado (arquivos/imagens/tela) alimentando o copiloto
+    tv._add_context_item("requisitos-exportacao.pdf",
+                         "Documento de requisitos do módulo de exportação de relatórios: "
+                         "formatos CSV/XLSX, limite de linhas, agendamento e versionamento.")
+    tv._add_context_item("Captura de tela 1",
+                         "Tela atual do relatório com as colunas Data, Cliente, Valor e Status.")
     grab(win, app, "reunioes-light")
 
     # Projetos, Skills, Instruções, Configurações
-    go(6); grab(win, app, "projetos-light")
-    go(7); grab(win, app, "skills-light")
-    go(8); grab(win, app, "instrucoes-light")
-    go(9); grab(win, app, "configuracoes-light")
+    go("projects"); grab(win, app, "projetos-light")
+    go("skills"); grab(win, app, "skills-light")
+    go("guide"); grab(win, app, "instrucoes-light")
+    go("settings"); grab(win, app, "configuracoes-light")
 
     config.set_active_workspace(original_ws)
     print("Workspace ativo restaurado para:", original_ws)
