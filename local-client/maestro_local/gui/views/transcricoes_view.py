@@ -295,6 +295,22 @@ class TranscricoesView(QWidget):
         row4.addWidget(self.live_check)
         cl.addLayout(row4)
 
+        # ---- Preparação: informações prévias + contexto para o copiloto ----
+        prep_header = QLabel(t("🧭 Preparação da reunião"))
+        prep_header.setObjectName("subtitle")
+        prep_header.setToolTip(
+            t("Prepare a reunião antes de começar: descreva a pauta e anexe contexto. "
+              "O assistente já inicia sabendo do que se trata.")
+        )
+        cl.addWidget(prep_header)
+        self.prep_edit = QTextEdit()
+        self.prep_edit.setPlaceholderText(
+            t("Pauta, objetivos, participantes, decisões esperadas, links… "
+              "O assistente usa isto como base para já começar preparado.")
+        )
+        self.prep_edit.setMaximumHeight(84)
+        cl.addWidget(self.prep_edit)
+
         # ---- Contexto adicional (arquivos/imagens/tela) para o copiloto ----
         row5 = QHBoxLayout()
         row5.setSpacing(8)
@@ -828,8 +844,11 @@ class TranscricoesView(QWidget):
         new_text = self._live_pending
         self._live_pending = ""
         self._live_secs_since = 0
+        # Recalcula o contexto a cada extração para captar edições de preparação
+        # ou novos anexos feitos durante a reunião.
+        self._live_context = self._meeting_context()
         self._live_extractor = LiveExtractWorker(
-            dict(self._live_state), new_text, context=getattr(self, "_live_context", ""),
+            dict(self._live_state), new_text, context=self._live_context,
         )
         self._live_extractor.done.connect(self._on_live_extracted)
         self._live_extractor.failed.connect(self._on_live_extract_error)
@@ -1064,6 +1083,9 @@ class TranscricoesView(QWidget):
         e dicas ao trabalho atual.
         """
         parts = []
+        prep = self.prep_edit.toPlainText().strip()
+        if prep:
+            parts.append(t("## Preparação / informações prévias") + "\n" + prep[:3000])
         try:
             from maestro_local.config import get_active_workspace_id, list_workspaces
             wid = get_active_workspace_id()
@@ -1359,6 +1381,7 @@ class TranscricoesView(QWidget):
             duration=self._current.get("duration") or float(self._elapsed),
             topic=topic, state=self._live_state,
             transcript=transcript, summary_md=summary_md,
+            prep=self.prep_edit.toPlainText().strip(),
         )
 
     def _export_markdown(self):

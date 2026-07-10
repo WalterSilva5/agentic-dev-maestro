@@ -156,6 +156,11 @@ def main():
     # Reuniões — mostra o painel ao vivo (copiloto) populado
     go("transcricoes")
     tv = win.transcricoes_view
+    tv.prep_edit.setPlainText(
+        "Pauta: revisar o módulo de exportação de relatórios.\n"
+        "Objetivo: decidir o limite de linhas e o versionamento.\n"
+        "Participantes: Ana (backend), Bruno (produto)."
+    )
     tv.live_box.setVisible(True)
     tv._live_state = {
         "action_items": [{"description": "Ajustar validação do CSV", "assignee": "Ana"}],

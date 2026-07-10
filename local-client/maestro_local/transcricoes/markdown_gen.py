@@ -49,11 +49,11 @@ def meeting_to_markdown(summary: MeetingSummary, date_str: str) -> str:
 
 def live_meeting_to_markdown(
     *, title: str, kind: str, date_str: str, duration: float, topic: str,
-    state: dict, transcript: str = "", summary_md: str = "",
+    state: dict, transcript: str = "", summary_md: str = "", prep: str = "",
 ) -> str:
     """Documento único e estruturado da reunião: junta todos os itens de todas as
     abas do assistente ao vivo (plano, dicas, ações, decisões, perguntas) +
-    (opcional) resumo da IA + transcrição."""
+    (opcional) preparação/informações prévias + resumo da IA + transcrição."""
     is_study = kind == "study"
     default_title = (topic if is_study and topic else ("Estudo" if is_study else "Reunião"))
     out = [f"# {title or default_title}", ""]
@@ -64,6 +64,11 @@ def live_meeting_to_markdown(
     if topic:
         out.append(f"**Tópico:** {topic}  ")
     out.append("")
+
+    if prep and prep.strip():
+        out.append("## 🧭 Preparação")
+        out.append(prep.strip())
+        out.append("")
 
     plan = state.get("plan") or []
     if plan:
