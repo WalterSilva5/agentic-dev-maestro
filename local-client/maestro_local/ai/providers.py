@@ -98,8 +98,14 @@ class ProviderNotConfigured(Exception):
     pass
 
 
+# Cache de instâncias ChatOpenAI por (base_url, model, api_key, temperatura).
+# O cliente é um wrapper leve e sem estado, então reusar evita recriar a cada
+# chamada (muitas features chamam o LLM em sequência).
+_MODEL_CACHE: dict = {}
+
+
 def build_chat_model(provider: dict | None = None, temperature: float = 0.3):
-    """Constrói um ChatOpenAI a partir do provedor ativo (ou informado).
+    """Constrói (ou reusa do cache) um ChatOpenAI a partir do provedor ativo.
 
     Import de langchain feito aqui dentro para não pesar o boot do app.
     """
@@ -113,16 +119,33 @@ def build_chat_model(provider: dict | None = None, temperature: float = 0.3):
             f"O provedor '{provider.get('name')}' está sem modelo definido."
         )
 
+    key = (
+        provider["base_url"],
+        provider["model"],
+        provider.get("api_key") or "",
+        round(float(temperature), 2),
+    )
+    cached = _MODEL_CACHE.get(key)
+    if cached is not None:
+        return cached
+
     from langchain_openai import ChatOpenAI
 
-    return ChatOpenAI(
+    model = ChatOpenAI(
         base_url=provider["base_url"],
         api_key=provider.get("api_key") or "not-needed",
         model=provider["model"],
         temperature=temperature,
         timeout=120,
-        max_retries=1,
+        max_retries=2,
     )
+    _MODEL_CACHE[key] = model
+    return model
+
+
+def clear_model_cache() -> None:
+    """Descarta os modelos em cache (ex.: ao trocar de provedor ativo)."""
+    _MODEL_CACHE.clear()
 
 
 def test_connection(provider: dict) -> tuple[bool, str]:

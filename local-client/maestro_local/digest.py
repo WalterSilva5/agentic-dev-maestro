@@ -4,7 +4,16 @@ from __future__ import annotations
 
 import logging
 
+from pydantic import BaseModel, Field
+
 logger = logging.getLogger("maestro.digest")
+
+
+class _DigestOut(BaseModel):
+    done: list[str] = Field(default_factory=list)
+    doing: list[str] = Field(default_factory=list)
+    blockers: list[str] = Field(default_factory=list)
+    summary: str = ""
 
 _SYSTEM = (
     "Você é um facilitador que escreve um standup diário conciso para um "
@@ -26,12 +35,10 @@ _PROMPT = (
 
 def generate_digest(context: str) -> dict:
     """Gera o digest a partir de um resumo textual do estado do trabalho."""
-    from maestro_local.ai.providers import build_chat_model
-    from maestro_local.transcricoes.summarizer import _parse_json_response
+    from maestro_local.ai.llm import invoke_json
 
-    llm = build_chat_model(temperature=0.3)
-    resp = llm.invoke([("system", _SYSTEM), ("user", _PROMPT.format(context=context))])
-    parsed = _parse_json_response(getattr(resp, "content", str(resp)))
+    parsed = invoke_json([("system", _SYSTEM), ("user", _PROMPT.format(context=context))],
+                         schema=_DigestOut, temperature=0.3)
     if not isinstance(parsed, dict):
         raise ValueError("Resposta da IA não é um objeto JSON")
 

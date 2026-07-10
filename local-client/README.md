@@ -109,7 +109,8 @@ Task board by project:
 Internal AI assistant that runs with your own provider:
 
 - **OpenAI-compatible providers**: local LM Studio, opencode, or any API in the `/v1/chat/completions` format
-- **Internal tools** (LangGraph): reads the board, lists tasks, requests review (creates a requires-dev task), comments on tasks, creates TODOs, and summarizes recent activity
+- **Internal tools** (LangGraph ReAct agent): reads the board, lists tasks, requests review (creates a requires-dev task), comments on tasks, creates TODOs, summarizes recent activity, and now also **project metrics**, **pending TODOs** and **knowledge-base search**. The compiled agent is cached per provider.
+- **Centralized LLM layer** (`maestro_local/ai/llm.py`): every AI feature (triage, digest, translator, code review, English practice, live meeting, etc.) goes through a single `invoke_json`/`invoke_text` that reuses the chat model (cached) and uses **structured output** (`with_structured_output`) with a robust JSON fallback for weaker local models
 - **Asynchronous execution**: runs in a separate thread, without freezing the interface
 - **Configuration**: active provider defined in Settings → AI Providers (Base URL, API Key, and Model)
 

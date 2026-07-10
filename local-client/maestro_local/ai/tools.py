@@ -14,6 +14,7 @@ from maestro_local.db.models import (
     ActivityLog,
     BoardColumn,
     Comment,
+    Document,
     Project,
     Task,
     Todo,
@@ -219,6 +220,68 @@ def get_recent_activity(days: int = 1) -> str:
         s.close()
 
 
+@tool
+def search_knowledge_base(query: str) -> str:
+    """Busca nas notas da Base de conhecimento (2º cérebro) do workspace por
+    palavras-chave e retorna as mais relevantes (título + trecho). Use quando o
+    usuário perguntar sobre decisões, procedimentos ou anotações registradas."""
+    from maestro_local.kb import retrieve
+    s = get_session()
+    try:
+        notes = [{"id": d.id, "title": d.title, "body": d.body or ""}
+                 for d in s.query(Document).filter(Document.type == "KB").all()]
+    finally:
+        s.close()
+    if not notes:
+        return "Nenhuma nota na Base de conhecimento."
+    hits = retrieve(notes, query, top_k=4)
+    if not hits:
+        return "Nenhuma nota relevante encontrada."
+    return "\n\n".join(f"[{n['title']}]\n{(n['body'] or '')[:400]}" for n in hits)
+
+
+@tool
+def get_project_metrics() -> str:
+    """Métricas rápidas do workspace por projeto: total de tarefas, concluídas e
+    ativas. Use para relatórios, priorização e visão geral do progresso."""
+    s = get_session()
+    try:
+        projects = s.query(Project).all()
+        if not projects:
+            return "Nenhum projeto."
+        out = []
+        for p in projects:
+            tasks = s.query(Task).filter(
+                Task.project_id == p.id, Task.deleted_at.is_(None)).all()
+            done_cols = {c.id for c in s.query(BoardColumn).filter(
+                BoardColumn.project_id == p.id, BoardColumn.is_done.is_(True)).all()}
+            done = sum(1 for t in tasks if t.column_id in done_cols)
+            out.append(f"{p.key} — {p.name}: {len(tasks)} tarefas, {done} concluídas, "
+                       f"{len(tasks) - done} ativas")
+        return "\n".join(out)
+    finally:
+        s.close()
+
+
+@tool
+def list_pending_todos() -> str:
+    """Lista os TODOs pendentes (não concluídos) do usuário, com prioridade e
+    prazo quando houver. Use para lembrar o que ainda falta fazer."""
+    s = get_session()
+    try:
+        todos = (s.query(Todo).filter(Todo.done.is_(False))
+                 .order_by(Todo.sort_order, Todo.id).all())
+        if not todos:
+            return "Nenhum TODO pendente."
+        lines = []
+        for t in todos:
+            due = f" (vence {t.due_at.strftime('%d/%m %H:%M')})" if t.due_at else ""
+            lines.append(f"- [{t.priority}] {t.text}{due}")
+        return "\n".join(lines)
+    finally:
+        s.close()
+
+
 ALL_TOOLS = [
     list_projects,
     get_board_summary,
@@ -227,4 +290,7 @@ ALL_TOOLS = [
     add_task_comment,
     create_todo,
     get_recent_activity,
+    search_knowledge_base,
+    get_project_metrics,
+    list_pending_todos,
 ]

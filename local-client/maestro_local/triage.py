@@ -4,7 +4,28 @@ from __future__ import annotations
 
 import logging
 
+from pydantic import BaseModel, Field
+
 logger = logging.getLogger("maestro.triage")
+
+
+class _TriageOut(BaseModel):
+    title: str = ""
+    severity: str = "MEDIUM"
+    type: str = "BUG"
+    summary: str = ""
+    probable_cause: str = ""
+    steps: list[str] = Field(default_factory=list)
+
+
+class _RetroAction(BaseModel):
+    title: str = ""
+
+
+class _RetroOut(BaseModel):
+    well: list[str] = Field(default_factory=list)
+    badly: list[str] = Field(default_factory=list)
+    actions: list[_RetroAction] = Field(default_factory=list)
 
 _SYSTEM = (
     "Você é um engenheiro de software que faz triagem de bugs. "
@@ -34,12 +55,10 @@ _SEVERITY_TO_PRIORITY = {
 def triage_bug(text: str) -> dict:
     """Classifica um relato de bug via IA. Levanta exceção se o provedor não
     estiver configurado ou a IA falhar."""
-    from maestro_local.ai.providers import build_chat_model
-    from maestro_local.transcricoes.summarizer import _parse_json_response
+    from maestro_local.ai.llm import invoke_json
 
-    llm = build_chat_model(temperature=0.2)
-    resp = llm.invoke([("system", _SYSTEM), ("user", _PROMPT.format(text=text.strip()))])
-    parsed = _parse_json_response(getattr(resp, "content", str(resp)))
+    parsed = invoke_json([("system", _SYSTEM), ("user", _PROMPT.format(text=text.strip()))],
+                         schema=_TriageOut, temperature=0.2)
     if not isinstance(parsed, dict):
         raise ValueError("Resposta da IA não é um objeto JSON")
 
@@ -79,13 +98,11 @@ _RETRO_PROMPT = (
 
 def generate_sprint_retro(context: str) -> dict:
     """Gera a retrospectiva de uma sprint via IA a partir de um resumo textual."""
-    from maestro_local.ai.providers import build_chat_model
-    from maestro_local.transcricoes.summarizer import _parse_json_response
+    from maestro_local.ai.llm import invoke_json
 
-    llm = build_chat_model(temperature=0.4)
-    resp = llm.invoke([("system", _RETRO_SYSTEM),
-                       ("user", _RETRO_PROMPT.format(context=context))])
-    parsed = _parse_json_response(getattr(resp, "content", str(resp)))
+    parsed = invoke_json([("system", _RETRO_SYSTEM),
+                          ("user", _RETRO_PROMPT.format(context=context))],
+                         schema=_RetroOut, temperature=0.4)
     if not isinstance(parsed, dict):
         raise ValueError("Resposta da IA não é um objeto JSON")
 

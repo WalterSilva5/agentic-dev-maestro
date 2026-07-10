@@ -13,12 +13,24 @@ import json
 import logging
 
 from PySide6.QtCore import QThread, Signal
-
-from maestro_local.ai.providers import build_chat_model
-
-from .summarizer import _parse_json_response
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger("maestro.transcricoes.live")
+
+
+class _LiveAction(BaseModel):
+    description: str = ""
+    assignee: str = ""
+
+
+class LiveStateSchema(BaseModel):
+    """Estado incremental da reunião ao vivo (para structured output)."""
+    action_items: list[_LiveAction] = Field(default_factory=list)
+    decisions: list[str] = Field(default_factory=list)
+    open_questions: list[str] = Field(default_factory=list)
+    resolved_questions: list[str] = Field(default_factory=list)
+    plan: list[str] = Field(default_factory=list)
+    tips: list[str] = Field(default_factory=list)
 
 
 LIVE_EXTRACT_SYSTEM = """Você é um assistente que acompanha uma reunião em tempo real. Você mantém um
@@ -108,18 +120,17 @@ class LiveExtractWorker(QThread):
         self.context = context or "(sem contexto de projeto)"
 
     def run(self) -> None:
+        from maestro_local.ai.llm import invoke_json
         try:
-            llm = build_chat_model(temperature=0.2)
             state_json = json.dumps(self.state, ensure_ascii=False)
             user = LIVE_EXTRACT_USER.format(
                 context=_clamp_transcript(self.context, 600),
                 state=state_json,
                 new_text=_clamp_transcript(self.new_text, 1500),
             )
-            resp = llm.invoke([("system", LIVE_EXTRACT_SYSTEM), ("user", user)])
-            content = getattr(resp, "content", str(resp))
-            parsed = _parse_json_response(content)
-            if "parse_error" in parsed or "raw_response" in parsed:
+            parsed = invoke_json([("system", LIVE_EXTRACT_SYSTEM), ("user", user)],
+                                 schema=LiveStateSchema, temperature=0.2)
+            if not isinstance(parsed, dict) or "parse_error" in parsed or "raw_response" in parsed:
                 # Falhou o parse: mantém o estado anterior para não perder dados.
                 self.done.emit(self.state)
                 return
@@ -153,15 +164,15 @@ class LiveAskWorker(QThread):
         self.context = context or "(sem contexto de projeto)"
 
     def run(self) -> None:
+        from maestro_local.ai.llm import invoke_text
         try:
-            llm = build_chat_model(temperature=0.2)
             user = LIVE_ASK_USER.format(
                 context=_clamp_transcript(self.context, 600),
                 transcript=_clamp_transcript(self.transcript),
                 question=self.question,
             )
-            resp = llm.invoke([("system", LIVE_ASK_SYSTEM), ("user", user)])
-            self.answered.emit(getattr(resp, "content", str(resp)).strip())
+            text = invoke_text([("system", LIVE_ASK_SYSTEM), ("user", user)], temperature=0.2)
+            self.answered.emit((text or "").strip())
         except Exception as e:  # noqa: BLE001
             logger.warning("Live ask falhou: %s", e)
             self.failed.emit(str(e))

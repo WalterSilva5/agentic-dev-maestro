@@ -6,7 +6,14 @@ from __future__ import annotations
 
 import logging
 
+from pydantic import BaseModel, Field
+
 logger = logging.getLogger("maestro.translate")
+
+
+class _TranslationOut(BaseModel):
+    translated: str = Field(default="", description="apenas a tradução")
+    detected_source: str = Field(default="", description="idioma de origem detectado/usado")
 
 # código -> nome do idioma (o "auto" pede detecção)
 LANGUAGES = {
@@ -47,20 +54,16 @@ def _lang_name(code: str) -> str:
 
 def translate(text: str, source: str = "auto", target: str = "en") -> dict:
     """Traduz `text` de `source` (código; 'auto' detecta) para `target` (código)."""
-    from maestro_local.ai.providers import build_chat_model
-    from maestro_local.transcricoes.summarizer import _parse_json_response
+    from maestro_local.ai.llm import invoke_json
 
     if not text.strip():
         raise ValueError("Texto vazio")
-    llm = build_chat_model(temperature=0.2)
     user = _PROMPT.format(
         source=_lang_name(source), target=_lang_name(target), text=text.strip())
-    resp = llm.invoke([("system", _SYSTEM), ("user", user)])
-    parsed = _parse_json_response(getattr(resp, "content", str(resp)))
+    parsed = invoke_json([("system", _SYSTEM), ("user", user)],
+                         schema=_TranslationOut, temperature=0.2)
     if not isinstance(parsed, dict):
-        # fallback: usa a resposta crua como tradução
-        return {"translated": getattr(resp, "content", str(resp)).strip(),
-                "detectedSource": _lang_name(source)}
+        parsed = {}
     return {
         "translated": str(parsed.get("translated") or "").strip(),
         "detectedSource": str(parsed.get("detected_source") or _lang_name(source)),

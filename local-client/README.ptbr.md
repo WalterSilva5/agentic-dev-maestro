@@ -109,7 +109,8 @@ Board de tarefas por projeto:
 Assistente de IA interno que roda com seu próprio provedor:
 
 - **Provedores compatíveis com OpenAI**: LM Studio local, opencode ou qualquer API no formato `/v1/chat/completions`
-- **Ferramentas internas** (LangGraph): lê o board, lista tarefas, solicita revisão (cria tarefa requer-dev), comenta tarefas, cria TODOs e resume a atividade recente
+- **Ferramentas internas** (agente ReAct LangGraph): lê o board, lista tarefas, solicita revisão (cria tarefa requer-dev), comenta tarefas, cria TODOs, resume a atividade recente e agora também **métricas dos projetos**, **TODOs pendentes** e **busca na Base de conhecimento**. O agente compilado é cacheado por provedor.
+- **Camada de LLM centralizada** (`maestro_local/ai/llm.py`): toda feature de IA (triagem, digest, tradutor, code review, praticar inglês, reunião ao vivo, etc.) passa por um único `invoke_json`/`invoke_text` que reusa o modelo (cache) e usa **structured output** (`with_structured_output`) com fallback robusto de JSON para modelos locais mais fracos
 - **Execução assíncrona**: roda em thread separada, sem travar a interface
 - **Configuração**: provedor ativo definido em Configurações → Provedores de IA (Base URL, API Key e Modelo)
 

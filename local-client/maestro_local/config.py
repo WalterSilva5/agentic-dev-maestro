@@ -153,6 +153,18 @@ def get_active_ai_provider() -> dict | None:
     return providers[0] if providers else None
 
 
+def _invalidate_ai_caches():
+    """Descarta modelos/agentes em cache quando o provedor muda (import tardio
+    para evitar dependência circular com o pacote ai)."""
+    try:
+        from maestro_local.ai.providers import clear_model_cache
+        clear_model_cache()
+        from maestro_local.ai.agent import clear_agent_cache
+        clear_agent_cache()
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def save_ai_providers(providers: list[dict], active_id: str | None = None):
     cfg = load_config()
     cfg["ai_providers"] = providers
@@ -163,12 +175,14 @@ def save_ai_providers(providers: list[dict], active_id: str | None = None):
     ):
         cfg["active_ai_provider"] = providers[0]["id"] if providers else None
     save_config(cfg)
+    _invalidate_ai_caches()
 
 
 def set_active_ai_provider(provider_id: str):
     cfg = load_config()
     cfg["active_ai_provider"] = provider_id
     save_config(cfg)
+    _invalidate_ai_caches()
 
 
 def delete_workspace(ws_id: str) -> bool:

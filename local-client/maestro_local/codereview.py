@@ -5,7 +5,21 @@ from __future__ import annotations
 import logging
 import subprocess
 
+from pydantic import BaseModel, Field
+
 logger = logging.getLogger("maestro.codereview")
+
+
+class _ReviewIssue(BaseModel):
+    severity: str = "MEDIUM"
+    file: str = ""
+    note: str = ""
+
+
+class _ReviewOut(BaseModel):
+    summary: str = ""
+    issues: list[_ReviewIssue] = Field(default_factory=list)
+    suggestions: list[str] = Field(default_factory=list)
 
 MAX_DIFF_CHARS = 30000
 
@@ -46,15 +60,13 @@ def get_git_diff(path: str, base: str = "") -> str:
 
 def review_diff(diff: str) -> dict:
     """Pede à IA uma revisão estruturada do diff."""
-    from maestro_local.ai.providers import build_chat_model
-    from maestro_local.transcricoes.summarizer import _parse_json_response
+    from maestro_local.ai.llm import invoke_json
 
     if not diff.strip():
         raise ValueError("Diff vazio (nada a revisar)")
     truncated = diff[:MAX_DIFF_CHARS]
-    llm = build_chat_model(temperature=0.2)
-    resp = llm.invoke([("system", _SYSTEM), ("user", _PROMPT.format(diff=truncated))])
-    parsed = _parse_json_response(getattr(resp, "content", str(resp)))
+    parsed = invoke_json([("system", _SYSTEM), ("user", _PROMPT.format(diff=truncated))],
+                         schema=_ReviewOut, temperature=0.2)
     if not isinstance(parsed, dict):
         raise ValueError("Resposta da IA não é um objeto JSON")
 

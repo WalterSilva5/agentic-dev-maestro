@@ -44,7 +44,7 @@ def retrieve(notes: list[dict], question: str, top_k: int = 5) -> list[dict]:
 
 def answer(notes: list[dict], question: str) -> dict:
     """Responde à pergunta usando as notas mais relevantes via IA."""
-    from maestro_local.ai.providers import build_chat_model
+    from maestro_local.ai.llm import invoke_text
 
     relevant = retrieve(notes, question)
     if not relevant:
@@ -54,11 +54,10 @@ def answer(notes: list[dict], question: str) -> dict:
         f"### {n.get('title', 'Sem título')}\n{(n.get('body') or '')[:2000]}"
         for n in relevant
     )
-    llm = build_chat_model(temperature=0.2)
     user = f"Notas:\n{context}\n\nPergunta: {question}"
-    resp = llm.invoke([("system", _SYSTEM), ("user", user)])
+    text = invoke_text([("system", _SYSTEM), ("user", user)], temperature=0.2)
     return {
-        "answer": getattr(resp, "content", str(resp)),
+        "answer": text,
         "sources": [{"id": n.get("id"), "title": n.get("title")} for n in relevant],
     }
 

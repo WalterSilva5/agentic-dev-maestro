@@ -11,7 +11,28 @@ from __future__ import annotations
 
 import logging
 
+from pydantic import BaseModel, Field
+
 logger = logging.getLogger("maestro.english")
+
+
+class _OpeningOut(BaseModel):
+    reply: str = ""
+    suggestion: str = ""
+
+
+class _VocabItem(BaseModel):
+    word: str = ""
+    respell: str = ""
+    meaning: str = ""
+
+
+class _TurnOut(BaseModel):
+    reply: str = ""
+    feedback: str = ""
+    correction: str = ""
+    suggestion: str = ""
+    vocab: list[_VocabItem] = Field(default_factory=list)
 
 LEVELS = {
     "BEGINNER": "beginner (A1-A2): short, simple sentences; basic vocabulary; mostly present tense; speak slowly and clearly",
@@ -77,14 +98,12 @@ def _clean_vocab(raw) -> list[dict]:
 
 def start(level: str, topic: str = "") -> dict:
     """Primeira fala da IA para abrir a conversa."""
-    from maestro_local.ai.providers import build_chat_model
-    from maestro_local.transcricoes.summarizer import _parse_json_response
+    from maestro_local.ai.llm import invoke_json
 
-    llm = build_chat_model(temperature=0.6)
     user = _OPENING_INSTRUCTIONS.format(
         level_desc=_level_desc(level), topic=topic.strip() or "free conversation")
-    resp = llm.invoke([("system", _SYSTEM), ("user", user)])
-    parsed = _parse_json_response(getattr(resp, "content", str(resp)))
+    parsed = invoke_json([("system", _SYSTEM), ("user", user)],
+                         schema=_OpeningOut, temperature=0.6)
     if not isinstance(parsed, dict):
         parsed = {}
     return {
@@ -95,10 +114,8 @@ def start(level: str, topic: str = "") -> dict:
 
 def converse(level: str, topic: str, history: list[dict], message: str) -> dict:
     """Um turno da conversa. `history`: lista de {role: 'user'|'assistant', text}."""
-    from maestro_local.ai.providers import build_chat_model
-    from maestro_local.transcricoes.summarizer import _parse_json_response
+    from maestro_local.ai.llm import invoke_json
 
-    llm = build_chat_model(temperature=0.6)
     msgs = [("system", _SYSTEM)]
     for h in (history or [])[-12:]:  # janela curta de contexto
         role = "assistant" if h.get("role") == "assistant" else "user"
@@ -107,8 +124,7 @@ def converse(level: str, topic: str, history: list[dict], message: str) -> dict:
         level_desc=_level_desc(level),
         topic=(topic or "").strip() or "free conversation",
         message=message.strip())))
-    resp = llm.invoke(msgs)
-    parsed = _parse_json_response(getattr(resp, "content", str(resp)))
+    parsed = invoke_json(msgs, schema=_TurnOut, temperature=0.6)
     if not isinstance(parsed, dict):
         raise ValueError("Resposta da IA não é um objeto JSON")
     return {
