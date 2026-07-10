@@ -513,6 +513,8 @@ CATALOG = {
   "👁 Tela lida — o assistente está usando o conteúdo do monitor.": "👁 Screen read — the assistant is using the monitor's content.",
   "Falha ao ler a tela ({err}). Verifique o provedor de IA com visão.": "Failed to read the screen ({err}). Check the vision-capable AI provider.",
   "## Tela observada agora (ao vivo)": "## Screen being watched now (live)",
+  "☰ Histórico": "☰ History",
+  "Mostrar/ocultar o histórico de gravações": "Show/hide the recordings history",
   "💡 Dicas": "💡 Tips",
   "Como aproveitar melhor as reuniões": "How to get the most out of meetings",
   "Dicas para reuniões": "Meeting tips",

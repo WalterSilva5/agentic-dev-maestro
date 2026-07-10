@@ -54,6 +54,7 @@ from maestro_local.db.models import (
     Task,
     get_session,
 )
+from maestro_local.gui.flow_layout import FlowLayout
 from maestro_local.gui.theme import current_theme
 from maestro_local.i18n import t
 
@@ -222,8 +223,9 @@ class TranscricoesView(QWidget):
         )
         self.history.itemClicked.connect(self._open_recording)
         left.addWidget(self.history, 1)
-        left_widget.setMinimumWidth(200)
+        left_widget.setMinimumWidth(170)
         left_widget.setMaximumWidth(420)
+        self._left_widget = left_widget
         self._main_split.addWidget(left_widget)
 
         # ---- Coluna direita: gravação + transcrição ----
@@ -233,6 +235,15 @@ class TranscricoesView(QWidget):
         right.setSpacing(10)
 
         title_row = QHBoxLayout()
+        # Botão de histórico — aparece só quando a tela é estreita (histórico colapsa)
+        self.history_toggle = QPushButton(t("☰ Histórico"))
+        self.history_toggle.setProperty("flat", "true")
+        self.history_toggle.setFixedHeight(32)
+        self.history_toggle.setCursor(Qt.PointingHandCursor)
+        self.history_toggle.setToolTip(t("Mostrar/ocultar o histórico de gravações"))
+        self.history_toggle.clicked.connect(self._toggle_history_panel)
+        self.history_toggle.setVisible(False)
+        title_row.addWidget(self.history_toggle)
         title = QLabel(t("Reuniões"))
         title.setObjectName("sectionTitle")
         title_row.addWidget(title)
@@ -370,7 +381,7 @@ class TranscricoesView(QWidget):
         self.screen_watch_check.toggled.connect(self._on_screen_watch_toggled)
         row6.addWidget(self.screen_watch_check)
         self.screen_combo = QComboBox()
-        self.screen_combo.setMinimumWidth(200)
+        self.screen_combo.setMinimumWidth(150)
         row6.addWidget(self.screen_combo, 1)
         cl.addLayout(row6)
         self.screen_watch_status = QLabel("")
@@ -402,9 +413,8 @@ class TranscricoesView(QWidget):
         self.transcript_edit.setPlaceholderText(t("A transcrição aparecerá aqui..."))
         right.addWidget(self.transcript_edit, 1)
 
-        # Ações — linha 1: documento da reunião
-        actions = QHBoxLayout()
-        actions.setSpacing(8)
+        # Ações — linha 1: documento da reunião (FlowLayout: quebra em telas estreitas)
+        actions = FlowLayout(h_spacing=8, v_spacing=6)
         self.analyze_btn = QPushButton(t("Analisar com IA"))
         self.analyze_btn.setFixedHeight(32)
         self.analyze_btn.setCursor(Qt.PointingHandCursor)
@@ -431,16 +441,13 @@ class TranscricoesView(QWidget):
         self.copy_btn.setToolTip(t("Copia o markdown completo da reunião para a área de transferência."))
         self.copy_btn.clicked.connect(self._copy_markdown)
         actions.addWidget(self.copy_btn)
-        actions.addStretch()
         right.addLayout(actions)
 
-        # Ações — linha 2: ponte para o board
-        actions2 = QHBoxLayout()
-        actions2.setSpacing(8)
-        actions2.addStretch()
+        # Ações — linha 2: ponte para o board (também quebra em telas estreitas)
+        actions2 = FlowLayout(h_spacing=8, v_spacing=6)
         actions2.addWidget(QLabel(t("Workspace:")))
         self.ws_combo = QComboBox()
-        self.ws_combo.setMinimumWidth(140)
+        self.ws_combo.setMinimumWidth(120)
         self.ws_combo.setToolTip(
             t("Workspace de destino da reunião. Troque aqui caso esteja gravando para o workspace errado.")
         )
@@ -448,7 +455,7 @@ class TranscricoesView(QWidget):
         actions2.addWidget(self.ws_combo)
         actions2.addWidget(QLabel(t("Projeto:")))
         self.proj_combo = QComboBox()
-        self.proj_combo.setMinimumWidth(160)
+        self.proj_combo.setMinimumWidth(130)
         actions2.addWidget(self.proj_combo)
         self.tasks_btn = QPushButton(t("Criar tarefas das ações"))
         self.tasks_btn.setFixedHeight(32)
@@ -470,7 +477,7 @@ class TranscricoesView(QWidget):
         right_scroll.setFrameShape(QFrame.NoFrame)
         right_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         right_scroll.setWidget(right_widget)
-        right_widget.setMinimumWidth(420)
+        right_widget.setMinimumWidth(340)
 
         self._main_split.addWidget(right_scroll)
         self._main_split.setStretchFactor(0, 0)
@@ -480,6 +487,19 @@ class TranscricoesView(QWidget):
         self.refresh()
 
     # ------------------------------------------------------------------
+    def resizeEvent(self, event):
+        """Responsivo: abaixo de um breakpoint, colapsa o histórico para o
+        conteúdo ocupar a largura toda; oferece um botão para reexibi-lo."""
+        super().resizeEvent(event)
+        narrow = self.width() < 820
+        if narrow != getattr(self, "_narrow", None):
+            self._narrow = narrow
+            self.history_toggle.setVisible(narrow)
+            self._left_widget.setVisible(not narrow)
+
+    def _toggle_history_panel(self):
+        self._left_widget.setVisible(not self._left_widget.isVisible())
+
     def refresh(self):
         self._populate_devices()
         self._populate_screens()
