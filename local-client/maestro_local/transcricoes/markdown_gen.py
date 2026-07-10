@@ -47,6 +47,71 @@ def meeting_to_markdown(summary: MeetingSummary, date_str: str) -> str:
     return "\n".join(out)
 
 
+def live_meeting_to_markdown(
+    *, title: str, kind: str, date_str: str, duration: float, topic: str,
+    state: dict, transcript: str = "", summary_md: str = "",
+) -> str:
+    """Documento único e estruturado da reunião: junta todos os itens de todas as
+    abas do assistente ao vivo (plano, dicas, ações, decisões, perguntas) +
+    (opcional) resumo da IA + transcrição."""
+    is_study = kind == "study"
+    default_title = (topic if is_study and topic else ("Estudo" if is_study else "Reunião"))
+    out = [f"# {title or default_title}", ""]
+    out.append(f"**Tipo:** {'Estudo' if is_study else 'Reunião'}  ")
+    out.append(f"**Data:** {date_str}  ")
+    if duration:
+        out.append(f"**Duração:** {format_duration(duration)}  ")
+    if topic:
+        out.append(f"**Tópico:** {topic}  ")
+    out.append("")
+
+    plan = state.get("plan") or []
+    if plan:
+        out.append("## 🗺 Plano")
+        out += [f"{i}. {s}" for i, s in enumerate(plan, 1)]
+        out.append("")
+    tips = state.get("tips") or []
+    if tips:
+        out.append("## 💡 Dicas")
+        out += [f"- {tp}" for tp in tips]
+        out.append("")
+    actions = state.get("action_items") or []
+    if actions:
+        out.append("## ✅ Ações")
+        for a in actions:
+            if isinstance(a, dict):
+                desc, who = a.get("description", ""), a.get("assignee")
+            else:
+                desc, who = str(a), None
+            out.append(f"- [ ] {desc}" + (f" _({who})_" if who else ""))
+        out.append("")
+    decisions = state.get("decisions") or []
+    if decisions:
+        out.append("## 📌 Decisões")
+        out += [f"- {d}" for d in decisions]
+        out.append("")
+    questions = state.get("open_questions") or []
+    if questions:
+        out.append("## ❓ Perguntas em aberto")
+        out += [f"- {q}" for q in questions]
+        out.append("")
+
+    if summary_md and summary_md.strip():
+        body = summary_md.strip().splitlines()
+        if body and body[0].startswith("# "):  # evita título duplicado
+            body = body[1:]
+        out.append("## 📝 Resumo estruturado (IA)")
+        out.append("\n".join(body).strip())
+        out.append("")
+
+    if transcript and transcript.strip():
+        out.append("## 🎙 Transcrição")
+        out.append(transcript.strip())
+        out.append("")
+
+    return "\n".join(out).rstrip() + "\n"
+
+
 def study_to_markdown(notes: StudyNotes, date_str: str) -> str:
     out = [f"# Estudo: {notes.topic or 'Sessão'}", ""]
     out.append(f"**Data:** {date_str}  ")

@@ -124,6 +124,7 @@ Gravação, transcrição e resumo de reuniões e estudos (migrado do projeto ws
 - **Assistente de estudo**: gera resumo, conceitos-chave, exercícios práticos, tópicos relacionados e recursos
 - **IA reusada**: a análise usa o provedor configurado em Provedores de IA (LM Studio/opencode)
 - **Reunião → board**: botão "Criar tarefas das ações" transforma os action items (do ao vivo ou do resumo) em tarefas (tipo CHORE, `requires_human`) no projeto escolhido
+- **Exportar (.md)**: um botão salva um markdown único e estruturado com **todos os itens de todas as abas ao vivo** (plano, dicas, ações, decisões, perguntas em aberto) + o resumo da IA (se houver) + a transcrição — um documento completo da reunião
 - **Histórico**: gravações salvas no banco do workspace, com busca por texto
 - **Integração**: botão "Salvar no Meu Dia" anexa o resumo ao relatório do dia
 - **Atalho global**: `Ctrl+Shift+R` inicia/para a gravação (best-effort; pode não funcionar em Wayland)

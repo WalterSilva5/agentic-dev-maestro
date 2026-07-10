@@ -124,6 +124,7 @@ Recording, transcription, and summarization of meetings and studies (migrated fr
 - **Study assistant**: generates a summary, key concepts, practical exercises, related topics, and resources
 - **Reused AI**: the analysis uses the provider configured in AI Providers (LM Studio/opencode)
 - **Meeting → board**: the "Create tasks from actions" button turns the action items (from the live view or the summary) into tasks (type CHORE, `requires_human`) in the chosen project
+- **Export (.md)**: one button saves a single structured markdown with **all items from every live tab** (plan, tips, actions, decisions, open questions) + the AI summary (if any) + the transcript — a complete meeting document
 - **History**: recordings saved in the workspace database, with text search
 - **Integration**: the "Save to My Day" button appends the summary to the day's report
 - **Global shortcut**: `Ctrl+Shift+R` starts/stops the recording (best-effort; may not work on Wayland)

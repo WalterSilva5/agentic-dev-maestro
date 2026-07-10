@@ -9,6 +9,7 @@ from PySide6.QtCore import Qt, QThread, QTimer, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
+    QFileDialog,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -254,6 +255,12 @@ class TranscricoesView(QWidget):
         self.save_day_btn.clicked.connect(self._save_to_day)
         self.save_day_btn.setEnabled(False)
         actions.addWidget(self.save_day_btn)
+        self.export_btn = QPushButton(t("Exportar (.md)"))
+        self.export_btn.setFixedHeight(32)
+        self.export_btn.setCursor(Qt.PointingHandCursor)
+        self.export_btn.setToolTip(t("Exporta um markdown único com todos os itens de todas as abas + transcrição."))
+        self.export_btn.clicked.connect(self._export_markdown)
+        actions.addWidget(self.export_btn)
         actions.addStretch()
         actions.addWidget(QLabel(t("Projeto:")))
         self.proj_combo = QComboBox()
@@ -912,6 +919,41 @@ class TranscricoesView(QWidget):
         finally:
             s.close()
         self.status_label.setText(t("Resumo adicionado ao relatório do Meu Dia."))
+
+    def _export_markdown(self):
+        """Exporta um markdown único e estruturado com todos os itens de todas
+        as abas do assistente ao vivo + (opcional) resumo da IA + transcrição."""
+        from maestro_local.transcricoes import markdown_gen
+        transcript = (self._current.get("transcript") or self._live_transcript
+                      or self.transcript_edit.toPlainText() or "").strip()
+        summary_md = (self._current.get("markdown") or self.result_edit.toPlainText() or "").strip()
+        has_live = any(self._live_state.get(k) for k in
+                       ("plan", "tips", "action_items", "decisions", "open_questions"))
+        if not (has_live or transcript or summary_md):
+            self.status_label.setText(t("Nada para exportar ainda — grave/analise uma reunião primeiro."))
+            return
+        kind = self.kind_combo.currentData()
+        topic = self.topic_input.text().strip() if kind == "study" else ""
+        md = markdown_gen.live_meeting_to_markdown(
+            title=self._current.get("title", ""), kind=kind,
+            date_str=datetime.now().strftime("%d/%m/%Y %H:%M"),
+            duration=self._current.get("duration") or float(self._elapsed),
+            topic=topic, state=self._live_state,
+            transcript=transcript, summary_md=summary_md,
+        )
+        default_name = ("estudo" if kind == "study" else "reuniao") + \
+            "-" + datetime.now().strftime("%Y%m%d-%H%M") + ".md"
+        path, _ = QFileDialog.getSaveFileName(
+            self, t("Exportar reunião"), default_name, "Markdown (*.md)")
+        if not path:
+            return
+        try:
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(md)
+        except OSError as e:  # noqa: BLE001
+            self.status_label.setText(t("Erro ao salvar: {error}").format(error=e))
+            return
+        self.status_label.setText(t("Exportado: {path}").format(path=path))
 
     # ------------------------- Histórico -------------------------
     def _load_history(self):
