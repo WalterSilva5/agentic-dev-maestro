@@ -6,7 +6,6 @@ from datetime import datetime
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QThread, QTimer, Signal
-from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -19,6 +18,7 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QProgressBar,
     QPushButton,
+    QScrollArea,
     QSplitter,
     QTabWidget,
     QTextEdit,
@@ -101,6 +101,50 @@ class AnalyzeWorker(QThread):
             self.failed.emit(str(e))
 
 
+class _QACard(QFrame):
+    """Card de pergunta+resposta da reunião. Duplo-clique alterna resolvida."""
+    toggled = Signal(int)
+
+    def __init__(self, index: int, question: str, answer: str, resolved: bool, theme):
+        super().__init__()
+        self._index = index
+        self.setToolTip(t("Duplo-clique para marcar como resolvida / reabrir."))
+        border = theme.success if resolved else theme.border
+        self.setStyleSheet(
+            f"_QACard {{ background: {theme.bg_card}; border: 1px solid {border}; "
+            f"border-left: 4px solid {theme.success if resolved else theme.accent}; "
+            f"border-radius: 8px; }}")
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(10, 8, 10, 8)
+        lay.setSpacing(5)
+
+        q = QLabel(("✅ " if resolved else "❓ ") + question)
+        q.setWordWrap(True)
+        q.setStyleSheet(
+            f"font-weight: 700; font-size: 13px; color: {theme.text_primary}; "
+            f"border: none; background: transparent;")
+        lay.addWidget(q)
+
+        if answer:
+            a = QLabel("↳ " + answer)
+            a.setWordWrap(True)
+            a.setTextInteractionFlags(Qt.TextSelectableByMouse)
+            a.setStyleSheet(
+                f"color: {theme.text_secondary}; font-size: 12px; border: none; "
+                f"background: {theme.bg_badge}; border-radius: 6px; padding: 6px 8px;")
+            lay.addWidget(a)
+        elif not resolved:
+            pend = QLabel(t("(aguardando resposta)"))
+            pend.setStyleSheet(
+                f"color: {theme.text_muted}; font-size: 11px; font-style: italic; "
+                f"border: none; background: transparent;")
+            lay.addWidget(pend)
+
+    def mouseDoubleClickEvent(self, event):  # noqa: N802
+        self.toggled.emit(self._index)
+        super().mouseDoubleClickEvent(event)
+
+
 class TranscricoesView(QWidget):
     def __init__(self):
         super().__init__()
@@ -118,8 +162,8 @@ class TranscricoesView(QWidget):
         self._live_transcript = ""       # transcrição ao vivo acumulada
         self._live_pending = ""          # texto novo ainda não enviado à IA
         self._live_secs_since = 0        # segundos desde a última extração
-        self._live_state = {"action_items": [], "decisions": [], "open_questions": [],
-                            "resolved_questions": [], "plan": [], "tips": []}
+        self._live_state = {"action_items": [], "decisions": [], "questions": [],
+                            "plan": [], "tips": []}
 
         self._tick = QTimer(self)
         self._tick.setInterval(1000)
@@ -391,6 +435,48 @@ class TranscricoesView(QWidget):
         )
         return lst
 
+    def _build_questions_panel(self) -> QWidget:
+        """Painel de perguntas & respostas (cards), em vez de lista simples."""
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("QScrollArea { border: none; }")
+        self._questions_container = QWidget()
+        self._questions_layout = QVBoxLayout(self._questions_container)
+        self._questions_layout.setContentsMargins(6, 6, 6, 6)
+        self._questions_layout.setSpacing(8)
+        self._questions_empty = QLabel(t("As perguntas levantadas na reunião aparecerão aqui — com a resposta assim que forem respondidas."))
+        self._questions_empty.setWordWrap(True)
+        self._questions_empty.setObjectName("subtitle")
+        self._questions_layout.addWidget(self._questions_empty)
+        self._questions_layout.addStretch()
+        scroll.setWidget(self._questions_container)
+        return scroll
+
+    def _render_questions(self, questions: list):
+        """Redesenha os cards de perguntas a partir do estado."""
+        # limpa tudo menos o placeholder (idx 0) e o stretch (último)
+        while self._questions_layout.count() > 2:
+            item = self._questions_layout.takeAt(1)
+            w = item.widget()
+            if w:
+                w.setParent(None)  # remove da tela imediatamente
+                w.deleteLater()
+        theme = current_theme()
+        has_any = bool(questions)
+        self._questions_empty.setVisible(not has_any)
+        for i, q in enumerate(questions):
+            if isinstance(q, dict):
+                question = str(q.get("question") or "").strip()
+                answer = str(q.get("answer") or "").strip()
+                resolved = bool(q.get("resolved"))
+            else:  # tolera string simples (compatibilidade)
+                question, answer, resolved = str(q), "", False
+            if not question:
+                continue
+            card = _QACard(i, question, answer, resolved, theme)
+            card.toggled.connect(self._toggle_question_resolved)
+            self._questions_layout.insertWidget(self._questions_layout.count() - 1, card)
+
     def _build_live_box(self) -> QFrame:
         box = QFrame()
         box.setProperty("class", "card")
@@ -432,14 +518,11 @@ class TranscricoesView(QWidget):
         self.live_tips_list = self._make_live_list()
         self.live_actions_list = self._make_live_list()
         self.live_decisions_list = self._make_live_list()
-        self.live_questions_list = self._make_live_list()
-        self.live_questions_list.setToolTip(t("Dê um duplo-clique para alternar entre em aberto e resolvida."))
-        self.live_questions_list.itemDoubleClicked.connect(self._toggle_question_resolved)
         self.live_tabs.addTab(self.live_plan_list, "🗺 " + t("Plano"))
         self.live_tabs.addTab(self.live_tips_list, "💡 " + t("Dicas"))
         self.live_tabs.addTab(self.live_actions_list, "✅ " + t("Ações"))
         self.live_tabs.addTab(self.live_decisions_list, "📌 " + t("Decisões"))
-        self.live_tabs.addTab(self.live_questions_list, "❓ " + t("Perguntas"))
+        self.live_tabs.addTab(self._build_questions_panel(), "❓ " + t("Perguntas"))
         split.addWidget(self.live_tabs)
 
         # Prioriza as abas: transcrição menor, abas bem maiores
@@ -570,8 +653,7 @@ class TranscricoesView(QWidget):
         self._live_pending = ""
         self._live_secs_since = 0
         self._live_state = {
-            "action_items": [], "decisions": [], "open_questions": [],
-            "resolved_questions": [], "plan": [], "tips": [],
+            "action_items": [], "decisions": [], "questions": [], "plan": [], "tips": [],
         }
         self._live_context = self._meeting_context()
         self.live_transcript_edit.clear()
@@ -579,7 +661,7 @@ class TranscricoesView(QWidget):
         self.live_tips_list.clear()
         self.live_actions_list.clear()
         self.live_decisions_list.clear()
-        self.live_questions_list.clear()
+        self._render_questions([])
         self.ask_answer.setVisible(False)
         self.live_box.setVisible(True)
         # Dá o palco ao painel ao vivo: esconde transcrição estática e resumo
@@ -668,21 +750,11 @@ class TranscricoesView(QWidget):
         self.live_decisions_list.clear()
         for d in self._live_state.get("decisions", []):
             self.live_decisions_list.addItem(f"✓ {d}")
-        self.live_questions_list.clear()
-        opens = self._live_state.get("open_questions", [])
-        resolved = self._live_state.get("resolved_questions", [])
-        for q in opens:
-            it = QListWidgetItem(f"❓ {q}")
-            it.setData(Qt.UserRole, ("open", q))
-            self.live_questions_list.addItem(it)
-        for q in resolved:
-            it = QListWidgetItem(f"✅ {q}")
-            font = it.font()
-            font.setStrikeOut(True)
-            it.setFont(font)
-            it.setForeground(QColor(current_theme().text_muted))
-            it.setData(Qt.UserRole, ("resolved", q))
-            self.live_questions_list.addItem(it)
+        questions = self._live_state.get("questions", [])
+        self._render_questions(questions)
+        open_count = sum(
+            1 for q in questions
+            if not (q.get("resolved") if isinstance(q, dict) else False))
 
         def _tab(idx, label, n):
             self.live_tabs.setTabText(idx, t(label) + (f" ({n})" if n else ""))
@@ -691,29 +763,19 @@ class TranscricoesView(QWidget):
         _tab(1, "💡 Dicas", self.live_tips_list.count())
         _tab(2, "✅ Ações", self.live_actions_list.count())
         _tab(3, "📌 Decisões", self.live_decisions_list.count())
-        # Perguntas: conta só as em aberto (resolvidas aparecem riscadas)
-        _tab(4, "❓ Perguntas", len(opens))
+        # Perguntas: conta só as em aberto (as resolvidas mostram a resposta)
+        _tab(4, "❓ Perguntas", open_count)
 
-    def _toggle_question_resolved(self, item):
-        """Duplo-clique: alterna uma pergunta entre 'em aberto' e 'resolvida'."""
-        data = item.data(Qt.UserRole)
-        if not data:
+    def _toggle_question_resolved(self, index):
+        """Alterna a pergunta de índice `index` entre resolvida e em aberto."""
+        questions = self._live_state.get("questions", [])
+        if not (0 <= index < len(questions)):
             return
-        kind, q = data
-        opens = list(self._live_state.get("open_questions", []))
-        resolved = list(self._live_state.get("resolved_questions", []))
-        if kind == "open":
-            if q in opens:
-                opens.remove(q)
-            if q not in resolved:
-                resolved.append(q)
-        else:
-            if q in resolved:
-                resolved.remove(q)
-            if q not in opens:
-                opens.append(q)
-        self._live_state["open_questions"] = opens
-        self._live_state["resolved_questions"] = resolved
+        q = questions[index]
+        if isinstance(q, dict):
+            q["resolved"] = not q.get("resolved")
+        else:  # normaliza string para dict
+            questions[index] = {"question": str(q), "answer": "", "resolved": True}
         self._refresh_live_panels()
 
     def _ask_meeting(self):
@@ -950,7 +1012,7 @@ class TranscricoesView(QWidget):
         # itens (plano, dicas, ações, decisões, perguntas) a partir da transcrição
         # completa — a mesma extração do ao vivo.
         has_live = any(self._live_state.get(k) for k in
-                       ("plan", "tips", "action_items", "decisions", "open_questions"))
+                       ("plan", "tips", "action_items", "decisions", "questions"))
         if not has_live:
             self._start_analyze_extract(transcript)
 
@@ -1036,7 +1098,7 @@ class TranscricoesView(QWidget):
         summary_md = (self._current.get("markdown") or self.result_edit.toPlainText() or "").strip()
         has_live = any(self._live_state.get(k) for k in
                        ("plan", "tips", "action_items", "decisions",
-                        "open_questions", "resolved_questions"))
+                        "questions"))
         if not (has_live or transcript or summary_md):
             return None
         kind = self.kind_combo.currentData()

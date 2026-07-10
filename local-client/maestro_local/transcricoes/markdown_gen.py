@@ -90,15 +90,22 @@ def live_meeting_to_markdown(
         out.append("## 📌 Decisões")
         out += [f"- {d}" for d in decisions]
         out.append("")
-    questions = state.get("open_questions") or []
+    questions = state.get("questions") or []
     if questions:
-        out.append("## ❓ Perguntas em aberto")
-        out += [f"- {q}" for q in questions]
-        out.append("")
-    resolved = state.get("resolved_questions") or []
-    if resolved:
-        out.append("## ✅ Perguntas resolvidas")
-        out += [f"- [x] {q}" for q in resolved]
+        out.append("## ❓ Perguntas & respostas")
+        for q in questions:
+            if isinstance(q, dict):
+                text = str(q.get("question") or "").strip()
+                ans = str(q.get("answer") or "").strip()
+                resolved = bool(q.get("resolved"))
+            else:
+                text, ans, resolved = str(q), "", False
+            if not text:
+                continue
+            mark = "x" if resolved else " "
+            out.append(f"- [{mark}] **{text}**")
+            if ans:
+                out.append(f"  - _Resposta:_ {ans}")
         out.append("")
 
     if summary_md and summary_md.strip():

@@ -126,7 +126,7 @@ Gravação, transcrição e resumo de reuniões e estudos (migrado do projeto ws
 - **IA reusada**: a análise usa o provedor configurado em Provedores de IA (LM Studio/opencode)
 - **Reunião → board**: botão "Criar tarefas das ações" transforma os action items (do ao vivo ou do resumo) em tarefas (tipo CHORE, `requires_human`) no projeto escolhido
 - **Analisar também preenche as abas**: se você só gravou/transcreveu (sem o assistente ao vivo), clicar em **"Analisar com IA"** roda a mesma extração sobre a transcrição completa e preenche as abas de itens (plano, dicas, ações, decisões, perguntas) — não só o resumo em markdown
-- **Perguntas auto-resolvidas**: quando uma pergunta em aberto é respondida durante a reunião, o assistente a move para **resolvida** (riscada, fora da contagem de abertas); duplo-clique numa pergunta alterna manualmente
+- **Perguntas & respostas**: a aba de perguntas é um painel de **cards Q&A** (não uma lista simples) — o assistente preenche a resposta de cada pergunta em tempo real conforme elas são respondidas na reunião; o card mostra a pergunta e, abaixo, a resposta, com borda esquerda colorida (verde = resolvida, accent = em aberto). Duplo-clique no card alterna resolvida. O export inclui as respostas
 - **Exportar/Copiar (.md)**: salva ou copia um markdown único e estruturado com **todos os itens de todas as abas ao vivo** (plano, dicas, ações, decisões, perguntas em aberto + resolvidas) + o resumo da IA (se houver) + a transcrição — documento completo da reunião
 - **Redimensionável + mais espaçoso**: a divisão histórico/conteúdo é arrastável, e as abas ao vivo e as linhas dos itens ficaram maiores e com quebra de linha
 - **Histórico**: gravações salvas no banco do workspace, com busca por texto

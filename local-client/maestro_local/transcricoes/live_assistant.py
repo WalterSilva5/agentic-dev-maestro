@@ -23,12 +23,17 @@ class _LiveAction(BaseModel):
     assignee: str = ""
 
 
+class _LiveQuestion(BaseModel):
+    question: str = ""
+    answer: str = ""       # resposta dada durante a reunião (vazio = ainda em aberto)
+    resolved: bool = False  # True quando foi respondida/resolvida
+
+
 class LiveStateSchema(BaseModel):
     """Estado incremental da reunião ao vivo (para structured output)."""
     action_items: list[_LiveAction] = Field(default_factory=list)
     decisions: list[str] = Field(default_factory=list)
-    open_questions: list[str] = Field(default_factory=list)
-    resolved_questions: list[str] = Field(default_factory=list)
+    questions: list[_LiveQuestion] = Field(default_factory=list)
     plan: list[str] = Field(default_factory=list)
     tips: list[str] = Field(default_factory=list)
 
@@ -44,17 +49,17 @@ Responda SEMPRE apenas com JSON válido nesta estrutura:
 {
     "action_items": [{"description": "ação", "assignee": "responsável ou null"}],
     "decisions": ["decisão tomada"],
-    "open_questions": ["pergunta ainda em aberto"],
-    "resolved_questions": ["pergunta que já foi respondida durante a reunião"],
+    "questions": [{"question": "pergunta levantada", "answer": "resposta dada na reunião ou vazio", "resolved": true/false}],
     "plan": ["passo objetivo do plano de ação, em ordem de execução"],
     "tips": ["dica/observação proativa do assistente"]
 }
 
 Regras:
 - NUNCA remova action_items/decisions que já existiam, a não ser que o trecho novo os torne resolvidos.
-- Se uma pergunta que estava em "open_questions" for respondida durante a reunião, MOVA-A para
-  "resolved_questions" (mantendo o texto original da pergunta) — NÃO a apague. Uma pergunta nunca
-  deve estar nas duas listas ao mesmo tempo.
+- "questions": acumule as perguntas levantadas na reunião. NÃO remova perguntas que já existiam.
+  Quando uma pergunta for RESPONDIDA durante a reunião, preencha o campo "answer" com a resposta
+  (curta e objetiva) e marque "resolved": true — mantenha o texto original da pergunta. Enquanto
+  não houver resposta, "answer" fica vazio e "resolved": false.
 - "plan": derive um plano de ação prático do que foi discutido/decidido (5 a 8 passos no máximo);
   refine-o a cada trecho novo em vez de recomeçar. Se houver contexto de projeto, alinhe os passos a ele.
 - "tips": sugestões proativas do copiloto — riscos, pontos esquecidos, boas práticas, dependências,
@@ -92,8 +97,7 @@ Responda de forma objetiva."""
 EMPTY_STATE = {
     "action_items": [],
     "decisions": [],
-    "open_questions": [],
-    "resolved_questions": [],
+    "questions": [],
     "plan": [],
     "tips": [],
 }
@@ -136,15 +140,8 @@ class LiveExtractWorker(QThread):
                 return
             merged = {
                 key: parsed.get(key, self.state.get(key, []))
-                for key in ("action_items", "decisions", "open_questions",
-                            "resolved_questions", "plan", "tips")
+                for key in ("action_items", "decisions", "questions", "plan", "tips")
             }
-            # Garante que uma pergunta resolvida não continue aparecendo como aberta.
-            resolved = {str(q).strip().lower() for q in merged.get("resolved_questions", [])}
-            merged["open_questions"] = [
-                q for q in merged.get("open_questions", [])
-                if str(q).strip().lower() not in resolved
-            ]
             self.done.emit(merged)
         except Exception as e:  # noqa: BLE001
             logger.warning("Live extract falhou: %s", e)
