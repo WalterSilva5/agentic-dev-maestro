@@ -10,6 +10,8 @@ from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
     QComboBox,
+    QDialog,
+    QDialogButtonBox,
     QFileDialog,
     QFrame,
     QHBoxLayout,
@@ -223,9 +225,19 @@ class TranscricoesView(QWidget):
         right.setContentsMargins(8, 0, 0, 0)
         right.setSpacing(10)
 
+        title_row = QHBoxLayout()
         title = QLabel(t("Reuniões"))
         title.setObjectName("sectionTitle")
-        right.addWidget(title)
+        title_row.addWidget(title)
+        title_row.addStretch()
+        self.tips_btn = QPushButton(t("💡 Dicas"))
+        self.tips_btn.setProperty("flat", "true")
+        self.tips_btn.setFixedHeight(32)
+        self.tips_btn.setCursor(Qt.PointingHandCursor)
+        self.tips_btn.setToolTip(t("Como aproveitar melhor as reuniões"))
+        self.tips_btn.clicked.connect(self._show_tips)
+        title_row.addWidget(self.tips_btn)
+        right.addLayout(title_row)
 
         subtitle = QLabel(
             t("Grave reuniões e estudos, transcreva localmente com Whisper e gere "
@@ -1074,6 +1086,56 @@ class TranscricoesView(QWidget):
         """Atualiza o contexto do copiloto ao vivo quando o usuário anexa/remove itens."""
         if self._live_transcriber is not None:
             self._live_context = self._meeting_context()
+
+    # ---------------------------- Dicas -------------------------------
+    def _show_tips(self):
+        """Modal com dicas de uso para tirar mais proveito das reuniões."""
+        dlg = QDialog(self)
+        dlg.setWindowTitle(t("Dicas para reuniões"))
+        dlg.setMinimumSize(560, 540)
+        lay = QVBoxLayout(dlg)
+        head = QLabel(t("💡 Como aproveitar melhor as reuniões"))
+        head.setObjectName("sectionTitle")
+        lay.addWidget(head)
+        tips = [
+            (t("Prepare antes de começar"),
+             t("Use a seção 🧭 Preparação para escrever a pauta, os objetivos e os "
+               "participantes, e anexe contexto (arquivos, PDFs, imagens ou uma captura "
+               "de tela). Assim o assistente já inicia sabendo do que se trata.")),
+            (t("Escolha as fontes de áudio"),
+             t("Selecione o Microfone e o Áudio do sistema (monitor) para capturar tanto "
+               "você quanto os outros participantes. O áudio do sistema padrão já vem "
+               "selecionado quando há um disponível.")),
+            (t("Ligue o Assistente ao vivo"),
+             t("Marque 'Assistente ao vivo' para transcrever e extrair ações, decisões, "
+               "plano e perguntas em tempo real. Pode ligar/desligar a qualquer momento, "
+               "inclusive no meio da reunião.")),
+            (t("Confirme o destino"),
+             t("Verifique o Workspace e o Projeto no rodapé antes de gravar — é para onde "
+               "a reunião e as tarefas geradas vão. Dá para trocar a qualquer momento.")),
+            (t("Pergunte durante a reunião"),
+             t("Use o campo 'Perguntar à reunião' para tirar dúvidas com base na "
+               "transcrição e no contexto anexado, sem interromper a captura.")),
+            (t("Transforme em tarefas"),
+             t("Ao final, use 'Criar tarefas das ações' para enviar as ações ao board, "
+               "'Salvar no Meu Dia' para o registro do dia e 'Exportar/Copiar (.md)' para "
+               "um documento único.")),
+            (t("Precisa de IA?"),
+             t("A transcrição funciona offline (Whisper). Já o copiloto, as perguntas e a "
+               "leitura de imagens/telas exigem um provedor de IA configurado em "
+               "Configurações (imagens exigem um modelo com visão).")),
+        ]
+        body = QTextEdit()
+        body.setReadOnly(True)
+        body.setHtml("".join(
+            f"<p style='margin:0 0 12px 0'><b>{ti}</b><br>{bo}</p>" for ti, bo in tips
+        ))
+        lay.addWidget(body, 1)
+        btns = QDialogButtonBox(QDialogButtonBox.Close)
+        btns.rejected.connect(dlg.reject)
+        btns.accepted.connect(dlg.accept)
+        lay.addWidget(btns)
+        dlg.exec()
 
     def _meeting_context(self) -> str:
         """Monta o contexto do workspace + projeto selecionado para o copiloto.
