@@ -258,6 +258,16 @@ class TranscricoesView(QWidget):
         title.setObjectName("sectionTitle")
         title_row.addWidget(title)
         title_row.addStretch()
+        self.import_btn = QPushButton(t("📄 Importar arquivo"))
+        self.import_btn.setProperty("flat", "true")
+        self.import_btn.setFixedHeight(32)
+        self.import_btn.setCursor(Qt.PointingHandCursor)
+        self.import_btn.setToolTip(
+            t("Cria uma reunião a partir de uma transcrição externa (Meet, Teams, "
+              "arquivo de texto/VTT/SRT/PDF/DOCX) e roda a mesma análise (plano, "
+              "ações, decisões, perguntas)."))
+        self.import_btn.clicked.connect(self._import_meeting_from_file)
+        title_row.addWidget(self.import_btn)
         self.tips_btn = QPushButton(t("💡 Dicas"))
         self.tips_btn.setProperty("flat", "true")
         self.tips_btn.setFixedHeight(32)
@@ -1477,6 +1487,81 @@ class TranscricoesView(QWidget):
     def _on_transcribe_error(self, err):
         self.progress.setVisible(False)
         self.status_label.setText(t("Erro na transcrição: {error}").format(error=err))
+
+    # ------------------------- Importar de arquivo -------------------------
+    @staticmethod
+    def _clean_subtitle(text: str) -> str:
+        """Remove cabeçalho/índices/timestamps de legendas (VTT/SRT) exportadas."""
+        out = []
+        for line in (text or "").splitlines():
+            s = line.strip()
+            if not s or s.upper() == "WEBVTT":
+                continue
+            if s.isdigit():          # índice de cue (SRT)
+                continue
+            if "-->" in s:           # linha de tempo (00:00:01 --> 00:00:04)
+                continue
+            out.append(s)
+        return "\n".join(out)
+
+    def _import_meeting_from_file(self):
+        """Cria uma reunião a partir de transcrição(ões) externa(s) e roda a análise."""
+        exts = "*.txt *.md *.vtt *.srt *.log *.json *.csv *.pdf *.docx *.epub"
+        paths, _ = QFileDialog.getOpenFileNames(
+            self, t("Importar reunião de arquivo(s)"), "",
+            t("Transcrições (texto, VTT/SRT, PDF, DOCX…)") + f" ({exts});;"
+            + t("Todos os arquivos") + " (*)")
+        if not paths:
+            return
+        from maestro_local.study.ingest import extract_text
+        parts = []
+        for p in paths:
+            pth = Path(p)
+            try:
+                data = pth.read_bytes()
+            except Exception as e:  # noqa: BLE001
+                self.status_label.setText(t("Erro ao ler arquivo: {error}").format(error=e))
+                return
+            text = extract_text(data, pth.name)
+            if pth.suffix.lower() in (".vtt", ".srt"):
+                text = self._clean_subtitle(text)
+            text = (text or "").strip()
+            if not text:
+                continue
+            parts.append(f"### {pth.name}\n{text}" if len(paths) > 1 else text)
+        transcript = "\n\n".join(parts).strip()
+        if not transcript:
+            self.status_label.setText(t("Não foi possível extrair texto dos arquivos."))
+            return
+
+        # Nova reunião a partir do import (estado limpo, novo registro).
+        idx = self.kind_combo.findData("meeting")
+        if idx >= 0:
+            self.kind_combo.setCurrentIndex(idx)
+        self._current = {"transcript": transcript, "duration": 0.0, "language": "",
+                         "audio_path": "", "rec_id": None, "title": ""}
+        self._live_transcript = transcript
+        self._live_pending = ""
+        self._live_state = {"action_items": [], "decisions": [], "questions": [],
+                            "plan": [], "tips": []}
+        self._refresh_live_panels()
+        self._render_questions([])
+        self.live_box.setVisible(False)
+        self.live_transcript_edit.clear()
+        self.transcript_label.setVisible(True)
+        self.transcript_edit.setVisible(True)
+        self.transcript_edit.setPlainText(transcript)
+        self.result_edit.clear()
+        self.result_edit.setVisible(False)
+        self._persist_recording()   # já aparece no histórico com a transcrição importada
+        self._load_history()
+
+        if self._provider_ready():
+            self.status_label.setText(t("Arquivo importado. Gerando análise..."))
+            self._analyze()          # resumo + plano/dicas/ações/decisões/perguntas
+        else:
+            self.status_label.setText(
+                t("Arquivo importado como reunião. Configure um provedor de IA para gerar a análise."))
 
     # ------------------------- Análise IA -------------------------
     def _analyze(self):
