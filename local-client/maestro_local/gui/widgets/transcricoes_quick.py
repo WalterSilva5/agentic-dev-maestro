@@ -26,8 +26,9 @@ class TranscricoesQuickWidget(QFrame):
         self._title = QLabel(_t("Reuniões"))
         title_row.addWidget(self._title)
         title_row.addStretch()
-        self._open_btn = QPushButton(_t("abrir"))
+        self._open_btn = QPushButton("↗  " + _t("Abrir"))
         self._open_btn.setCursor(Qt.PointingHandCursor)
+        self._open_btn.setFixedHeight(24)
         self._open_btn.clicked.connect(self.open_requested.emit)
         title_row.addWidget(self._open_btn)
         outer.addLayout(title_row)
@@ -78,7 +79,10 @@ class TranscricoesQuickWidget(QFrame):
         )
         self._icon.setStyleSheet("background: transparent; border: none;")
         self._open_btn.setStyleSheet(
-            f"color: {t.text_muted}; font-size: 10px; background: transparent; border: none;"
+            f"QPushButton {{ color: {t.text_on_accent}; background: {t.accent}; "
+            f"border: 1px solid {t.accent_pressed}; border-radius: 6px; "
+            f"font-size: 11px; font-weight: 700; padding: 2px 12px; }} "
+            f"QPushButton:hover {{ background: {t.accent_hover}; }}"
         )
         self._time_label.setStyleSheet(
             f"color: {t.text_primary}; font-size: 22px; font-weight: 700; "

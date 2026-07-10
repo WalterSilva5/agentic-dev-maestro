@@ -6,6 +6,7 @@ CATALOG = {
   "Pausar": "Pause",
   "Transcrições": "Transcriptions",
   "Reuniões": "Meetings",
+  "● Gravar e transcrever": "● Record & transcribe",
   "Senhas": "Passwords",
   "Travar": "Lock",
   "Destravar": "Unlock",

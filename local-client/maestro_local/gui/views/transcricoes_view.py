@@ -217,7 +217,7 @@ class TranscricoesView(QWidget):
 
         row4 = QHBoxLayout()
         row4.setSpacing(8)
-        self.record_btn = QPushButton(t("● Gravar"))
+        self.record_btn = QPushButton(t("● Gravar e transcrever"))
         self.record_btn.setFixedHeight(34)
         self.record_btn.setCursor(Qt.PointingHandCursor)
         self.record_btn.clicked.connect(self._toggle_record)
@@ -519,7 +519,7 @@ class TranscricoesView(QWidget):
 
     def _stop_record(self):
         self._tick.stop()
-        self.record_btn.setText(t("● Gravar"))
+        self.record_btn.setText(t("● Gravar e transcrever"))
         self._stop_live()
         if not self._session:
             return
