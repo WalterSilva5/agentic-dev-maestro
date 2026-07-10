@@ -383,6 +383,7 @@ class TranscricoesView(QWidget):
         # ---- Painel do assistente ao vivo (visível só durante gravação ao vivo) ----
         self.live_box = self._build_live_box()
         self.live_box.setVisible(False)
+        self.live_box.setMinimumHeight(460)
         right.addWidget(self.live_box, 6)
 
         # Progresso de transcrição
@@ -462,7 +463,16 @@ class TranscricoesView(QWidget):
         self.result_edit.setVisible(False)
         right.addWidget(self.result_edit, 1)
 
-        self._main_split.addWidget(right_widget)
+        # A coluna direita rola quando o conteúdo (controles + painel ao vivo)
+        # não cabe na altura da janela — evita widgets sobrepostos.
+        right_scroll = QScrollArea()
+        right_scroll.setWidgetResizable(True)
+        right_scroll.setFrameShape(QFrame.NoFrame)
+        right_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        right_scroll.setWidget(right_widget)
+        right_widget.setMinimumWidth(420)
+
+        self._main_split.addWidget(right_scroll)
         self._main_split.setStretchFactor(0, 0)
         self._main_split.setStretchFactor(1, 1)
         self._main_split.setSizes([260, 900])
