@@ -162,6 +162,19 @@ The application opens with:
 ./run.sh --port 8888
 ```
 
+### Desktop shell (experimental — web route)
+
+First step of the front-end migration to the web route (see
+[docs/planos/migracao-frontend-responsivo.md](docs/planos/migracao-frontend-responsivo.md)):
+run the responsive React web UI in a native window via pywebview, backed by the
+same local API/daemon. The Qt GUI stays the default; this is opt-in.
+
+```bash
+cd local-client
+pip install -e '.[shell]'   # installs pywebview
+maestro-shell               # or: python -m maestro_local.desktop_shell [--port 9777]
+```
+
 ## REST API for agents
 
 The API runs at `http://127.0.0.1:9777/api` without authentication. Main endpoints:

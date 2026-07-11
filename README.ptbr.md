@@ -162,6 +162,19 @@ A aplicação abre com:
 ./run.sh --port 8888
 ```
 
+### Shell de desktop (experimental — rota web)
+
+Primeiro passo da migração de front-end para a rota web (ver
+[docs/planos/migracao-frontend-responsivo.ptbr.md](docs/planos/migracao-frontend-responsivo.ptbr.md)):
+roda a web UI React responsiva numa janela nativa via pywebview, servida pela
+mesma API/daemon local. A GUI Qt continua sendo o padrão; isto é opt-in.
+
+```bash
+cd local-client
+pip install -e '.[shell]'   # instala o pywebview
+maestro-shell               # ou: python -m maestro_local.desktop_shell [--port 9777]
+```
+
 ## API REST para agentes
 
 A API roda em `http://127.0.0.1:9777/api` sem autenticação. Endpoints principais:

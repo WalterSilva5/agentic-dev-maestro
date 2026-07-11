@@ -116,7 +116,18 @@ This resolves the immediate symptoms. `FlowLayout` and the breakpoint pattern ar
 - **Cost of maintaining two fronts** during the transition (Qt + web): mitigated by
   migrating **one screen at a time** and keeping the API as the single source of truth.
 
-## 8. Pending decision (leadership)
+## 8. Decision (made)
 
-- [ ] Approve the direction: **web (C+D)** vs **Flutter (B)** vs **Qt-only (A)**.
-- [ ] If web: pick the shell (**pywebview** recommended) for Phase 3.
+- [x] **Approved direction: web (C+D)** — reuse the existing React web UI + a Python
+  daemon for capture/Whisper/AI (over WebSocket) wrapped in a desktop shell.
+- [x] Shell chosen: **pywebview** (pure Python, fits the current backend).
+
+### Execution
+
+- **E1 — pywebview shell** (Phase 3 first, lowest risk): wrap the React web UI already
+  served by the API in a native window (`maestro_local/desktop_shell.py`), with a
+  fallback to the current Qt GUI. Proves the web route without touching meetings.
+- **E2 — Live streaming (Phase 1)**: move capture + Whisper + live state into a service
+  in the API process and expose it over WebSocket.
+- **E3 — Meetings in the web UI (Phase 2)**: rebuild the screen in React consuming E2.
+- **E4 — Parity and gradual Qt retirement (Phase 4)**.

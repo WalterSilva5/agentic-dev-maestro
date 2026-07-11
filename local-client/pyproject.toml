@@ -28,8 +28,14 @@ dependencies = [
     "pykeepass>=4.0",
 ]
 
+[project.optional-dependencies]
+# Shell de desktop que renderiza a web UI React numa janela nativa
+# (migração para a rota web — ver docs/planos/migracao-frontend-responsivo).
+shell = ["pywebview>=5.0"]
+
 [project.scripts]
 maestro = "maestro_local.__main__:main"
+maestro-shell = "maestro_local.desktop_shell:main"
 
 [tool.setuptools.packages.find]
 include = ["maestro_local*"]
