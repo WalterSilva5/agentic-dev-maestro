@@ -86,7 +86,7 @@ Board com drag-and-drop, colunas customizáveis por projeto, filtros por tipo/pr
 ### Assistente
 Assistente de IA interno que roda com seu próprio provedor (LM Studio local, opencode ou qualquer API compatível com OpenAI). Ele lê o board, sugere prioridades, solicita revisões de tarefas, cria TODOs e comenta tarefas — tudo dentro da aplicação. Construído com LangGraph e ferramentas internas. Configurável em Configurações → Provedores de IA.
 
-**Coach proativo:** ao longo do dia o agente exibe dicas curtas e acionáveis com base no seu board e TODOs (foco, organização, risco ou uma pausa saudável) num card não intrusivo. Ele também reage a sinais reais — tarefas paradas (3+ dias sem alteração), WIP alto, TODOs vencidos — cutucando na hora (com cooldown) em vez de só por tempo. Opt-in e configurável em Configurações → Coach proativo (intervalo); também disponível via `GET /api/coach/tip`.
+**Coach proativo:** ao longo do dia o agente exibe dicas curtas e acionáveis com base no seu board e TODOs (foco, organização, risco ou uma pausa saudável) num card não intrusivo (desktop **e** web UI). Ele também reage a sinais reais — tarefas paradas (3+ dias sem alteração), WIP alto, TODOs vencidos — cutucando na hora (com cooldown) em vez de só por tempo. Opt-in e configurável em Configurações → Coach proativo (intervalo); também disponível via `GET /api/coach/tip`.
 
 ### Transcrições (Reuniões)
 Grava reuniões e sessões de estudo (microfone e/ou áudio do sistema via PipeWire/PulseAudio), transcreve localmente com faster-whisper e gera resumos estruturados com IA — reuniões viram pontos-chave/decisões/ações; estudos viram conceitos/exercícios/tópicos relacionados. Recursos específicos de reunião:

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getSettings, updateSettings } from '../api'
+import { getCoachConfig, getSettings, putCoachConfig, updateSettings } from '../api'
 import { t } from '../i18n'
 
 export default function Configuracoes() {
@@ -7,6 +7,7 @@ export default function Configuracoes() {
   const [error, setError] = useState('')
   const [saved, setSaved] = useState('')
   const [selectedProviderId, setSelectedProviderId] = useState('')
+  const [coach, setCoach] = useState(null)
 
   useEffect(() => {
     getSettings()
@@ -15,7 +16,20 @@ export default function Configuracoes() {
         setSelectedProviderId(s.activeProviderId)
       })
       .catch((e) => setError(e?.message || t('Erro ao carregar configurações')))
+    getCoachConfig()
+      .then(setCoach)
+      .catch(() => setCoach({ enabled: true, interval_min: 90 }))
   }, [])
+
+  const saveCoach = async (patch) => {
+    try {
+      const updated = await putCoachConfig({ ...coach, ...patch })
+      setCoach(updated)
+      flash(t('Configuração salva'))
+    } catch (e) {
+      setError(e?.message || t('Erro ao salvar configurações'))
+    }
+  }
 
   const flash = (msg) => {
     setSaved(msg)
@@ -159,6 +173,35 @@ export default function Configuracoes() {
           </select>
         </div>
       </div>
+
+      {coach && (
+        <div className="card">
+          <h4 style={{ color: 'var(--muted)' }}>💡 {t('Coach proativo')}</h4>
+          <p className="muted" style={{ marginTop: 0 }}>
+            {t('O agente dá dicas curtas e acionáveis ao longo do dia, com base no seu board e TODOs. Requer um provedor de IA ativo.')}
+          </p>
+          <label className="row" style={{ gap: 8, alignItems: 'center' }}>
+            <input
+              type="checkbox"
+              checked={coach.enabled !== false}
+              onChange={(e) => saveCoach({ enabled: e.target.checked })}
+            />
+            {t('Ativar dicas proativas do agente')}
+          </label>
+          <div className="row" style={{ gap: 8, alignItems: 'center', marginTop: 8 }}>
+            <span>{t('Intervalo (minutos):')}</span>
+            <input
+              type="number"
+              min="15"
+              max="480"
+              style={{ width: 90 }}
+              value={coach.interval_min || 90}
+              onChange={(e) => setCoach({ ...coach, interval_min: Number(e.target.value) })}
+              onBlur={(e) => saveCoach({ interval_min: Number(e.target.value) })}
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

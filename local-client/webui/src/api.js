@@ -141,6 +141,11 @@ export const getApiHistory = (params = {}) => api.get('/http-requests/history', 
 // Digest proativo (standup)
 export const getDigest = (days = 1) => api.get('/digest', { params: { days } }).then((r) => r.data)
 
+// Coach proativo (dicas do agente ao longo do dia)
+export const getCoachTip = () => api.get('/coach/tip').then((r) => r.data)
+export const getCoachConfig = () => api.get('/coach/config').then((r) => r.data)
+export const putCoachConfig = (body) => api.put('/coach/config', body).then((r) => r.data)
+
 // Tradutor
 export const translateText = (body) => api.post('/translate', body).then((r) => r.data)
 

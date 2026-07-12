@@ -2929,6 +2929,24 @@ def get_coach_tip(s: Session = Depends(db)):
         raise HTTPException(status_code=400, detail=str(e))
 
 
+class CoachConfigUpdate(BaseModel):
+    enabled: bool | None = None
+    interval_min: int | None = None
+
+
+@app.get("/api/coach/config")
+def get_coach_cfg():
+    from maestro_local.config import get_coach_config
+    return get_coach_config()
+
+
+@app.put("/api/coach/config")
+def put_coach_cfg(body: CoachConfigUpdate):
+    from maestro_local.config import get_coach_config, set_coach_config
+    set_coach_config(enabled=body.enabled, interval_min=body.interval_min)
+    return get_coach_config()
+
+
 # ---------------------------------------------------------------------------
 # Time tracking / timesheet
 # ---------------------------------------------------------------------------

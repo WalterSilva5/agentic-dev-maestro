@@ -17,6 +17,7 @@ import Traducao from './pages/Traducao.jsx'
 import Configuracoes from './pages/Configuracoes.jsx'
 import WorkspaceSelector from './components/WorkspaceSelector.jsx'
 import PendingTodosReminder from './components/PendingTodosReminder.jsx'
+import CoachTip from './components/CoachTip.jsx'
 import { getPendingTodos } from './api'
 import { getTheme, toggleTheme } from './theme'
 import { t } from './i18n'
@@ -106,6 +107,7 @@ export default function App() {
         </Routes>
       </main>
       <PendingTodosReminder />
+      <CoachTip />
     </div>
   )
 }
