@@ -375,9 +375,14 @@ class MainWindow(QMainWindow):
         self.coach_tip = CoachTip(self, lambda: self._open_key("chat"))
         self._coach_worker = None
         self._recent_tips: list[str] = []
+        self._last_coach_monotonic = 0.0
         self._coach_timer = QTimer(self)
         self._coach_timer.timeout.connect(self._maybe_coach_tip)
         self._setup_coach_timer()
+        # Gatilho por evento: aproveita o timer de TODOs (1 min) para reagir a
+        # sinais fortes (tarefas paradas, WIP alto, TODOs vencidos) sem esperar
+        # o ciclo periódico — com cooldown para não ser intrusivo.
+        self._todo_timer.timeout.connect(self._check_coach_signals)
 
         self._apply_theme()
 
@@ -393,6 +398,8 @@ class MainWindow(QMainWindow):
             QTimer.singleShot(90000, self._maybe_coach_tip)
 
     def _maybe_coach_tip(self):
+        import time
+
         from maestro_local.config import get_active_ai_provider, get_coach_config
         if not get_coach_config().get("enabled"):
             return
@@ -401,12 +408,37 @@ class MainWindow(QMainWindow):
         if not get_active_ai_provider():
             return
         from maestro_local.gui.coach_widget import CoachWorker
+        # Marca o disparo (cooldown do gatilho por evento conta a partir daqui).
+        self._last_coach_monotonic = time.monotonic()
         w = CoachWorker(self._recent_tips[-5:], self)
         w.done.connect(self._on_coach_tip)
         w.failed.connect(lambda *_: setattr(self, "_coach_worker", None))
         w.finished.connect(lambda: setattr(self, "_coach_worker", None))
         self._coach_worker = w
         w.start()
+
+    def _check_coach_signals(self):
+        """Dispara uma dica na hora se houver sinal forte (tarefa parada, WIP
+        alto, TODO vencido), respeitando um cooldown para não ser intrusivo."""
+        import time
+
+        from maestro_local.config import get_active_ai_provider, get_coach_config
+        cfg = get_coach_config()
+        if not cfg.get("enabled") or self._coach_worker is not None:
+            return
+        if not get_active_ai_provider():
+            return
+        cooldown = max(15, int(cfg.get("interval_min", 90)) // 2) * 60
+        if time.monotonic() - self._last_coach_monotonic < cooldown:
+            return
+        from maestro_local import coach
+        s = get_session()
+        try:
+            strong = coach.has_strong_signal(s)
+        finally:
+            s.close()
+        if strong:
+            self._maybe_coach_tip()
 
     def _on_coach_tip(self, data: dict):
         self._coach_worker = None

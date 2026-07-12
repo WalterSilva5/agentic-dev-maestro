@@ -86,7 +86,7 @@ Board with drag-and-drop, columns customizable per project, filters by type/prio
 ### Assistant
 Internal AI assistant that runs with your own provider (local LM Studio, opencode, or any OpenAI-compatible API). It reads the board, suggests priorities, requests task reviews, creates TODOs, and comments on tasks — all within the application. Built with LangGraph and internal tools. Configurable under Settings → AI Providers.
 
-**Proactive coach:** throughout the day the agent surfaces short, actionable tips based on your board and TODOs (focus, organization, risk, or a healthy break) in a non-intrusive card. Opt-in and configurable under Settings → Proactive coach (interval); also available via `GET /api/coach/tip`.
+**Proactive coach:** throughout the day the agent surfaces short, actionable tips based on your board and TODOs (focus, organization, risk, or a healthy break) in a non-intrusive card. It also reacts to real signals — stuck tasks (idle 3+ days), high WIP, overdue TODOs — nudging on the spot (with a cooldown) instead of only on a timer. Opt-in and configurable under Settings → Proactive coach (interval); also available via `GET /api/coach/tip`.
 
 ### Transcriptions (Meetings)
 Records meetings and study sessions (microphone and/or system audio via PipeWire/PulseAudio), transcribes locally with faster-whisper, and generates structured summaries with AI — meetings become key points/decisions/action items; study sessions become concepts/exercises/related topics. Meeting-specific capabilities:
