@@ -274,6 +274,7 @@ class MainWindow(QMainWindow):
         self.guide_view = GuideView()
         self.settings_view = SettingsView()
         self.settings_view.notification_changed.connect(self._setup_notification_timer)
+        self.settings_view.notification_changed.connect(self._setup_coach_timer)
         self.settings_view.ai_provider_changed.connect(self.chat_view.refresh)
 
         self.stack.addWidget(self.dashboard_view)
@@ -369,7 +370,51 @@ class MainWindow(QMainWindow):
         self._todo_timer.start()
         QTimer.singleShot(4000, self._check_todo_reminders)
 
+        # Coach proativo: dicas do agente ao longo do dia (opt-in em Configurações)
+        from maestro_local.gui.coach_widget import CoachTip
+        self.coach_tip = CoachTip(self, lambda: self._open_key("chat"))
+        self._coach_worker = None
+        self._recent_tips: list[str] = []
+        self._coach_timer = QTimer(self)
+        self._coach_timer.timeout.connect(self._maybe_coach_tip)
+        self._setup_coach_timer()
+
         self._apply_theme()
+
+    # ---- Coach proativo ----
+    def _setup_coach_timer(self):
+        from maestro_local.config import get_coach_config
+        cfg = get_coach_config()
+        self._coach_timer.stop()
+        if cfg.get("enabled"):
+            self._coach_timer.setInterval(max(15, cfg.get("interval_min", 90)) * 60000)
+            self._coach_timer.start()
+            # Primeira dica pouco depois de abrir (não logo no boot).
+            QTimer.singleShot(90000, self._maybe_coach_tip)
+
+    def _maybe_coach_tip(self):
+        from maestro_local.config import get_active_ai_provider, get_coach_config
+        if not get_coach_config().get("enabled"):
+            return
+        if self._coach_worker is not None:
+            return
+        if not get_active_ai_provider():
+            return
+        from maestro_local.gui.coach_widget import CoachWorker
+        w = CoachWorker(self._recent_tips[-5:], self)
+        w.done.connect(self._on_coach_tip)
+        w.failed.connect(lambda *_: setattr(self, "_coach_worker", None))
+        w.finished.connect(lambda: setattr(self, "_coach_worker", None))
+        self._coach_worker = w
+        w.start()
+
+    def _on_coach_tip(self, data: dict):
+        self._coach_worker = None
+        tip = (data or {}).get("tip", "").strip()
+        if not tip:
+            return
+        self._recent_tips.append(tip)
+        self.coach_tip.show_tip(tip, (data or {}).get("category", ""))
 
     # ---- Lembretes de TODOs ----
     def _check_todo_reminders(self):
@@ -721,3 +766,5 @@ class MainWindow(QMainWindow):
                 self.width() - self.toast.width() - 20,
                 self.height() - 60,
             )
+        if getattr(self, "coach_tip", None) is not None and self.coach_tip.isVisible():
+            self.coach_tip.reposition()

@@ -72,6 +72,7 @@ class SettingsView(QWidget):
         self._build_ai_section()
         self._build_transcricoes_section()
         self._build_pomodoro_section()
+        self._build_coach_section()
         self._build_notification_section()
         self._build_startup_section()
 
@@ -407,6 +408,33 @@ class SettingsView(QWidget):
             self.startup_check.setChecked(autostart.is_enabled())
             self.startup_check.blockSignals(False)
 
+    def _build_coach_section(self):
+        card, layout = self._make_card("💡", t("Coach proativo"))
+
+        desc = QLabel(
+            t("O agente dá dicas curtas e acionáveis ao longo do dia, com base no seu "
+              "board e TODOs, num card não intrusivo. Requer um provedor de IA ativo.")
+        )
+        desc.setWordWrap(True)
+        desc.setProperty("class", "hint")
+        layout.addWidget(desc)
+
+        self.coach_enabled = QCheckBox(t("Ativar dicas proativas do agente"))
+        self.coach_enabled.toggled.connect(self._save_settings)
+        layout.addWidget(self.coach_enabled)
+
+        interval_row = QHBoxLayout()
+        interval_row.setSpacing(8)
+        interval_row.addWidget(QLabel(t("Intervalo (minutos):")))
+        self.coach_interval = QSpinBox()
+        self.coach_interval.setRange(15, 480)
+        self.coach_interval.setValue(90)
+        self.coach_interval.setFixedWidth(80)
+        self.coach_interval.valueChanged.connect(self._save_settings)
+        interval_row.addWidget(self.coach_interval)
+        interval_row.addStretch()
+        layout.addLayout(interval_row)
+
     def _build_notification_section(self):
         card, layout = self._make_card("🔔", t("Notificações push"))
 
@@ -468,6 +496,10 @@ class SettingsView(QWidget):
 
         self.pomodoro_duration.setValue(settings.get("pomodoro_minutes", 25))
 
+        coach = settings.get("coach", {})
+        self.coach_enabled.setChecked(coach.get("enabled", True))
+        self.coach_interval.setValue(int(coach.get("interval_min", 90)))
+
         notif = settings.get("notifications", {})
         self.notif_enabled.setChecked(notif.get("enabled", False))
         self.notif_interval.setValue(notif.get("interval_minutes", 30))
@@ -492,6 +524,10 @@ class SettingsView(QWidget):
         cfg = load_config()
         cfg["settings"] = {
             "pomodoro_minutes": self.pomodoro_duration.value(),
+            "coach": {
+                "enabled": self.coach_enabled.isChecked(),
+                "interval_min": self.coach_interval.value(),
+            },
             "notifications": {
                 "enabled": self.notif_enabled.isChecked(),
                 "interval_minutes": self.notif_interval.value(),

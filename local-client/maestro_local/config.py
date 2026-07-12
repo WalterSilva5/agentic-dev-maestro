@@ -23,6 +23,32 @@ def save_config(cfg: dict):
 
 
 # ---------------------------------------------------------------------------
+# Coach proativo (dicas do agente ao longo do dia)
+# ---------------------------------------------------------------------------
+
+_COACH_DEFAULTS = {"enabled": True, "interval_min": 90}
+
+
+def get_coach_config() -> dict:
+    cfg = load_config().get("settings", {}).get("coach", {})
+    return {
+        "enabled": bool(cfg.get("enabled", _COACH_DEFAULTS["enabled"])),
+        "interval_min": int(cfg.get("interval_min", _COACH_DEFAULTS["interval_min"])),
+    }
+
+
+def set_coach_config(enabled: bool | None = None, interval_min: int | None = None):
+    cfg = load_config()
+    settings = cfg.setdefault("settings", {})
+    coach = settings.setdefault("coach", {})
+    if enabled is not None:
+        coach["enabled"] = bool(enabled)
+    if interval_min is not None:
+        coach["interval_min"] = max(15, int(interval_min))  # nunca menos que 15 min
+    save_config(cfg)
+
+
+# ---------------------------------------------------------------------------
 # Workspace helpers
 # ---------------------------------------------------------------------------
 

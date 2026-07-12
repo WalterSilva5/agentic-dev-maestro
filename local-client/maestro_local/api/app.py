@@ -2912,6 +2912,23 @@ def get_digest(days: int = 1, s: Session = Depends(db)):
     return result
 
 
+@app.get("/api/coach/tip")
+def get_coach_tip(s: Session = Depends(db)):
+    """Uma dica proativa curta a partir do estado atual do trabalho.
+
+    Retorna {"tip": ""} quando não há provedor de IA configurado.
+    """
+    from maestro_local.coach import build_context, generate_tip
+    from maestro_local.config import get_active_ai_provider
+
+    if not get_active_ai_provider():
+        return {"tip": "", "category": ""}
+    try:
+        return generate_tip(build_context(s))
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 # ---------------------------------------------------------------------------
 # Time tracking / timesheet
 # ---------------------------------------------------------------------------
