@@ -180,6 +180,9 @@ class TranscricoesView(QWidget):
         self._analyzer = None
         self._elapsed = 0
         self._current = {"transcript": "", "duration": 0.0, "language": "", "audio_path": ""}
+        # Visualização do resumo Markdown: fonte editável x preview renderizado.
+        self._md_preview = False
+        self._md_source = ""
         # Contexto extra da reunião (arquivos/imagens/tela) → alimenta o copiloto.
         self._context_items: list[dict] = []   # {label, text}
         self._vision_workers: list = []         # workers de visão em andamento
@@ -467,6 +470,13 @@ class TranscricoesView(QWidget):
         self.copy_btn.setToolTip(t("Copia o markdown completo da reunião para a área de transferência."))
         self.copy_btn.clicked.connect(self._copy_markdown)
         actions.addWidget(self.copy_btn)
+        self.md_view_btn = QPushButton(t("👁 Visualizar"))
+        self.md_view_btn.setProperty("flat", "true")
+        self.md_view_btn.setFixedHeight(32)
+        self.md_view_btn.setCursor(Qt.PointingHandCursor)
+        self.md_view_btn.setToolTip(t("Alterna entre o código Markdown e a visualização formatada do resumo."))
+        self.md_view_btn.clicked.connect(self._toggle_md_view)
+        actions.addWidget(self.md_view_btn)
         right.addLayout(actions)
 
         # Ações — linha 2: ponte para o board (também quebra em telas estreitas)
@@ -1663,7 +1673,7 @@ class TranscricoesView(QWidget):
         md, summary, title, tags, duration, language = payload
         self.analyze_btn.setEnabled(True)
         self.result_edit.setVisible(True)
-        self.result_edit.setPlainText(md)
+        self._set_result_markdown(md)
         self.save_day_btn.setEnabled(True)
         self._current.update({
             "markdown": md, "title": title, "tags": tags,
@@ -1678,10 +1688,33 @@ class TranscricoesView(QWidget):
         self.analyze_btn.setEnabled(True)
         self.status_label.setText(t("Erro na análise: {error}").format(error=err))
 
+    # --------------------- Visualização do Markdown --------------------
+    def _set_result_markdown(self, md: str):
+        """Define o resumo, respeitando o modo atual (código x visualização)."""
+        self._md_source = md or ""
+        if self._md_preview:
+            self.result_edit.setMarkdown(self._md_source)
+            self.result_edit.setReadOnly(True)
+        else:
+            self.result_edit.setPlainText(self._md_source)
+            self.result_edit.setReadOnly(False)
+
+    def _current_result_md(self) -> str:
+        """Fonte Markdown atual (no preview, o campo mostra HTML renderizado)."""
+        return self._md_source if self._md_preview else self.result_edit.toPlainText()
+
+    def _toggle_md_view(self):
+        if not self._md_preview:
+            # Indo para a visualização: captura edições feitas no código.
+            self._md_source = self.result_edit.toPlainText()
+        self._md_preview = not self._md_preview
+        self._set_result_markdown(self._md_source)
+        self.md_view_btn.setText(t("✎ Código") if self._md_preview else t("👁 Visualizar"))
+
     # ------------------------- Meu Dia -------------------------
     def _save_to_day(self):
         # Usa o resumo de IA se houver; senão, salva a própria transcrição
-        md = self.result_edit.toPlainText().strip()
+        md = self._current_result_md().strip()
         if not md:
             transcript = self.transcript_edit.toPlainText().strip()
             if not transcript:
@@ -1711,7 +1744,7 @@ class TranscricoesView(QWidget):
         from maestro_local.transcricoes import markdown_gen
         transcript = (self._current.get("transcript") or self._live_transcript
                       or self.transcript_edit.toPlainText() or "").strip()
-        summary_md = (self._current.get("markdown") or self.result_edit.toPlainText() or "").strip()
+        summary_md = (self._current.get("markdown") or self._current_result_md() or "").strip()
         has_live = any(self._live_state.get(k) for k in
                        ("plan", "tips", "action_items", "decisions",
                         "questions"))
@@ -1900,7 +1933,7 @@ class TranscricoesView(QWidget):
             self.transcript_edit.setVisible(True)
             self.transcript_edit.setPlainText(r.transcript or "")
             self.result_edit.setVisible(bool(r.markdown))
-            self.result_edit.setPlainText(r.markdown or "")
+            self._set_result_markdown(r.markdown or "")
             self.save_day_btn.setEnabled(bool(r.markdown))
             idx = self.kind_combo.findData(r.kind)
             if idx >= 0:
