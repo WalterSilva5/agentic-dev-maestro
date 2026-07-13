@@ -31,9 +31,18 @@ def is_enabled() -> bool:
 
 
 def _exec_command() -> str:
-    """Comando que reabre o app usando o mesmo interpretador atual."""
+    """Comando de autostart robusto.
+
+    Prefere o `run.sh` (configura locale UTF-8 + venv, é o launcher mantido),
+    rodado num shell de LOGIN (`bash -lc`) para herdar PATH/locale corretos, com
+    um pequeno atraso para a sessão gráfica (painel/bandeja) ficar pronta antes
+    de abrir a janela — os dois motivos mais comuns de o autostart "não abrir".
+    """
+    run_sh = Path(__file__).resolve().parents[1] / "run.sh"
+    if run_sh.exists():
+        return f"bash -lc \"sleep 6; exec '{run_sh}'\""
     py = sys.executable or "python3"
-    return f'"{py}" -m maestro_local'
+    return f'env PYTHONUTF8=1 LANG=C.UTF-8 LC_ALL=C.UTF-8 "{py}" -m maestro_local'
 
 
 def enable() -> None:
