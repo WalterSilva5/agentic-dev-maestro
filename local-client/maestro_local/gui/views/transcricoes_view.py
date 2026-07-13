@@ -223,6 +223,12 @@ class TranscricoesView(QWidget):
         htitle = QLabel(t("Histórico"))
         htitle.setProperty("class", "cardTitle")
         left.addWidget(htitle)
+        self.new_meeting_btn = QPushButton(t("➕ Nova reunião"))
+        self.new_meeting_btn.setFixedHeight(34)
+        self.new_meeting_btn.setCursor(Qt.PointingHandCursor)
+        self.new_meeting_btn.setToolTip(t("Começa uma reunião do zero, limpando todos os campos."))
+        self.new_meeting_btn.clicked.connect(self._new_meeting)
+        left.addWidget(self.new_meeting_btn)
         self.search = QLineEdit()
         self.search.setPlaceholderText(t("Buscar nas gravações..."))
         self.search.textChanged.connect(self._load_history)
@@ -836,11 +842,10 @@ class TranscricoesView(QWidget):
             self.status_label.setText(t("Erro ao iniciar gravação: {error}").format(error=e))
             self._session = None
             return
-        # Nova gravação: zera o estado para criar um novo registro
+        # Nova gravação: zera o estado e as saídas da reunião anterior (mantém a
+        # preparação/contexto já preenchidos para ESTA reunião).
         self._current = {"transcript": "", "duration": 0.0, "language": "", "audio_path": ""}
-        self.result_edit.clear()
-        self.result_edit.setVisible(False)
-        self.save_day_btn.setEnabled(False)
+        self._reset_outputs()
         self._elapsed = 0
         self.timer_label.setText("00:00")
         self._tick.start()
@@ -1892,6 +1897,49 @@ class TranscricoesView(QWidget):
             s.commit()
         finally:
             s.close()
+
+    def _reset_outputs(self):
+        """Limpa apenas as SAÍDAS (transcrição, resumo, itens ao vivo, perguntas)
+        e o vínculo com a gravação — mantém preparação/contexto (entradas)."""
+        self._current["rec_id"] = None
+        self.transcript_edit.clear()
+        self.transcript_label.setVisible(True)
+        self.transcript_edit.setVisible(True)
+        self._md_preview = False
+        self._md_source = ""
+        self.result_edit.clear()
+        self.result_edit.setReadOnly(False)
+        self.result_edit.setVisible(False)
+        self.md_view_btn.setText(t("👁 Visualizar"))
+        self.save_day_btn.setEnabled(False)
+        self._live_transcript = ""
+        self._live_pending = ""
+        self._live_state = {"action_items": [], "decisions": [], "questions": [],
+                            "plan": [], "tips": []}
+        self._refresh_live_panels()
+        self._render_questions([])
+        self.live_transcript_edit.clear()
+        self.live_box.setVisible(False)
+        self.ask_answer.setVisible(False)
+
+    def _new_meeting(self):
+        """Começa uma reunião do zero: limpa saídas E entradas (preparação/contexto)."""
+        if self.is_recording():
+            self.status_label.setText(t("Pare a gravação atual antes de iniciar uma nova reunião."))
+            return
+        self._current = {"transcript": "", "duration": 0.0, "language": "",
+                         "audio_path": "", "rec_id": None, "title": ""}
+        self._reset_outputs()
+        # Entradas (preparação/contexto/tópico)
+        self.topic_input.clear()
+        self.prep_edit.clear()
+        self._context_items = []
+        self._render_context()
+        if self.screen_watch_check.isChecked():
+            self.screen_watch_check.setChecked(False)
+        self._screen_watch_text = ""
+        self.history.clearSelection()
+        self.status_label.setText(t("Nova reunião — campos limpos."))
 
     def _open_recording(self, item):
         rec_id = item.data(Qt.UserRole)
