@@ -379,10 +379,13 @@ class MainWindow(QMainWindow):
         self._coach_timer = QTimer(self)
         self._coach_timer.timeout.connect(self._maybe_coach_tip)
         self._setup_coach_timer()
-        # Gatilho por evento: aproveita o timer de TODOs (1 min) para reagir a
-        # sinais fortes (tarefas paradas, WIP alto, TODOs vencidos) sem esperar
-        # o ciclo periódico — com cooldown para não ser intrusivo.
-        self._todo_timer.timeout.connect(self._check_coach_signals)
+        # Gatilho por evento: reage a sinais fortes (tarefas paradas, WIP alto,
+        # TODOs vencidos) sem esperar o ciclo periódico — com cooldown. Timer
+        # próprio, folgado (5 min): não precisa de precisão e evita I/O à toa.
+        self._coach_signal_timer = QTimer(self)
+        self._coach_signal_timer.setInterval(300000)  # 5 min
+        self._coach_signal_timer.timeout.connect(self._check_coach_signals)
+        self._coach_signal_timer.start()
 
         self._apply_theme()
 

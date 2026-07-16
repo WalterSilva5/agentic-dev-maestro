@@ -7,6 +7,9 @@ WHISPER_DEFAULT_MODEL = "small"
 WHISPER_DEFAULT_LANGUAGE = "pt"
 WHISPER_SUPPORTED_MODELS = ["tiny", "base", "small", "medium", "large-v3"]
 WHISPER_COMPUTE_TYPE = "int8"
+# Núcleos usados pelo Whisper. O ctranslate2 usa TODOS por padrão, o que satura
+# a CPU e trava a máquina durante a reunião. Deixa folga para o resto do sistema.
+WHISPER_CPU_THREADS = 0  # 0 = automático (metade dos núcleos, mínimo 1)
 
 # --- Modo ao vivo (assistente de reunião em tempo real) ---
 # Modelo menor por padrão no ao vivo (latência); o resumo final usa o modelo

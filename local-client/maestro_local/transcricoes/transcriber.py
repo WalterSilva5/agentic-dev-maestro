@@ -12,6 +12,7 @@ from .constants import (
     LIVE_WINDOW_SECONDS,
     SAMPLE_RATE,
     WHISPER_COMPUTE_TYPE,
+    WHISPER_CPU_THREADS,
     WHISPER_DEFAULT_MODEL,
     WHISPER_SUPPORTED_MODELS,
 )
@@ -40,6 +41,18 @@ def _force_c_utf8_locale() -> None:
             continue
 
 
+def _cpu_threads() -> int:
+    """Núcleos para o Whisper, deixando folga para o resto do sistema.
+
+    O ctranslate2 usa TODOS os núcleos por padrão; durante a transcrição ao vivo
+    isso saturava a CPU e travava a máquina.
+    """
+    import os
+    if WHISPER_CPU_THREADS > 0:
+        return WHISPER_CPU_THREADS
+    return max(1, (os.cpu_count() or 2) // 2)
+
+
 def get_model(model_size: str = WHISPER_DEFAULT_MODEL, compute_type: str = WHISPER_COMPUTE_TYPE):
     global _cached_model, _cached_size
     if model_size not in WHISPER_SUPPORTED_MODELS:
@@ -47,8 +60,11 @@ def get_model(model_size: str = WHISPER_DEFAULT_MODEL, compute_type: str = WHISP
     if _cached_model is not None and _cached_size == model_size:
         return _cached_model
     from faster_whisper import WhisperModel
-    logger.info("Carregando Whisper '%s' (compute=%s)...", model_size, compute_type)
-    _cached_model = WhisperModel(model_size, device="auto", compute_type=compute_type)
+    threads = _cpu_threads()
+    logger.info("Carregando Whisper '%s' (compute=%s, cpu_threads=%d)...",
+                model_size, compute_type, threads)
+    _cached_model = WhisperModel(model_size, device="auto", compute_type=compute_type,
+                                 cpu_threads=threads, num_workers=1)
     _cached_size = model_size
     return _cached_model
 
@@ -154,13 +170,14 @@ class LiveTranscriber(QThread):
             if not self._running:
                 break
             try:
-                audio = self.session.snapshot_audio()
+                # Só o áudio novo desde a última janela — custo constante,
+                # em vez de copiar a gravação inteira a cada ciclo.
+                chunk = self.session.snapshot_since(processed)
             except Exception:  # noqa: BLE001
                 continue
-            if len(audio) - processed < min_new:
+            if len(chunk) < min_new:
                 continue
-            chunk = audio[processed:]
-            processed = len(audio)
+            processed += len(chunk)
             try:
                 segments_iter, _info = model.transcribe(
                     chunk, language=language, beam_size=1, vad_filter=True,

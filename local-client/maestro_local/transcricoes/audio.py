@@ -169,6 +169,25 @@ class ParecRecorder:
                 return np.zeros(0, dtype=np.float32)
             return np.concatenate(self._chunks)
 
+    def get_audio_since(self, offset: int) -> np.ndarray:
+        """Só as amostras a partir de `offset`.
+
+        Evita concatenar/copiar a gravação inteira a cada janela do assistente
+        ao vivo (que ficava mais caro conforme a reunião crescia).
+        """
+        with self._lock:
+            if not self._chunks:
+                return np.zeros(0, dtype=np.float32)
+            out = []
+            pos = 0
+            for ch in self._chunks:
+                n = len(ch)
+                end = pos + n
+                if end > offset:
+                    out.append(ch[max(0, offset - pos):])
+                pos = end
+            return np.concatenate(out) if out else np.zeros(0, dtype=np.float32)
+
 
 class RecordingSession:
     """Sessão completa: mic e/ou monitor, mixa e salva WAV 16kHz mono."""
@@ -221,13 +240,18 @@ class RecordingSession:
         return out_path, duration
 
     def snapshot_audio(self) -> np.ndarray:
-        """Retorna o áudio mixado acumulado até agora, SEM parar a gravação.
+        """Retorna o áudio mixado acumulado até agora, SEM parar a gravação."""
+        return self.snapshot_since(0)
 
-        Usado pela transcrição ao vivo para consumir janelas do áudio enquanto
-        a sessão continua gravando.
+    def snapshot_since(self, offset: int) -> np.ndarray:
+        """Áudio mixado a partir de `offset` amostras, SEM parar a gravação.
+
+        A transcrição ao vivo consome janelas sequencialmente, então copiar só o
+        trecho novo mantém o custo constante (antes crescia com a reunião).
         """
-        mic_audio = self.mic_rec.get_audio() if self.mic_rec else np.zeros(0, dtype=np.float32)
-        mon_audio = self.mon_rec.get_audio() if self.mon_rec else np.zeros(0, dtype=np.float32)
+        empty = np.zeros(0, dtype=np.float32)
+        mic_audio = self.mic_rec.get_audio_since(offset) if self.mic_rec else empty
+        mon_audio = self.mon_rec.get_audio_since(offset) if self.mon_rec else empty
         return _mix(mic_audio, mon_audio)
 
     @property

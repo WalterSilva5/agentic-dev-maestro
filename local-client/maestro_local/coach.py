@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 
 from pydantic import BaseModel
+from sqlalchemy import or_
 
 logger = logging.getLogger("maestro.coach")
 
@@ -40,32 +41,55 @@ HIGH_WIP = 4            # nº de tarefas em andamento a partir do qual o WIP é 
 
 
 def _active_tasks(session):
+    """Tarefas ativas com a coluna já carregada (evita N+1 de lazy-load)."""
+    from sqlalchemy.orm import joinedload
+
     from maestro_local.db.models import Task
-    return [t for t in session.query(Task).filter(Task.deleted_at.is_(None)).all()
-            if t.archived_at is None]
+    return (session.query(Task)
+            .options(joinedload(Task.column))
+            .filter(Task.deleted_at.is_(None), Task.archived_at.is_(None))
+            .all())
 
 
-def _stuck_tasks(session, days: int = STUCK_DAYS):
-    """Tarefas em andamento (não concluídas, fora do backlog) sem alteração há N dias."""
+def _stuck_tasks(session, days: int = STUCK_DAYS, limit: int | None = None):
+    """Tarefas em andamento (não concluídas, fora do backlog) sem alteração há N dias.
+
+    Filtra no SQL (join com a coluna) em vez de carregar todas as tarefas e
+    fazer lazy-load de `column` uma a uma.
+    """
     from datetime import datetime, timedelta
+
+    from maestro_local.db.models import BoardColumn, Task
     cutoff = datetime.utcnow() - timedelta(days=days)
-    return [t for t in _active_tasks(session)
-            if t.column and not t.column.is_done and (t.column.order or 0) > 0
-            and t.updated_at and t.updated_at < cutoff]
+    q = (session.query(Task)
+         .join(BoardColumn, Task.column_id == BoardColumn.id)
+         .filter(Task.deleted_at.is_(None), Task.archived_at.is_(None),
+                 # is_done é nullable: NULL conta como "não concluída".
+                 or_(BoardColumn.is_done.is_(False), BoardColumn.is_done.is_(None)),
+                 BoardColumn.order > 0,
+                 Task.updated_at.isnot(None), Task.updated_at < cutoff))
+    return q.limit(limit).all() if limit else q.all()
 
 
-def _overdue_todos(session):
+def _overdue_todos(session, limit: int | None = None):
     from datetime import datetime
+
     from maestro_local.db.models import Todo
     now = datetime.now()
-    todos = session.query(Todo).filter(
-        Todo.done.is_(False), Todo.due_at.isnot(None), Todo.due_at <= now).all()
-    return [td for td in todos if not (td.snoozed_until and td.snoozed_until > now)]
+    q = session.query(Todo).filter(
+        Todo.done.is_(False), Todo.due_at.isnot(None), Todo.due_at <= now,
+        or_(Todo.snoozed_until.is_(None), Todo.snoozed_until <= now))
+    return q.limit(limit).all() if limit else q.all()
 
 
 def has_strong_signal(session) -> bool:
-    """Há algo concreto que justifique uma dica imediata (evento)?"""
-    return bool(_overdue_todos(session)) or bool(_stuck_tasks(session))
+    """Há algo concreto que justifique uma dica imediata (evento)?
+
+    Usa EXISTS/limit — não carrega listas inteiras (roda periodicamente).
+    """
+    if _overdue_todos(session, limit=1):
+        return True
+    return bool(_stuck_tasks(session, limit=1))
 
 
 def build_context(session) -> str:
