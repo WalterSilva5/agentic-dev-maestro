@@ -57,6 +57,7 @@ from maestro_local.db.models import (
     get_session,
 )
 from maestro_local.gui.flow_layout import FlowLayout
+from maestro_local.gui.no_wheel_combo import NoWheelComboBox
 from maestro_local.gui.theme import current_theme
 from maestro_local.i18n import t
 
@@ -171,11 +172,14 @@ class TranscricoesView(QWidget):
     # Emitido quando o usuário troca o workspace pela própria tela de reuniões;
     # a janela principal faz a troca de banco + refresh geral.
     workspace_change_requested = Signal(str)
+    # Projeto ativo alterado pela tela de reuniões (sidebar sincroniza).
+    project_changed = Signal(object)
 
     def __init__(self):
         super().__init__()
         self._session = None
         self._loading_ws = False
+        self._loading_proj = False
         self._transcriber = None
         self._analyzer = None
         self._elapsed = 0
@@ -488,7 +492,7 @@ class TranscricoesView(QWidget):
         # Ações — linha 2: ponte para o board (também quebra em telas estreitas)
         actions2 = FlowLayout(h_spacing=8, v_spacing=6)
         actions2.addWidget(QLabel(t("Workspace:")))
-        self.ws_combo = QComboBox()
+        self.ws_combo = NoWheelComboBox()
         self.ws_combo.setMinimumWidth(120)
         self.ws_combo.setToolTip(
             t("Workspace de destino da reunião. Troque aqui caso esteja gravando para o workspace errado.")
@@ -496,8 +500,9 @@ class TranscricoesView(QWidget):
         self.ws_combo.currentIndexChanged.connect(self._on_ws_combo_changed)
         actions2.addWidget(self.ws_combo)
         actions2.addWidget(QLabel(t("Projeto:")))
-        self.proj_combo = QComboBox()
+        self.proj_combo = NoWheelComboBox()
         self.proj_combo.setMinimumWidth(130)
+        self.proj_combo.currentIndexChanged.connect(self._on_proj_combo_changed)
         actions2.addWidget(self.proj_combo)
         self.tasks_btn = QPushButton(t("Criar tarefas das ações"))
         self.tasks_btn.setFixedHeight(32)
@@ -612,20 +617,36 @@ class TranscricoesView(QWidget):
             self._load_history()
 
     def _populate_projects(self):
-        current = self.proj_combo.currentData()
-        self.proj_combo.clear()
-        s = get_session()
+        """Lista os projetos, seguindo o projeto ativo (seletor da sidebar)."""
+        from maestro_local.config import get_active_project_id
+        self._loading_proj = True
         try:
-            for p in s.query(Project).order_by(Project.name).all():
-                self.proj_combo.addItem(f"{p.key} · {p.name}", p.id)
+            current = self.proj_combo.currentData() or get_active_project_id()
+            self.proj_combo.clear()
+            s = get_session()
+            try:
+                for p in s.query(Project).order_by(Project.name).all():
+                    self.proj_combo.addItem(f"{p.key} · {p.name}", p.id)
+            finally:
+                s.close()
+            if self.proj_combo.count() == 0:
+                self.proj_combo.addItem(t("(nenhum projeto)"), None)
+            elif current is not None:
+                idx = self.proj_combo.findData(current)
+                if idx >= 0:
+                    self.proj_combo.setCurrentIndex(idx)
         finally:
-            s.close()
-        if self.proj_combo.count() == 0:
-            self.proj_combo.addItem(t("(nenhum projeto)"), None)
-        elif current is not None:
-            idx = self.proj_combo.findData(current)
-            if idx >= 0:
-                self.proj_combo.setCurrentIndex(idx)
+            self._loading_proj = False
+
+    def _on_proj_combo_changed(self):
+        """Trocar o projeto aqui também define o projeto ativo (sidebar)."""
+        if getattr(self, "_loading_proj", False):
+            return
+        from maestro_local.config import get_active_project_id, set_active_project_id
+        pid = self.proj_combo.currentData()
+        if pid is not None and pid != get_active_project_id():
+            set_active_project_id(pid)
+            self.project_changed.emit(pid)
 
     def _check_provider(self):
         provider = get_active_ai_provider()
@@ -998,9 +1019,16 @@ class TranscricoesView(QWidget):
                 q["resolved"] = prev.get("resolved", q.get("resolved"))
         return new_state
 
+    def _autosave_live_state(self):
+        """Salva os itens do assistente assim que mudam (só se já há gravação)."""
+        if self._current.get("rec_id") or self.transcript_edit.toPlainText().strip() \
+                or self._live_transcript.strip():
+            self._persist_recording()
+
     def _on_live_extracted(self, state: dict):
         self._live_extractor = None
         self._live_state = self._preserve_answers(state)
+        self._autosave_live_state()
         self._refresh_live_panels()
         if self._live_transcriber is not None:
             self.live_status.setText(t("Transcrevendo ao vivo..."))
@@ -1050,6 +1078,7 @@ class TranscricoesView(QWidget):
             q["resolved"] = not q.get("resolved")
         else:  # normaliza string para dict
             questions[index] = {"question": str(q), "answer": "", "resolved": True}
+        self._autosave_live_state()
         self._refresh_live_panels()
 
     def _set_question_answer(self, index, text):
@@ -1065,6 +1094,7 @@ class TranscricoesView(QWidget):
             q["resolved"] = bool(text) or bool(q.get("resolved"))
         else:
             questions[index] = {"question": str(q), "answer": text, "resolved": bool(text)}
+        self._autosave_live_state()
         self._refresh_live_panels()
 
     def _ask_meeting(self):
@@ -1510,6 +1540,9 @@ class TranscricoesView(QWidget):
             )
         )
         self._load_history()
+        # Gera o relatório automaticamente — não exige clicar em "Analisar com IA".
+        if result.text.strip() and self._provider_ready():
+            self._analyze()
 
     def _persist_recording(self):
         """Cria/atualiza o Recording atual no banco (transcrição e, se houver, resumo)."""
@@ -1526,6 +1559,9 @@ class TranscricoesView(QWidget):
             rec.transcript = self.transcript_edit.toPlainText().strip()
             rec.summary_json = self._current.get("summary_json", rec.summary_json or "")
             rec.markdown = self._current.get("markdown", rec.markdown or "")
+            # Itens do assistente (plano/dicas/ações/decisões/perguntas) — salvos
+            # sempre, para reabrir a reunião exatamente como estava.
+            rec.live_state_json = json.dumps(self._live_state, ensure_ascii=False)
             rec.duration = self._current.get("duration", 0.0)
             rec.language = self._current.get("language", "")
             rec.audio_path = self._current.get("audio_path", "")
@@ -1667,6 +1703,7 @@ class TranscricoesView(QWidget):
     def _on_analyze_extracted(self, state: dict):
         self._analyze_extractor = None
         self._live_state = self._preserve_answers(state)
+        self._autosave_live_state()
         self._refresh_live_panels()
         self.live_status.setText(t("Itens gerados a partir da transcrição."))
 
@@ -1965,16 +2002,24 @@ class TranscricoesView(QWidget):
                 "title": r.title or "",
                 "tags": tags,
             }
-            # Limpa os painéis do ao vivo/análise da gravação anterior — senão as
-            # abas (plano/ações/perguntas) ficam presas na primeira analisada.
+            # Restaura os itens do assistente salvos com ESTA gravação (plano,
+            # dicas, ações, decisões, perguntas) — reabre como estava.
             self._live_transcript = r.transcript or ""
             self._live_pending = ""
-            self._live_state = {"action_items": [], "decisions": [], "questions": [],
-                                "plan": [], "tips": []}
+            empty = {"action_items": [], "decisions": [], "questions": [],
+                     "plan": [], "tips": []}
+            try:
+                saved = json.loads(r.live_state_json) if r.live_state_json else {}
+            except Exception:  # noqa: BLE001
+                saved = {}
+            self._live_state = {**empty, **(saved if isinstance(saved, dict) else {})}
             self._refresh_live_panels()
-            self._render_questions([])
-            self.live_transcript_edit.clear()
-            self.live_box.setVisible(False)
+            self.live_transcript_edit.setPlainText(r.transcript or "")
+            has_items = any(self._live_state.get(k) for k in
+                            ("plan", "tips", "action_items", "decisions", "questions"))
+            self.live_box.setVisible(has_items)
+            if has_items:
+                self.live_status.setText(t("Itens salvos desta reunião."))
 
             # Mostra a transcrição + resumo estáticos desta gravação.
             self.transcript_label.setVisible(True)

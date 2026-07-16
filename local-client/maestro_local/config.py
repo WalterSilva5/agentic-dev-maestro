@@ -23,6 +23,30 @@ def save_config(cfg: dict):
 
 
 # ---------------------------------------------------------------------------
+# Projeto ativo (por workspace — os projetos vivem no banco do workspace)
+# ---------------------------------------------------------------------------
+
+def get_active_project_id():
+    ws = get_active_workspace_id()
+    pid = load_config().get("active_project_by_ws", {}).get(ws)
+    try:
+        return int(pid) if pid is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def set_active_project_id(project_id):
+    cfg = load_config()
+    by_ws = cfg.setdefault("active_project_by_ws", {})
+    ws = get_active_workspace_id()
+    if project_id is None:
+        by_ws.pop(ws, None)
+    else:
+        by_ws[ws] = int(project_id)
+    save_config(cfg)
+
+
+# ---------------------------------------------------------------------------
 # Coach proativo (dicas do agente ao longo do dia)
 # ---------------------------------------------------------------------------
 

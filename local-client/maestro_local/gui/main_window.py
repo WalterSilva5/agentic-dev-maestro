@@ -167,6 +167,14 @@ class MainWindow(QMainWindow):
         self.ws_selector.workspace_changed.connect(self._on_workspace_changed)
         sb_layout.addWidget(self.ws_selector)
 
+        # Seletor de projeto ativo (logo abaixo do workspace). Ignora a roda do
+        # mouse: só troca clicando e escolhendo.
+        from maestro_local.gui.no_wheel_combo import NoWheelComboBox
+        self.project_selector = NoWheelComboBox()
+        self.project_selector.setToolTip(t("Projeto ativo"))
+        self.project_selector.currentIndexChanged.connect(self._on_project_selected)
+        sb_layout.addWidget(self.project_selector)
+
         # Section label: workspace
         self.section_label_work = QLabel("  " + t("WORKSPACE"))
         sb_layout.addWidget(self.section_label_work)
@@ -262,6 +270,7 @@ class MainWindow(QMainWindow):
         self.chat_view = ChatView()
         self.transcricoes_view = TranscricoesView()
         self.transcricoes_view.workspace_change_requested.connect(self._on_workspace_changed)
+        self.transcricoes_view.project_changed.connect(self._sync_project_selector)
         self.vault_view = VaultView()
         self.library_view = LibraryView()
         self.api_tester_view = ApiTesterView()
@@ -387,6 +396,7 @@ class MainWindow(QMainWindow):
         self._coach_signal_timer.timeout.connect(self._check_coach_signals)
         self._coach_signal_timer.start()
 
+        self._populate_project_selector()
         self._apply_theme()
 
     # ---- Coach proativo ----
@@ -667,11 +677,58 @@ class MainWindow(QMainWindow):
         dlg.task_updated.connect(self._refresh_all)
         dlg.exec()
 
+    # ---- Projeto ativo (seletor da sidebar) ----
+    def _populate_project_selector(self):
+        """Lista os projetos do workspace ativo, marcando o projeto ativo."""
+        from maestro_local.config import get_active_project_id
+        from maestro_local.db.models import Project
+        self._loading_projects = True
+        try:
+            self.project_selector.clear()
+            self.project_selector.addItem(t("(nenhum projeto)"), None)
+            s = get_session()
+            try:
+                for p in s.query(Project).order_by(Project.name).all():
+                    self.project_selector.addItem(f"{p.key} · {p.name}", p.id)
+            finally:
+                s.close()
+            active = get_active_project_id()
+            idx = self.project_selector.findData(active) if active else -1
+            self.project_selector.setCurrentIndex(idx if idx >= 0 else 0)
+        finally:
+            self._loading_projects = False
+
+    def _sync_project_selector(self, pid):
+        """Reflete na sidebar o projeto escolhido em outra tela (sem redisparar)."""
+        idx = self.project_selector.findData(pid)
+        if idx >= 0 and idx != self.project_selector.currentIndex():
+            self._loading_projects = True
+            try:
+                self.project_selector.setCurrentIndex(idx)
+            finally:
+                self._loading_projects = False
+        self.board_view.set_project(pid)
+
+    def _on_project_selected(self):
+        if getattr(self, "_loading_projects", False):
+            return
+        from maestro_local.config import get_active_project_id, set_active_project_id
+        pid = self.project_selector.currentData()
+        if pid == get_active_project_id():
+            return
+        set_active_project_id(pid)
+        # Reflete nas telas que dependem do projeto
+        self.board_view.set_project(pid)
+        if hasattr(self.transcricoes_view, "refresh"):
+            self.transcricoes_view.refresh()
+        self.show_toast(t("Projeto ativo alterado"))
+
     def _on_workspace_changed(self, ws_id):
         db_path = get_workspace_db_path(ws_id)
         switch_db(db_path)
         self.board_view.set_project(None)
         self._refresh_all()
+        self._populate_project_selector()  # projetos são por workspace
         self.ws_selector.refresh_display()
         self.show_toast(t("Workspace alterado"))
 

@@ -277,6 +277,9 @@ class Recording(Base):
     topic = Column(String(255), default="")
     transcript = Column(Text, default="")
     summary_json = Column(Text, default="")  # JSON estruturado do assistente
+    # Estado do assistente ao vivo/análise (plano, dicas, ações, decisões,
+    # perguntas) — salvo automaticamente para reabrir a reunião como estava.
+    live_state_json = Column(Text, default="")
     markdown = Column(Text, default="")
     duration = Column(Float, default=0.0)
     language = Column(String(20), default="")
@@ -343,6 +346,8 @@ def _run_light_migrations(engine):
             radds.append("ALTER TABLE recordings ADD COLUMN sort_order INTEGER DEFAULT 0")
         if "archived_at" not in rcols:
             radds.append("ALTER TABLE recordings ADD COLUMN archived_at DATETIME")
+        if "live_state_json" not in rcols:
+            radds.append("ALTER TABLE recordings ADD COLUMN live_state_json TEXT")
         if radds:
             with engine.begin() as conn:
                 for stmt in radds:
