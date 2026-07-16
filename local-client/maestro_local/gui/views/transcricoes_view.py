@@ -187,6 +187,13 @@ class TranscricoesView(QWidget):
         # Visualização do resumo Markdown: fonte editável x preview renderizado.
         self._md_preview = False
         self._md_source = ""
+        # Edição da transcrição: revisa os itens depois que o usuário para de
+        # digitar (debounce), sem disparar a IA a cada tecla.
+        self._setting_transcript = False
+        self._transcript_review = QTimer(self)
+        self._transcript_review.setSingleShot(True)
+        self._transcript_review.setInterval(2500)
+        self._transcript_review.timeout.connect(self._review_after_edit)
         # Contexto extra da reunião (arquivos/imagens/tela) → alimenta o copiloto.
         self._context_items: list[dict] = []   # {label, text}
         self._vision_workers: list = []         # workers de visão em andamento
@@ -450,6 +457,10 @@ class TranscricoesView(QWidget):
         right.addWidget(self.transcript_label)
         self.transcript_edit = QTextEdit()
         self.transcript_edit.setPlaceholderText(t("A transcrição aparecerá aqui..."))
+        self.transcript_edit.setToolTip(
+            t("Você pode corrigir a transcrição a qualquer momento — o agente revisa "
+              "os itens automaticamente após a edição."))
+        self.transcript_edit.textChanged.connect(self._on_transcript_edited)
         right.addWidget(self.transcript_edit, 1)
 
         # Ações — linha 1: documento da reunião (FlowLayout: quebra em telas estreitas)
@@ -1518,19 +1529,46 @@ class TranscricoesView(QWidget):
         model, lang = _whisper_settings()
         self.progress.setVisible(True)
         self.progress.setValue(0)
-        self.transcript_edit.clear()
+        self._set_transcript_text("")
         self._transcriber = TranscriberWorker(audio_path, model, lang)
         self._transcriber.progress.connect(self.progress.setValue)
         self._transcriber.finished_ok.connect(self._on_transcribed)
         self._transcriber.finished_error.connect(self._on_transcribe_error)
         self._transcriber.start()
 
+    # ------------------- Edição da transcrição -------------------
+    def _set_transcript_text(self, text: str):
+        """Define a transcrição sem disparar a revisão automática."""
+        self._setting_transcript = True
+        try:
+            self.transcript_edit.setPlainText(text or "")
+        finally:
+            self._setting_transcript = False
+
+    def _on_transcript_edited(self):
+        """Usuário editou o texto: agenda a revisão (debounce)."""
+        if self._setting_transcript or self.is_recording():
+            return
+        self._transcript_review.start()  # reinicia a contagem a cada tecla
+
+    def _review_after_edit(self):
+        """Após parar de digitar: salva o texto e manda o agente revisar os itens."""
+        transcript = self.transcript_edit.toPlainText().strip()
+        self._current["transcript"] = transcript
+        self._autosave_live_state()  # persiste a transcrição editada
+        if not transcript or not self._provider_ready():
+            return
+        if self._analyze_extractor is not None:  # já há uma revisão em curso
+            return
+        # keep_state: revisa mantendo o que vale, inclusive as respostas dadas.
+        self._start_analyze_extract(transcript, keep_state=True)
+
     def _on_transcribed(self, result):
         self.progress.setVisible(False)
         self._current["transcript"] = result.text
         self._current["language"] = result.language
         self._current["duration"] = result.duration or self._current["duration"]
-        self.transcript_edit.setPlainText(result.text)
+        self._set_transcript_text(result.text)
         # Permite salvar/enviar ao Meu Dia mesmo sem análise de IA
         self.save_day_btn.setEnabled(bool(result.text.strip()))
         self._persist_recording()
@@ -1637,7 +1675,7 @@ class TranscricoesView(QWidget):
         self.live_transcript_edit.clear()
         self.transcript_label.setVisible(True)
         self.transcript_edit.setVisible(True)
-        self.transcript_edit.setPlainText(transcript)
+        self._set_transcript_text(transcript)
         self.result_edit.clear()
         self.result_edit.setVisible(False)
         self._persist_recording()   # já aparece no histórico com a transcrição importada
@@ -1683,19 +1721,29 @@ class TranscricoesView(QWidget):
         if not has_live:
             self._start_analyze_extract(transcript)
 
-    def _start_analyze_extract(self, transcript):
+    def _start_analyze_extract(self, transcript, keep_state: bool = False):
+        """Gera/revisa os itens a partir da transcrição.
+
+        `keep_state=True` (revisão após editar o texto) envia o estado ATUAL ao
+        agente, que revisa mantendo o que continua válido — inclusive as
+        respostas já dadas nas perguntas.
+        """
         from maestro_local.transcricoes.live_assistant import EMPTY_STATE, LiveExtractWorker
-        self._live_state = dict(EMPTY_STATE)
-        self._refresh_live_panels()
+        base = dict(self._live_state) if keep_state else dict(EMPTY_STATE)
+        if not keep_state:
+            self._live_state = dict(EMPTY_STATE)
+            self._refresh_live_panels()
         self._live_transcript = transcript
         self.live_transcript_edit.setPlainText(transcript)
         self.live_box.setVisible(True)
         ai_ok = self._provider_ready()
         self.ask_input.setEnabled(ai_ok)
         self.ask_btn.setEnabled(ai_ok)
-        self.live_status.setText(t("Gerando itens (plano, ações, decisões, perguntas)..."))
+        self.live_status.setText(
+            t("Revisando os itens com o texto editado...") if keep_state
+            else t("Gerando itens (plano, ações, decisões, perguntas)..."))
         self._analyze_extractor = LiveExtractWorker(
-            dict(EMPTY_STATE), transcript, context=self._meeting_context())
+            base, transcript, context=self._meeting_context())
         self._analyze_extractor.done.connect(self._on_analyze_extracted)
         self._analyze_extractor.failed.connect(self._on_analyze_extract_error)
         self._analyze_extractor.start()
@@ -1939,7 +1987,7 @@ class TranscricoesView(QWidget):
         """Limpa apenas as SAÍDAS (transcrição, resumo, itens ao vivo, perguntas)
         e o vínculo com a gravação — mantém preparação/contexto (entradas)."""
         self._current["rec_id"] = None
-        self.transcript_edit.clear()
+        self._set_transcript_text("")
         self.transcript_label.setVisible(True)
         self.transcript_edit.setVisible(True)
         self._md_preview = False
@@ -2024,7 +2072,7 @@ class TranscricoesView(QWidget):
             # Mostra a transcrição + resumo estáticos desta gravação.
             self.transcript_label.setVisible(True)
             self.transcript_edit.setVisible(True)
-            self.transcript_edit.setPlainText(r.transcript or "")
+            self._set_transcript_text(r.transcript or "")
             self.result_edit.setVisible(bool(r.markdown))
             self._set_result_markdown(r.markdown or "")
             self.save_day_btn.setEnabled(bool(r.markdown))

@@ -60,6 +60,13 @@ Regras:
   Quando uma pergunta for RESPONDIDA durante a reunião, preencha o campo "answer" com a resposta
   (curta e objetiva) e marque "resolved": true — mantenha o texto original da pergunta. Enquanto
   não houver resposta, "answer" fica vazio e "resolved": false.
+- RESPOSTAS JÁ DADAS SÃO INFORMAÇÃO CONFIRMADA: uma pergunta com "answer" preenchido (venha do
+  ESTADO ATUAL — pode ter sido respondida manualmente pelo usuário — ou do trecho novo) vale como
+  fato decidido. Use essas respostas para embasar "plan", "tips", "action_items" e "decisions", e
+  NUNCA apague nem contradiga uma resposta existente; só a ajuste se o trecho novo a corrigir
+  explicitamente. Não volte a perguntar o que já foi respondido.
+- O TRECHO pode ser uma transcrição CORRIGIDA pelo usuário: nesse caso revise os itens existentes
+  (ajuste/remova o que ficou errado, acrescente o que faltou), preservando as respostas dadas.
 - "plan": derive um plano de ação prático do que foi discutido/decidido (5 a 8 passos no máximo);
   refine-o a cada trecho novo em vez de recomeçar. Se houver contexto de projeto, alinhe os passos a ele.
 - "tips": sugestões proativas do copiloto — riscos, pontos esquecidos, boas práticas, dependências,

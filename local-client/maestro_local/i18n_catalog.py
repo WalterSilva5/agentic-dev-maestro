@@ -468,6 +468,8 @@ CATALOG = {
   "Projeto ativo": "Active project",
   "Projeto ativo alterado": "Active project changed",
   "Itens salvos desta reunião.": "Saved items from this meeting.",
+  "Revisando os itens com o texto editado...": "Reviewing the items with the edited text...",
+  "Você pode corrigir a transcrição a qualquer momento — o agente revisa os itens automaticamente após a edição.": "You can fix the transcript at any time — the agent automatically reviews the items after the edit.",
   "(aguardando resposta)": "(awaiting answer)",
   "As perguntas levantadas na reunião aparecerão aqui — com a resposta assim que forem respondidas.": "Questions raised in the meeting will appear here — with the answer as soon as they're answered.",
   "Gerando itens (plano, ações, decisões, perguntas)...": "Generating items (plan, actions, decisions, questions)...",
