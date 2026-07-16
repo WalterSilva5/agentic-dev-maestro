@@ -20,6 +20,7 @@ from maestro_local.config import (
     save_config,
 )
 from maestro_local.gui.theme import current_theme
+from maestro_local.gui.no_wheel_combo import NoWheelComboBox
 from maestro_local.i18n import t
 
 
@@ -123,7 +124,7 @@ class SettingsView(QWidget):
         row = QHBoxLayout()
         row.setSpacing(8)
         row.addWidget(QLabel(t("Idioma:")))
-        self.lang_combo = QComboBox()
+        self.lang_combo = NoWheelComboBox()
         for code, name in SUPPORTED.items():
             self.lang_combo.addItem(name, code)
         self.lang_combo.currentIndexChanged.connect(self._on_language_changed)
@@ -172,7 +173,7 @@ class SettingsView(QWidget):
         sel_row = QHBoxLayout()
         sel_row.setSpacing(8)
         sel_row.addWidget(QLabel(t("Provedor ativo:")))
-        self.ai_combo = QComboBox()
+        self.ai_combo = NoWheelComboBox()
         self.ai_combo.currentIndexChanged.connect(self._on_provider_selected)
         sel_row.addWidget(self.ai_combo, 1)
         layout.addLayout(sel_row)
@@ -337,7 +338,7 @@ class SettingsView(QWidget):
         row = QHBoxLayout()
         row.setSpacing(8)
         row.addWidget(QLabel(t("Modelo Whisper:")))
-        self.whisper_model = QComboBox()
+        self.whisper_model = NoWheelComboBox()
         from maestro_local.transcricoes.constants import WHISPER_SUPPORTED_MODELS
         self.whisper_model.addItems(WHISPER_SUPPORTED_MODELS)
         self.whisper_model.currentIndexChanged.connect(self._save_settings)
