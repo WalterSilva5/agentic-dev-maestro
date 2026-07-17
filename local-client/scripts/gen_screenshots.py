@@ -49,6 +49,31 @@ def seed_demo(session, models):
             # 2 primeiras no backlog; restantes na sprint ativa
             tk.sprint_id = None if i < 2 else s1.id
         session.commit()
+    # Reunião de exemplo no histórico (mostra o nome com prefixo de data/hora)
+    Recording = models.Recording
+    if not session.query(Recording).count():
+        import json as _json
+        from datetime import datetime as _dt
+        session.add(Recording(
+            kind="meeting",
+            title="Exportação de relatórios",
+            transcript=("Ana: precisamos aumentar o limite de linhas da exportação.\n"
+                        "Bruno: hoje trava em 10 mil; o time comercial pediu mais.\n"
+                        "Ana: fechado, 50 mil por arquivo e versionamos por trimestre."),
+            markdown="# Exportação de relatórios\n\n## Decisões\n- Limite de 50 mil linhas\n",
+            live_state_json=_json.dumps({
+                "plan": ["Levantar requisitos", "Prototipar UI", "Implementar e testar"],
+                "tips": ["Validar acessibilidade do tema", "Cobrir exportação com testes"],
+                "action_items": [{"description": "Ajustar validação do CSV", "assignee": "Ana"}],
+                "decisions": ["Limite de 50 mil linhas por arquivo"],
+                "questions": [{"question": "Precisamos versionar os relatórios?",
+                               "answer": "Sim, por trimestre.", "resolved": True}],
+            }, ensure_ascii=False),
+            duration=1830.0, language="pt",
+            created_at=_dt(2026, 7, 13, 9, 30),
+        ))
+        session.commit()
+
     # Plano de estudo
     if not session.query(StudyPlan).count():
         plan = StudyPlan(title="Aprender Rust", category="LINGUAGEM",

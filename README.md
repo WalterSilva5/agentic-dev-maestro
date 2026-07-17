@@ -89,15 +89,22 @@ Internal AI assistant that runs with your own provider (local LM Studio, opencod
 **Proactive coach:** throughout the day the agent surfaces short, actionable tips based on your board and TODOs (focus, organization, risk, or a healthy break) in a non-intrusive card (desktop **and** web UI). It also reacts to real signals — stuck tasks (idle 3+ days), high WIP, overdue TODOs — nudging on the spot (with a cooldown) instead of only on a timer. Opt-in and configurable under Settings → Proactive coach (interval); also available via `GET /api/coach/tip`.
 
 ### Transcriptions (Meetings)
-Records meetings and study sessions (microphone and/or system audio via PipeWire/PulseAudio), transcribes locally with faster-whisper, and generates structured summaries with AI — meetings become key points/decisions/action items; study sessions become concepts/exercises/related topics. Meeting-specific capabilities:
+Records meetings and study sessions (microphone and/or system audio via PipeWire/PulseAudio), transcribes locally with faster-whisper, and generates structured summaries with AI — meetings become key points/decisions/action items; study sessions become concepts/exercises/related topics.
 
-- **Preparation mode** — brief the meeting before it starts: write the agenda/goals and attach context (files, PDFs, images, or a screenshot; images/screens are read by a vision model) so the live copilot begins already aware of what it's about.
-- **Live copilot** — transcribes and extracts plan, tips, actions, decisions, and Q&A in real time (toggle any time), plus an "ask the meeting" box.
-- **Watch a monitor** — let the assistant periodically see a chosen screen (read by a vision model) to help solve on-screen tasks; toggleable during the meeting.
+The screen follows an explicit flow: **📁 Destination → 1 Prepare → 2 Record → 3 Result**.
+
+- **📁 Destination** — the target workspace and project sit at the top: that's where the meeting and generated tasks go. Switching workspace asks for confirmation.
+- **1 Prepare** — agenda/goals plus attached context (files, PDFs, images, or a screenshot; images/screens are read by a vision model), so the copilot starts already knowing what it's about.
+- **2 Record** — audio sources live in a collapsible block (the Record button stays prominent). With the **live copilot**, plan, tips, actions, decisions and Q&A appear in real time, plus an "ask the meeting" box.
+- **3 Result** — transcript + summary and a grouped action bar: `↻ Analyze with AI │ Document: Export/Copy │ Send to: Create tasks/My Day`. The summary toggles between **Markdown source and formatted preview**.
+- **Automatic analysis** — when transcription finishes the report is generated on its own (with an AI provider configured); no need to click "Analyze".
+- **Editable transcript** — fix the text at any time and the agent **reviews the items** automatically.
+- **Manual answers** — answer the agent's questions right on the cards; it treats those answers as confirmed information and won't discard them when reprocessing.
+- **Everything saved automatically** — plan/tips/actions/decisions/questions are stored with the meeting; reopening restores it exactly as it was.
+- **Watch a monitor** — let the assistant periodically see a chosen screen to help solve on-screen tasks; toggleable during the meeting.
 - **Import from external transcripts** — create a meeting from a Meet/Teams export (text, VTT/SRT, PDF, DOCX) and run the same analysis.
-- **Workspace/project routing** — switch the target workspace/project from the meeting screen.
-- **History** — searchable; delete, archive, and reorder recordings; meetings are named with a date/time prefix.
-- Global **Ctrl+Shift+R** shortcut and a button to save the summary to My Day.
+- **History** — searchable; **➕ New meeting** (starts from scratch), delete, archive and reorder; meetings are named with a date/time prefix.
+- Global **Ctrl+Shift+R** shortcut.
 
 Features migrated from the wsi-cronista project.
 

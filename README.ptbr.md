@@ -89,15 +89,22 @@ Assistente de IA interno que roda com seu próprio provedor (LM Studio local, op
 **Coach proativo:** ao longo do dia o agente exibe dicas curtas e acionáveis com base no seu board e TODOs (foco, organização, risco ou uma pausa saudável) num card não intrusivo (desktop **e** web UI). Ele também reage a sinais reais — tarefas paradas (3+ dias sem alteração), WIP alto, TODOs vencidos — cutucando na hora (com cooldown) em vez de só por tempo. Opt-in e configurável em Configurações → Coach proativo (intervalo); também disponível via `GET /api/coach/tip`.
 
 ### Transcrições (Reuniões)
-Grava reuniões e sessões de estudo (microfone e/ou áudio do sistema via PipeWire/PulseAudio), transcreve localmente com faster-whisper e gera resumos estruturados com IA — reuniões viram pontos-chave/decisões/ações; estudos viram conceitos/exercícios/tópicos relacionados. Recursos específicos de reunião:
+Grava reuniões e sessões de estudo (microfone e/ou áudio do sistema via PipeWire/PulseAudio), transcreve localmente com faster-whisper e gera resumos estruturados com IA — reuniões viram pontos-chave/decisões/ações; estudos viram conceitos/exercícios/tópicos relacionados.
 
-- **Modo de preparação** — prepare a reunião antes de começar: escreva a pauta/objetivos e anexe contexto (arquivos, PDFs, imagens ou uma captura de tela; imagens/telas são lidas por um modelo com visão) para o copiloto ao vivo já iniciar sabendo do que se trata.
-- **Copiloto ao vivo** — transcreve e extrai plano, dicas, ações, decisões e perguntas & respostas em tempo real (liga/desliga a qualquer momento), além do campo "perguntar à reunião".
-- **Ver um monitor** — deixe o assistente ver periodicamente uma tela escolhida (lida por um modelo com visão) para ajudar a resolver tarefas na tela; ativável/desativável durante a reunião.
+A tela segue um fluxo explícito: **📁 Destino → 1 Preparar → 2 Gravar → 3 Resultado**.
+
+- **📁 Destino** — workspace e projeto de destino ficam no topo: é para lá que a reunião e as tarefas geradas vão. Trocar de workspace pede confirmação.
+- **1 Preparar** — pauta/objetivos e contexto anexado (arquivos, PDFs, imagens ou uma captura de tela; imagens/telas são lidas por um modelo com visão), para o copiloto já iniciar sabendo do que se trata.
+- **2 Gravar** — fontes de áudio num bloco recolhível (o botão Gravar fica em destaque). Com o **copiloto ao vivo**, plano, dicas, ações, decisões e perguntas & respostas aparecem em tempo real, além do campo "perguntar à reunião".
+- **3 Resultado** — transcrição + resumo e uma barra de ações agrupada: `↻ Analisar com IA │ Documento: Exportar/Copiar │ Enviar para: Criar tarefas/Meu Dia`. O resumo alterna entre **código Markdown e visualização formatada**.
+- **Análise automática** — ao terminar a transcrição o relatório é gerado sozinho (havendo provedor de IA); não é preciso clicar em "Analisar".
+- **Transcrição editável** — corrija o texto a qualquer momento e o agente **revisa os itens** automaticamente.
+- **Respostas manuais** — responda as perguntas do agente nos próprios cards; ele trata as respostas como informação confirmada e não as descarta ao reprocessar.
+- **Tudo salvo automaticamente** — plano/dicas/ações/decisões/perguntas ficam gravados com a reunião; ao reabrir, ela volta exatamente como estava.
+- **Ver um monitor** — deixe o assistente ver periodicamente uma tela escolhida para ajudar a resolver tarefas na tela; ativável/desativável durante a reunião.
 - **Importar de transcrições externas** — crie uma reunião a partir de uma exportação do Meet/Teams (texto, VTT/SRT, PDF, DOCX) e rode a mesma análise.
-- **Destino workspace/projeto** — troque o workspace/projeto de destino pela própria tela da reunião.
-- **Histórico** — pesquisável; excluir, arquivar e reordenar gravações; reuniões nomeadas com prefixo de data/hora.
-- Atalho global **Ctrl+Shift+R** e botão para salvar o resumo no Meu Dia.
+- **Histórico** — pesquisável; **➕ Nova reunião** (começa do zero), excluir, arquivar e reordenar; reuniões nomeadas com prefixo de data/hora.
+- Atalho global **Ctrl+Shift+R**.
 
 Funcionalidades migradas do projeto wsi-cronista.
 
