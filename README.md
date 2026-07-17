@@ -53,7 +53,8 @@ sudo dnf install -y git python3 python3-pip nodejs npm pulseaudio-utils
 # macOS (Homebrew)
 brew install git python node
 
-# Windows: use WSL2 (Ubuntu) and follow the Debian/Ubuntu line above
+# Windows (winget) — native install; meeting recording needs Linux/WSL2
+winget install Git.Git Python.Python.3.12 OpenJS.NodeJS
 ```
 
 > **Meetings / Transcriptions** capture system audio through PulseAudio's `parec` — a **Linux** feature. Without `pulseaudio-utils` the rest of the app still runs; only recording is disabled.
@@ -66,7 +67,7 @@ The agent should:
 
 1. Install the prerequisites above for the user's OS.
 2. Clone the repository: `git clone https://github.com/WalterSilva5/agentic-dev-maestro.git`
-3. Run the installer: `cd agentic-dev-maestro/local-client && ./install.sh` — creates a `.venv`, installs the Python deps (`pip install -e .`), and builds the web UI when `npm` is present.
+3. Run the installer from `local-client/`: **`./install.sh`** (Linux/macOS) or **`.\install.ps1`** (Windows/PowerShell) — creates a `.venv`, installs the Python deps (`pip install -e .`), validates, and builds the web UI when `npm` is present.
 4. Start it: `./run.sh` (optionally `--port 8888`). The desktop GUI opens and the API + web UI serve at `http://127.0.0.1:9777/`.
 5. *(Optional)* Create a `.desktop` shortcut on the desktop pointing to `local-client/run.sh`.
 6. Open **Settings** and configure an AI provider (base URL, model, API key) to enable the assistant and the meeting copilot.
@@ -143,20 +144,40 @@ General settings screen with:
 - Auto-sync with an Obsidian vault per workspace (every 5 min)
 - Vault configurable per workspace and project
 
-## Quick Start (manual)
+## Quick Start (automated install)
+
+Both scripts do the same thing: find Python 3.10+, create the `.venv`, install the
+dependencies, validate the install, and build the web UI when `npm` is available.
+
+**Linux / macOS**
 
 ```bash
 cd local-client
 ./install.sh    # creates venv + installs dependencies + validates
-./run.sh        # runs the application
+./run.sh        # runs the application (optional: --port 8888)
 ```
 
-Or:
+**Windows (PowerShell)**
+
+```powershell
+cd local-client
+.\install.ps1   # creates venv + installs dependencies + validates
+.\run.ps1       # runs the application (optional: --port 8888)
+```
+
+> If PowerShell blocks the script, run it as:
+> `powershell -ExecutionPolicy Bypass -File .\install.ps1`
+>
+> **Windows note:** meeting *recording* uses PulseAudio's `parec` and is Linux-only.
+> Everything else works on Windows (board, AI assistant, importing Meet/Teams
+> transcripts, web UI); only live audio capture is unavailable.
+
+Or manually:
 
 ```bash
 cd local-client
 python3 -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -e .
 python -m maestro_local
 ```

@@ -53,7 +53,8 @@ sudo dnf install -y git python3 python3-pip nodejs npm pulseaudio-utils
 # macOS (Homebrew)
 brew install git python node
 
-# Windows: use o WSL2 (Ubuntu) e siga a linha do Debian/Ubuntu acima
+# Windows (winget) — instalação nativa; gravar reuniões exige Linux/WSL2
+winget install Git.Git Python.Python.3.12 OpenJS.NodeJS
 ```
 
 > **Reuniões / Transcrições** capturam o áudio do sistema via `parec` do PulseAudio — recurso **Linux**. Sem o `pulseaudio-utils` o resto da aplicação continua funcionando; só a gravação fica desabilitada.
@@ -66,7 +67,7 @@ O agente deve:
 
 1. Instalar os pré-requisitos acima para o SO do usuário.
 2. Clonar o repositório: `git clone https://github.com/WalterSilva5/agentic-dev-maestro.git`
-3. Rodar o instalador: `cd agentic-dev-maestro/local-client && ./install.sh` — cria um `.venv`, instala as dependências Python (`pip install -e .`) e builda a web UI quando o `npm` está presente.
+3. Rodar o instalador dentro de `local-client/`: **`./install.sh`** (Linux/macOS) ou **`.\install.ps1`** (Windows/PowerShell) — cria um `.venv`, instala as dependências Python (`pip install -e .`), valida e builda a web UI quando o `npm` está presente.
 4. Executar: `./run.sh` (opcionalmente `--port 8888`). A GUI desktop abre e a API + web UI ficam em `http://127.0.0.1:9777/`.
 5. *(Opcional)* Criar um atalho `.desktop` na área de trabalho apontando para `local-client/run.sh`.
 6. Abrir **Configurações** e configurar um provedor de IA (base URL, modelo, API key) para habilitar o assistente e o copiloto de reunião.
@@ -143,20 +144,41 @@ Tela de configurações gerais com:
 - Auto-sync com Obsidian vault por workspace (a cada 5 min)
 - Vault configurável por workspace e projeto
 
-## Início Rápido (manual)
+## Início Rápido (instalação automatizada)
+
+Os dois scripts fazem o mesmo: encontram o Python 3.10+, criam a `.venv`, instalam
+as dependências, validam a instalação e buildam a web UI quando há `npm`.
+
+**Linux / macOS**
 
 ```bash
 cd local-client
 ./install.sh    # cria venv + instala dependências + valida
-./run.sh        # executa a aplicação
+./run.sh        # executa a aplicação (opcional: --port 8888)
 ```
 
-Ou:
+**Windows (PowerShell)**
+
+```powershell
+cd local-client
+.\install.ps1   # cria venv + instala dependências + valida
+.\run.ps1       # executa a aplicação (opcional: --port 8888)
+```
+
+> Se o PowerShell bloquear o script, rode:
+> `powershell -ExecutionPolicy Bypass -File .\install.ps1`
+>
+> **Nota Windows:** a *gravação* de reuniões usa o `parec` do PulseAudio e é
+> exclusiva do Linux. O resto funciona no Windows (board, assistente de IA,
+> importar transcrições do Meet/Teams, web UI); só a captura de áudio ao vivo
+> fica indisponível.
+
+Ou manualmente:
 
 ```bash
 cd local-client
 python3 -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -e .
 python -m maestro_local
 ```
