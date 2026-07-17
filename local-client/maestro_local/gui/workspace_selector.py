@@ -23,6 +23,7 @@ from maestro_local.config import (
     set_active_workspace,
     update_workspace,
 )
+from maestro_local.gui.confirm_switch import confirm_workspace_switch
 from maestro_local.gui.theme import current_theme
 from maestro_local.i18n import t as _t
 
@@ -435,6 +436,8 @@ class WorkspaceSelectorPopup(QDialog):
     def _switch_workspace(self, ws_id: str):
         if ws_id == get_active_workspace_id():
             self.close()
+            return
+        if not confirm_workspace_switch(self, ws_id):
             return
         set_active_workspace(ws_id)
         self.workspace_changed.emit(ws_id)

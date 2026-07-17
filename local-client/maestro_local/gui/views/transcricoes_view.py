@@ -259,6 +259,14 @@ class TranscricoesView(QWidget):
         self.history.customContextMenuRequested.connect(self._history_context_menu)
         self.history.model().rowsMoved.connect(self._persist_history_order)
         left.addWidget(self.history, 1)
+        self.history_empty = QLabel(
+            t("Nenhuma reunião ainda.\n\nGrave uma (botão “Gravar e transcrever”) ou "
+              "importe uma transcrição do Meet/Teams em “📄 Importar arquivo”."))
+        self.history_empty.setWordWrap(True)
+        self.history_empty.setAlignment(Qt.AlignCenter)
+        self.history_empty.setObjectName("subtitle")
+        self.history_empty.setVisible(False)
+        left.addWidget(self.history_empty)
         left_widget.setMinimumWidth(170)
         left_widget.setMaximumWidth(420)
         self._left_widget = left_widget
@@ -316,17 +324,42 @@ class TranscricoesView(QWidget):
         self.banner.setVisible(False)
         right.addWidget(self.banner)
 
-        # Controles de gravação
-        ctrl = QFrame()
-        ctrl.setProperty("class", "card")
-        cl = QVBoxLayout(ctrl)
-        cl.setContentsMargins(12, 10, 12, 10)
-        cl.setSpacing(8)
+        # ---- Destino da reunião (workspace + projeto) — sempre visível no topo ----
+        dest = QFrame()
+        dest.setProperty("class", "card")
+        dl = QVBoxLayout(dest)
+        dl.setContentsMargins(12, 8, 12, 8)
+        dl.setSpacing(4)
+        dest_row = FlowLayout(h_spacing=8, v_spacing=6)
+        dest_row.addWidget(QLabel(t("📁 Destino:")))
+        self.ws_combo = NoWheelComboBox()
+        self.ws_combo.setMinimumWidth(120)
+        self.ws_combo.setToolTip(
+            t("Workspace de destino da reunião. Troque aqui caso esteja gravando para o workspace errado.")
+        )
+        self.ws_combo.currentIndexChanged.connect(self._on_ws_combo_changed)
+        dest_row.addWidget(self.ws_combo)
+        dest_row.addWidget(QLabel(t("Projeto:")))
+        self.proj_combo = NoWheelComboBox()
+        self.proj_combo.setMinimumWidth(130)
+        self.proj_combo.currentIndexChanged.connect(self._on_proj_combo_changed)
+        dest_row.addWidget(self.proj_combo)
+        dl.addLayout(dest_row)
+        dest_hint = QLabel(t("É para onde a reunião e as tarefas geradas vão."))
+        dest_hint.setObjectName("subtitle")
+        dl.addWidget(dest_hint)
+        right.addWidget(dest)
+
+        # ---- 1. Preparar ----
+        prep_card, cl = self._section_card(
+            "1", t("Preparar"),
+            t("Descreva a pauta e anexe contexto ANTES de gravar — assim o assistente "
+              "já começa sabendo do que se trata. Opcional."))
 
         row1 = QHBoxLayout()
         row1.setSpacing(8)
         row1.addWidget(QLabel(t("Tipo:")))
-        self.kind_combo = QComboBox()
+        self.kind_combo = NoWheelComboBox()
         self.kind_combo.addItem(t("Reunião"), "meeting")
         self.kind_combo.addItem(t("Estudo"), "study")
         self.kind_combo.currentIndexChanged.connect(self._on_kind_changed)
@@ -337,48 +370,6 @@ class TranscricoesView(QWidget):
         row1.addWidget(self.topic_input, 1)
         cl.addLayout(row1)
 
-        row2 = QHBoxLayout()
-        row2.setSpacing(8)
-        row2.addWidget(QLabel(t("Microfone:")))
-        self.mic_combo = QComboBox()
-        row2.addWidget(self.mic_combo, 1)
-        cl.addLayout(row2)
-
-        row3 = QHBoxLayout()
-        row3.setSpacing(8)
-        row3.addWidget(QLabel(t("Áudio do sistema:")))
-        self.monitor_combo = QComboBox()
-        row3.addWidget(self.monitor_combo, 1)
-        cl.addLayout(row3)
-
-        row4 = QHBoxLayout()
-        row4.setSpacing(8)
-        self.record_btn = QPushButton(t("● Gravar e transcrever"))
-        self.record_btn.setFixedHeight(34)
-        self.record_btn.setCursor(Qt.PointingHandCursor)
-        self.record_btn.clicked.connect(self._toggle_record)
-        row4.addWidget(self.record_btn)
-        self.timer_label = QLabel("00:00")
-        self.timer_label.setStyleSheet("font-family: monospace; font-size: 16px;")
-        row4.addWidget(self.timer_label)
-        row4.addStretch()
-        self.live_check = QCheckBox(t("Assistente ao vivo"))
-        self.live_check.setToolTip(
-            t("Transcreve e extrai ações/decisões durante a gravação (mais uso de CPU/IA). "
-              "Pode ser ligado/desligado a qualquer momento, inclusive no meio da gravação.")
-        )
-        self.live_check.toggled.connect(self._on_live_toggled)
-        row4.addWidget(self.live_check)
-        cl.addLayout(row4)
-
-        # ---- Preparação: informações prévias + contexto para o copiloto ----
-        prep_header = QLabel(t("🧭 Preparação da reunião"))
-        prep_header.setObjectName("subtitle")
-        prep_header.setToolTip(
-            t("Prepare a reunião antes de começar: descreva a pauta e anexe contexto. "
-              "O assistente já inicia sabendo do que se trata.")
-        )
-        cl.addWidget(prep_header)
         self.prep_edit = QTextEdit()
         self.prep_edit.setPlaceholderText(
             t("Pauta, objetivos, participantes, decisões esperadas, links… "
@@ -387,9 +378,8 @@ class TranscricoesView(QWidget):
         self.prep_edit.setMaximumHeight(84)
         cl.addWidget(self.prep_edit)
 
-        # ---- Contexto adicional (arquivos/imagens/tela) para o copiloto ----
-        row5 = QHBoxLayout()
-        row5.setSpacing(8)
+        # Contexto adicional (arquivos/imagens/tela)
+        row5 = FlowLayout(h_spacing=8, v_spacing=6)
         self.context_btn = QToolButton()
         self.context_btn.setText(t("➕ Adicionar contexto"))
         self.context_btn.setCursor(Qt.PointingHandCursor)
@@ -405,7 +395,7 @@ class TranscricoesView(QWidget):
         row5.addWidget(self.context_btn)
         self.context_summary = QLabel(t("Nenhum contexto adicionado"))
         self.context_summary.setObjectName("subtitle")
-        row5.addWidget(self.context_summary, 1)
+        row5.addWidget(self.context_summary)
         cl.addLayout(row5)
 
         self.context_container = QWidget()
@@ -414,8 +404,50 @@ class TranscricoesView(QWidget):
         self._context_layout.setSpacing(4)
         self.context_container.setVisible(False)
         cl.addWidget(self.context_container)
+        right.addWidget(prep_card)
 
-        # ---- Observador de tela: o agente "vê" um monitor durante a reunião ----
+        # ---- 2. Gravar ----
+        rec_card, rl = self._section_card(
+            "2", t("Gravar"),
+            t("Grave a reunião. Com o assistente ao vivo, plano/ações/decisões aparecem "
+              "em tempo real; ao parar, a análise é gerada automaticamente."))
+
+        # Configurações de áudio — recolhidas por padrão (o que importa é Gravar)
+        audio_head = QHBoxLayout()
+        audio_head.setSpacing(8)
+        self.audio_toggle = QToolButton()
+        self.audio_toggle.setText(t("▸ Configurações de áudio"))
+        self.audio_toggle.setCheckable(True)
+        self.audio_toggle.setAutoRaise(True)
+        self.audio_toggle.setCursor(Qt.PointingHandCursor)
+        self.audio_toggle.toggled.connect(self._on_audio_settings_toggled)
+        audio_head.addWidget(self.audio_toggle)
+        self.audio_summary = QLabel("")
+        self.audio_summary.setObjectName("subtitle")
+        audio_head.addWidget(self.audio_summary, 1)
+        rl.addLayout(audio_head)
+
+        self.audio_box = QWidget()
+        al = QVBoxLayout(self.audio_box)
+        al.setContentsMargins(0, 0, 0, 0)
+        al.setSpacing(6)
+
+        row2 = QHBoxLayout()
+        row2.setSpacing(8)
+        row2.addWidget(QLabel(t("Microfone:")))
+        self.mic_combo = NoWheelComboBox()
+        self.mic_combo.currentIndexChanged.connect(self._update_audio_summary)
+        row2.addWidget(self.mic_combo, 1)
+        al.addLayout(row2)
+
+        row3 = QHBoxLayout()
+        row3.setSpacing(8)
+        row3.addWidget(QLabel(t("Áudio do sistema:")))
+        self.monitor_combo = NoWheelComboBox()
+        self.monitor_combo.currentIndexChanged.connect(self._update_audio_summary)
+        row3.addWidget(self.monitor_combo, 1)
+        al.addLayout(row3)
+
         row6 = QHBoxLayout()
         row6.setSpacing(8)
         self.screen_watch_check = QCheckBox(t("👁 Assistente vê a tela"))
@@ -426,16 +458,37 @@ class TranscricoesView(QWidget):
         )
         self.screen_watch_check.toggled.connect(self._on_screen_watch_toggled)
         row6.addWidget(self.screen_watch_check)
-        self.screen_combo = QComboBox()
+        self.screen_combo = NoWheelComboBox()
         self.screen_combo.setMinimumWidth(150)
         row6.addWidget(self.screen_combo, 1)
-        cl.addLayout(row6)
+        al.addLayout(row6)
+
         self.screen_watch_status = QLabel("")
         self.screen_watch_status.setObjectName("subtitle")
         self.screen_watch_status.setVisible(False)
-        cl.addWidget(self.screen_watch_status)
+        al.addWidget(self.screen_watch_status)
 
-        right.addWidget(ctrl)
+        self.audio_box.setVisible(False)
+        rl.addWidget(self.audio_box)
+
+        row4 = FlowLayout(h_spacing=8, v_spacing=6)
+        self.record_btn = QPushButton(t("● Gravar e transcrever"))
+        self.record_btn.setFixedHeight(34)
+        self.record_btn.setCursor(Qt.PointingHandCursor)
+        self.record_btn.clicked.connect(self._toggle_record)
+        row4.addWidget(self.record_btn)
+        self.timer_label = QLabel("00:00")
+        self.timer_label.setStyleSheet("font-family: monospace; font-size: 16px;")
+        row4.addWidget(self.timer_label)
+        self.live_check = QCheckBox(t("Assistente ao vivo"))
+        self.live_check.setToolTip(
+            t("Transcreve e extrai ações/decisões durante a gravação (mais uso de CPU/IA). "
+              "Pode ser ligado/desligado a qualquer momento, inclusive no meio da gravação.")
+        )
+        self.live_check.toggled.connect(self._on_live_toggled)
+        row4.addWidget(self.live_check)
+        rl.addLayout(row4)
+        right.addWidget(rec_card)
 
         # ---- Painel do assistente ao vivo (visível só durante gravação ao vivo) ----
         self.live_box = self._build_live_box()
@@ -500,21 +553,8 @@ class TranscricoesView(QWidget):
         actions.addWidget(self.md_view_btn)
         right.addLayout(actions)
 
-        # Ações — linha 2: ponte para o board (também quebra em telas estreitas)
+        # Ações — linha 2: ponte para o board (o destino fica no topo da tela)
         actions2 = FlowLayout(h_spacing=8, v_spacing=6)
-        actions2.addWidget(QLabel(t("Workspace:")))
-        self.ws_combo = NoWheelComboBox()
-        self.ws_combo.setMinimumWidth(120)
-        self.ws_combo.setToolTip(
-            t("Workspace de destino da reunião. Troque aqui caso esteja gravando para o workspace errado.")
-        )
-        self.ws_combo.currentIndexChanged.connect(self._on_ws_combo_changed)
-        actions2.addWidget(self.ws_combo)
-        actions2.addWidget(QLabel(t("Projeto:")))
-        self.proj_combo = NoWheelComboBox()
-        self.proj_combo.setMinimumWidth(130)
-        self.proj_combo.currentIndexChanged.connect(self._on_proj_combo_changed)
-        actions2.addWidget(self.proj_combo)
         self.tasks_btn = QPushButton(t("Criar tarefas das ações"))
         self.tasks_btn.setFixedHeight(32)
         self.tasks_btn.setCursor(Qt.PointingHandCursor)
@@ -543,6 +583,54 @@ class TranscricoesView(QWidget):
         self._main_split.setSizes([260, 900])
 
         self.refresh()
+
+    # ------------------------- UI helpers -------------------------
+    def _section_card(self, number: str, title_text: str, help_text: str = ""):
+        """Card de etapa numerada (deixa o fluxo da tela explícito)."""
+        th = current_theme()
+        card = QFrame()
+        card.setProperty("class", "card")
+        lay = QVBoxLayout(card)
+        lay.setContentsMargins(12, 10, 12, 10)
+        lay.setSpacing(8)
+        head = QHBoxLayout()
+        head.setSpacing(8)
+        badge = QLabel(number)
+        badge.setFixedSize(22, 22)
+        badge.setAlignment(Qt.AlignCenter)
+        badge.setStyleSheet(
+            f"background: {th.accent}; color: {th.text_on_accent}; border-radius: 11px; "
+            f"font-weight: 800; font-size: 11px; border: none;")
+        head.addWidget(badge)
+        ttl = QLabel(title_text)
+        ttl.setProperty("class", "cardTitle")
+        head.addWidget(ttl)
+        head.addStretch()
+        lay.addLayout(head)
+        if help_text:
+            hint = QLabel(help_text)
+            hint.setWordWrap(True)
+            hint.setObjectName("subtitle")
+            lay.addWidget(hint)
+        return card, lay
+
+    def _on_audio_settings_toggled(self, on: bool):
+        self.audio_box.setVisible(on)
+        self.audio_toggle.setText(
+            t("▾ Configurações de áudio") if on else t("▸ Configurações de áudio"))
+        self._update_audio_summary()
+
+    def _update_audio_summary(self):
+        """Resumo das fontes de áudio (visível quando o bloco está recolhido)."""
+        if not hasattr(self, "audio_summary"):
+            return
+        if self.audio_toggle.isChecked():
+            self.audio_summary.setText("")
+            return
+        mic = self.mic_combo.currentText() if self.mic_combo.currentData() else t("Nenhum")
+        mon = self.monitor_combo.currentText() if self.monitor_combo.currentData() else t("Nenhum")
+        self.audio_summary.setText(
+            t("🎙 {mic}  ·  🔊 {mon}").format(mic=mic[:28], mon=mon[:28]))
 
     # ------------------------------------------------------------------
     def resizeEvent(self, event):
@@ -605,6 +693,10 @@ class TranscricoesView(QWidget):
             return
         ws_id = self.ws_combo.currentData()
         if not ws_id or ws_id == get_active_workspace_id():
+            return
+        from maestro_local.gui.confirm_switch import confirm_workspace_switch
+        if not confirm_workspace_switch(self, ws_id):
+            self._populate_workspaces()  # volta o combo para o workspace atual
             return
         transcript = self.transcript_edit.toPlainText().strip()
         # Remove a gravação do workspace atual — será recriada no destino.
@@ -1916,6 +2008,10 @@ class TranscricoesView(QWidget):
         finally:
             s.close()
             self.history.blockSignals(False)
+        # Estado vazio: orienta em vez de deixar uma lista em branco.
+        empty = self.history.count() == 0
+        self.history_empty.setVisible(empty and not query)
+        self.history.setVisible(not empty or bool(query))
 
     def _history_context_menu(self, pos):
         item = self.history.itemAt(pos)
