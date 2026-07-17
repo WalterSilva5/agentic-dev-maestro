@@ -505,68 +505,82 @@ class TranscricoesView(QWidget):
         self.status_label.setObjectName("subtitle")
         right.addWidget(self.status_label)
 
-        # Transcrição
+        # ---- 3. Resultado: transcrição + resumo + ações agrupadas ----
+        res_card, sl = self._section_card(
+            "3", t("Resultado"),
+            t("Corrija a transcrição se precisar — o agente revisa os itens sozinho. "
+              "Depois, use o resumo e mande as ações para o board."))
+
         self.transcript_label = QLabel(t("Transcrição:"))
-        right.addWidget(self.transcript_label)
+        sl.addWidget(self.transcript_label)
         self.transcript_edit = QTextEdit()
         self.transcript_edit.setPlaceholderText(t("A transcrição aparecerá aqui..."))
+        self.transcript_edit.setMinimumHeight(120)
         self.transcript_edit.setToolTip(
             t("Você pode corrigir a transcrição a qualquer momento — o agente revisa "
               "os itens automaticamente após a edição."))
         self.transcript_edit.textChanged.connect(self._on_transcript_edited)
-        right.addWidget(self.transcript_edit, 1)
+        sl.addWidget(self.transcript_edit, 1)
 
-        # Ações — linha 1: documento da reunião (FlowLayout: quebra em telas estreitas)
+        # Resumo (IA) — o toggle de visualização fica JUNTO do campo que controla
+        summary_head = QHBoxLayout()
+        summary_head.setSpacing(8)
+        self.summary_label = QLabel(t("Resumo (IA):"))
+        summary_head.addWidget(self.summary_label)
+        summary_head.addStretch()
+        self.md_view_btn = QPushButton(t("👁 Visualizar"))
+        self.md_view_btn.setProperty("flat", "true")
+        self.md_view_btn.setFixedHeight(28)
+        self.md_view_btn.setCursor(Qt.PointingHandCursor)
+        self.md_view_btn.setToolTip(t("Alterna entre o código Markdown e a visualização formatada do resumo."))
+        self.md_view_btn.clicked.connect(self._toggle_md_view)
+        summary_head.addWidget(self.md_view_btn)
+        sl.addLayout(summary_head)
+
+        self.result_edit = QTextEdit()
+        self.result_edit.setPlaceholderText(t("O resumo estruturado aparecerá aqui após a análise."))
+        self.result_edit.setMinimumHeight(120)
+        self.result_edit.setVisible(False)
+        sl.addWidget(self.result_edit, 1)
+
+        # Barra de ações agrupada (em vez de botões soltos):
+        #   [Analisar]  │  Documento: Exportar/Copiar  │  Enviar para: tarefas/Meu Dia
         actions = FlowLayout(h_spacing=8, v_spacing=6)
-        self.analyze_btn = QPushButton(t("Analisar com IA"))
+        self.analyze_btn = QPushButton(t("↻ Analisar com IA"))
         self.analyze_btn.setFixedHeight(32)
         self.analyze_btn.setCursor(Qt.PointingHandCursor)
+        self.analyze_btn.setToolTip(t("Gera o resumo e os itens de novo a partir da transcrição atual."))
         self.analyze_btn.clicked.connect(self._analyze)
         actions.addWidget(self.analyze_btn)
-        self.save_day_btn = QPushButton(t("Salvar no Meu Dia"))
-        self.save_day_btn.setProperty("flat", "true")
-        self.save_day_btn.setFixedHeight(32)
-        self.save_day_btn.setCursor(Qt.PointingHandCursor)
-        self.save_day_btn.clicked.connect(self._save_to_day)
-        self.save_day_btn.setEnabled(False)
-        actions.addWidget(self.save_day_btn)
+
         self.export_btn = QPushButton(t("Exportar (.md)"))
         self.export_btn.setProperty("flat", "true")
         self.export_btn.setFixedHeight(32)
         self.export_btn.setCursor(Qt.PointingHandCursor)
         self.export_btn.setToolTip(t("Exporta um markdown único com todos os itens de todas as abas + transcrição."))
         self.export_btn.clicked.connect(self._export_markdown)
-        actions.addWidget(self.export_btn)
         self.copy_btn = QPushButton(t("Copiar (.md)"))
         self.copy_btn.setProperty("flat", "true")
         self.copy_btn.setFixedHeight(32)
         self.copy_btn.setCursor(Qt.PointingHandCursor)
         self.copy_btn.setToolTip(t("Copia o markdown completo da reunião para a área de transferência."))
         self.copy_btn.clicked.connect(self._copy_markdown)
-        actions.addWidget(self.copy_btn)
-        self.md_view_btn = QPushButton(t("👁 Visualizar"))
-        self.md_view_btn.setProperty("flat", "true")
-        self.md_view_btn.setFixedHeight(32)
-        self.md_view_btn.setCursor(Qt.PointingHandCursor)
-        self.md_view_btn.setToolTip(t("Alterna entre o código Markdown e a visualização formatada do resumo."))
-        self.md_view_btn.clicked.connect(self._toggle_md_view)
-        actions.addWidget(self.md_view_btn)
-        right.addLayout(actions)
+        actions.addWidget(self._action_group(t("Documento:"), [self.export_btn, self.copy_btn]))
 
-        # Ações — linha 2: ponte para o board (o destino fica no topo da tela)
-        actions2 = FlowLayout(h_spacing=8, v_spacing=6)
         self.tasks_btn = QPushButton(t("Criar tarefas das ações"))
         self.tasks_btn.setFixedHeight(32)
         self.tasks_btn.setCursor(Qt.PointingHandCursor)
         self.tasks_btn.clicked.connect(self._actions_to_tasks)
-        actions2.addWidget(self.tasks_btn)
-        right.addLayout(actions2)
-
-        # Resultado markdown
-        self.result_edit = QTextEdit()
-        self.result_edit.setPlaceholderText(t("O resumo estruturado aparecerá aqui após a análise."))
-        self.result_edit.setVisible(False)
-        right.addWidget(self.result_edit, 1)
+        self.save_day_btn = QPushButton(t("Meu Dia"))
+        self.save_day_btn.setProperty("flat", "true")
+        self.save_day_btn.setFixedHeight(32)
+        self.save_day_btn.setCursor(Qt.PointingHandCursor)
+        self.save_day_btn.setToolTip(t("Adiciona o resumo ao relatório do Meu Dia."))
+        self.save_day_btn.clicked.connect(self._save_to_day)
+        self.save_day_btn.setEnabled(False)
+        actions.addWidget(self._action_group(t("Enviar para:"), [self.tasks_btn, self.save_day_btn]))
+        sl.addLayout(actions)
+        right.addWidget(res_card)
 
         # A coluna direita rola quando o conteúdo (controles + painel ao vivo)
         # não cabe na altura da janela — evita widgets sobrepostos.
@@ -613,6 +627,33 @@ class TranscricoesView(QWidget):
             hint.setObjectName("subtitle")
             lay.addWidget(hint)
         return card, lay
+
+    def _vsep(self) -> QFrame:
+        """Separador vertical entre grupos da barra de ações."""
+        sep = QFrame()
+        sep.setFrameShape(QFrame.VLine)
+        sep.setFixedSize(1, 24)
+        sep.setStyleSheet(f"color: {current_theme().border};")
+        return sep
+
+    def _group_label(self, text: str) -> QLabel:
+        """Rótulo de grupo da barra de ações (dá nome ao conjunto de botões)."""
+        lbl = QLabel(text)
+        lbl.setObjectName("subtitle")
+        return lbl
+
+    def _action_group(self, label: str, buttons: list) -> QWidget:
+        """Grupo rotulado de botões. Num container próprio para quebrar como
+        unidade em telas estreitas (o rótulo nunca se separa dos seus botões)."""
+        w = QWidget()
+        h = QHBoxLayout(w)
+        h.setContentsMargins(0, 0, 0, 0)
+        h.setSpacing(6)
+        h.addWidget(self._vsep())
+        h.addWidget(self._group_label(label))
+        for b in buttons:
+            h.addWidget(b)
+        return w
 
     def _on_audio_settings_toggled(self, on: bool):
         self.audio_box.setVisible(on)
