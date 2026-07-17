@@ -136,7 +136,7 @@ QMainWindow, QWidget {{
     background-color: {t.bg_primary};
     color: {t.text_primary};
     font-family: "Inter", "Segoe UI", "Noto Sans", "Roboto", system-ui, sans-serif;
-    font-size: 12px;
+    font-size: 13px;
 }}
 QMenuBar {{
     background-color: {t.bg_sidebar};
@@ -215,11 +215,11 @@ QPushButton {{
     background-color: {t.accent};
     color: {t.text_on_accent};
     border: 1px solid {t.accent_pressed};
-    border-radius: 8px;
-    padding: 6px 16px;
-    min-height: 18px;
+    border-radius: 9px;
+    padding: 7px 18px;
+    min-height: 20px;
     font-weight: 600;
-    font-size: 12px;
+    font-size: 13px;
 }}
 QPushButton:hover {{ background-color: {t.accent_hover}; border-color: {t.accent}; }}
 QPushButton:pressed {{ background-color: {t.accent_pressed}; }}
@@ -237,8 +237,8 @@ QPushButton[flat="true"], QPushButton#flatBtn {{
     color: {t.text_secondary};
     font-weight: 600;
     border: 1px solid {t.border};
-    border-radius: 8px;
-    padding: 6px 14px;
+    border-radius: 9px;
+    padding: 7px 16px;
 }}
 QPushButton[flat="true"]:hover, QPushButton#flatBtn:hover {{
     background-color: {t.bg_hover};
@@ -248,15 +248,36 @@ QPushButton[flat="true"]:hover, QPushButton#flatBtn:hover {{
 QPushButton[flat="true"]:pressed, QPushButton#flatBtn:pressed {{
     background-color: {t.bg_selected};
 }}
+QToolButton {{
+    background-color: {t.bg_card};
+    color: {t.text_secondary};
+    border: 1px solid {t.border};
+    border-radius: 9px;
+    padding: 6px 12px;
+    font-weight: 600;
+}}
+QToolButton:hover {{
+    background-color: {t.bg_hover};
+    color: {t.text_primary};
+    border-color: {t.accent};
+}}
+QToolButton:pressed, QToolButton:checked {{
+    background-color: {t.bg_selected};
+}}
+QToolButton::menu-indicator {{ image: none; width: 0; }}
 QLineEdit, QTextEdit, QPlainTextEdit, QComboBox, QSpinBox, QDoubleSpinBox {{
     background-color: {t.bg_input};
     color: {t.text_primary};
     border: 1px solid {t.border};
-    border-radius: 6px;
-    padding: 5px 10px;
+    border-radius: 9px;
+    padding: 7px 11px;
     selection-background-color: {t.accent};
     selection-color: {t.text_on_accent};
-    font-size: 12px;
+    font-size: 13px;
+}}
+QLineEdit:hover, QTextEdit:hover, QPlainTextEdit:hover,
+QComboBox:hover, QSpinBox:hover, QDoubleSpinBox:hover {{
+    border-color: {t.border_focus};
 }}
 QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus,
 QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus {{
@@ -287,36 +308,32 @@ QComboBox QAbstractItemView {{
     padding: 4px;
 }}
 QScrollBar:vertical {{
-    background: {t.bg_badge};
-    width: 15px;
+    background: transparent;
+    width: 11px;
     margin: 2px;
-    border-radius: 7px;
 }}
 QScrollBar::handle:vertical {{
-    background: {t.accent};
-    border: 3px solid {t.bg_badge};
-    border-radius: 7px;
-    min-height: 44px;
+    background: {t.border};
+    border-radius: 5px;
+    min-height: 40px;
 }}
 QScrollBar::handle:vertical:hover {{
-    background: {t.accent_hover};
+    background: {t.accent};
 }}
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0; }}
 QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{ background: transparent; }}
 QScrollBar:horizontal {{
-    background: {t.bg_badge};
-    height: 15px;
+    background: transparent;
+    height: 11px;
     margin: 2px;
-    border-radius: 7px;
 }}
 QScrollBar::handle:horizontal {{
-    background: {t.accent};
-    border: 3px solid {t.bg_badge};
-    border-radius: 7px;
-    min-width: 44px;
+    background: {t.border};
+    border-radius: 5px;
+    min-width: 40px;
 }}
 QScrollBar::handle:horizontal:hover {{
-    background: {t.accent_hover};
+    background: {t.accent};
 }}
 QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{ width: 0; }}
 QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{ background: transparent; }}
@@ -347,15 +364,15 @@ QTabBar::tab:hover:!selected {{
     border-bottom: 2px solid {t.border};
 }}
 QLabel#sectionTitle {{
-    font-size: 16px;
-    font-weight: 700;
+    font-size: 18px;
+    font-weight: 800;
     color: {t.text_primary};
-    letter-spacing: -0.2px;
+    letter-spacing: -0.3px;
     margin-bottom: 2px;
 }}
 QLabel#subtitle {{
     color: {t.text_muted};
-    font-size: 11px;
+    font-size: 12px;
 }}
 QProgressBar {{
     background-color: {t.bg_badge};
@@ -368,10 +385,11 @@ QProgressBar::chunk {{
     background-color: {t.accent};
     border-radius: 4px;
 }}
+QCheckBox {{ spacing: 7px; }}
 QCheckBox::indicator {{
-    width: 16px;
-    height: 16px;
-    border-radius: 4px;
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
     border: 2px solid {t.border};
     background-color: {t.bg_input};
 }}
@@ -425,8 +443,8 @@ QMessageBox QPushButton {{
 QFrame[class="card"] {{
     background: {t.bg_card};
     border: 1px solid {t.border_light};
-    border-radius: 8px;
-    padding: 6px;
+    border-radius: 12px;
+    padding: 8px;
 }}
 QLabel[class="cardTitle"] {{
     font-weight: 700;
