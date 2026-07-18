@@ -41,6 +41,7 @@ from maestro_local.config import (
     set_active_workspace,
 )
 from maestro_local.transcricoes import audio as audio_backend
+from maestro_local.transcricoes.session import MeetingSession, empty_live_state
 from maestro_local.transcricoes.constants import (
     LIVE_AI_MIN_SECONDS,
     LIVE_AI_MIN_WORDS,
@@ -183,6 +184,9 @@ class TranscricoesView(QWidget):
         self._transcriber = None
         self._analyzer = None
         self._elapsed = 0
+        # Estado da reunião em edição (entradas x saídas) — fonte única de
+        # verdade; `_live_state` abaixo é só um atalho para session.live_state.
+        self._meeting = MeetingSession()
         self._current = {"transcript": "", "duration": 0.0, "language": "", "audio_path": ""}
         # Visualização do resumo Markdown: fonte editável x preview renderizado.
         self._md_preview = False
@@ -210,8 +214,6 @@ class TranscricoesView(QWidget):
         self._live_transcript = ""       # transcrição ao vivo acumulada
         self._live_pending = ""          # texto novo ainda não enviado à IA
         self._live_secs_since = 0        # segundos desde a última extração
-        self._live_state = {"action_items": [], "decisions": [], "questions": [],
-                            "plan": [], "tips": []}
 
         self._tick = QTimer(self)
         self._tick.setInterval(1000)
@@ -1149,19 +1151,20 @@ class TranscricoesView(QWidget):
         self._live_extractor.failed.connect(self._on_live_extract_error)
         self._live_extractor.start()
 
+    # Estado dos itens do assistente vive no MeetingSession; a property mantém
+    # `self._live_state` funcionando como antes em toda a view.
+    @property
+    def _live_state(self) -> dict:
+        return self._meeting.live_state
+
+    @_live_state.setter
+    def _live_state(self, value: dict):
+        self._meeting.live_state = value
+
     def _preserve_answers(self, new_state: dict) -> dict:
         """Mantém respostas já dadas (manuais ou do agente) quando o agente
         reemite as perguntas sem a resposta — evita perder edições manuais."""
-        old = {str(q.get("question", "")).strip(): q
-               for q in self._live_state.get("questions", []) if isinstance(q, dict)}
-        for q in new_state.get("questions", []):
-            if not isinstance(q, dict):
-                continue
-            prev = old.get(str(q.get("question", "")).strip())
-            if prev and not str(q.get("answer") or "").strip() and str(prev.get("answer") or "").strip():
-                q["answer"] = prev["answer"]
-                q["resolved"] = prev.get("resolved", q.get("resolved"))
-        return new_state
+        return self._meeting.merge_live_state(new_state)
 
     def _autosave_live_state(self):
         """Salva os itens do assistente assim que mudam (só se já há gravação)."""
@@ -1214,30 +1217,15 @@ class TranscricoesView(QWidget):
 
     def _toggle_question_resolved(self, index):
         """Alterna a pergunta de índice `index` entre resolvida e em aberto."""
-        questions = self._live_state.get("questions", [])
-        if not (0 <= index < len(questions)):
+        if not self._meeting.toggle_resolved(index):
             return
-        q = questions[index]
-        if isinstance(q, dict):
-            q["resolved"] = not q.get("resolved")
-        else:  # normaliza string para dict
-            questions[index] = {"question": str(q), "answer": "", "resolved": True}
         self._autosave_live_state()
         self._refresh_live_panels()
 
     def _set_question_answer(self, index, text):
         """Define/edita manualmente a resposta de uma pergunta gerada pelo agente."""
-        questions = self._live_state.get("questions", [])
-        if not (0 <= index < len(questions)):
+        if not self._meeting.set_answer(index, text):
             return
-        q = questions[index]
-        text = (text or "").strip()
-        if isinstance(q, dict):
-            q["answer"] = text
-            # Responder marca como resolvida; limpar a resposta não reabre sozinho.
-            q["resolved"] = bool(text) or bool(q.get("resolved"))
-        else:
-            questions[index] = {"question": str(q), "answer": text, "resolved": bool(text)}
         self._autosave_live_state()
         self._refresh_live_panels()
 
@@ -1800,8 +1788,7 @@ class TranscricoesView(QWidget):
                          "audio_path": "", "rec_id": None, "title": ""}
         self._live_transcript = transcript
         self._live_pending = ""
-        self._live_state = {"action_items": [], "decisions": [], "questions": [],
-                            "plan": [], "tips": []}
+        self._live_state = empty_live_state()
         self._refresh_live_panels()
         self._render_questions([])
         self.live_box.setVisible(False)
@@ -2136,8 +2123,7 @@ class TranscricoesView(QWidget):
         self.save_day_btn.setEnabled(False)
         self._live_transcript = ""
         self._live_pending = ""
-        self._live_state = {"action_items": [], "decisions": [], "questions": [],
-                            "plan": [], "tips": []}
+        self._live_state = empty_live_state()
         self._refresh_live_panels()
         self._render_questions([])
         self.live_transcript_edit.clear()
@@ -2191,8 +2177,7 @@ class TranscricoesView(QWidget):
             # dicas, ações, decisões, perguntas) — reabre como estava.
             self._live_transcript = r.transcript or ""
             self._live_pending = ""
-            empty = {"action_items": [], "decisions": [], "questions": [],
-                     "plan": [], "tips": []}
+            empty = empty_live_state()
             try:
                 saved = json.loads(r.live_state_json) if r.live_state_json else {}
             except Exception:  # noqa: BLE001
