@@ -32,6 +32,8 @@ dependencies = [
 # Shell de desktop que renderiza a web UI React numa janela nativa
 # (migração para a rota web — ver docs/planos/migracao-frontend-responsivo).
 shell = ["pywebview>=5.0"]
+# Testes: pytest -q  (a GUI roda offscreen, ver tests/conftest.py)
+dev = ["pytest>=8.0"]
 
 [project.scripts]
 maestro = "maestro_local.__main__:main"
