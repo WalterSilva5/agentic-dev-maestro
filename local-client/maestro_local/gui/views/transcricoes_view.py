@@ -58,7 +58,13 @@ from maestro_local.db.models import (
     get_session,
 )
 from maestro_local.gui.flow_layout import FlowLayout
-from maestro_local.gui.meetings import DestinationBar, HistoryPanel
+from maestro_local.gui.meetings import (
+    DestinationBar,
+    HistoryPanel,
+    PreparationCard,
+    RecordingCard,
+    SectionCard,
+)
 from maestro_local.gui.no_wheel_combo import NoWheelComboBox
 from maestro_local.gui.theme import current_theme
 from maestro_local.i18n import t
@@ -306,144 +312,38 @@ class TranscricoesView(QWidget):
         right.addWidget(self.destination)
 
         # ---- 1. Preparar ----
-        prep_card, cl = self._section_card(
-            "1", t("Preparar"),
-            t("Descreva a pauta e anexe contexto ANTES de gravar — assim o assistente "
-              "já começa sabendo do que se trata. Opcional."))
-
-        row1 = QHBoxLayout()
-        row1.setSpacing(8)
-        row1.addWidget(QLabel(t("Tipo:")))
-        self.kind_combo = NoWheelComboBox()
-        self.kind_combo.addItem(t("Reunião"), "meeting")
-        self.kind_combo.addItem(t("Estudo"), "study")
-        self.kind_combo.currentIndexChanged.connect(self._on_kind_changed)
-        row1.addWidget(self.kind_combo)
-        self.topic_input = QLineEdit()
-        self.topic_input.setPlaceholderText(t("Tópico do estudo"))
-        self.topic_input.setVisible(False)
-        row1.addWidget(self.topic_input, 1)
-        cl.addLayout(row1)
-
-        self.prep_edit = QTextEdit()
-        self.prep_edit.setPlaceholderText(
-            t("Pauta, objetivos, participantes, decisões esperadas, links… "
-              "O assistente usa isto como base para já começar preparado.")
-        )
-        self.prep_edit.setMaximumHeight(84)
-        cl.addWidget(self.prep_edit)
-
-        # Contexto adicional (arquivos/imagens/tela)
-        row5 = FlowLayout(h_spacing=8, v_spacing=6)
-        self.context_btn = QToolButton()
-        self.context_btn.setText(t("➕ Adicionar contexto"))
-        self.context_btn.setCursor(Qt.PointingHandCursor)
-        self.context_btn.setPopupMode(QToolButton.InstantPopup)
-        self.context_btn.setToolTip(
-            t("Anexa arquivos (imagem, PDF, texto…) ou uma captura de tela como contexto "
-              "para o assistente da reunião. Pode ser usado a qualquer momento.")
-        )
-        ctx_menu = QMenu(self.context_btn)
-        ctx_menu.addAction(t("Arquivo (imagem, PDF, texto…)"), self._add_context_file)
-        ctx_menu.addAction(t("Capturar tela"), self._capture_screen_context)
-        self.context_btn.setMenu(ctx_menu)
-        row5.addWidget(self.context_btn)
-        self.context_summary = QLabel(t("Nenhum contexto adicionado"))
-        self.context_summary.setObjectName("subtitle")
-        row5.addWidget(self.context_summary)
-        cl.addLayout(row5)
-
-        self.context_container = QWidget()
-        self._context_layout = QVBoxLayout(self.context_container)
-        self._context_layout.setContentsMargins(0, 0, 0, 0)
-        self._context_layout.setSpacing(4)
-        self.context_container.setVisible(False)
-        cl.addWidget(self.context_container)
-        right.addWidget(prep_card)
+        self.preparation = PreparationCard()
+        self.preparation.kind_changed.connect(self._on_kind_changed)
+        self.preparation.add_file_requested.connect(self._add_context_file)
+        self.preparation.capture_screen_requested.connect(self._capture_screen_context)
+        # Aliases (migração incremental — ver HistoryPanel)
+        self.kind_combo = self.preparation.kind_combo
+        self.topic_input = self.preparation.topic_input
+        self.prep_edit = self.preparation.prep_edit
+        self.context_btn = self.preparation.context_btn
+        self.context_summary = self.preparation.context_summary
+        self.context_container = self.preparation.context_container
+        self._context_layout = self.preparation.context_layout
+        right.addWidget(self.preparation)
 
         # ---- 2. Gravar ----
-        rec_card, rl = self._section_card(
-            "2", t("Gravar"),
-            t("Grave a reunião. Com o assistente ao vivo, plano/ações/decisões aparecem "
-              "em tempo real; ao parar, a análise é gerada automaticamente."))
-
-        # Configurações de áudio — recolhidas por padrão (o que importa é Gravar)
-        audio_head = QHBoxLayout()
-        audio_head.setSpacing(8)
-        self.audio_toggle = QToolButton()
-        self.audio_toggle.setText(t("▸ Configurações de áudio"))
-        self.audio_toggle.setCheckable(True)
-        self.audio_toggle.setAutoRaise(True)
-        self.audio_toggle.setCursor(Qt.PointingHandCursor)
-        self.audio_toggle.toggled.connect(self._on_audio_settings_toggled)
-        audio_head.addWidget(self.audio_toggle)
-        self.audio_summary = QLabel("")
-        self.audio_summary.setObjectName("subtitle")
-        audio_head.addWidget(self.audio_summary, 1)
-        rl.addLayout(audio_head)
-
-        self.audio_box = QWidget()
-        al = QVBoxLayout(self.audio_box)
-        al.setContentsMargins(0, 0, 0, 0)
-        al.setSpacing(6)
-
-        row2 = QHBoxLayout()
-        row2.setSpacing(8)
-        row2.addWidget(QLabel(t("Microfone:")))
-        self.mic_combo = NoWheelComboBox()
-        self.mic_combo.currentIndexChanged.connect(self._update_audio_summary)
-        row2.addWidget(self.mic_combo, 1)
-        al.addLayout(row2)
-
-        row3 = QHBoxLayout()
-        row3.setSpacing(8)
-        row3.addWidget(QLabel(t("Áudio do sistema:")))
-        self.monitor_combo = NoWheelComboBox()
-        self.monitor_combo.currentIndexChanged.connect(self._update_audio_summary)
-        row3.addWidget(self.monitor_combo, 1)
-        al.addLayout(row3)
-
-        row6 = QHBoxLayout()
-        row6.setSpacing(8)
-        self.screen_watch_check = QCheckBox(t("👁 Assistente vê a tela"))
-        self.screen_watch_check.setToolTip(
-            t("Captura periodicamente o monitor selecionado e envia à IA para ajudar a "
-              "resolver tarefas com base no que está na tela. Usa um provedor com visão e "
-              "consome mais IA. Pode ligar/desligar a qualquer momento durante a reunião.")
-        )
-        self.screen_watch_check.toggled.connect(self._on_screen_watch_toggled)
-        row6.addWidget(self.screen_watch_check)
-        self.screen_combo = NoWheelComboBox()
-        self.screen_combo.setMinimumWidth(150)
-        row6.addWidget(self.screen_combo, 1)
-        al.addLayout(row6)
-
-        self.screen_watch_status = QLabel("")
-        self.screen_watch_status.setObjectName("subtitle")
-        self.screen_watch_status.setVisible(False)
-        al.addWidget(self.screen_watch_status)
-
-        self.audio_box.setVisible(False)
-        rl.addWidget(self.audio_box)
-
-        row4 = FlowLayout(h_spacing=8, v_spacing=6)
-        self.record_btn = QPushButton(t("● Gravar e transcrever"))
-        self.record_btn.setFixedHeight(34)
-        self.record_btn.setCursor(Qt.PointingHandCursor)
-        self.record_btn.clicked.connect(self._toggle_record)
-        row4.addWidget(self.record_btn)
-        self.timer_label = QLabel("00:00")
-        self.timer_label.setStyleSheet("font-family: monospace; font-size: 16px;")
-        row4.addWidget(self.timer_label)
-        self.live_check = QCheckBox(t("Assistente ao vivo"))
-        self.live_check.setToolTip(
-            t("Transcreve e extrai ações/decisões durante a gravação (mais uso de CPU/IA). "
-              "Pode ser ligado/desligado a qualquer momento, inclusive no meio da gravação.")
-        )
-        self.live_check.toggled.connect(self._on_live_toggled)
-        row4.addWidget(self.live_check)
-        rl.addLayout(row4)
-        right.addWidget(rec_card)
+        self.recording = RecordingCard()
+        self.recording.record_toggled.connect(self._toggle_record)
+        self.recording.live_toggled.connect(self._on_live_toggled)
+        self.recording.screen_watch_toggled.connect(self._on_screen_watch_toggled)
+        self.recording.audio_selection_changed.connect(self._update_audio_summary)
+        self.audio_toggle = self.recording.audio_toggle
+        self.audio_summary = self.recording.audio_summary
+        self.audio_box = self.recording.audio_box
+        self.mic_combo = self.recording.mic_combo
+        self.monitor_combo = self.recording.monitor_combo
+        self.screen_watch_check = self.recording.screen_watch_check
+        self.screen_combo = self.recording.screen_combo
+        self.screen_watch_status = self.recording.screen_watch_status
+        self.record_btn = self.recording.record_btn
+        self.timer_label = self.recording.timer_label
+        self.live_check = self.recording.live_check
+        right.addWidget(self.recording)
 
         # ---- Painel do assistente ao vivo (visível só durante gravação ao vivo) ----
         self.live_box = self._build_live_box()
@@ -556,32 +456,8 @@ class TranscricoesView(QWidget):
     # ------------------------- UI helpers -------------------------
     def _section_card(self, number: str, title_text: str, help_text: str = ""):
         """Card de etapa numerada (deixa o fluxo da tela explícito)."""
-        th = current_theme()
-        card = QFrame()
-        card.setProperty("class", "card")
-        lay = QVBoxLayout(card)
-        lay.setContentsMargins(12, 10, 12, 10)
-        lay.setSpacing(8)
-        head = QHBoxLayout()
-        head.setSpacing(8)
-        badge = QLabel(number)
-        badge.setFixedSize(22, 22)
-        badge.setAlignment(Qt.AlignCenter)
-        badge.setStyleSheet(
-            f"background: {th.accent}; color: {th.text_on_accent}; border-radius: 11px; "
-            f"font-weight: 800; font-size: 11px; border: none;")
-        head.addWidget(badge)
-        ttl = QLabel(title_text)
-        ttl.setProperty("class", "cardTitle")
-        head.addWidget(ttl)
-        head.addStretch()
-        lay.addLayout(head)
-        if help_text:
-            hint = QLabel(help_text)
-            hint.setWordWrap(True)
-            hint.setObjectName("subtitle")
-            lay.addWidget(hint)
-        return card, lay
+        card = SectionCard(number, title_text, help_text)
+        return card, card.body
 
     def _vsep(self) -> QFrame:
         """Separador vertical entre grupos da barra de ações."""
@@ -610,23 +486,10 @@ class TranscricoesView(QWidget):
             h.addWidget(b)
         return w
 
-    def _on_audio_settings_toggled(self, on: bool):
-        self.audio_box.setVisible(on)
-        self.audio_toggle.setText(
-            t("▾ Configurações de áudio") if on else t("▸ Configurações de áudio"))
-        self._update_audio_summary()
-
     def _update_audio_summary(self):
-        """Resumo das fontes de áudio (visível quando o bloco está recolhido)."""
-        if not hasattr(self, "audio_summary"):
-            return
-        if self.audio_toggle.isChecked():
-            self.audio_summary.setText("")
-            return
-        mic = self.mic_combo.currentText() if self.mic_combo.currentData() else t("Nenhum")
-        mon = self.monitor_combo.currentText() if self.monitor_combo.currentData() else t("Nenhum")
-        self.audio_summary.setText(
-            t("🎙 {mic}  ·  🔊 {mon}").format(mic=mic[:28], mon=mon[:28]))
+        """Resumo das fontes de áudio — a lógica vive no RecordingCard."""
+        if hasattr(self, "recording"):
+            self.recording.update_audio_summary()
 
     # ------------------------------------------------------------------
     def resizeEvent(self, event):
@@ -793,7 +656,7 @@ class TranscricoesView(QWidget):
                 self.mic_combo.setCurrentIndex(idx)
 
     def _on_kind_changed(self):
-        self.topic_input.setVisible(self.kind_combo.currentData() == "study")
+        self.preparation.set_study_mode(self.preparation.kind() == "study")
 
     # ------------------------- Painel ao vivo -------------------------
     def _make_live_list(self) -> QListWidget:

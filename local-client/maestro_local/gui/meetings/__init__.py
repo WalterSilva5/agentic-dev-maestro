@@ -7,5 +7,14 @@ diretamente durante a migração incremental.
 """
 from maestro_local.gui.meetings.destination_bar import DestinationBar
 from maestro_local.gui.meetings.history_panel import HistoryPanel
+from maestro_local.gui.meetings.preparation_card import PreparationCard
+from maestro_local.gui.meetings.recording_card import RecordingCard
+from maestro_local.gui.meetings.section_card import SectionCard
 
-__all__ = ["DestinationBar", "HistoryPanel"]
+__all__ = [
+    "DestinationBar",
+    "HistoryPanel",
+    "PreparationCard",
+    "RecordingCard",
+    "SectionCard",
+]
