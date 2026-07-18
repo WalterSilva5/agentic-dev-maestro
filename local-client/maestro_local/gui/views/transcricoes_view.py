@@ -58,6 +58,7 @@ from maestro_local.db.models import (
     get_session,
 )
 from maestro_local.gui.flow_layout import FlowLayout
+from maestro_local.gui.meetings import DestinationBar, HistoryPanel
 from maestro_local.gui.no_wheel_combo import NoWheelComboBox
 from maestro_local.gui.theme import current_theme
 from maestro_local.i18n import t
@@ -229,50 +230,20 @@ class TranscricoesView(QWidget):
         root.addWidget(self._main_split)
 
         # ---- Coluna esquerda: histórico ----
-        left_widget = QWidget()
-        left = QVBoxLayout(left_widget)
-        left.setContentsMargins(0, 0, 8, 0)
-        left.setSpacing(6)
-        htitle = QLabel(t("Histórico"))
-        htitle.setProperty("class", "cardTitle")
-        left.addWidget(htitle)
-        self.new_meeting_btn = QPushButton(t("➕ Nova reunião"))
-        self.new_meeting_btn.setFixedHeight(34)
-        self.new_meeting_btn.setCursor(Qt.PointingHandCursor)
-        self.new_meeting_btn.setToolTip(t("Começa uma reunião do zero, limpando todos os campos."))
-        self.new_meeting_btn.clicked.connect(self._new_meeting)
-        left.addWidget(self.new_meeting_btn)
-        self.search = QLineEdit()
-        self.search.setPlaceholderText(t("Buscar nas gravações..."))
-        self.search.textChanged.connect(self._load_history)
-        left.addWidget(self.search)
-        self.show_archived_check = QCheckBox(t("Mostrar arquivadas"))
-        self.show_archived_check.toggled.connect(self._load_history)
-        left.addWidget(self.show_archived_check)
-        self.history = QListWidget()
-        self.history.setStyleSheet(
-            "QListWidget::item { padding: 8px 6px; min-height: 34px; "
-            "border-bottom: 1px solid rgba(128,128,128,0.15); }"
-        )
-        self.history.itemClicked.connect(self._open_recording)
-        # Reordenar arrastando + menu de contexto (excluir/arquivar)
-        self.history.setDragDropMode(QAbstractItemView.InternalMove)
-        self.history.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.history.customContextMenuRequested.connect(self._history_context_menu)
-        self.history.model().rowsMoved.connect(self._persist_history_order)
-        left.addWidget(self.history, 1)
-        self.history_empty = QLabel(
-            t("Nenhuma reunião ainda.\n\nGrave uma (botão “Gravar e transcrever”) ou "
-              "importe uma transcrição do Meet/Teams em “📄 Importar arquivo”."))
-        self.history_empty.setWordWrap(True)
-        self.history_empty.setAlignment(Qt.AlignCenter)
-        self.history_empty.setObjectName("subtitle")
-        self.history_empty.setVisible(False)
-        left.addWidget(self.history_empty)
-        left_widget.setMinimumWidth(170)
-        left_widget.setMaximumWidth(420)
-        self._left_widget = left_widget
-        self._main_split.addWidget(left_widget)
+        self.history_panel = HistoryPanel()
+        self.history_panel.new_meeting_requested.connect(self._new_meeting)
+        self.history_panel.filters_changed.connect(self._load_history)
+        self.history_panel.item_opened.connect(self._open_recording)
+        self.history_panel.context_menu_requested.connect(self._history_context_menu)
+        self.history_panel.order_changed.connect(self._persist_history_order)
+        # Aliases: o resto da view (e os testes) seguem usando estes nomes.
+        self.new_meeting_btn = self.history_panel.new_meeting_btn
+        self.search = self.history_panel.search
+        self.show_archived_check = self.history_panel.show_archived_check
+        self.history = self.history_panel.history
+        self.history_empty = self.history_panel.history_empty
+        self._left_widget = self.history_panel
+        self._main_split.addWidget(self.history_panel)
 
         # ---- Coluna direita: gravação + transcrição ----
         right_widget = QWidget()
@@ -327,30 +298,12 @@ class TranscricoesView(QWidget):
         right.addWidget(self.banner)
 
         # ---- Destino da reunião (workspace + projeto) — sempre visível no topo ----
-        dest = QFrame()
-        dest.setProperty("class", "card")
-        dl = QVBoxLayout(dest)
-        dl.setContentsMargins(12, 8, 12, 8)
-        dl.setSpacing(4)
-        dest_row = FlowLayout(h_spacing=8, v_spacing=6)
-        dest_row.addWidget(QLabel(t("📁 Destino:")))
-        self.ws_combo = NoWheelComboBox()
-        self.ws_combo.setMinimumWidth(120)
-        self.ws_combo.setToolTip(
-            t("Workspace de destino da reunião. Troque aqui caso esteja gravando para o workspace errado.")
-        )
-        self.ws_combo.currentIndexChanged.connect(self._on_ws_combo_changed)
-        dest_row.addWidget(self.ws_combo)
-        dest_row.addWidget(QLabel(t("Projeto:")))
-        self.proj_combo = NoWheelComboBox()
-        self.proj_combo.setMinimumWidth(130)
-        self.proj_combo.currentIndexChanged.connect(self._on_proj_combo_changed)
-        dest_row.addWidget(self.proj_combo)
-        dl.addLayout(dest_row)
-        dest_hint = QLabel(t("É para onde a reunião e as tarefas geradas vão."))
-        dest_hint.setObjectName("subtitle")
-        dl.addWidget(dest_hint)
-        right.addWidget(dest)
+        self.destination = DestinationBar()
+        self.destination.workspace_index_changed.connect(self._on_ws_combo_changed)
+        self.destination.project_index_changed.connect(self._on_proj_combo_changed)
+        self.ws_combo = self.destination.ws_combo      # aliases (ver HistoryPanel)
+        self.proj_combo = self.destination.proj_combo
+        right.addWidget(self.destination)
 
         # ---- 1. Preparar ----
         prep_card, cl = self._section_card(
@@ -2015,8 +1968,8 @@ class TranscricoesView(QWidget):
         # Evita re-persistir ordem enquanto repovoa a lista.
         self.history.blockSignals(True)
         self.history.clear()
-        query = self.search.text().strip().lower()
-        show_archived = self.show_archived_check.isChecked()
+        query = self.history_panel.query()
+        show_archived = self.history_panel.show_archived()
         s = get_session()
         try:
             q = s.query(Recording)
@@ -2037,9 +1990,7 @@ class TranscricoesView(QWidget):
             s.close()
             self.history.blockSignals(False)
         # Estado vazio: orienta em vez de deixar uma lista em branco.
-        empty = self.history.count() == 0
-        self.history_empty.setVisible(empty and not query)
-        self.history.setVisible(not empty or bool(query))
+        self.history_panel.set_empty_state(self.history.count() == 0, filtering=bool(query))
 
     def _history_context_menu(self, pos):
         item = self.history.itemAt(pos)
