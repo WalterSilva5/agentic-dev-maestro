@@ -7,10 +7,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QBuffer, QByteArray, QIODevice, Qt, QThread, QTimer, Signal
 from PySide6.QtWidgets import (
-    QAbstractItemView,
     QApplication,
-    QCheckBox,
-    QComboBox,
     QDialog,
     QDialogButtonBox,
     QFileDialog,
@@ -19,14 +16,12 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QListWidget,
     QListWidgetItem,
     QMenu,
     QProgressBar,
     QPushButton,
     QScrollArea,
     QSplitter,
-    QTabWidget,
     QTextEdit,
     QToolButton,
     QVBoxLayout,
@@ -57,15 +52,15 @@ from maestro_local.db.models import (
     Task,
     get_session,
 )
-from maestro_local.gui.flow_layout import FlowLayout
 from maestro_local.gui.meetings import (
     DestinationBar,
     HistoryPanel,
+    LiveAssistantPanel,
     PreparationCard,
     RecordingCard,
+    ResultCard,
     SectionCard,
 )
-from maestro_local.gui.no_wheel_combo import NoWheelComboBox
 from maestro_local.gui.theme import current_theme
 from maestro_local.i18n import t
 
@@ -346,9 +341,23 @@ class TranscricoesView(QWidget):
         right.addWidget(self.recording)
 
         # ---- Painel do assistente ao vivo (visível só durante gravação ao vivo) ----
-        self.live_box = self._build_live_box()
+        self.live = LiveAssistantPanel()
+        self.live.ask_requested.connect(self._ask_meeting)
+        self.live_box = self.live
+        self.live_status = self.live.live_status
+        self.live_transcript_edit = self.live.live_transcript_edit
+        self.live_tabs = self.live.live_tabs
+        self.live_plan_list = self.live.live_plan_list
+        self.live_tips_list = self.live.live_tips_list
+        self.live_actions_list = self.live.live_actions_list
+        self.live_decisions_list = self.live.live_decisions_list
+        self.ask_input = self.live.ask_input
+        self.ask_btn = self.live.ask_btn
+        self.ask_answer = self.live.ask_answer
+        self._questions_layout = self.live.questions_layout
+        self._questions_container = self.live.questions_container
+        self._questions_empty = self.live.questions_empty
         self.live_box.setVisible(False)
-        self.live_box.setMinimumHeight(460)
         right.addWidget(self.live_box, 6)
 
         # Progresso de transcrição
@@ -361,81 +370,25 @@ class TranscricoesView(QWidget):
         right.addWidget(self.status_label)
 
         # ---- 3. Resultado: transcrição + resumo + ações agrupadas ----
-        res_card, sl = self._section_card(
-            "3", t("Resultado"),
-            t("Corrija a transcrição se precisar — o agente revisa os itens sozinho. "
-              "Depois, use o resumo e mande as ações para o board."))
-
-        self.transcript_label = QLabel(t("Transcrição:"))
-        sl.addWidget(self.transcript_label)
-        self.transcript_edit = QTextEdit()
-        self.transcript_edit.setPlaceholderText(t("A transcrição aparecerá aqui..."))
-        self.transcript_edit.setMinimumHeight(120)
-        self.transcript_edit.setToolTip(
-            t("Você pode corrigir a transcrição a qualquer momento — o agente revisa "
-              "os itens automaticamente após a edição."))
-        self.transcript_edit.textChanged.connect(self._on_transcript_edited)
-        sl.addWidget(self.transcript_edit, 1)
-
-        # Resumo (IA) — o toggle de visualização fica JUNTO do campo que controla
-        summary_head = QHBoxLayout()
-        summary_head.setSpacing(8)
-        self.summary_label = QLabel(t("Resumo (IA):"))
-        summary_head.addWidget(self.summary_label)
-        summary_head.addStretch()
-        self.md_view_btn = QPushButton(t("👁 Visualizar"))
-        self.md_view_btn.setProperty("flat", "true")
-        self.md_view_btn.setFixedHeight(28)
-        self.md_view_btn.setCursor(Qt.PointingHandCursor)
-        self.md_view_btn.setToolTip(t("Alterna entre o código Markdown e a visualização formatada do resumo."))
-        self.md_view_btn.clicked.connect(self._toggle_md_view)
-        summary_head.addWidget(self.md_view_btn)
-        sl.addLayout(summary_head)
-
-        self.result_edit = QTextEdit()
-        self.result_edit.setPlaceholderText(t("O resumo estruturado aparecerá aqui após a análise."))
-        self.result_edit.setMinimumHeight(120)
-        self.result_edit.setVisible(False)
-        sl.addWidget(self.result_edit, 1)
-
-        # Barra de ações agrupada (em vez de botões soltos):
-        #   [Analisar]  │  Documento: Exportar/Copiar  │  Enviar para: tarefas/Meu Dia
-        actions = FlowLayout(h_spacing=8, v_spacing=6)
-        self.analyze_btn = QPushButton(t("↻ Analisar com IA"))
-        self.analyze_btn.setFixedHeight(32)
-        self.analyze_btn.setCursor(Qt.PointingHandCursor)
-        self.analyze_btn.setToolTip(t("Gera o resumo e os itens de novo a partir da transcrição atual."))
-        self.analyze_btn.clicked.connect(self._analyze)
-        actions.addWidget(self.analyze_btn)
-
-        self.export_btn = QPushButton(t("Exportar (.md)"))
-        self.export_btn.setProperty("flat", "true")
-        self.export_btn.setFixedHeight(32)
-        self.export_btn.setCursor(Qt.PointingHandCursor)
-        self.export_btn.setToolTip(t("Exporta um markdown único com todos os itens de todas as abas + transcrição."))
-        self.export_btn.clicked.connect(self._export_markdown)
-        self.copy_btn = QPushButton(t("Copiar (.md)"))
-        self.copy_btn.setProperty("flat", "true")
-        self.copy_btn.setFixedHeight(32)
-        self.copy_btn.setCursor(Qt.PointingHandCursor)
-        self.copy_btn.setToolTip(t("Copia o markdown completo da reunião para a área de transferência."))
-        self.copy_btn.clicked.connect(self._copy_markdown)
-        actions.addWidget(self._action_group(t("Documento:"), [self.export_btn, self.copy_btn]))
-
-        self.tasks_btn = QPushButton(t("Criar tarefas das ações"))
-        self.tasks_btn.setFixedHeight(32)
-        self.tasks_btn.setCursor(Qt.PointingHandCursor)
-        self.tasks_btn.clicked.connect(self._actions_to_tasks)
-        self.save_day_btn = QPushButton(t("Meu Dia"))
-        self.save_day_btn.setProperty("flat", "true")
-        self.save_day_btn.setFixedHeight(32)
-        self.save_day_btn.setCursor(Qt.PointingHandCursor)
-        self.save_day_btn.setToolTip(t("Adiciona o resumo ao relatório do Meu Dia."))
-        self.save_day_btn.clicked.connect(self._save_to_day)
-        self.save_day_btn.setEnabled(False)
-        actions.addWidget(self._action_group(t("Enviar para:"), [self.tasks_btn, self.save_day_btn]))
-        sl.addLayout(actions)
-        right.addWidget(res_card)
+        self.result = ResultCard()
+        self.result.transcript_edited.connect(self._on_transcript_edited)
+        self.result.md_view_toggled.connect(self._toggle_md_view)
+        self.result.analyze_requested.connect(self._analyze)
+        self.result.export_requested.connect(self._export_markdown)
+        self.result.copy_requested.connect(self._copy_markdown)
+        self.result.tasks_requested.connect(self._actions_to_tasks)
+        self.result.save_day_requested.connect(self._save_to_day)
+        self.transcript_label = self.result.transcript_label
+        self.transcript_edit = self.result.transcript_edit
+        self.summary_label = self.result.summary_label
+        self.md_view_btn = self.result.md_view_btn
+        self.result_edit = self.result.result_edit
+        self.analyze_btn = self.result.analyze_btn
+        self.export_btn = self.result.export_btn
+        self.copy_btn = self.result.copy_btn
+        self.tasks_btn = self.result.tasks_btn
+        self.save_day_btn = self.result.save_day_btn
+        right.addWidget(self.result)
 
         # A coluna direita rola quando o conteúdo (controles + painel ao vivo)
         # não cabe na altura da janela — evita widgets sobrepostos.
@@ -458,33 +411,6 @@ class TranscricoesView(QWidget):
         """Card de etapa numerada (deixa o fluxo da tela explícito)."""
         card = SectionCard(number, title_text, help_text)
         return card, card.body
-
-    def _vsep(self) -> QFrame:
-        """Separador vertical entre grupos da barra de ações."""
-        sep = QFrame()
-        sep.setFrameShape(QFrame.VLine)
-        sep.setFixedSize(1, 24)
-        sep.setStyleSheet(f"color: {current_theme().border};")
-        return sep
-
-    def _group_label(self, text: str) -> QLabel:
-        """Rótulo de grupo da barra de ações (dá nome ao conjunto de botões)."""
-        lbl = QLabel(text)
-        lbl.setObjectName("subtitle")
-        return lbl
-
-    def _action_group(self, label: str, buttons: list) -> QWidget:
-        """Grupo rotulado de botões. Num container próprio para quebrar como
-        unidade em telas estreitas (o rótulo nunca se separa dos seus botões)."""
-        w = QWidget()
-        h = QHBoxLayout(w)
-        h.setContentsMargins(0, 0, 0, 0)
-        h.setSpacing(6)
-        h.addWidget(self._vsep())
-        h.addWidget(self._group_label(label))
-        for b in buttons:
-            h.addWidget(b)
-        return w
 
     def _update_audio_summary(self):
         """Resumo das fontes de áudio — a lógica vive no RecordingCard."""
@@ -659,36 +585,6 @@ class TranscricoesView(QWidget):
         self.preparation.set_study_mode(self.preparation.kind() == "study")
 
     # ------------------------- Painel ao vivo -------------------------
-    def _make_live_list(self) -> QListWidget:
-        """Lista das abas ao vivo: itens com quebra de linha, espaçados e legíveis."""
-        lst = QListWidget()
-        lst.setWordWrap(True)
-        lst.setSpacing(4)
-        lst.setUniformItemSizes(False)
-        lst.setStyleSheet(
-            "QListWidget { border: none; font-size: 13px; } "
-            "QListWidget::item { padding: 10px 10px; min-height: 30px; "
-            "border-bottom: 1px solid rgba(128,128,128,0.18); }"
-        )
-        return lst
-
-    def _build_questions_panel(self) -> QWidget:
-        """Painel de perguntas & respostas (cards), em vez de lista simples."""
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setStyleSheet("QScrollArea { border: none; }")
-        self._questions_container = QWidget()
-        self._questions_layout = QVBoxLayout(self._questions_container)
-        self._questions_layout.setContentsMargins(6, 6, 6, 6)
-        self._questions_layout.setSpacing(8)
-        self._questions_empty = QLabel(t("As perguntas levantadas na reunião aparecerão aqui — com a resposta assim que forem respondidas."))
-        self._questions_empty.setWordWrap(True)
-        self._questions_empty.setObjectName("subtitle")
-        self._questions_layout.addWidget(self._questions_empty)
-        self._questions_layout.addStretch()
-        scroll.setWidget(self._questions_container)
-        return scroll
-
     def _render_questions(self, questions: list):
         """Redesenha os cards de perguntas a partir do estado."""
         # limpa tudo menos o placeholder (idx 0) e o stretch (último)
@@ -715,82 +611,6 @@ class TranscricoesView(QWidget):
             card.answered.connect(self._set_question_answer)
             self._questions_layout.insertWidget(self._questions_layout.count() - 1, card)
 
-    def _build_live_box(self) -> QFrame:
-        box = QFrame()
-        box.setProperty("class", "card")
-        v = QVBoxLayout(box)
-        v.setContentsMargins(12, 10, 12, 10)
-        v.setSpacing(8)
-
-        head = QHBoxLayout()
-        title = QLabel(t("● Ao vivo"))
-        title.setProperty("class", "cardTitle")
-        head.addWidget(title)
-        head.addStretch()
-        self.live_status = QLabel("")
-        self.live_status.setObjectName("subtitle")
-        head.addWidget(self.live_status)
-        v.addLayout(head)
-
-        # Splitter vertical: transcrição ao vivo (topo) x abas do assistente
-        # (embaixo). O usuário pode arrastar para ampliar as abas.
-        split = QSplitter(Qt.Vertical)
-        split.setChildrenCollapsible(False)
-
-        trans_pane = QWidget()
-        tp = QVBoxLayout(trans_pane)
-        tp.setContentsMargins(0, 0, 0, 0)
-        tp.setSpacing(4)
-        tp.addWidget(QLabel(t("Transcrição ao vivo")))
-        self.live_transcript_edit = QTextEdit()
-        self.live_transcript_edit.setReadOnly(True)
-        self.live_transcript_edit.setPlaceholderText(t("A transcrição aparecerá aqui em tempo real..."))
-        tp.addWidget(self.live_transcript_edit)
-        trans_pane.setMinimumHeight(80)
-        split.addWidget(trans_pane)
-
-        # Abas do assistente (as 5) — ampliadas e com quebra de linha nos itens
-        self.live_tabs = QTabWidget()
-        self.live_tabs.setMinimumHeight(320)
-        self.live_plan_list = self._make_live_list()
-        self.live_tips_list = self._make_live_list()
-        self.live_actions_list = self._make_live_list()
-        self.live_decisions_list = self._make_live_list()
-        self.live_tabs.addTab(self.live_plan_list, "🗺 " + t("Plano"))
-        self.live_tabs.addTab(self.live_tips_list, "💡 " + t("Dicas"))
-        self.live_tabs.addTab(self.live_actions_list, "✅ " + t("Ações"))
-        self.live_tabs.addTab(self.live_decisions_list, "📌 " + t("Decisões"))
-        self.live_tabs.addTab(self._build_questions_panel(), "❓ " + t("Perguntas"))
-        split.addWidget(self.live_tabs)
-
-        # Prioriza as abas: transcrição menor, abas bem maiores
-        split.setStretchFactor(0, 1)
-        split.setStretchFactor(1, 4)
-        split.setSizes([120, 480])
-        v.addWidget(split, 1)
-
-        # Perguntar à reunião
-        ask = QHBoxLayout()
-        ask.setSpacing(8)
-        self.ask_input = QLineEdit()
-        self.ask_input.setPlaceholderText(t("Perguntar à reunião (ex.: o que ficou decidido sobre X?)"))
-        self.ask_input.returnPressed.connect(self._ask_meeting)
-        ask.addWidget(self.ask_input, 1)
-        self.ask_btn = QPushButton(t("Perguntar"))
-        self.ask_btn.setCursor(Qt.PointingHandCursor)
-        self.ask_btn.clicked.connect(self._ask_meeting)
-        ask.addWidget(self.ask_btn)
-        v.addLayout(ask)
-
-        self.ask_answer = QLabel("")
-        self.ask_answer.setWordWrap(True)
-        self.ask_answer.setObjectName("subtitle")
-        self.ask_answer.setVisible(False)
-        v.addWidget(self.ask_answer)
-
-        return box
-
-    # ------------------------- Gravação -------------------------
     def is_recording(self) -> bool:
         return bool(self._session and self._session.is_recording)
 
