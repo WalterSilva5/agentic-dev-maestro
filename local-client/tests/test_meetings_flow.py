@@ -210,3 +210,22 @@ def test_edicao_do_usuario_agenda_revisao_programatica_nao(meetings_view):
 def test_combos_ignoram_a_roda_do_mouse(meetings_view, attr):
     from maestro_local.gui.no_wheel_combo import NoWheelComboBox
     assert isinstance(getattr(meetings_view, attr), NoWheelComboBox)
+
+
+def test_transcricao_ao_vivo_alimenta_o_campo_unico(meetings_view):
+    """Só existe um campo de transcrição: o da etapa 3 recebe o texto ao vivo."""
+    v = meetings_view
+    assert not hasattr(v, "live_transcript_edit")
+    v._on_live_partial("primeira frase.")
+    v._on_live_partial("segunda frase.")
+    texto = v.transcript_edit.toPlainText()
+    assert "primeira frase." in texto and "segunda frase." in texto
+    assert v._live_transcript == "primeira frase. segunda frase."
+
+
+def test_texto_ao_vivo_nao_dispara_revisao(meetings_view):
+    """Cada trecho transcrito não pode agendar uma revisão do agente."""
+    v = meetings_view
+    v._transcript_review.stop()
+    v._on_live_partial("trecho novo.")
+    assert not v._transcript_review.isActive()

@@ -305,7 +305,6 @@ class TranscricoesView(QWidget):
         self.live.ask_requested.connect(self._ask_meeting)
         self.live_box = self.live
         self.live_status = self.live.live_status
-        self.live_transcript_edit = self.live.live_transcript_edit
         self.live_tabs = self.live.live_tabs
         self.live_plan_list = self.live.live_plan_list
         self.live_tips_list = self.live.live_tips_list
@@ -686,7 +685,11 @@ class TranscricoesView(QWidget):
             "action_items": [], "decisions": [], "questions": [], "plan": [], "tips": [],
         }
         self._live_context = self._meeting_context()
-        self.live_transcript_edit.clear()
+        # O texto ao vivo vai para o campo da etapa 3 — travado enquanto grava,
+        # para o usuário não editar um texto que ainda está crescendo.
+        self._set_transcript_text("")
+        self.transcript_edit.setReadOnly(True)
+        self.transcript_label.setText(t("Transcrição (ao vivo):"))
         self.live_plan_list.clear()
         self.live_tips_list.clear()
         self.live_actions_list.clear()
@@ -719,6 +722,8 @@ class TranscricoesView(QWidget):
         # Restaura a transcrição estática para revisar/analisar o resultado final.
         self.transcript_label.setVisible(True)
         self.transcript_edit.setVisible(True)
+        self.transcript_edit.setReadOnly(False)
+        self.transcript_label.setText(t("Transcrição:"))
         if self.live_box.isVisible():
             self.live_status.setText(t("Sessão ao vivo encerrada."))
 
@@ -728,8 +733,13 @@ class TranscricoesView(QWidget):
             return
         self._live_transcript = (self._live_transcript + " " + text).strip()
         self._live_pending = (self._live_pending + " " + text).strip()
-        self.live_transcript_edit.append(text)
-        sb = self.live_transcript_edit.verticalScrollBar()
+        # Acrescenta sem disparar a revisão automática e mantém a rolagem no fim.
+        self._setting_transcript = True
+        try:
+            self.transcript_edit.append(text)
+        finally:
+            self._setting_transcript = False
+        sb = self.transcript_edit.verticalScrollBar()
         sb.setValue(sb.maximum())
 
     def _maybe_extract_live(self):
@@ -1362,7 +1372,6 @@ class TranscricoesView(QWidget):
         self._refresh_live_panels()
         self._render_questions([])
         self.live_box.setVisible(False)
-        self.live_transcript_edit.clear()
         self.transcript_label.setVisible(True)
         self.transcript_edit.setVisible(True)
         self._set_transcript_text(transcript)
@@ -1420,7 +1429,6 @@ class TranscricoesView(QWidget):
             self._live_state = dict(EMPTY_STATE)
             self._refresh_live_panels()
         self._live_transcript = transcript
-        self.live_transcript_edit.setPlainText(transcript)
         self.live_box.setVisible(True)
         ai_ok = self._provider_ready()
         self.ask_input.setEnabled(ai_ok)
@@ -1650,7 +1658,6 @@ class TranscricoesView(QWidget):
         self._live_state = empty_live_state()
         self._refresh_live_panels()
         self._render_questions([])
-        self.live_transcript_edit.clear()
         self.live_box.setVisible(False)
         self.ask_answer.setVisible(False)
 
@@ -1697,7 +1704,6 @@ class TranscricoesView(QWidget):
         self._live_pending = ""
         self._meeting.load_live_state_json(r["live_state_json"])
         self._refresh_live_panels()
-        self.live_transcript_edit.setPlainText(r["transcript"])
         has_items = self._meeting.has_live_items()
         self.live_box.setVisible(has_items)
         if has_items:

@@ -1,8 +1,9 @@
 """Painel do assistente ao vivo.
 
-Transcrição em tempo real (topo) e as abas do copiloto — plano, dicas, ações,
-decisões e o painel de perguntas & respostas — num splitter que prioriza as
-abas. Embaixo, o campo de perguntar à reunião.
+As abas do copiloto — plano, dicas, ações, decisões e o painel de perguntas
+& respostas — e, embaixo, o campo de perguntar à reunião. A transcrição em si
+não aparece aqui: ela vai direto para o campo da etapa 3, que é o único lugar
+onde o texto da reunião existe.
 
 Só monta e sinaliza: preencher as abas e responder perguntas é da view.
 """
@@ -17,9 +18,7 @@ from PySide6.QtWidgets import (
     QListWidget,
     QPushButton,
     QScrollArea,
-    QSplitter,
     QTabWidget,
-    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
@@ -61,23 +60,8 @@ class LiveAssistantPanel(QFrame):
         head.addWidget(self.live_status)
         lay.addLayout(head)
 
-        # Splitter: transcrição ao vivo em cima, abas embaixo (arrastável).
-        split = QSplitter(Qt.Vertical)
-        split.setChildrenCollapsible(False)
-
-        trans_pane = QWidget()
-        tp = QVBoxLayout(trans_pane)
-        tp.setContentsMargins(0, 0, 0, 0)
-        tp.setSpacing(4)
-        tp.addWidget(QLabel(t("Transcrição ao vivo")))
-        self.live_transcript_edit = QTextEdit()
-        self.live_transcript_edit.setReadOnly(True)
-        self.live_transcript_edit.setPlaceholderText(
-            t("A transcrição aparecerá aqui em tempo real..."))
-        tp.addWidget(self.live_transcript_edit)
-        trans_pane.setMinimumHeight(80)
-        split.addWidget(trans_pane)
-
+        # A transcrição ao vivo aparece direto no campo da etapa 3 — aqui ficam
+        # só os itens que o assistente extrai dela.
         self.live_tabs = QTabWidget()
         self.live_tabs.setMinimumHeight(320)
         self.live_plan_list = make_live_list()
@@ -89,13 +73,7 @@ class LiveAssistantPanel(QFrame):
         self.live_tabs.addTab(self.live_actions_list, "✅ " + t("Ações"))
         self.live_tabs.addTab(self.live_decisions_list, "📌 " + t("Decisões"))
         self.live_tabs.addTab(self._build_questions_panel(), "❓ " + t("Perguntas"))
-        split.addWidget(self.live_tabs)
-
-        # Prioriza as abas: transcrição menor, abas bem maiores.
-        split.setStretchFactor(0, 1)
-        split.setStretchFactor(1, 4)
-        split.setSizes([120, 480])
-        lay.addWidget(split, 1)
+        lay.addWidget(self.live_tabs, 1)
 
         # Perguntar à reunião
         ask = QHBoxLayout()
@@ -117,7 +95,7 @@ class LiveAssistantPanel(QFrame):
         self.ask_answer.setVisible(False)
         lay.addWidget(self.ask_answer)
 
-        self.setMinimumHeight(460)
+        self.setMinimumHeight(420)
 
     # ------------------------------------------------------------------
     def _build_questions_panel(self) -> QWidget:
