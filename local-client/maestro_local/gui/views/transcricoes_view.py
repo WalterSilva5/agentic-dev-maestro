@@ -5,7 +5,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from PySide6.QtCore import QBuffer, QByteArray, QIODevice, Qt, QThread, QTimer, Signal
+from PySide6.QtCore import QBuffer, QByteArray, QIODevice, Qt, QTimer, Signal
 from PySide6.QtWidgets import (
     QApplication,
     QDialog,
@@ -37,6 +37,7 @@ from maestro_local.config import (
 )
 from maestro_local.transcricoes import audio as audio_backend
 from maestro_local.transcricoes import repository
+from maestro_local.transcricoes.agent_service import MeetingAgentService
 from maestro_local.transcricoes.session import MeetingSession, empty_live_state
 from maestro_local.transcricoes.constants import (
     LIVE_AI_MIN_SECONDS,
@@ -81,44 +82,6 @@ def _whisper_settings():
 
 def _recordings_dir() -> Path:
     return DATA_DIR / "workspaces" / get_active_workspace_id() / "recordings"
-
-
-class AnalyzeWorker(QThread):
-    done = Signal(object)   # (markdown, summary_dict, title, tags, duration, language)
-    failed = Signal(str)
-
-    def __init__(self, kind, transcript, topic, duration, language):
-        super().__init__()
-        self.kind = kind
-        self.transcript = transcript
-        self.topic = topic
-        self.duration = duration
-        self.language = language
-
-    def run(self):
-        try:
-            from maestro_local.transcricoes import assistants, markdown_gen
-            date_str = datetime.now().strftime("%Y-%m-%d %H:%M")
-            if self.kind == "study":
-                notes = assistants.analyze_study(self.transcript, self.topic, self.duration)
-                md = markdown_gen.study_to_markdown(notes, date_str)
-                summary = {
-                    "topic": notes.topic, "summary": notes.summary,
-                    "key_concepts": [c.__dict__ for c in notes.key_concepts],
-                    "exercises": [e.__dict__ for e in notes.practical_exercises],
-                }
-                self.done.emit((md, summary, notes.topic or t("Estudo"), notes.tags, self.duration, self.language))
-            else:
-                s = assistants.analyze_meeting(self.transcript, self.duration, self.language)
-                md = markdown_gen.meeting_to_markdown(s, date_str)
-                summary = {
-                    "title": s.title, "key_points": s.key_points,
-                    "decisions": s.decisions,
-                    "action_items": [a.__dict__ for a in s.action_items],
-                }
-                self.done.emit((md, summary, s.title or t("Reunião"), s.tags, self.duration, self.language))
-        except Exception as e:  # noqa: BLE001
-            self.failed.emit(str(e))
 
 
 class _QACard(QFrame):
@@ -183,8 +146,9 @@ class TranscricoesView(QWidget):
         self._session = None
         self._loading_ws = False
         self._loading_proj = False
-        self._transcriber = None
-        self._analyzer = None
+        # Todos os trabalhos de IA (transcrever, analisar, extrair, perguntar,
+        # ler imagem) passam pelo serviço: ele é dono dos threads.
+        self.agent = MeetingAgentService(self)
         self._elapsed = 0
         # Estado da reunião em edição (entradas x saídas) — fonte única de
         # verdade; `_live_state` abaixo é só um atalho para session.live_state.
@@ -202,17 +166,13 @@ class TranscricoesView(QWidget):
         self._transcript_review.timeout.connect(self._review_after_edit)
         # Contexto extra da reunião (arquivos/imagens/tela) → alimenta o copiloto.
         self._context_items: list[dict] = []   # {label, text}
-        self._vision_workers: list = []         # workers de visão em andamento
         # Observador de tela ao vivo (o agente "vê" um monitor durante a reunião)
         self._screen_timer = None
-        self._screen_watch_worker = None
         self._screen_watch_text = ""            # última leitura da tela observada
 
         # Estado do assistente ao vivo
         self._live_transcriber = None
-        self._live_extractor = None
-        self._live_asker = None
-        self._analyze_extractor = None
+
         self._live_transcript = ""       # transcrição ao vivo acumulada
         self._live_pending = ""          # texto novo ainda não enviado à IA
         self._live_secs_since = 0        # segundos desde a última extração
@@ -403,6 +363,23 @@ class TranscricoesView(QWidget):
         self._main_split.setStretchFactor(0, 0)
         self._main_split.setStretchFactor(1, 1)
         self._main_split.setSizes([260, 900])
+
+        # Resultados dos trabalhos de IA (o serviço é dono dos threads).
+        self.agent.transcribe_progress.connect(self.progress.setValue)
+        self.agent.transcribed.connect(self._on_transcribed)
+        self.agent.transcribe_failed.connect(self._on_transcribe_error)
+        self.agent.analyzed.connect(self._on_analyzed)
+        self.agent.analyze_failed.connect(self._on_analyze_error)
+        self.agent.live_extracted.connect(self._on_live_extracted)
+        self.agent.live_extract_failed.connect(self._on_live_extract_error)
+        self.agent.extracted.connect(self._on_analyze_extracted)
+        self.agent.extract_failed.connect(self._on_analyze_extract_error)
+        self.agent.answered.connect(self._on_ask_answered)
+        self.agent.ask_failed.connect(self._on_ask_error)
+        self.agent.vision_done.connect(self._on_vision_done)
+        self.agent.vision_failed.connect(self._on_vision_failed)
+        self.agent.screen_read.connect(self._on_screen_watch_captured)
+        self.agent.screen_failed.connect(self._on_screen_watch_failed)
 
         self.refresh()
 
@@ -756,7 +733,7 @@ class TranscricoesView(QWidget):
         sb.setValue(sb.maximum())
 
     def _maybe_extract_live(self):
-        if self._live_extractor is not None:  # já tem uma extração em curso
+        if self.agent.is_extracting_live():  # já tem uma extração em curso
             return
         if not self._live_pending.strip() or not self._provider_ready():
             return
@@ -766,19 +743,13 @@ class TranscricoesView(QWidget):
         self._start_live_extract()
 
     def _start_live_extract(self):
-        from maestro_local.transcricoes.live_assistant import LiveExtractWorker
         new_text = self._live_pending
         self._live_pending = ""
         self._live_secs_since = 0
         # Recalcula o contexto a cada extração para captar edições de preparação
         # ou novos anexos feitos durante a reunião.
         self._live_context = self._meeting_context()
-        self._live_extractor = LiveExtractWorker(
-            dict(self._live_state), new_text, context=self._live_context,
-        )
-        self._live_extractor.done.connect(self._on_live_extracted)
-        self._live_extractor.failed.connect(self._on_live_extract_error)
-        self._live_extractor.start()
+        self.agent.extract_live(self._live_state, new_text, context=self._live_context)
 
     # Estado dos itens do assistente vive no MeetingSession; a property mantém
     # `self._live_state` funcionando como antes em toda a view.
@@ -802,7 +773,6 @@ class TranscricoesView(QWidget):
             self._persist_recording()
 
     def _on_live_extracted(self, state: dict):
-        self._live_extractor = None
         self._live_state = self._preserve_answers(state)
         self._autosave_live_state()
         self._refresh_live_panels()
@@ -810,7 +780,6 @@ class TranscricoesView(QWidget):
             self.live_status.setText(t("Transcrevendo ao vivo..."))
 
     def _on_live_extract_error(self, err: str):
-        self._live_extractor = None
         self.live_status.setText(t("IA ao vivo indisponível: {error}").format(error=err))
 
     def _refresh_live_panels(self):
@@ -870,24 +839,18 @@ class TranscricoesView(QWidget):
             self.ask_answer.setVisible(True)
             self.ask_answer.setText(t("Ainda não há transcrição suficiente."))
             return
-        from maestro_local.transcricoes.live_assistant import LiveAskWorker
         self.ask_btn.setEnabled(False)
         self.ask_answer.setVisible(True)
         self.ask_answer.setText(t("Pensando..."))
-        self._live_asker = LiveAskWorker(
-            self._live_transcript, question, context=getattr(self, "_live_context", "") or self._meeting_context(),
-        )
-        self._live_asker.answered.connect(self._on_ask_answered)
-        self._live_asker.failed.connect(self._on_ask_error)
-        self._live_asker.start()
+        self.agent.ask(
+            self._live_transcript, question,
+            context=getattr(self, "_live_context", "") or self._meeting_context())
 
     def _on_ask_answered(self, answer: str):
-        self._live_asker = None
         self.ask_btn.setEnabled(True)
         self.ask_answer.setText(answer)
 
     def _on_ask_error(self, err: str):
-        self._live_asker = None
         self.ask_btn.setEnabled(True)
         self.ask_answer.setText(t("Erro: {error}").format(error=err))
 
@@ -955,14 +918,8 @@ class TranscricoesView(QWidget):
         if not self._provider_ready():
             self.status_label.setText(t("Configure um provedor de IA para ler imagens/telas."))
             return
-        from maestro_local.transcricoes.live_assistant import VisionContextWorker
         self.status_label.setText(t("Lendo imagem com IA: {label}…").format(label=label))
-        w = VisionContextWorker(label, image_bytes, mime)
-        w.done.connect(self._on_vision_done)
-        w.failed.connect(self._on_vision_failed)
-        w.finished.connect(lambda w=w: self._vision_workers.remove(w) if w in self._vision_workers else None)
-        self._vision_workers.append(w)
-        w.start()
+        self.agent.read_image(label, image_bytes, mime)
 
     def _on_vision_done(self, label: str, text: str):
         if not text:
@@ -1056,7 +1013,7 @@ class TranscricoesView(QWidget):
         self._refresh_live_context()
 
     def _capture_watched_screen(self):
-        if self._screen_watch_worker is not None:
+        if self.agent.is_reading_screen():
             return  # leitura anterior ainda em andamento — evita empilhar
         if not self._provider_ready():
             return
@@ -1078,13 +1035,7 @@ class TranscricoesView(QWidget):
         buf.open(QIODevice.WriteOnly)
         pix.save(buf, "PNG")
         buf.close()
-        from maestro_local.transcricoes.live_assistant import VisionContextWorker
-        w = VisionContextWorker(t("Tela ao vivo"), bytes(ba.data()), "image/png")
-        w.done.connect(self._on_screen_watch_captured)
-        w.failed.connect(self._on_screen_watch_failed)
-        w.finished.connect(lambda: setattr(self, "_screen_watch_worker", None))
-        self._screen_watch_worker = w
-        w.start()
+        self.agent.read_screen(t("Tela ao vivo"), bytes(ba.data()), "image/png")
 
     def _on_screen_watch_captured(self, label: str, text: str):
         if text and self.screen_watch_check.isChecked():
@@ -1275,16 +1226,11 @@ class TranscricoesView(QWidget):
 
     # ------------------------- Transcrição -------------------------
     def _transcribe(self, audio_path: Path):
-        from maestro_local.transcricoes.transcriber import TranscriberWorker
         model, lang = _whisper_settings()
         self.progress.setVisible(True)
         self.progress.setValue(0)
         self._set_transcript_text("")
-        self._transcriber = TranscriberWorker(audio_path, model, lang)
-        self._transcriber.progress.connect(self.progress.setValue)
-        self._transcriber.finished_ok.connect(self._on_transcribed)
-        self._transcriber.finished_error.connect(self._on_transcribe_error)
-        self._transcriber.start()
+        self.agent.transcribe(audio_path, model, lang)
 
     # ------------------- Edição da transcrição -------------------
     def _set_transcript_text(self, text: str):
@@ -1308,7 +1254,7 @@ class TranscricoesView(QWidget):
         self._autosave_live_state()  # persiste a transcrição editada
         if not transcript or not self._provider_ready():
             return
-        if self._analyze_extractor is not None:  # já há uma revisão em curso
+        if self.agent.is_extracting():  # já há uma revisão em curso
             return
         # keep_state: revisa mantendo o que vale, inclusive as respostas dadas.
         self._start_analyze_extract(transcript, keep_state=True)
@@ -1449,13 +1395,9 @@ class TranscricoesView(QWidget):
         kind = self.kind_combo.currentData()
         self.analyze_btn.setEnabled(False)
         self.status_label.setText(t("Analisando com IA..."))
-        self._analyzer = AnalyzeWorker(
+        self.agent.analyze(
             kind, transcript, self.topic_input.text().strip(),
-            self._current.get("duration", 0.0), self._current.get("language", ""),
-        )
-        self._analyzer.done.connect(self._on_analyzed)
-        self._analyzer.failed.connect(self._on_analyze_error)
-        self._analyzer.start()
+            self._current.get("duration", 0.0), self._current.get("language", ""))
 
         # Se o assistente ao vivo NÃO foi usado (abas vazias), gera as tabelas de
         # itens (plano, dicas, ações, decisões, perguntas) a partir da transcrição
@@ -1472,7 +1414,7 @@ class TranscricoesView(QWidget):
         agente, que revisa mantendo o que continua válido — inclusive as
         respostas já dadas nas perguntas.
         """
-        from maestro_local.transcricoes.live_assistant import EMPTY_STATE, LiveExtractWorker
+        from maestro_local.transcricoes.live_assistant import EMPTY_STATE
         base = dict(self._live_state) if keep_state else dict(EMPTY_STATE)
         if not keep_state:
             self._live_state = dict(EMPTY_STATE)
@@ -1486,21 +1428,15 @@ class TranscricoesView(QWidget):
         self.live_status.setText(
             t("Revisando os itens com o texto editado...") if keep_state
             else t("Gerando itens (plano, ações, decisões, perguntas)..."))
-        self._analyze_extractor = LiveExtractWorker(
-            base, transcript, context=self._meeting_context())
-        self._analyze_extractor.done.connect(self._on_analyze_extracted)
-        self._analyze_extractor.failed.connect(self._on_analyze_extract_error)
-        self._analyze_extractor.start()
+        self.agent.extract(base, transcript, context=self._meeting_context())
 
     def _on_analyze_extracted(self, state: dict):
-        self._analyze_extractor = None
         self._live_state = self._preserve_answers(state)
         self._autosave_live_state()
         self._refresh_live_panels()
         self.live_status.setText(t("Itens gerados a partir da transcrição."))
 
     def _on_analyze_extract_error(self, err: str):
-        self._analyze_extractor = None
         self.live_status.setText(t("Erro ao gerar itens: {error}").format(error=err))
 
     def _on_analyzed(self, payload):
