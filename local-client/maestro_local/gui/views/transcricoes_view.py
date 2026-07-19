@@ -36,6 +36,7 @@ from maestro_local.config import (
     set_active_workspace,
 )
 from maestro_local.transcricoes import audio as audio_backend
+from maestro_local.transcricoes import repository
 from maestro_local.transcricoes.session import MeetingSession, empty_live_state
 from maestro_local.transcricoes.constants import (
     LIVE_AI_MIN_SECONDS,
@@ -48,7 +49,6 @@ from maestro_local.db.models import (
     DATA_DIR,
     BoardColumn,
     Project,
-    Recording,
     Task,
     get_session,
 )
@@ -487,14 +487,7 @@ class TranscricoesView(QWidget):
         # Remove a gravação do workspace atual — será recriada no destino.
         old_rec_id = self._current.get("rec_id")
         if old_rec_id and transcript:
-            s = get_session()
-            try:
-                rec = s.query(Recording).get(old_rec_id)
-                if rec is not None:
-                    s.delete(rec)
-                    s.commit()
-            finally:
-                s.close()
+            repository.delete(old_rec_id)
         self._current["rec_id"] = None
         set_active_workspace(ws_id)
         # A janela principal troca o banco ativo e faz o refresh geral (síncrono).
@@ -1341,30 +1334,25 @@ class TranscricoesView(QWidget):
 
     def _persist_recording(self):
         """Cria/atualiza o Recording atual no banco (transcrição e, se houver, resumo)."""
-        s = get_session()
-        try:
-            rec_id = self._current.get("rec_id")
-            rec = s.query(Recording).get(rec_id) if rec_id else None
-            if rec is None:
-                rec = Recording()
-                s.add(rec)
-            rec.kind = self.kind_combo.currentData()
-            rec.title = self._current.get("title") or rec.title or ""
-            rec.topic = self.topic_input.text().strip()
-            rec.transcript = self.transcript_edit.toPlainText().strip()
-            rec.summary_json = self._current.get("summary_json", rec.summary_json or "")
-            rec.markdown = self._current.get("markdown", rec.markdown or "")
+        rec_id = self._current.get("rec_id")
+        data = {
+            "kind": self.kind_combo.currentData(),
+            "topic": self.topic_input.text().strip(),
+            "transcript": self.transcript_edit.toPlainText().strip(),
             # Itens do assistente (plano/dicas/ações/decisões/perguntas) — salvos
             # sempre, para reabrir a reunião exatamente como estava.
-            rec.live_state_json = json.dumps(self._live_state, ensure_ascii=False)
-            rec.duration = self._current.get("duration", 0.0)
-            rec.language = self._current.get("language", "")
-            rec.audio_path = self._current.get("audio_path", "")
-            rec.tags = json.dumps(self._current.get("tags", []), ensure_ascii=False)
-            s.commit()
-            self._current["rec_id"] = rec.id
-        finally:
-            s.close()
+            "live_state_json": json.dumps(self._live_state, ensure_ascii=False),
+            "duration": self._current.get("duration", 0.0),
+            "language": self._current.get("language", ""),
+            "audio_path": self._current.get("audio_path", ""),
+            "tags": self._current.get("tags", []),
+        }
+        # Título/resumo só entram quando há valor: preserva o que já está gravado.
+        for key in ("title", "summary_json", "markdown"):
+            value = self._current.get(key)
+            if value:
+                data[key] = value
+        self._current["rec_id"] = repository.save(rec_id, data)
 
     def _on_transcribe_error(self, err):
         self.progress.setVisible(False)
@@ -1641,8 +1629,8 @@ class TranscricoesView(QWidget):
     # ------------------------- Histórico -------------------------
     def _rec_name(self, r) -> str:
         """Nome da reunião com a data/hora de criação como PREFIXO."""
-        when = r.created_at.strftime("%d/%m/%Y %H:%M") if r.created_at else ""
-        base = (r.title or r.topic or "").strip()
+        when = r["created_at"].strftime("%d/%m/%Y %H:%M") if r["created_at"] else ""
+        base = (r["title"] or r["topic"] or "").strip()
         if base and when:
             return f"{when} — {base}"
         return base or when or t("(sem título)")
@@ -1653,24 +1641,17 @@ class TranscricoesView(QWidget):
         self.history.clear()
         query = self.history_panel.query()
         show_archived = self.history_panel.show_archived()
-        s = get_session()
         try:
-            q = s.query(Recording)
-            if not show_archived:
-                q = q.filter(Recording.archived_at == None)  # noqa: E711
-            recs = q.order_by(Recording.sort_order.asc(),
-                              Recording.created_at.desc()).limit(200).all()
-            for r in recs:
-                hay = f"{r.title} {r.topic} {r.transcript}".lower()
+            for r in repository.list_recent(show_archived=show_archived):
+                hay = f"{r['title']} {r['topic']} {r['transcript']}".lower()
                 if query and query not in hay:
                     continue
-                icon = "📓" if r.kind == "study" else "🗣"
-                archived = "  🗄" if r.archived_at else ""
+                icon = "📓" if r["kind"] == "study" else "🗣"
+                archived = "  🗄" if r["archived_at"] else ""
                 item = QListWidgetItem(f"{icon}  {self._rec_name(r)}{archived}")
-                item.setData(Qt.UserRole, r.id)
+                item.setData(Qt.UserRole, r["rec_id"])
                 self.history.addItem(item)
         finally:
-            s.close()
             self.history.blockSignals(False)
         # Estado vazio: orienta em vez de deixar uma lista em branco.
         self.history_panel.set_empty_state(self.history.count() == 0, filtering=bool(query))
@@ -1680,12 +1661,7 @@ class TranscricoesView(QWidget):
         if item is None:
             return
         rec_id = item.data(Qt.UserRole)
-        s = get_session()
-        try:
-            r = s.query(Recording).get(rec_id)
-            archived = bool(r and r.archived_at)
-        finally:
-            s.close()
+        archived = repository.is_archived(rec_id)
         menu = QMenu(self.history)
         menu.addAction(t("Abrir"), lambda: self._open_recording(item))
         menu.addAction(
@@ -1696,14 +1672,7 @@ class TranscricoesView(QWidget):
         menu.exec(self.history.mapToGlobal(pos))
 
     def _archive_recording(self, rec_id, archive: bool):
-        s = get_session()
-        try:
-            r = s.query(Recording).get(rec_id)
-            if r is not None:
-                r.archived_at = datetime.utcnow() if archive else None
-                s.commit()
-        finally:
-            s.close()
+        repository.set_archived(rec_id, archive)
         self.status_label.setText(
             t("Reunião arquivada.") if archive else t("Reunião desarquivada."))
         self._load_history()
@@ -1715,14 +1684,7 @@ class TranscricoesView(QWidget):
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if resp != QMessageBox.Yes:
             return
-        s = get_session()
-        try:
-            r = s.query(Recording).get(rec_id)
-            if r is not None:
-                s.delete(r)
-                s.commit()
-        finally:
-            s.close()
+        repository.delete(rec_id)
         if self._current.get("rec_id") == rec_id:
             self._current["rec_id"] = None
         self.status_label.setText(t("Reunião excluída."))
@@ -1730,16 +1692,8 @@ class TranscricoesView(QWidget):
 
     def _persist_history_order(self, *args):
         """Grava a ordem manual (sort_order) após arrastar itens no histórico."""
-        s = get_session()
-        try:
-            for i in range(self.history.count()):
-                rid = self.history.item(i).data(Qt.UserRole)
-                r = s.query(Recording).get(rid)
-                if r is not None:
-                    r.sort_order = i
-            s.commit()
-        finally:
-            s.close()
+        repository.save_order([self.history.item(i).data(Qt.UserRole)
+                               for i in range(self.history.count())])
 
     def _reset_outputs(self):
         """Limpa apenas as SAÍDAS (transcrição, resumo, itens ao vivo, perguntas)
@@ -1785,56 +1739,43 @@ class TranscricoesView(QWidget):
 
     def _open_recording(self, item):
         rec_id = item.data(Qt.UserRole)
-        s = get_session()
-        try:
-            r = s.query(Recording).get(rec_id)
-            if not r:
-                return
-            # O estado de trabalho passa a apontar para ESTA gravação (rec_id
-            # correto para reanalisar/salvar sem sobrescrever outra).
-            try:
-                tags = json.loads(r.tags) if r.tags else []
-            except Exception:  # noqa: BLE001
-                tags = []
-            self._current = {
-                "rec_id": r.id,
-                "transcript": r.transcript or "",
-                "markdown": r.markdown or "",
-                "summary_json": r.summary_json or "",
-                "duration": r.duration or 0.0,
-                "language": r.language or "",
-                "audio_path": r.audio_path or "",
-                "title": r.title or "",
-                "tags": tags,
-            }
-            # Restaura os itens do assistente salvos com ESTA gravação (plano,
-            # dicas, ações, decisões, perguntas) — reabre como estava.
-            self._live_transcript = r.transcript or ""
-            self._live_pending = ""
-            empty = empty_live_state()
-            try:
-                saved = json.loads(r.live_state_json) if r.live_state_json else {}
-            except Exception:  # noqa: BLE001
-                saved = {}
-            self._live_state = {**empty, **(saved if isinstance(saved, dict) else {})}
-            self._refresh_live_panels()
-            self.live_transcript_edit.setPlainText(r.transcript or "")
-            has_items = any(self._live_state.get(k) for k in
-                            ("plan", "tips", "action_items", "decisions", "questions"))
-            self.live_box.setVisible(has_items)
-            if has_items:
-                self.live_status.setText(t("Itens salvos desta reunião."))
+        r = repository.get(rec_id)
+        if not r:
+            return
+        # O estado de trabalho passa a apontar para ESTA gravação (rec_id
+        # correto para reanalisar/salvar sem sobrescrever outra).
+        self._current = {
+            "rec_id": r["rec_id"],
+            "transcript": r["transcript"],
+            "markdown": r["markdown"],
+            "summary_json": r["summary_json"],
+            "duration": r["duration"],
+            "language": r["language"],
+            "audio_path": r["audio_path"],
+            "title": r["title"],
+            "tags": r["tags"],
+        }
+        # Restaura os itens do assistente salvos com ESTA gravação (plano,
+        # dicas, ações, decisões, perguntas) — reabre como estava.
+        self._live_transcript = r["transcript"]
+        self._live_pending = ""
+        self._meeting.load_live_state_json(r["live_state_json"])
+        self._refresh_live_panels()
+        self.live_transcript_edit.setPlainText(r["transcript"])
+        has_items = self._meeting.has_live_items()
+        self.live_box.setVisible(has_items)
+        if has_items:
+            self.live_status.setText(t("Itens salvos desta reunião."))
 
-            # Mostra a transcrição + resumo estáticos desta gravação.
-            self.transcript_label.setVisible(True)
-            self.transcript_edit.setVisible(True)
-            self._set_transcript_text(r.transcript or "")
-            self.result_edit.setVisible(bool(r.markdown))
-            self._set_result_markdown(r.markdown or "")
-            self.save_day_btn.setEnabled(bool(r.markdown))
-            idx = self.kind_combo.findData(r.kind)
-            if idx >= 0:
-                self.kind_combo.setCurrentIndex(idx)
-            self.status_label.setText(t("Gravação de {when}").format(when=r.created_at.strftime('%d/%m/%Y %H:%M') if r.created_at else ''))
-        finally:
-            s.close()
+        # Mostra a transcrição + resumo estáticos desta gravação.
+        self.transcript_label.setVisible(True)
+        self.transcript_edit.setVisible(True)
+        self._set_transcript_text(r["transcript"])
+        self.result_edit.setVisible(bool(r["markdown"]))
+        self._set_result_markdown(r["markdown"])
+        self.save_day_btn.setEnabled(bool(r["markdown"]))
+        idx = self.kind_combo.findData(r["kind"])
+        if idx >= 0:
+            self.kind_combo.setCurrentIndex(idx)
+        when = r["created_at"].strftime("%d/%m/%Y %H:%M") if r["created_at"] else ""
+        self.status_label.setText(t("Gravação de {when}").format(when=when))
