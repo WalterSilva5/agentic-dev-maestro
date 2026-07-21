@@ -38,7 +38,11 @@ from maestro_local.config import (
 from maestro_local.transcricoes import audio as audio_backend
 from maestro_local.transcricoes import repository
 from maestro_local.transcricoes.agent_service import MeetingAgentService
-from maestro_local.transcricoes.session import MeetingSession, empty_live_state
+from maestro_local.transcricoes.session import (
+    MeetingSession,
+    empty_live_state,
+    live_state_from_summary,
+)
 from maestro_local.transcricoes.constants import (
     LIVE_AI_MIN_SECONDS,
     LIVE_AI_MIN_WORDS,
@@ -1408,13 +1412,13 @@ class TranscricoesView(QWidget):
             kind, transcript, self.topic_input.text().strip(),
             self._current.get("duration", 0.0), self._current.get("language", ""))
 
-        # Se o assistente ao vivo NÃO foi usado (abas vazias), gera as tabelas de
-        # itens (plano, dicas, ações, decisões, perguntas) a partir da transcrição
-        # completa — a mesma extração do ao vivo.
+        # Analisar SEMPRE (re)gera as abas de itens (plano, dicas, ações,
+        # decisões, perguntas) a partir da transcrição — é o JSON que a tela
+        # exibe. Se já havia itens (ex.: assistente ao vivo), revisa preservando
+        # as respostas dadas; senão, gera do zero.
         has_live = any(self._live_state.get(k) for k in
                        ("plan", "tips", "action_items", "decisions", "questions"))
-        if not has_live:
-            self._start_analyze_extract(transcript)
+        self._start_analyze_extract(transcript, keep_state=has_live)
 
     def _start_analyze_extract(self, transcript, keep_state: bool = False):
         """Gera/revisa os itens a partir da transcrição.
@@ -1703,6 +1707,17 @@ class TranscricoesView(QWidget):
         self._live_transcript = r["transcript"]
         self._live_pending = ""
         self._meeting.load_live_state_json(r["live_state_json"])
+        # Retrocompatibilidade: gravações analisadas antes das abas guardaram só
+        # o resumo. Sem itens salvos, derivamos as abas do summary_json para que
+        # ações/decisões/perguntas apareçam automaticamente ao reabrir.
+        if not self._meeting.has_live_items() and r["summary_json"]:
+            try:
+                summ = json.loads(r["summary_json"])
+            except (ValueError, TypeError):
+                summ = {}
+            derived = live_state_from_summary(summ)
+            if any(derived.values()):
+                self._live_state = derived
         self._refresh_live_panels()
         has_items = self._meeting.has_live_items()
         self.live_box.setVisible(has_items)

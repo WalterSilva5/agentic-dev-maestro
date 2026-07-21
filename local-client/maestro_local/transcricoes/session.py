@@ -32,6 +32,34 @@ def empty_live_state() -> dict:
     return {k: [] for k in LIVE_KEYS}
 
 
+def live_state_from_summary(summary: dict) -> dict:
+    """Deriva os itens da tela (abas) a partir do resumo da análise.
+
+    Serve de retrocompatibilidade: gravações analisadas antes de existirem as
+    abas guardaram só o `summary_json`. Ao reabrir, montamos as abas a partir
+    dele — ações, decisões e perguntas em aberto — para nada ficar invisível.
+    """
+    st = empty_live_state()
+    if not isinstance(summary, dict):
+        return st
+    for d in summary.get("decisions") or []:
+        if isinstance(d, str) and d.strip():
+            st["decisions"].append(d.strip())
+    for a in summary.get("action_items") or []:
+        if isinstance(a, dict):
+            desc = (a.get("description") or "").strip()
+            if desc:
+                st["action_items"].append(
+                    {"description": desc, "assignee": a.get("assignee") or ""})
+        elif isinstance(a, str) and a.strip():
+            st["action_items"].append({"description": a.strip(), "assignee": ""})
+    for q in summary.get("open_questions") or []:
+        if isinstance(q, str) and q.strip():
+            st["questions"].append(
+                {"question": q.strip(), "answer": "", "resolved": False})
+    return st
+
+
 @dataclass
 class ContextItem:
     """Um anexo de contexto (arquivo, imagem ou captura de tela já lida)."""

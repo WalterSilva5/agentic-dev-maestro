@@ -54,6 +54,7 @@ class AnalyzeWorker(QThread):
                     "title": s.title, "key_points": s.key_points,
                     "decisions": s.decisions,
                     "action_items": [a.__dict__ for a in s.action_items],
+                    "open_questions": s.open_questions,
                 }
                 self.done.emit((md, summary, s.title or t("Reunião"), s.tags,
                                 self.duration, self.language))

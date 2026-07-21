@@ -229,3 +229,24 @@ def test_texto_ao_vivo_nao_dispara_revisao(meetings_view):
     v._transcript_review.stop()
     v._on_live_partial("trecho novo.")
     assert not v._transcript_review.isActive()
+
+
+def test_reabrir_gravacao_antiga_deriva_abas_do_resumo(meetings_view):
+    """Gravação analisada antes das abas (só summary_json) mostra itens ao reabrir."""
+    import json
+    from maestro_local.transcricoes import repository
+    repository.save(None, {
+        "title": "Antiga", "transcript": "t",
+        "summary_json": json.dumps({
+            "decisions": ["Postgres"],
+            "action_items": [{"description": "Migrar", "assignee": "Ana"}],
+            "open_questions": ["Prazo?"],
+        }),
+        "markdown": "# r", "live_state_json": "",
+    })
+    v = meetings_view
+    v._load_history()
+    v._open_recording(v.history.item(0))
+    assert v.live_actions_list.count() == 1
+    assert v.live_decisions_list.count() == 1
+    assert v._live_state["questions"][0]["question"] == "Prazo?"

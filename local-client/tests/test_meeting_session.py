@@ -108,3 +108,25 @@ def test_remove_context():
     assert s.remove_context(0)
     assert [c.label for c in s.context_items] == ["b.pdf"]
     assert not s.remove_context(9)
+
+
+def test_live_state_from_summary_mapeia_itens():
+    from maestro_local.transcricoes.session import live_state_from_summary
+    st = live_state_from_summary({
+        "decisions": ["Adotar Postgres", "  ", "Deploy sexta"],
+        "action_items": [{"description": "Migrar", "assignee": "Ana"}, "Revisar", {"description": ""}],
+        "open_questions": ["Qual budget?", ""],
+    })
+    assert st["decisions"] == ["Adotar Postgres", "Deploy sexta"]
+    assert st["action_items"] == [
+        {"description": "Migrar", "assignee": "Ana"},
+        {"description": "Revisar", "assignee": ""},
+    ]
+    assert st["questions"] == [{"question": "Qual budget?", "answer": "", "resolved": False}]
+
+
+def test_live_state_from_summary_tolera_lixo():
+    from maestro_local.transcricoes.session import live_state_from_summary
+    assert live_state_from_summary(None)["decisions"] == []
+    assert live_state_from_summary({})["action_items"] == []
+    assert live_state_from_summary({"decisions": None})["decisions"] == []
