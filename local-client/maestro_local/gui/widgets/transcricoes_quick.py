@@ -63,15 +63,22 @@ class TranscricoesQuickWidget(QFrame):
         else:
             bg = t.accent
         self._btn.setStyleSheet(
-            f"background: {bg}; color: white; border: none; border-radius: 6px; "
+            f"background: {bg}; color: white; border: none; border-radius: 8px; "
             f"font-size: 12px; font-weight: 600; padding: 0 8px;"
+        )
+        # Timer em vermelho enquanto grava, neutro quando parado.
+        color = t.danger if self._recording else t.text_secondary
+        self._time_label.setStyleSheet(
+            f"color: {color}; font-size: 26px; font-weight: 700; "
+            f"font-feature-settings: 'tnum'; letter-spacing: 1px; "
+            f"background: transparent; border: none;"
         )
 
     def apply_theme(self, t):
         self._t = t
         self.setStyleSheet(
             f"TranscricoesQuickWidget {{ background: {t.bg_card}; "
-            f"border: 1px solid {t.border}; border-radius: 8px; }}"
+            f"border: 1px solid {t.border_light}; border-radius: 12px; }}"
         )
         self._title.setStyleSheet(
             f"color: {t.text_muted}; font-size: 10px; font-weight: 600; "
@@ -80,12 +87,15 @@ class TranscricoesQuickWidget(QFrame):
         self._icon.setStyleSheet("background: transparent; border: none;")
         self._open_btn.setStyleSheet(
             f"QPushButton {{ color: {t.text_on_accent}; background: {t.accent}; "
-            f"border: 1px solid {t.accent_pressed}; border-radius: 6px; "
-            f"font-size: 11px; font-weight: 700; padding: 2px 12px; }} "
+            f"border: none; border-radius: 8px; "
+            f"font-size: 11px; font-weight: 600; padding: 2px 12px; }} "
             f"QPushButton:hover {{ background: {t.accent_hover}; }}"
         )
+        # Timer com dígitos tabulares (sem o monospace retrô), realçado só quando grava.
+        color = t.danger if self._recording else t.text_secondary
         self._time_label.setStyleSheet(
-            f"color: {t.text_primary}; font-size: 22px; font-weight: 700; "
-            f"font-family: monospace; background: transparent; border: none;"
+            f"color: {color}; font-size: 26px; font-weight: 700; "
+            f"font-feature-settings: 'tnum'; letter-spacing: 1px; "
+            f"background: transparent; border: none;"
         )
         self._apply_btn_style()

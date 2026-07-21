@@ -108,7 +108,9 @@ class RecordingCard(SectionCard):
         actions.addWidget(self.record_btn)
 
         self.timer_label = QLabel("00:00")
-        self.timer_label.setStyleSheet("font-family: monospace; font-size: 16px;")
+        self.timer_label.setStyleSheet(
+            "font-size: 17px; font-weight: 700; font-feature-settings: 'tnum'; "
+            "letter-spacing: 1px;")
         actions.addWidget(self.timer_label)
 
         self.live_check = QCheckBox(t("Assistente ao vivo"))

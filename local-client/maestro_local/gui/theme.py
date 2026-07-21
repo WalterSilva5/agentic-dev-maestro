@@ -192,53 +192,52 @@ QListWidget#navList {{
     outline: none;
 }}
 QListWidget#navList::item {{
-    padding: 11px 14px;
-    margin: 4px 4px;
+    padding: 10px 14px;
+    margin: 2px 2px;
     border-radius: 10px;
-    border: 1px solid {t.border_light};
-    background-color: {t.bg_card};
+    border: none;
+    background-color: transparent;
     color: {t.text_secondary};
-    font-weight: 600;
+    font-weight: 500;
 }}
 QListWidget#navList::item:hover {{
     background-color: {t.bg_hover};
-    border: 1px solid {t.accent};
     color: {t.text_primary};
 }}
-QListWidget#navList::item:selected {{
-    background-color: {t.accent};
-    color: {t.text_on_accent};
-    border: 1px solid {t.accent_pressed};
-    font-weight: 700;
+QListWidget#navList::item:selected,
+QListWidget#navList::item:selected:!active {{
+    background-color: {t.accent_light};
+    color: {t.accent};
+    font-weight: 600;
 }}
 QPushButton {{
     background-color: {t.accent};
     color: {t.text_on_accent};
-    border: 1px solid {t.accent_pressed};
-    border-radius: 9px;
-    padding: 7px 18px;
+    border: none;
+    border-radius: 10px;
+    padding: 8px 18px;
     min-height: 20px;
     font-weight: 600;
     font-size: 13px;
 }}
-QPushButton:hover {{ background-color: {t.accent_hover}; border-color: {t.accent}; }}
+QPushButton:hover {{ background-color: {t.accent_hover}; }}
 QPushButton:pressed {{ background-color: {t.accent_pressed}; }}
 QPushButton:disabled {{
     background-color: {t.bg_selected};
     color: {t.text_muted};
-    border-color: {t.border};
 }}
 QPushButton:focus {{
     outline: none;
     border: 2px solid {t.border_focus};
+    padding: 6px 16px;
 }}
 QPushButton[flat="true"], QPushButton#flatBtn {{
     background-color: {t.bg_card};
     color: {t.text_secondary};
     font-weight: 600;
-    border: 1px solid {t.border};
-    border-radius: 9px;
-    padding: 7px 16px;
+    border: 1px solid {t.border_light};
+    border-radius: 10px;
+    padding: 8px 16px;
 }}
 QPushButton[flat="true"]:hover, QPushButton#flatBtn:hover {{
     background-color: {t.bg_hover};
@@ -251,8 +250,8 @@ QPushButton[flat="true"]:pressed, QPushButton#flatBtn:pressed {{
 QToolButton {{
     background-color: {t.bg_card};
     color: {t.text_secondary};
-    border: 1px solid {t.border};
-    border-radius: 9px;
+    border: 1px solid {t.border_light};
+    border-radius: 10px;
     padding: 6px 12px;
     font-weight: 600;
 }}
@@ -268,9 +267,9 @@ QToolButton::menu-indicator {{ image: none; width: 0; }}
 QLineEdit, QTextEdit, QPlainTextEdit, QComboBox, QSpinBox, QDoubleSpinBox {{
     background-color: {t.bg_input};
     color: {t.text_primary};
-    border: 1px solid {t.border};
-    border-radius: 9px;
-    padding: 7px 11px;
+    border: 1px solid {t.border_light};
+    border-radius: 10px;
+    padding: 8px 11px;
     selection-background-color: {t.accent};
     selection-color: {t.text_on_accent};
     font-size: 13px;
@@ -557,25 +556,27 @@ PRIORITY_LABELS = {
     "URGENT": "Urgente",
 }
 
+# Conjunto único de ícones (emojis), coeso em vez de misturar glifos
+# geométricos com emojis — neste ambiente renderizam como glifos de linha.
 NAV_ICONS = {
-    "dashboard": "◱",
-    "daily": "◰",
-    "todos": "✓",
+    "dashboard": "📊",
+    "daily": "📅",
+    "todos": "✅",
     "study": "📚",
-    "board": "◫",
-    "projects": "◈",
-    "labels": "◉",
-    "metrics": "◧",
-    "skills": "⚙",
-    "chat": "✦",
-    "transcricoes": "🎙",
+    "board": "🗂️",
+    "projects": "📁",
+    "labels": "🏷️",
+    "metrics": "📈",
+    "skills": "🧩",
+    "chat": "💬",
+    "transcricoes": "🎙️",
     "vault": "🔒",
     "library": "📇",
-    "apitester": "🛰",
+    "apitester": "🛰️",
     "kb": "🧠",
     "ferramentas": "🧰",
     "english": "🗣️",
     "translate": "🌐",
-    "guide": "?",
-    "settings": "⚡",
+    "guide": "❓",
+    "settings": "⚙️",
 }
