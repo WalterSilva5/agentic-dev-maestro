@@ -20,6 +20,7 @@ HUB_ITEMS = [
     ("library", "📇", "Biblioteca", "Snippets, runbooks, triagem, code review, git, tempo"),
     ("apitester", "🛰", "Testador de API", "Monte, execute e salve requisições HTTP"),
     ("kb", "🧠", "Base de conhecimento", "Notas com backlinks e Q&A por IA"),
+    ("memory", "🧬", "Memória agentic", "Fatos e decisões com busca semântica para agentes"),
     ("english", "🗣️", "Praticar Inglês", "Conversação por voz com feedback da IA"),
     ("translate", "🌐", "Tradutor", "Traduza texto entre idiomas (estilo Google Tradutor)"),
 ]

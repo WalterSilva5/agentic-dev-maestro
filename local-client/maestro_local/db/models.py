@@ -535,3 +535,40 @@ class Runbook(Base):
     sort_order = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class MemoryEntry(Base):
+    """Memória agentic do workspace: fatos, decisões, episódios, preferências.
+
+    Escopo = banco SQLite do workspace ativo. Busca híbrida (semântica via
+    embedding + palavras-chave). Pensada para consumo por agentes.
+    """
+    __tablename__ = "memory_entries"
+
+    id = Column(Integer, primary_key=True)
+    # fact | decision | preference | episode | procedure | context
+    kind = Column(String(20), nullable=False, default="fact")
+    title = Column(String(255), nullable=False, default="")
+    content = Column(Text, nullable=False, default="")
+    summary = Column(Text, default="")
+    tags = Column(String(500), default="")  # separadas por vírgula
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="SET NULL"))
+    task_id = Column(Integer, ForeignKey("tasks.id", ondelete="SET NULL"))
+    # manual | task | comment | document | daily | recording | sprint | agent | kb
+    source_type = Column(String(40), default="manual")
+    source_id = Column(Integer)
+    importance = Column(Float, default=0.5)  # 0.0–1.0
+    embedding = Column(Text)  # JSON array de floats (None se indisponível)
+    embedding_model = Column(String(120), default="")
+    access_count = Column(Integer, default=0)
+    last_accessed_at = Column(DateTime)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    deleted_at = Column(DateTime)
+
+
+Index("ix_memory_kind", MemoryEntry.kind)
+Index("ix_memory_project", MemoryEntry.project_id)
+Index("ix_memory_task", MemoryEntry.task_id)
+Index("ix_memory_source", MemoryEntry.source_type, MemoryEntry.source_id)
+Index("ix_memory_deleted", MemoryEntry.deleted_at)

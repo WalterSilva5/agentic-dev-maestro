@@ -1086,6 +1086,44 @@ curl -s "http://127.0.0.1:9777/api/projects/{PROJECT_ID}/changelog?days=7" | jq 
 curl -s http://127.0.0.1:9777/api/labels | jq '.[] | {id, name, color}'
 ```
 
+## PASSO 11 — Memoria agentic do workspace
+
+A memoria agentic guarda fatos, decisoes, preferencias, episodios e
+procedimentos com busca hibrida (semantica + keywords). Use SEMPRE ao
+iniciar a sessao para recuperar contexto de qualquer ponto do projeto.
+
+```bash
+# Estatisticas
+curl -s http://127.0.0.1:9777/api/memory/stats | jq .
+
+# Busca semantica (troque a query pelo foco da sessao)
+curl -s -X POST http://127.0.0.1:9777/api/memory/search \
+  -H 'Content-Type: application/json' \
+  -d '{"query":"decisoes de arquitetura e preferencias do projeto","topK":8}' \
+  | jq '{count, agentContext, results: [.results[] | {id, kind, title, score}]}'
+
+# Listar decisoes recentes
+curl -s 'http://127.0.0.1:9777/api/memory?kind=decision&limit=20' | jq .
+
+# Gravar memoria nova (quando aprender algo importante)
+curl -s -X POST http://127.0.0.1:9777/api/memory \
+  -H 'Content-Type: application/json' \
+  -d '{"title":"...","content":"...","kind":"decision","importance":0.8,"sourceType":"agent"}' | jq .
+
+# Ingerir entidade existente (task|comment|document|daily|recording|sprint|kb)
+curl -s -X POST http://127.0.0.1:9777/api/memory/ingest \
+  -H 'Content-Type: application/json' \
+  -d '{"sourceType":"task","sourceId":123}' | jq .
+```
+
+### Kinds disponiveis
+- `fact` — fato objetivo
+- `decision` — decisao de arquitetura/produto
+- `preference` — preferencia do dev/time
+- `episode` — o que aconteceu (reuniao, incidente)
+- `procedure` — como fazer algo
+- `context` — contexto geral de tarefa/projeto
+
 ## RESUMO DO CONTEXTO
 
 Apos executar os passos acima, o agente deve montar mentalmente:
@@ -1098,6 +1136,7 @@ Apos executar os passos acima, o agente deve montar mentalmente:
 6. **Foco do dia**: notas e planejamento do dev
 7. **Historico de tarefas ativas**: timeline de cada tarefa em andamento
 8. **Changelog do projeto**: o que foi feito nos ultimos dias
+9. **Memoria agentic**: decisoes, preferencias e episodios relevantes
 
 Com esse mapa, o agente pode:
 - Continuar uma tarefa em andamento de onde parou
@@ -1105,6 +1144,7 @@ Com esse mapa, o agente pode:
 - Desbloquear tarefas pendentes
 - Reportar o estado atual ao dev
 - Revisar o que foi feito antes de avancar
+- Reusar decisoes e preferencias ja registradas na memoria
 
 ## DICA
 
@@ -1112,8 +1152,8 @@ Execute esta skill sempre que iniciar uma nova conversa ou
 quando mudar de workspace. O contexto muda frequentemente
 e o agente deve estar sempre atualizado.
 
-Para revisao de contexto rapida, use apenas os passos 8 e 9
-(historico da tarefa + changelog do projeto).
+Para revisao de contexto rapida, use os passos 8, 9 e 11
+(historico da tarefa + changelog + busca na memoria).
 """,
     },
 ]

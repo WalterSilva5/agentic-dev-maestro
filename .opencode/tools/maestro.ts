@@ -335,3 +335,129 @@ export const createDocument = tool({
     return api("/documents", { method: "POST", body: args });
   },
 });
+
+// ----------------------------------------------------------------
+// Memória agentic (workspace)
+// ----------------------------------------------------------------
+
+export const searchMemory = tool({
+  description:
+    "Busca híbrida (semântica + keywords) na memória agentic do workspace. " +
+    "Retorna fatos, decisões, preferências, episódios e procedimentos relevantes, " +
+    "com agentContext em markdown pronto para o agente. Use no início de sessões " +
+    "e sempre que precisar de contexto histórico do projeto.",
+  args: {
+    query: tool.schema.string().describe("Consulta em linguagem natural"),
+    kind: tool.schema
+      .string()
+      .optional()
+      .describe(
+        "Filtro: fact|decision|preference|episode|procedure|context (vírgula para vários)"
+      ),
+    projectId: tool.schema.number().optional().describe("Filtrar por projeto"),
+    taskId: tool.schema.number().optional().describe("Filtrar por tarefa"),
+    topK: tool.schema.number().optional().describe("Máximo de resultados (padrão 8)"),
+  },
+  async execute(args) {
+    return api("/memory/search", {
+      method: "POST",
+      body: {
+        query: args.query,
+        kind: args.kind,
+        projectId: args.projectId,
+        taskId: args.taskId,
+        topK: args.topK,
+      },
+    });
+  },
+});
+
+export const remember = tool({
+  description:
+    "Grava uma memória duradoura no workspace ativo para uso futuro por agentes. " +
+    "Kinds: fact, decision, preference, episode, procedure, context. " +
+    "Use para decisões de arquitetura, preferências, lições aprendidas e contexto.",
+  args: {
+    title: tool.schema.string().describe("Título curto e legível"),
+    content: tool.schema.string().describe("Conteúdo completo da memória"),
+    kind: tool.schema
+      .string()
+      .optional()
+      .describe("fact|decision|preference|episode|procedure|context (padrão: fact)"),
+    summary: tool.schema.string().optional().describe("Resumo curto opcional"),
+    tags: tool.schema
+      .string()
+      .optional()
+      .describe("Tags separadas por vírgula"),
+    projectId: tool.schema.number().optional().describe("ID do projeto"),
+    taskId: tool.schema.number().optional().describe("ID da tarefa"),
+    importance: tool.schema
+      .number()
+      .optional()
+      .describe("Importância 0.0–1.0 (padrão 0.5)"),
+  },
+  async execute(args) {
+    const tags = args.tags
+      ? args.tags.split(",").map((t: string) => t.trim()).filter(Boolean)
+      : undefined;
+    return api("/memory", {
+      method: "POST",
+      body: {
+        title: args.title,
+        content: args.content,
+        kind: args.kind || "fact",
+        summary: args.summary || "",
+        tags,
+        projectId: args.projectId,
+        taskId: args.taskId,
+        sourceType: "agent",
+        importance: args.importance ?? 0.5,
+      },
+    });
+  },
+});
+
+export const listMemory = tool({
+  description:
+    "Lista memórias do workspace com filtros opcionais (kind, projeto, tarefa, texto).",
+  args: {
+    q: tool.schema.string().optional().describe("Filtro de texto"),
+    kind: tool.schema.string().optional().describe("fact|decision|preference|..."),
+    projectId: tool.schema.number().optional().describe("ID do projeto"),
+    taskId: tool.schema.number().optional().describe("ID da tarefa"),
+    limit: tool.schema.number().optional().describe("Limite (padrão 50)"),
+  },
+  async execute(args) {
+    const params = new URLSearchParams();
+    if (args.q) params.set("q", args.q);
+    if (args.kind) params.set("kind", args.kind);
+    if (args.projectId != null) params.set("projectId", String(args.projectId));
+    if (args.taskId != null) params.set("taskId", String(args.taskId));
+    if (args.limit != null) params.set("limit", String(args.limit));
+    const qs = params.toString();
+    return api(`/memory${qs ? `?${qs}` : ""}`);
+  },
+});
+
+export const ingestMemory = tool({
+  description:
+    "Ingere uma entidade existente na memória agentic (task, comment, document, " +
+    "daily, recording, sprint, kb). Gera entradas estruturadas a partir da fonte.",
+  args: {
+    sourceType: tool.schema
+      .string()
+      .describe("task|comment|document|daily|recording|sprint|kb"),
+    sourceId: tool.schema.number().describe("ID numérico da entidade fonte"),
+    projectId: tool.schema.number().optional().describe("ID do projeto (opcional)"),
+  },
+  async execute(args) {
+    return api("/memory/ingest", {
+      method: "POST",
+      body: {
+        sourceType: args.sourceType,
+        sourceId: args.sourceId,
+        projectId: args.projectId,
+      },
+    });
+  },
+});

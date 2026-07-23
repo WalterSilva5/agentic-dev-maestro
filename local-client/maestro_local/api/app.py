@@ -23,6 +23,7 @@ from maestro_local.db.models import (
     Label,
     ApiCall,
     ApiRequest,
+    MemoryEntry,
     Project,
     Runbook,
     Snippet,
@@ -1646,6 +1647,256 @@ def kb_ask(body: KbAskBody, s: Session = Depends(db)):
         return answer(notes, body.question)
     except Exception as e:  # noqa: BLE001
         raise HTTPException(status_code=400, detail=str(e))
+
+
+# ---------------------------------------------------------------------------
+# Agentic memory (por workspace) — fatos/decisões com busca híbrida
+# ---------------------------------------------------------------------------
+
+
+class MemoryCreate(BaseModel):
+    title: str
+    content: str
+    kind: Optional[str] = "fact"
+    summary: Optional[str] = ""
+    tags: Optional[list[str] | str] = None
+    projectId: Optional[int] = None
+    taskId: Optional[int] = None
+    sourceType: Optional[str] = "manual"
+    sourceId: Optional[int] = None
+    importance: Optional[float] = 0.5
+    embed: Optional[bool] = True
+
+
+class MemoryUpdate(BaseModel):
+    title: Optional[str] = None
+    content: Optional[str] = None
+    kind: Optional[str] = None
+    summary: Optional[str] = None
+    tags: Optional[list[str] | str] = None
+    projectId: Optional[int] = None
+    taskId: Optional[int] = None
+    importance: Optional[float] = None
+    reembed: Optional[bool] = True
+
+
+class MemorySearchBody(BaseModel):
+    query: str
+    kind: Optional[str] = None
+    projectId: Optional[int] = None
+    taskId: Optional[int] = None
+    tags: Optional[str] = None
+    topK: Optional[int] = 8
+    minScore: Optional[float] = 0.0
+
+
+class MemoryIngestBody(BaseModel):
+    sourceType: str  # task | comment | document | daily | recording | sprint | kb
+    sourceId: int
+    projectId: Optional[int] = None
+
+
+class MemoryAskBody(BaseModel):
+    question: str
+    projectId: Optional[int] = None
+    topK: Optional[int] = 6
+
+
+class MemoryReembedBody(BaseModel):
+    onlyMissing: Optional[bool] = True
+    limit: Optional[int] = 200
+
+
+@app.get("/api/memory")
+def memory_list(
+    q: Optional[str] = None,
+    kind: Optional[str] = None,
+    projectId: Optional[int] = None,
+    taskId: Optional[int] = None,
+    tags: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+    s: Session = Depends(db),
+):
+    from maestro_local import memory as mem
+    return mem.list_entries(
+        s, kind=kind, project_id=projectId, task_id=taskId,
+        tags=tags, q=q, limit=limit, offset=offset,
+    )
+
+
+@app.get("/api/memory/stats")
+def memory_stats(s: Session = Depends(db)):
+    from maestro_local import memory as mem
+    return mem.stats(s)
+
+
+@app.get("/api/memory/kinds")
+def memory_kinds():
+    from maestro_local import memory as mem
+    return {
+        "kinds": list(mem.MEMORY_KINDS),
+        "sourceTypes": list(mem.SOURCE_TYPES),
+    }
+
+
+@app.post("/api/memory")
+def memory_create(body: MemoryCreate, s: Session = Depends(db)):
+    from maestro_local import memory as mem
+    if not (body.content or "").strip():
+        raise HTTPException(400, "content obrigatório")
+    try:
+        entry = mem.remember(
+            s,
+            title=body.title,
+            content=body.content,
+            kind=body.kind or "fact",
+            summary=body.summary or "",
+            tags=body.tags,
+            project_id=body.projectId,
+            task_id=body.taskId,
+            source_type=body.sourceType or "manual",
+            source_id=body.sourceId,
+            importance=body.importance if body.importance is not None else 0.5,
+            embed=bool(body.embed if body.embed is not None else True),
+        )
+        s.flush()
+        _log(s, "memory", entry.id, "created", entry.title)
+        s.commit()
+        s.refresh(entry)
+        return mem.entry_to_dict(entry)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:  # noqa: BLE001
+        s.rollback()
+        raise HTTPException(400, str(e))
+
+
+@app.get("/api/memory/{mem_id}")
+def memory_get(mem_id: int, s: Session = Depends(db)):
+    from maestro_local import memory as mem
+    entry = (
+        s.query(MemoryEntry)
+        .filter(MemoryEntry.id == mem_id, MemoryEntry.deleted_at.is_(None))
+        .first()
+    )
+    if not entry:
+        raise HTTPException(404, "Memória não encontrada")
+    return mem.entry_to_dict(entry)
+
+
+@app.patch("/api/memory/{mem_id}")
+def memory_update(mem_id: int, body: MemoryUpdate, s: Session = Depends(db)):
+    from maestro_local import memory as mem
+    entry = (
+        s.query(MemoryEntry)
+        .filter(MemoryEntry.id == mem_id, MemoryEntry.deleted_at.is_(None))
+        .first()
+    )
+    if not entry:
+        raise HTTPException(404, "Memória não encontrada")
+    data = body.model_dump(exclude_unset=True)
+    try:
+        mem.update_entry(
+            s,
+            entry,
+            title=data.get("title"),
+            content=data.get("content"),
+            kind=data.get("kind"),
+            summary=data.get("summary"),
+            tags=data.get("tags") if "tags" in data else None,
+            project_id=data["projectId"] if "projectId" in data else ...,
+            task_id=data["taskId"] if "taskId" in data else ...,
+            importance=data.get("importance"),
+            reembed=bool(data.get("reembed", True)),
+        )
+        s.commit()
+        s.refresh(entry)
+        return mem.entry_to_dict(entry)
+    except Exception as e:  # noqa: BLE001
+        s.rollback()
+        raise HTTPException(400, str(e))
+
+
+@app.delete("/api/memory/{mem_id}")
+def memory_delete(mem_id: int, s: Session = Depends(db)):
+    from maestro_local import memory as mem
+    entry = (
+        s.query(MemoryEntry)
+        .filter(MemoryEntry.id == mem_id, MemoryEntry.deleted_at.is_(None))
+        .first()
+    )
+    if not entry:
+        raise HTTPException(404, "Memória não encontrada")
+    mem.soft_delete(s, entry)
+    s.commit()
+    return {"ok": True}
+
+
+@app.post("/api/memory/search")
+def memory_search(body: MemorySearchBody, s: Session = Depends(db)):
+    from maestro_local import memory as mem
+    if not (body.query or "").strip():
+        raise HTTPException(400, "query obrigatória")
+    hits = mem.search(
+        s,
+        body.query,
+        kind=body.kind,
+        project_id=body.projectId,
+        task_id=body.taskId,
+        tags=body.tags,
+        top_k=body.topK or 8,
+        min_score=body.minScore or 0.0,
+        mark_accessed=True,
+    )
+    return {
+        "query": body.query,
+        "count": len(hits),
+        "results": hits,
+        "agentContext": mem.format_for_agent(hits),
+    }
+
+
+@app.post("/api/memory/ingest")
+def memory_ingest(body: MemoryIngestBody, s: Session = Depends(db)):
+    from maestro_local import memory as mem
+    try:
+        created = mem.ingest(
+            s, body.sourceType, body.sourceId, project_id=body.projectId
+        )
+        return {"ok": True, "count": len(created), "entries": created}
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except Exception as e:  # noqa: BLE001
+        s.rollback()
+        raise HTTPException(400, str(e))
+
+
+@app.post("/api/memory/ask")
+def memory_ask(body: MemoryAskBody, s: Session = Depends(db)):
+    from maestro_local import memory as mem
+    if not (body.question or "").strip():
+        raise HTTPException(400, "Pergunta vazia")
+    try:
+        return mem.answer(
+            s, body.question, project_id=body.projectId, top_k=body.topK or 6
+        )
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(400, str(e))
+
+
+@app.post("/api/memory/reembed")
+def memory_reembed(body: MemoryReembedBody, s: Session = Depends(db)):
+    from maestro_local import memory as mem
+    try:
+        return mem.reembed_all(
+            s,
+            only_missing=bool(body.onlyMissing if body.onlyMissing is not None else True),
+            limit=body.limit or 200,
+        )
+    except Exception as e:  # noqa: BLE001
+        s.rollback()
+        raise HTTPException(400, str(e))
 
 
 # ---------------------------------------------------------------------------

@@ -152,6 +152,18 @@ Sem autenticação. Tarefas identificadas por código (`KEY-NUM`, ex: `DEMO-1`) 
 - `GET/POST /api/todos` — listar/criar TODOs simples (filtro `?done=`)
 - `PATCH/DELETE /api/todos/{id}` — atualizar/remover
 
+### Memória agentic (por workspace)
+- `GET /api/memory` — listar (`?q&kind&projectId&taskId&tags&limit`)
+- `POST /api/memory` — gravar (title, content, kind, tags, importance…)
+- `GET/PATCH/DELETE /api/memory/{id}`
+- `POST /api/memory/search` — busca híbrida (semântica + keywords) + `agentContext`
+- `POST /api/memory/ingest` — ingerir task|comment|document|daily|recording|sprint|kb
+- `POST /api/memory/ask` — Q&A sobre memórias
+- `POST /api/memory/reembed` — reprocessar embeddings
+- `GET /api/memory/stats` · `GET /api/memory/kinds`
+- Kinds: `fact|decision|preference|episode|procedure|context`
+- Módulo: `maestro_local/memory.py` · GUI: Ferramentas → Memória agentic
+
 ### Outros
 - `POST/GET /api/labels` — labels
 - `GET/POST /api/comments` — comentários

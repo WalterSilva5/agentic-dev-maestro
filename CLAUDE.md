@@ -106,6 +106,7 @@ Ferramentas customizadas para agentes de IA no terminal.
 - `maestro_addComment` — Comentário com markdown
 - `maestro_getFlow` — Exportar fluxo em mermaid
 - `maestro_createDocument` — Criar documento (spec, plan, ADR)
+- `maestro_searchMemory` / `maestro_remember` / `maestro_listMemory` / `maestro_ingestMemory` — memória agentic do workspace
 
 ### Comandos
 

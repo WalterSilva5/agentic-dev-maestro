@@ -37,6 +37,7 @@ from maestro_local.gui.views.vault_view import VaultView
 from maestro_local.gui.views.library_view import LibraryView
 from maestro_local.gui.views.api_tester_view import ApiTesterView
 from maestro_local.gui.views.kb_view import KBView
+from maestro_local.gui.views.memory_view import MemoryView
 from maestro_local.gui.views.tools_hub_view import ToolsHubView
 from maestro_local.gui.views.english_view import EnglishView
 from maestro_local.gui.views.translate_view import TranslateView
@@ -275,6 +276,7 @@ class MainWindow(QMainWindow):
         self.library_view = LibraryView()
         self.api_tester_view = ApiTesterView()
         self.kb_view = KBView()
+        self.memory_view = MemoryView()
         self.english_view = EnglishView()
         self.translate_view = TranslateView()
         self.tools_hub_view = ToolsHubView(lambda key: self._open_key(key))
@@ -296,6 +298,7 @@ class MainWindow(QMainWindow):
         self.stack.addWidget(self.library_view)
         self.stack.addWidget(self.api_tester_view)
         self.stack.addWidget(self.kb_view)
+        self.stack.addWidget(self.memory_view)
         self.stack.addWidget(self.english_view)
         self.stack.addWidget(self.translate_view)
         self.stack.addWidget(self.tools_hub_view)
@@ -313,6 +316,7 @@ class MainWindow(QMainWindow):
             "library": self.library_view,
             "apitester": self.api_tester_view,
             "kb": self.kb_view,
+            "memory": self.memory_view,
             "english": self.english_view,
             "translate": self.translate_view,
             "ferramentas": self.tools_hub_view,

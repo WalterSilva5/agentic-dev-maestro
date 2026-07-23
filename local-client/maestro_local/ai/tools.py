@@ -15,6 +15,7 @@ from maestro_local.db.models import (
     BoardColumn,
     Comment,
     Document,
+    MemoryEntry,
     Project,
     Task,
     Todo,
@@ -282,6 +283,94 @@ def list_pending_todos() -> str:
         s.close()
 
 
+@tool
+def search_memory(query: str, kind: str = "", project_id: int = 0) -> str:
+    """Busca na memória agentic do workspace (fatos, decisões, preferências,
+    episódios, procedimentos). Use busca semântica/híbrida para recuperar
+    contexto de qualquer ponto do desenvolvimento. kind opcional:
+    fact|decision|preference|episode|procedure|context (vírgula para vários).
+    project_id=0 = todos os projetos."""
+    from maestro_local import memory as mem
+    s = get_session()
+    try:
+        hits = mem.search(
+            s,
+            query,
+            kind=kind or None,
+            project_id=project_id or None,
+            top_k=6,
+            mark_accessed=True,
+        )
+        if not hits:
+            return "Nenhuma memória relevante encontrada."
+        return mem.format_for_agent(hits)
+    finally:
+        s.close()
+
+
+@tool
+def remember(
+    title: str,
+    content: str,
+    kind: str = "fact",
+    project_id: int = 0,
+    task_id: int = 0,
+    importance: float = 0.5,
+    tags: str = "",
+) -> str:
+    """Grava uma memória duradoura no workspace para uso futuro por agentes.
+    kind: fact|decision|preference|episode|procedure|context.
+    Use para decisões de arquitetura, preferências do dev, lições aprendidas,
+    contexto de tarefas e procedimentos. tags: separadas por vírgula."""
+    from maestro_local import memory as mem
+    s = get_session()
+    try:
+        entry = mem.remember(
+            s,
+            title=title,
+            content=content,
+            kind=kind or "fact",
+            tags=tags or None,
+            project_id=project_id or None,
+            task_id=task_id or None,
+            source_type="agent",
+            importance=importance if importance is not None else 0.5,
+        )
+        s.commit()
+        return (
+            f"Memória gravada id={entry.id} kind={entry.kind} "
+            f"title={entry.title!r} embed={'sim' if entry.embedding else 'não'}"
+        )
+    except Exception as e:  # noqa: BLE001
+        s.rollback()
+        return f"Erro ao gravar memória: {e}"
+    finally:
+        s.close()
+
+
+@tool
+def forget_memory(memory_id: int) -> str:
+    """Remove (soft-delete) uma memória do workspace pelo id numérico."""
+    from maestro_local import memory as mem
+    s = get_session()
+    try:
+        entry = (
+            s.query(MemoryEntry)
+            .filter(MemoryEntry.id == memory_id, MemoryEntry.deleted_at.is_(None))
+            .first()
+        )
+        if not entry:
+            return f"Memória {memory_id} não encontrada."
+        mem.soft_delete(s, entry)
+        s.commit()
+        return f"Memória {memory_id} removida."
+    except Exception as e:  # noqa: BLE001
+        s.rollback()
+        return f"Erro: {e}"
+    finally:
+        s.close()
+
+
 ALL_TOOLS = [
     list_projects,
     get_board_summary,
@@ -291,6 +380,9 @@ ALL_TOOLS = [
     create_todo,
     get_recent_activity,
     search_knowledge_base,
+    search_memory,
+    remember,
+    forget_memory,
     get_project_metrics,
     list_pending_todos,
 ]
