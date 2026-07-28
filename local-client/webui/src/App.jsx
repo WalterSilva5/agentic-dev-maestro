@@ -22,7 +22,7 @@ import { getPendingTodos } from './api'
 import { getTheme, toggleTheme } from './theme'
 import { t } from './i18n'
 
-function Sidebar() {
+function Sidebar({ onNavigate }) {
   const [theme, setTheme] = useState(getTheme())
   const [pendingCount, setPendingCount] = useState(0)
 
@@ -37,13 +37,13 @@ function Sidebar() {
   // Menu enxuto: essenciais + hub "Ferramentas" (extras: estudos, métricas,
   // labels, biblioteca, testador de API, base).
   const nav = [
-    ['/dashboard', t('Dashboard')],
-    ['/meu-dia', t('Meu Dia')],
-    ['/projetos', t('Projetos')],
-    ['/assistente', t('Assistente')],
-    ['/todos', t('TODOs')],
-    ['/ferramentas', t('Ferramentas')],
-    ['/configuracoes', t('Configurações')],
+    ['/dashboard', t('Dashboard'), '📊'],
+    ['/meu-dia', t('Meu Dia'), '📅'],
+    ['/projetos', t('Projetos'), '📁'],
+    ['/assistente', t('Assistente'), '💬'],
+    ['/todos', t('TODOs'), '✅'],
+    ['/ferramentas', t('Ferramentas'), '🧰'],
+    ['/configuracoes', t('Configurações'), '⚙️'],
   ]
   return (
     <aside className="sidebar">
@@ -55,14 +55,16 @@ function Sidebar() {
         </div>
       </div>
       <WorkspaceSelector />
+      <div className="nav-label">{t('Workspace')}</div>
       <nav className="nav">
-        {nav.map(([to, label]) => (
-          <NavLink key={to} to={to}>
-            {label}
+        {nav.map(([to, label, ico]) => (
+          <NavLink key={to} to={to} onClick={onNavigate}>
+            <span className="nav-ico">{ico}</span>
+            <span>{label}</span>
             {to === '/todos' && pendingCount > 0 && (
               <span
                 style={{
-                  marginLeft: 6,
+                  marginLeft: 'auto',
                   fontSize: 11,
                   fontWeight: 700,
                   color: 'var(--danger, #e5484d)',
@@ -82,10 +84,18 @@ function Sidebar() {
 }
 
 export default function App() {
+  const [navOpen, setNavOpen] = useState(false)
   return (
-    <div className="layout">
-      <Sidebar />
-      <main className="content">
+    <div className={'layout' + (navOpen ? ' nav-open' : '')}>
+      <button
+        className="nav-toggle"
+        aria-label={t('Menu')}
+        onClick={() => setNavOpen((v) => !v)}
+      >
+        {navOpen ? '✕' : '☰'}
+      </button>
+      <Sidebar onNavigate={() => setNavOpen(false)} />
+      <main className="content" onClick={() => navOpen && setNavOpen(false)}>
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
