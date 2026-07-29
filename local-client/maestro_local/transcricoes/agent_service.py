@@ -112,6 +112,14 @@ class MeetingAgentService(QObject):
     def is_reading_screen(self) -> bool:
         return self._screen_reader is not None
 
+    def is_busy(self) -> bool:
+        """Algum trabalho de IA em andamento? Usado para não liberar o modelo
+        Whisper enquanto uma transcrição/análise ainda corre."""
+        return any(w is not None for w in (
+            self._transcriber, self._analyzer, self._live_extractor,
+            self._extractor, self._asker, self._screen_reader)) \
+            or bool(self._vision_workers)
+
     # -------------------------- transcrição --------------------------
     def transcribe(self, audio_path: Path, model: str, language: str) -> None:
         from maestro_local.transcricoes.transcriber import TranscriberWorker

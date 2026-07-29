@@ -69,6 +69,25 @@ def get_model(model_size: str = WHISPER_DEFAULT_MODEL, compute_type: str = WHISP
     return _cached_model
 
 
+def release_model() -> bool:
+    """Libera o modelo Whisper da memória (ele recarrega sozinho no próximo uso).
+
+    O modelo fica residente após o primeiro uso — o `small` int8 são centenas de
+    MB de RAM parados quando não se está transcrevendo. Chamar isto quando o app
+    está ocioso devolve essa memória ao sistema. Só chame quando NÃO houver
+    transcrição/gravação em andamento (senão o worker em execução quebra).
+    """
+    global _cached_model, _cached_size
+    if _cached_model is None:
+        return False
+    import gc
+    logger.info("Liberando Whisper '%s' da memória (ocioso).", _cached_size)
+    _cached_model = None
+    _cached_size = None
+    gc.collect()
+    return True
+
+
 @dataclass
 class Segment:
     start: float

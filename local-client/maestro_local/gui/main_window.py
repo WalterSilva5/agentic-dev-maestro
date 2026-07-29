@@ -373,6 +373,15 @@ class MainWindow(QMainWindow):
         self._transcricoes_poll.timeout.connect(self._update_transcricoes_quick)
         self._transcricoes_poll.start()
 
+        # Libera o modelo Whisper da RAM quando ocioso: ele fica residente após o
+        # primeiro uso (o 'small' int8 são centenas de MB). Depois de ~4 min sem
+        # gravar/transcrever, devolve essa memória ao sistema; recarrega sozinho.
+        self._whisper_idle_ticks = 0
+        self._whisper_idle_timer = QTimer(self)
+        self._whisper_idle_timer.setInterval(120000)  # 2 min
+        self._whisper_idle_timer.timeout.connect(self._maybe_release_whisper)
+        self._whisper_idle_timer.start()
+
         # Lembrete periódico de TODOs pendentes (só na interface)
         self.todo_reminder = TodoReminder(
             self, self._goto_todos, self._snooze_todos, self._dismiss_todos)
@@ -533,6 +542,19 @@ class MainWindow(QMainWindow):
     def _update_transcricoes_quick(self):
         rec = self.transcricoes_view.is_recording()
         self.transcricoes_quick.set_recording(rec, self.transcricoes_view.elapsed_seconds())
+
+    def _maybe_release_whisper(self):
+        """Libera o modelo Whisper após dois ciclos ociosos consecutivos (~4 min).
+        Só quando não há gravação/transcrição em curso — senão o worker quebra."""
+        if self.transcricoes_view.is_busy():
+            self._whisper_idle_ticks = 0
+            return
+        self._whisper_idle_ticks += 1
+        if self._whisper_idle_ticks < 2:
+            return
+        self._whisper_idle_ticks = 0
+        from maestro_local.transcricoes.transcriber import release_model
+        release_model()
 
     def _setup_global_hotkeys(self):
         try:

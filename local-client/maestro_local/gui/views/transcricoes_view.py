@@ -587,6 +587,12 @@ class TranscricoesView(QWidget):
     def is_recording(self) -> bool:
         return bool(self._session and self._session.is_recording)
 
+    def is_busy(self) -> bool:
+        """Gravando ou com algum trabalho de IA/transcrição em andamento.
+        Enquanto True, o modelo Whisper não pode ser liberado da memória."""
+        return self.is_recording() or self.agent.is_busy() \
+            or self._live_transcriber is not None
+
     def elapsed_seconds(self) -> int:
         return self._elapsed
 
