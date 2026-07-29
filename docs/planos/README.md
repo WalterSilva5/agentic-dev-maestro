@@ -16,3 +16,10 @@ são decisão de liderança.
   Flutter ou para a web UI React já existente; recomenda a rota **web** (React +
   daemon Python de captura/Whisper/IA + shell pywebview) em vez de Flutter, com
   roadmap por fases.
+
+- [Decisão de toolkit de UI (Flutter vs Java vs web)](migracao-toolkit-ui.ptbr.md)
+  ([EN](migracao-toolkit-ui.md)) — reabre a comparação a pedido incluindo
+  **Flutter** e **Java** explicitamente. Mostra que a captura de áudio + Whisper
+  fica em Python em qualquer opção; descarta **Java** (menos moderno), mantém a
+  **rota web** como recomendação (~14–21 HD) e detalha o plano Flutter
+  (~27–50 HD) caso mobile nativo seja requisito.
