@@ -109,7 +109,7 @@ class RecordingCard(SectionCard):
 
         self.timer_label = QLabel("00:00")
         self.timer_label.setStyleSheet(
-            "font-size: 17px; font-weight: 700; font-feature-settings: 'tnum'; "
+            "font-size: 17px; font-weight: 700; "
             "letter-spacing: 1px;")
         actions.addWidget(self.timer_label)
 

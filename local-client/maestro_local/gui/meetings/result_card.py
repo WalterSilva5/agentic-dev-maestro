@@ -7,44 +7,12 @@ fica no cabeçalho do resumo, junto do campo que controla.
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import (
-    QFrame,
-    QHBoxLayout,
-    QLabel,
-    QPushButton,
-    QTextEdit,
-    QWidget,
-)
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QTextEdit
 
 from maestro_local.gui.flow_layout import FlowLayout
 from maestro_local.gui.meetings.section_card import SectionCard
-from maestro_local.gui.theme import current_theme
+from maestro_local.gui.widgets.action_group import action_group
 from maestro_local.i18n import t
-
-
-def _vsep() -> QFrame:
-    """Separador vertical entre grupos da barra de ações."""
-    sep = QFrame()
-    sep.setFrameShape(QFrame.VLine)
-    sep.setFixedSize(1, 24)
-    sep.setStyleSheet(f"color: {current_theme().border};")
-    return sep
-
-
-def action_group(label: str, buttons: list) -> QWidget:
-    """Grupo rotulado de botões, num container próprio para quebrar como
-    unidade em telas estreitas (o rótulo nunca se separa dos seus botões)."""
-    w = QWidget()
-    row = QHBoxLayout(w)
-    row.setContentsMargins(0, 0, 0, 0)
-    row.setSpacing(6)
-    row.addWidget(_vsep())
-    lbl = QLabel(label)
-    lbl.setObjectName("subtitle")
-    row.addWidget(lbl)
-    for b in buttons:
-        row.addWidget(b)
-    return w
 
 
 class ResultCard(SectionCard):
@@ -125,7 +93,7 @@ class ResultCard(SectionCard):
         self.copy_btn.setToolTip(
             t("Copia o markdown completo da reunião para a área de transferência."))
         self.copy_btn.clicked.connect(lambda: self.copy_requested.emit())
-        actions.addWidget(action_group(t("Documento:"), [self.export_btn, self.copy_btn]))
+        actions.addWidget(action_group([self.export_btn, self.copy_btn], t("Documento:")))
 
         self.tasks_btn = QPushButton(t("Criar tarefas das ações"))
         self.tasks_btn.setFixedHeight(32)
@@ -138,8 +106,7 @@ class ResultCard(SectionCard):
         self.save_day_btn.setToolTip(t("Adiciona o resumo ao relatório do Meu Dia."))
         self.save_day_btn.clicked.connect(lambda: self.save_day_requested.emit())
         self.save_day_btn.setEnabled(False)
-        actions.addWidget(action_group(t("Enviar para:"),
-                                       [self.tasks_btn, self.save_day_btn]))
+        actions.addWidget(action_group([self.tasks_btn, self.save_day_btn], t("Enviar para:")))
         lay.addLayout(actions)
 
     # ------------------------------------------------------------------

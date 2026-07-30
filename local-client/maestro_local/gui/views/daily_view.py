@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
 )
 
 from maestro_local.config import get_active_workspace_id, list_workspaces, load_config, save_config
+from maestro_local.gui.widgets.action_group import action_group
 from maestro_local.db.models import (
     ActivityLog,
     BoardColumn,
@@ -158,14 +159,17 @@ class DailyView(QWidget):
         self.toggle_btn.setProperty("class", "secondary")
         self.toggle_btn.setCursor(Qt.PointingHandCursor)
         self.toggle_btn.clicked.connect(self._toggle_preview)
-        notes_header.addWidget(self.toggle_btn)
 
         self.tmpl_btn = QPushButton(_t("Template"))
         self.tmpl_btn.setFixedHeight(24)
         self.tmpl_btn.setProperty("class", "secondary")
         self.tmpl_btn.setCursor(Qt.PointingHandCursor)
         self.tmpl_btn.clicked.connect(self._insert_template)
-        notes_header.addWidget(self.tmpl_btn)
+
+        # Preview/Template são utilidades do editor; Salvar é a ação principal
+        # da seção — o traço vertical separa as duas naturezas em vez de
+        # deixar os três botões soltos numa fileira sem hierarquia.
+        notes_header.addWidget(action_group([self.toggle_btn, self.tmpl_btn]))
 
         save_btn = QPushButton(_t("Salvar"))
         save_btn.setFixedHeight(24)

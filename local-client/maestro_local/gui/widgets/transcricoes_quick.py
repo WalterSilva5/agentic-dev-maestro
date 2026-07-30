@@ -70,7 +70,7 @@ class TranscricoesQuickWidget(QFrame):
         color = t.danger if self._recording else t.text_secondary
         self._time_label.setStyleSheet(
             f"color: {color}; font-size: 26px; font-weight: 700; "
-            f"font-feature-settings: 'tnum'; letter-spacing: 1px; "
+            f"letter-spacing: 1px; "
             f"background: transparent; border: none;"
         )
 
@@ -95,7 +95,7 @@ class TranscricoesQuickWidget(QFrame):
         color = t.danger if self._recording else t.text_secondary
         self._time_label.setStyleSheet(
             f"color: {color}; font-size: 26px; font-weight: 700; "
-            f"font-feature-settings: 'tnum'; letter-spacing: 1px; "
+            f"letter-spacing: 1px; "
             f"background: transparent; border: none;"
         )
         self._apply_btn_style()
