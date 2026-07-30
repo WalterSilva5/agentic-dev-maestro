@@ -6,6 +6,7 @@ filhos são expostos como atributos para que a view continue acessando-os
 diretamente durante a migração incremental.
 """
 from maestro_local.gui.meetings.destination_bar import DestinationBar
+from maestro_local.gui.meetings.flow_indicator import FlowIndicator
 from maestro_local.gui.meetings.history_panel import HistoryPanel
 from maestro_local.gui.meetings.live_panel import LiveAssistantPanel
 from maestro_local.gui.meetings.preparation_card import PreparationCard
@@ -15,6 +16,7 @@ from maestro_local.gui.meetings.section_card import SectionCard
 
 __all__ = [
     "DestinationBar",
+    "FlowIndicator",
     "HistoryPanel",
     "LiveAssistantPanel",
     "PreparationCard",

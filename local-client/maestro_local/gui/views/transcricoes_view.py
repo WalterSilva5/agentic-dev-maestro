@@ -59,6 +59,7 @@ from maestro_local.db.models import (
 )
 from maestro_local.gui.meetings import (
     DestinationBar,
+    FlowIndicator,
     HistoryPanel,
     LiveAssistantPanel,
     PreparationCard,
@@ -272,6 +273,11 @@ class TranscricoesView(QWidget):
         self.ws_combo = self.destination.ws_combo      # aliases (ver HistoryPanel)
         self.proj_combo = self.destination.proj_combo
         right.addWidget(self.destination)
+
+        # ---- Onde a reunião está no processo (preparar → gravar → transcrever
+        # → analisar) — resumo visual, não interage. ----
+        self.flow_indicator = FlowIndicator()
+        right.addWidget(self.flow_indicator)
 
         # ---- 1. Preparar ----
         self.preparation = PreparationCard()
@@ -596,6 +602,22 @@ class TranscricoesView(QWidget):
         return self.is_recording() or self.agent.is_busy() \
             or self._live_transcriber is not None
 
+    def _refresh_flow_indicator(self) -> None:
+        """Recalcula em que etapa a reunião está (preparar → gravar →
+        transcrever → analisar) a partir do estado atual — sem estado próprio
+        duplicado, só lê o que já existe."""
+        if self.is_recording():
+            stage = "gravar"
+        elif self.progress.isVisibleTo(self):
+            stage = "transcrever"
+        elif self._current.get("markdown"):
+            stage = "analisar"
+        elif self.transcript_edit.toPlainText().strip() or self._current.get("transcript"):
+            stage = "transcrever"
+        else:
+            stage = "preparar"
+        self.flow_indicator.set_stage(stage)
+
     def elapsed_seconds(self) -> int:
         return self._elapsed
 
@@ -639,12 +661,14 @@ class TranscricoesView(QWidget):
         self.status_label.setText(t("Gravando..."))
         if self.live_check.isChecked():
             self._start_live()
+        self._refresh_flow_indicator()
 
     def _stop_record(self):
         self._tick.stop()
         self.recording_state_changed.emit(False, self._elapsed)
         self.record_btn.setText(t("● Gravar e transcrever"))
         self._stop_live()
+        self._refresh_flow_indicator()  # sai de "gravar" já aqui, mesmo se salvar falhar
         # Encerra o observador de tela junto com a gravação (para de consumir IA).
         if self.screen_watch_check.isChecked():
             self.screen_watch_check.setChecked(False)
@@ -1257,6 +1281,7 @@ class TranscricoesView(QWidget):
         self.progress.setValue(0)
         self._set_transcript_text("")
         self.agent.transcribe(audio_path, model, lang)
+        self._refresh_flow_indicator()
 
     # ------------------- Edição da transcrição -------------------
     def _set_transcript_text(self, text: str):
@@ -1300,6 +1325,7 @@ class TranscricoesView(QWidget):
             )
         )
         self._load_history()
+        self._refresh_flow_indicator()
         # Gera o relatório automaticamente — não exige clicar em "Analisar com IA".
         if result.text.strip() and self._provider_ready():
             self._analyze()
@@ -1477,6 +1503,7 @@ class TranscricoesView(QWidget):
         self._persist_recording()  # atualiza o registro já criado na transcrição
         self.status_label.setText(t("Análise concluída e salva no histórico."))
         self._load_history()
+        self._refresh_flow_indicator()
 
     def _on_analyze_error(self, err):
         self.analyze_btn.setEnabled(True)
@@ -1676,6 +1703,7 @@ class TranscricoesView(QWidget):
         self._render_questions([])
         self.live_box.setVisible(False)
         self.ask_answer.setVisible(False)
+        self._refresh_flow_indicator()
 
     def _new_meeting(self):
         """Começa uma reunião do zero: limpa saídas E entradas (preparação/contexto)."""
@@ -1748,3 +1776,4 @@ class TranscricoesView(QWidget):
             self.kind_combo.setCurrentIndex(idx)
         when = r["created_at"].strftime("%d/%m/%Y %H:%M") if r["created_at"] else ""
         self.status_label.setText(t("Gravação de {when}").format(when=when))
+        self._refresh_flow_indicator()

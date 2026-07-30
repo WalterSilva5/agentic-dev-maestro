@@ -53,9 +53,10 @@ panel sitting outside the numbered steps (1 Prepare → 2 Record → **?** →
   numbered step **3. Live assistant** (Result becomes 4) — it used to float
   between steps with no number. `LiveAssistantPanel` now extends
   `SectionCard`, like the other steps. **~1 PD.**
-- **B3 — Flow progress bar.** A top indicator showing where the meeting is
-  (prepared → recording → transcribing → analyzed), highlighting the current
-  state. **~1 PD.**
+- [x] **B3 — Flow progress bar.** A top indicator showing where the meeting is
+  (prepare → record → transcribe → analyze), highlighting the current state
+  (`FlowIndicator`, computed from existing state — no duplicated state).
+  **~1 PD.**
 - **B4 — Contextual actions.** Enable/hide actions per state (e.g. "Create
   tasks" only when actions exist; "Export" only with content) instead of
   always-visible, sometimes-inert buttons. **~0.5 PD.**

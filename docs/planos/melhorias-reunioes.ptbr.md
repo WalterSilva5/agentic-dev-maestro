@@ -55,9 +55,10 @@ a cada extração.
   numerada **3. Assistente ao vivo** (Resultado passa a 4) — antes aparecia
   solto entre as etapas, sem número. `LiveAssistantPanel` agora estende
   `SectionCard`, igual às demais etapas. **~1 HD.**
-- **B3 — Barra de progresso do fluxo.** Um indicador no topo mostrando em que
-  passo a reunião está (preparada → gravando → transcrevendo → analisada),
-  com o estado atual destacado. **~1 HD.**
+- [x] **B3 — Barra de progresso do fluxo.** Um indicador no topo mostrando em
+  que passo a reunião está (preparar → gravar → transcrever → analisar), com
+  o estado atual destacado (`FlowIndicator`, calculado a partir do estado já
+  existente — sem estado duplicado). **~1 HD.**
 - **B4 — Ações contextuais.** Habilitar/ocultar ações conforme o estado (ex.:
   "Criar tarefas" só quando há ações extraídas; "Exportar" só com conteúdo),
   em vez de botões sempre visíveis e às vezes inertes. **~0,5 HD.**
