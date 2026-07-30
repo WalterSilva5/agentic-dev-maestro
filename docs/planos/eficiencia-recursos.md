@@ -33,31 +33,34 @@ not the glue language, but **what** runs and **how**:
 - **Event-driven recording widget**: the 1s poll is gone; the view emits
   `recording_state_changed` on start/stop and each second while recording. Zero
   idle timer for this.
-- **Earlier gains** (past sessions): `snapshot_since` for live audio
-  (constant-cost window; previously copied the whole buffer every 10s); Whisper
-  `cpu_threads` capped at half the cores (previously saturated the CPU); coach
-  without per-minute N+1 queries.
+- **E1 + E2 — Lazy imports + screens on demand**: the 9 rarely-opened
+  "Ferramentas" hub screens (vault, library, apitester, kb, memory, english,
+  translate, skills, guide) became **factories**
+  (`MainWindow._lazy_factory`) instead of instances — imported/built only on
+  first `_open_key`. None had external references in `main_window.py`, so
+  deferring was safe (confirmed by grep and an offscreen test: the stack holds
+  9 widgets at boot, grows by 1 per newly opened screen, no duplication on
+  reopen). **Measured**: boot RSS dropped from ~174.2 MB to ~160.2 MB (**~14 MB,
+  ~8%**), stable across 3 runs — method under `medir_rss()` below.
+- **E3 — Model-size guidance**: Settings now shows the approximate RAM of the
+  selected Whisper model (`WHISPER_MODEL_RAM_MB`), updating live — from ~75 MB
+  (tiny) to ~3 GB (large-v3). Helps pick consciously.
+- **E4 — Finding**: the `webmain` route (API + web UI, no GUI) **already loads
+  no Qt** — confirmed (`grep PySide6` empty in `api/`, `webmain.py`). The
+  headless daemon for the rest of the app already exists; only **Meetings**
+  is missing, whose workers use `QThread`
+  (`transcricoes/agent_service.py`, `live_assistant.py`, `transcriber.py`) —
+  depends on the live WebSocket (E2/E3 of [Plan 11](migracao-toolkit-ui.md)),
+  not solved here.
+- **E5 — Finding**: no other heavy local model cache besides Whisper. The
+  knowledge-base embeddings (`memory.py`) go through an HTTP API
+  (OpenAI-compat), no local resident model to free.
 
 ## 3. To do (by effort)
 
-### Low risk
-- **E1 — Lazy imports at boot** (~1 PD): defer heavy imports (uvicorn, rarely used
-  view libs) to cut startup time and idle footprint. Measure before/after with
-  `tracemalloc`/RSS.
-- **E2 — Instantiate screens on demand** (~2–3 PD): build each view on first
-  access (lazy) instead of all at boot; keep navigation and state. Cuts startup
-  RAM — heavy screens (board, meetings) only cost when opened.
-- **E3 — Model-size guidance** (~0.5 PD): document/expose the quality×RAM
-  trade-off (`tiny`/`base`/`small`) in Settings; a conscious default.
-
-### Medium (structural)
-- **E4 — Headless daemon (web route)** (~2–3 PD): run capture + Whisper + API
-  without the Qt GUI loaded. The biggest structural memory gain, coinciding with
-  **W3** of [Plan 11](migracao-toolkit-ui.md): the light UI (web/shell) separated
-  from the heavy daemon. Removes the Qt cost when only the back end is needed.
-- **E5 — Idle resource unloading** (~1–2 PD): extend the Whisper pattern to other
-  costly caches (e.g., knowledge-base models/embeddings), freeing them when
-  unused.
+- **E4 (remainder) — Meetings without QThread** (~2–3 PD, within Plan 11's
+  W1/W2): move capture/transcription/live state to run without depending on
+  Qt's event loop, enabling Meetings in the headless `webmain` daemon.
 
 ## 4. Where efficiency is NOT
 
@@ -73,3 +76,17 @@ not the glue language, but **what** runs and **how**:
 Before each item, record **idle RSS** (app open, not recording) and **peak RSS**
 (during transcription), plus **boot time**. Compare after the change. Without a
 measurement, there is no proven gain.
+
+Method used for E1+E2 (repeatable): build `MainWindow` offscreen
+(`QT_QPA_PLATFORM=offscreen`) in a fresh process, with an isolated temp DB, and
+read `resource.getrusage(RUSAGE_SELF).ru_maxrss` right after `processEvents()`.
+Run 3× to check stability.
+
+> **Isolation caveat**: `SettingsView`/`_save_settings` writes to
+> `~/.maestro-local/config.json` — a **real user file**, outside the temp SQLite
+> DB. A manual verification script during this plan's development interacted
+> with the Whisper model combo and **overwrote that real setting** (caught via
+> the file's mtime, restored to the `small` default). The `temp_db` fixture in
+> `tests/conftest.py` now isolates `config.json` too (`monkeypatch` on
+> `config._CONFIG_FILE`); ad-hoc verification scripts (outside pytest) should do
+> the same before simulating UI interaction that saves settings.
