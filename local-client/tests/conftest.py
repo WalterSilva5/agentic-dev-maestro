@@ -24,11 +24,19 @@ def qapp():
 
 @pytest.fixture
 def temp_db(tmp_path, monkeypatch):
-    """Banco temporário isolado, ativo durante o teste."""
+    """Banco temporário isolado, ativo durante o teste.
+
+    Também isola `config.json` (usado por SettingsView e outras telas): sem
+    isso, qualquer teste que dispare `_save_settings` grava no arquivo REAL do
+    usuário em `~/.maestro-local/config.json` — já aconteceu numa verificação
+    manual durante o desenvolvimento (mutou o whisper_model de verdade).
+    """
     from maestro_local.db import models
+    import maestro_local.config as config_module
 
     db_path = tmp_path / "test.db"
     models.switch_db(str(db_path))
+    monkeypatch.setattr(config_module, "_CONFIG_FILE", tmp_path / "config.json")
     yield db_path
     # Volta o engine para um estado limpo entre testes
     models.switch_db(str(db_path))

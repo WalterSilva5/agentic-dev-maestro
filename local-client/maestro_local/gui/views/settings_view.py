@@ -342,7 +342,13 @@ class SettingsView(QWidget):
         from maestro_local.transcricoes.constants import WHISPER_SUPPORTED_MODELS
         self.whisper_model.addItems(WHISPER_SUPPORTED_MODELS)
         self.whisper_model.currentIndexChanged.connect(self._save_settings)
+        self.whisper_model.currentIndexChanged.connect(self._update_whisper_ram_hint)
         row.addWidget(self.whisper_model)
+
+        self.whisper_ram_hint = QLabel("")
+        self.whisper_ram_hint.setProperty("class", "hint")
+        row.addWidget(self.whisper_ram_hint)
+        self._update_whisper_ram_hint()
 
         row.addSpacing(12)
         row.addWidget(QLabel(t("Idioma:")))
@@ -353,6 +359,19 @@ class SettingsView(QWidget):
         row.addWidget(self.whisper_lang)
         row.addStretch()
         layout.addLayout(row)
+
+    def _update_whisper_ram_hint(self):
+        """Mostra a RAM aproximada do modelo selecionado — ajuda a escolher
+        conscientemente o trade-off precisão x memória (fica residente após o
+        primeiro uso; ver transcriber.release_model para a liberação por ociosidade)."""
+        from maestro_local.transcricoes.constants import WHISPER_MODEL_RAM_MB
+        model = self.whisper_model.currentText()
+        mb = WHISPER_MODEL_RAM_MB.get(model)
+        if mb is None:
+            self.whisper_ram_hint.setText("")
+            return
+        text = f"~{mb} MB" if mb < 1000 else f"~{mb / 1000:.1f} GB"
+        self.whisper_ram_hint.setText(t("≈ {ram} de RAM enquanto em uso").format(ram=text))
 
     def _build_pomodoro_section(self):
         card, layout = self._make_card("🍅", t("Pomodoro"))

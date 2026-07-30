@@ -33,19 +33,14 @@ from maestro_local.gui.views.daily_view import DailyView
 from maestro_local.gui.views.dashboard_view import DashboardView
 from maestro_local.gui.views.chat_view import ChatView
 from maestro_local.gui.views.transcricoes_view import TranscricoesView
-from maestro_local.gui.views.vault_view import VaultView
-from maestro_local.gui.views.library_view import LibraryView
-from maestro_local.gui.views.api_tester_view import ApiTesterView
-from maestro_local.gui.views.kb_view import KBView
-from maestro_local.gui.views.memory_view import MemoryView
 from maestro_local.gui.views.tools_hub_view import ToolsHubView
-from maestro_local.gui.views.english_view import EnglishView
-from maestro_local.gui.views.translate_view import TranslateView
-from maestro_local.gui.views.guide_view import GuideView
 from maestro_local.gui.views.settings_view import SettingsView
 from maestro_local.gui.views.projects_view import ProjectsView
-from maestro_local.gui.views.skills_view import SkillsView
 from maestro_local.gui.views.study_view import StudyView
+# Telas raramente abertas (vault/library/apitester/kb/memory/english/translate/
+# skills/guide): import E CONSTRUÇÃO tardios (ver _ensure_view). Nenhuma delas é
+# referenciada fora do dicionário de navegação, então adiar é seguro — a tela só
+# custa memória/import quando o usuário de fato a abre.
 from maestro_local.gui.widgets.transcricoes_quick import TranscricoesQuickWidget
 from maestro_local.gui.workspace_selector import WorkspaceSelectorButton
 
@@ -272,17 +267,8 @@ class MainWindow(QMainWindow):
         self.transcricoes_view = TranscricoesView()
         self.transcricoes_view.workspace_change_requested.connect(self._on_workspace_changed)
         self.transcricoes_view.project_changed.connect(self._sync_project_selector)
-        self.vault_view = VaultView()
-        self.library_view = LibraryView()
-        self.api_tester_view = ApiTesterView()
-        self.kb_view = KBView()
-        self.memory_view = MemoryView()
-        self.english_view = EnglishView()
-        self.translate_view = TranslateView()
         self.tools_hub_view = ToolsHubView(lambda key: self._open_key(key))
         self.projects_view = ProjectsView()
-        self.skills_view = SkillsView()
-        self.guide_view = GuideView()
         self.settings_view = SettingsView()
         self.settings_view.notification_changed.connect(self._setup_notification_timer)
         self.settings_view.notification_changed.connect(self._setup_coach_timer)
@@ -294,17 +280,14 @@ class MainWindow(QMainWindow):
         self.stack.addWidget(self.board_view)
         self.stack.addWidget(self.chat_view)
         self.stack.addWidget(self.transcricoes_view)
-        self.stack.addWidget(self.vault_view)
-        self.stack.addWidget(self.library_view)
-        self.stack.addWidget(self.api_tester_view)
-        self.stack.addWidget(self.kb_view)
-        self.stack.addWidget(self.memory_view)
-        self.stack.addWidget(self.english_view)
-        self.stack.addWidget(self.translate_view)
         self.stack.addWidget(self.tools_hub_view)
         self.stack.addWidget(self.projects_view)
+        self.stack.addWidget(self.settings_view)
 
-        # Navegação por chave (o menu não mapeia mais 1:1 por posição no stack)
+        # Navegação por chave (o menu não mapeia mais 1:1 por posição no stack).
+        # As telas abaixo são pouco acessadas (hub "Ferramentas"): entram como
+        # FÁBRICA (lambda) em vez de instância — só são importadas/construídas
+        # no primeiro _open_key, economizando import e memória de boot.
         self._view_by_key = {
             "dashboard": self.dashboard_view,
             "daily": self.daily_view,
@@ -312,22 +295,19 @@ class MainWindow(QMainWindow):
             "board": self.board_view,
             "chat": self.chat_view,
             "transcricoes": self.transcricoes_view,
-            "vault": self.vault_view,
-            "library": self.library_view,
-            "apitester": self.api_tester_view,
-            "kb": self.kb_view,
-            "memory": self.memory_view,
-            "english": self.english_view,
-            "translate": self.translate_view,
             "ferramentas": self.tools_hub_view,
             "projects": self.projects_view,
-            "skills": self.skills_view,
-            "guide": self.guide_view,
             "settings": self.settings_view,
+            "vault": self._lazy_factory("gui.views.vault_view", "VaultView"),
+            "library": self._lazy_factory("gui.views.library_view", "LibraryView"),
+            "apitester": self._lazy_factory("gui.views.api_tester_view", "ApiTesterView"),
+            "kb": self._lazy_factory("gui.views.kb_view", "KBView"),
+            "memory": self._lazy_factory("gui.views.memory_view", "MemoryView"),
+            "english": self._lazy_factory("gui.views.english_view", "EnglishView"),
+            "translate": self._lazy_factory("gui.views.translate_view", "TranslateView"),
+            "skills": self._lazy_factory("gui.views.skills_view", "SkillsView"),
+            "guide": self._lazy_factory("gui.views.guide_view", "GuideView"),
         }
-        self.stack.addWidget(self.skills_view)
-        self.stack.addWidget(self.guide_view)
-        self.stack.addWidget(self.settings_view)
 
         content_layout.addWidget(self.stack)
         layout.addWidget(content_widget)
@@ -672,10 +652,32 @@ class MainWindow(QMainWindow):
                 return i
         return None
 
+    def _lazy_factory(self, module_suffix: str, class_name: str):
+        """Fábrica de tela: import + construção só acontecem no primeiro uso.
+
+        `module_suffix` é relativo a `maestro_local` (ex.: "gui.views.kb_view").
+        """
+        def factory():
+            import importlib
+            module = importlib.import_module(f"maestro_local.{module_suffix}")
+            return getattr(module, class_name)()
+        return factory
+
+    def _ensure_view(self, key):
+        """Resolve a tela da chave, construindo-a agora se ainda for uma fábrica
+        (lazy). Views já construídas voltam direto; novas entram no stack."""
+        w = self._view_by_key.get(key)
+        if w is None or isinstance(w, QWidget):
+            return w
+        widget = w()  # fábrica lazy: constrói agora
+        self._view_by_key[key] = widget
+        self.stack.addWidget(widget)
+        return widget
+
     def _open_key(self, key):
         """Troca a tela pela chave. Telas do hub 'Ferramentas' destacam o item
         'Ferramentas' no menu (que não as lista diretamente)."""
-        w = self._view_by_key.get(key)
+        w = self._ensure_view(key)
         if w is None:
             return
         self.stack.setCurrentWidget(w)

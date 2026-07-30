@@ -7,6 +7,16 @@ WHISPER_DEFAULT_MODEL = "small"
 WHISPER_DEFAULT_LANGUAGE = "pt"
 WHISPER_SUPPORTED_MODELS = ["tiny", "base", "small", "medium", "large-v3"]
 WHISPER_COMPUTE_TYPE = "int8"
+# RAM aproximada residente por modelo (compute_type=int8, CPU) — para orientar a
+# escolha em Configurações. Valores de referência do faster-whisper/ctranslate2;
+# variam um pouco por SO/plataforma, mas dão a ordem de grandeza certa.
+WHISPER_MODEL_RAM_MB = {
+    "tiny": 75,
+    "base": 145,
+    "small": 500,
+    "medium": 1500,
+    "large-v3": 3000,
+}
 # Núcleos usados pelo Whisper. O ctranslate2 usa TODOS por padrão, o que satura
 # a CPU e trava a máquina durante a reunião. Deixa folga para o resto do sistema.
 WHISPER_CPU_THREADS = 0  # 0 = automático (metade dos núcleos, mínimo 1)
