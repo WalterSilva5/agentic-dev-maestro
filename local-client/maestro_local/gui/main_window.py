@@ -367,11 +367,10 @@ class MainWindow(QMainWindow):
 
         self._setup_global_hotkeys()
 
-        # Atualiza o widget rápido de Transcrições (estado de gravação)
-        self._transcricoes_poll = QTimer(self)
-        self._transcricoes_poll.setInterval(1000)
-        self._transcricoes_poll.timeout.connect(self._update_transcricoes_quick)
-        self._transcricoes_poll.start()
+        # Atualiza o widget rápido de Transcrições por EVENTO (a view avisa ao
+        # iniciar/parar e a cada segundo enquanto grava) — sem poll de 1s ocioso.
+        self.transcricoes_view.recording_state_changed.connect(
+            self.transcricoes_quick.set_recording)
 
         # Libera o modelo Whisper da RAM quando ocioso: ele fica residente após o
         # primeiro uso (o 'small' int8 são centenas de MB). Depois de ~4 min sem
@@ -538,10 +537,6 @@ class MainWindow(QMainWindow):
     def _transcricoes_quick_toggle(self):
         self._open_key("transcricoes")
         self.transcricoes_view.toggle_record_external()
-
-    def _update_transcricoes_quick(self):
-        rec = self.transcricoes_view.is_recording()
-        self.transcricoes_quick.set_recording(rec, self.transcricoes_view.elapsed_seconds())
 
     def _maybe_release_whisper(self):
         """Libera o modelo Whisper após dois ciclos ociosos consecutivos (~4 min).

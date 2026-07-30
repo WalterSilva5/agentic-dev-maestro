@@ -144,6 +144,9 @@ class TranscricoesView(QWidget):
     workspace_change_requested = Signal(str)
     # Projeto ativo alterado pela tela de reuniões (sidebar sincroniza).
     project_changed = Signal(object)
+    # (gravando, segundos) — a sidebar atualiza o widget rápido por evento,
+    # em vez de um poll de 1s sempre ativo.
+    recording_state_changed = Signal(bool, int)
 
     def __init__(self):
         super().__init__()
@@ -631,6 +634,7 @@ class TranscricoesView(QWidget):
         self._elapsed = 0
         self.timer_label.setText("00:00")
         self._tick.start()
+        self.recording_state_changed.emit(True, 0)
         self.record_btn.setText(t("■ Parar"))
         self.status_label.setText(t("Gravando..."))
         if self.live_check.isChecked():
@@ -638,6 +642,7 @@ class TranscricoesView(QWidget):
 
     def _stop_record(self):
         self._tick.stop()
+        self.recording_state_changed.emit(False, self._elapsed)
         self.record_btn.setText(t("● Gravar e transcrever"))
         self._stop_live()
         # Encerra o observador de tela junto com a gravação (para de consumir IA).
@@ -662,6 +667,7 @@ class TranscricoesView(QWidget):
         self._elapsed += 1
         m, s = divmod(self._elapsed, 60)
         self.timer_label.setText(f"{m:02d}:{s:02d}")
+        self.recording_state_changed.emit(True, self._elapsed)
         if self._live_transcriber is not None:
             self._live_secs_since += 1
             self._maybe_extract_live()
