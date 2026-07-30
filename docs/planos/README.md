@@ -23,3 +23,10 @@ são decisão de liderança.
   fica em Python em qualquer opção; descarta **Java** (menos moderno), mantém a
   **rota web** como recomendação (~14–21 HD) e detalha o plano Flutter
   (~27–50 HD) caso mobile nativo seja requisito.
+
+- [Eficiência de recursos](eficiencia-recursos.ptbr.md)
+  ([EN](eficiencia-recursos.md)) — separa causa real de percepção ("Python
+  pesa"): o custo está no modelo Whisper residente e no processo gordo (Qt + API
+  + ML juntos), não na linguagem. Registra o que já foi aplicado (liberar Whisper
+  ocioso, widget por evento) e o que falta (imports/telas tardios, daemon
+  headless); a eficiência vem de arquitetura, não de trocar a UI.
