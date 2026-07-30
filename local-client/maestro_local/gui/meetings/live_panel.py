@@ -1,9 +1,13 @@
-"""Painel do assistente ao vivo.
+"""Etapa 3 — Assistente ao vivo.
 
 As abas do copiloto — plano, dicas, ações, decisões e o painel de perguntas
 & respostas — e, embaixo, o campo de perguntar à reunião. A transcrição em si
-não aparece aqui: ela vai direto para o campo da etapa 3, que é o único lugar
-onde o texto da reunião existe.
+não aparece aqui: ela vai direto para o campo da etapa 4 (Resultado), que é o
+único lugar onde o texto da reunião existe.
+
+Antes esse painel aparecia solto entre as etapas "Gravar" e "Resultado", sem
+número — quebrava a sequência numerada do fluxo. Agora é a própria etapa 3,
+com o mesmo cabeçalho numerado das demais (SectionCard).
 
 Só monta e sinaliza: preencher as abas e responder perguntas é da view.
 """
@@ -11,7 +15,6 @@ from __future__ import annotations
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
-    QFrame,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -23,6 +26,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from maestro_local.gui.meetings.section_card import SectionCard
 from maestro_local.i18n import t
 
 
@@ -40,27 +44,25 @@ def make_live_list() -> QListWidget:
     return lst
 
 
-class LiveAssistantPanel(QFrame):
+class LiveAssistantPanel(SectionCard):
     ask_requested = Signal()
 
     def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setProperty("class", "card")
-        lay = QVBoxLayout(self)
-        lay.setContentsMargins(12, 10, 12, 10)
-        lay.setSpacing(8)
+        super().__init__(
+            "3", t("Assistente ao vivo"),
+            t("Ligue \"Assistente ao vivo\" na etapa 2 para ver plano, dicas, ações, "
+              "decisões e perguntas conforme a reunião acontece."),
+            parent)
+        lay = self.body
 
-        head = QHBoxLayout()
-        title = QLabel(t("● Ao vivo"))
-        title.setProperty("class", "cardTitle")
-        head.addWidget(title)
-        head.addStretch()
+        status_row = QHBoxLayout()
+        status_row.addStretch()
         self.live_status = QLabel("")
         self.live_status.setObjectName("subtitle")
-        head.addWidget(self.live_status)
-        lay.addLayout(head)
+        status_row.addWidget(self.live_status)
+        lay.addLayout(status_row)
 
-        # A transcrição ao vivo aparece direto no campo da etapa 3 — aqui ficam
+        # A transcrição ao vivo aparece direto no campo da etapa 4 — aqui ficam
         # só os itens que o assistente extrai dela.
         self.live_tabs = QTabWidget()
         self.live_tabs.setMinimumHeight(320)

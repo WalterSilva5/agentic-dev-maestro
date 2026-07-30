@@ -368,10 +368,14 @@ QLabel#sectionTitle {{
     color: {t.text_primary};
     letter-spacing: -0.3px;
     margin-bottom: 2px;
+    border: none;
+    background: transparent;
 }}
 QLabel#subtitle {{
     color: {t.text_muted};
     font-size: 12px;
+    border: none;
+    background: transparent;
 }}
 QProgressBar {{
     background-color: {t.bg_badge};
@@ -400,6 +404,8 @@ QCheckBox::indicator:hover {{
     border-color: {t.border_focus};
 }}
 QSplitter::handle {{ background: {t.border_light}; }}
+QScrollArea {{ background: transparent; border: none; }}
+QScrollArea > QWidget > QWidget {{ background: transparent; }}
 QGroupBox {{
     border: 1px solid {t.border};
     border-radius: 8px;
@@ -444,6 +450,15 @@ QFrame[class="card"] {{
     border: 1px solid {t.border_light};
     border-radius: 12px;
     padding: 8px;
+}}
+/* Qt: uma vez que um QFrame ancestral tem `border`/`background` via seletor de
+   classe, ele entra no modo "estilizado" e QLabels descendentes sem regra
+   própria herdam um fundo calculado da paleta em vez de ficarem transparentes
+   — aparece como uma faixa cinza atrás do texto. Cobre qualquer QLabel dentro
+   de um card, mesmo sem objectName/class (ex.: rótulos simples como
+   "Transcrição:"), sem precisar estilizar cada label individualmente. */
+QFrame[class="card"] QLabel {{
+    background: transparent;
 }}
 QLabel[class="cardTitle"] {{
     font-weight: 700;

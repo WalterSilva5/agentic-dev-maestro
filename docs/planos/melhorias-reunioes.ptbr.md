@@ -47,13 +47,14 @@ a cada extração.
 
 ### B. Fluxo de reuniões (UX)
 
-- **B1 — Unificar a transcrição.** Um único campo, com um indicador de "ao
+- [x] **B1 — Unificar a transcrição.** Um único campo, com um indicador de "ao
   vivo" quando estiver gravando, no lugar de dois campos alternados por
   visibilidade (31 referências hoje). Remove a classe inteira de bugs de
   "campo errado visível". **~1,5 HD.**
-- **B2 — Encaixar o assistente no fluxo.** O painel "Ao vivo" vira a etapa
-  numerada **3. Assistente** (Resultado passa a 4), ou é embutido na etapa
-  2 durante a gravação — hoje ele aparece solto entre as etapas. **~1 HD.**
+- [x] **B2 — Encaixar o assistente no fluxo.** O painel "Ao vivo" vira a etapa
+  numerada **3. Assistente ao vivo** (Resultado passa a 4) — antes aparecia
+  solto entre as etapas, sem número. `LiveAssistantPanel` agora estende
+  `SectionCard`, igual às demais etapas. **~1 HD.**
 - **B3 — Barra de progresso do fluxo.** Um indicador no topo mostrando em que
   passo a reunião está (preparada → gravando → transcrevendo → analisada),
   com o estado atual destacado. **~1 HD.**

@@ -46,12 +46,13 @@ panel sitting outside the numbered steps (1 Prepare → 2 Record → **?** →
 
 ### B. Meetings flow (UX)
 
-- **B1 — Unify the transcript.** A single field with a "live" indicator while
+- [x] **B1 — Unify the transcript.** A single field with a "live" indicator while
   recording, instead of two fields swapped by visibility (31 references
   today). Removes a whole class of "wrong field visible" bugs. **~1.5 PD.**
-- **B2 — Fit the assistant into the flow.** The "Live" panel becomes the
-  numbered step **3. Assistant** (Result becomes 4), or is embedded in step 2
-  while recording — today it floats between steps. **~1 PD.**
+- [x] **B2 — Fit the assistant into the flow.** The "Live" panel becomes the
+  numbered step **3. Live assistant** (Result becomes 4) — it used to float
+  between steps with no number. `LiveAssistantPanel` now extends
+  `SectionCard`, like the other steps. **~1 PD.**
 - **B3 — Flow progress bar.** A top indicator showing where the meeting is
   (prepared → recording → transcribing → analyzed), highlighting the current
   state. **~1 PD.**

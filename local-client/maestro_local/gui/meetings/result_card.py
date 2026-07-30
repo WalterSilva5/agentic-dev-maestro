@@ -26,7 +26,7 @@ class ResultCard(SectionCard):
 
     def __init__(self, parent=None):
         super().__init__(
-            "3", t("Resultado"),
+            "4", t("Resultado"),
             t("Corrija a transcrição se precisar — o agente revisa os itens sozinho. "
               "Depois, use o resumo e mande as ações para o board."),
             parent)
