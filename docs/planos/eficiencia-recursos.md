@@ -62,6 +62,25 @@ not the glue language, but **what** runs and **how**:
   W1/W2): move capture/transcription/live state to run without depending on
   Qt's event loop, enabling Meetings in the headless `webmain` daemon.
 
+  **Feasibility spike done** (isolated script, nothing touched the real app):
+  - A `QThread` signal **does not arrive** with no `QCoreApplication` instance
+    at all (confirmed — the event queue is never processed).
+  - Instantiating `QCoreApplication` and calling `processEvents()`/`exec()` in
+    the **same thread** that created the worker **works** — the signal is
+    delivered normally.
+  - Running the `QCoreApplication` loop in a **dedicated thread**, separate
+    from the thread that constructs the `QThread` (the arrangement `webmain`
+    would need, since uvicorn/asyncio owns the main thread) **caused a
+    segfault** on a naive attempt — a Qt thread-affinity violation (QObjects/
+    QThread belong to the thread that created them; crossing that boundary
+    without proper marshalling breaks).
+  - **Conclusion**: the existing `QThread` workers can be reused in the headless
+    daemon, but it requires running ALL Qt construction/signaling on a single
+    dedicated thread, crossing the boundary only with plain data via a
+    thread-safe queue (not QObjects) — real architecture work, not a spot fix.
+    Confirms the ~2–3 PD estimate (within Plan 11's W1); not something to do
+    without that design.
+
 ## 4. Where efficiency is NOT
 
 - **Changing the UI language** (Flutter/Java): does not shrink the heavy core

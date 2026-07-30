@@ -60,6 +60,24 @@ linguagem de cola, e sim de **o quê** roda e **como**:
   11): mover a captura/transcrição/estado ao vivo para rodar sem depender do
   loop de eventos Qt, permitindo Reuniões no daemon `webmain` headless.
 
+  **Spike de viabilidade feito** (script isolado, nada tocou o app real):
+  - Um sinal de `QThread` **não chega** sem nenhum `QCoreApplication` instanciado
+    (confirmado — a fila de eventos nunca é processada).
+  - Instanciar `QCoreApplication` e chamar `processEvents()`/`exec()` **na mesma
+    thread** que criou o worker **funciona** — entrega o sinal normalmente.
+  - Rodar o loop do `QCoreApplication` numa **thread dedicada**, separada da
+    thread que constrói o `QThread` (arranjo que o `webmain` exigiria, já que o
+    `uvicorn`/asyncio ocupa a thread principal) **causou um segfault** numa
+    tentativa ingênua — violação de afinidade de thread do Qt (QObjects/QThread
+    pertencem à thread que os criou; cruzar essa fronteira sem marshalling
+    correto quebra).
+  - **Conclusão**: dá para reaproveitar os workers `QThread` existentes no
+    daemon headless, mas exige rodar TODA a construção/sinalização Qt numa
+    única thread dedicada, cruzando a fronteira só com dados simples via fila
+    thread-safe (não QObjects) — é desenho de arquitetura real, não um ajuste
+    pontual. Confirma a estimativa de ~2–3 HD (dentro do W1 do Plano 11); não é
+    algo para fazer sem esse desenho.
+
 ## 4. Onde a eficiência NÃO está
 
 - **Trocar a linguagem da UI** (Flutter/Java): não reduz o núcleo pesado
