@@ -248,6 +248,12 @@ In addition to the desktop GUI, there is a **web** frontend (React + Vite) serve
 - **Screens**: Dashboard, My Day, Studies, Projects, Board + task detail (description, checklist, comments, type/priority, move), Assistant (chat), Metrics, TODOs, Labels, and Settings (language, AI providers, Whisper). Workspace selector in the sidebar and light/dark theme. **Transcriptions** and **Skills** remain exclusive to the desktop GUI (audio capture and installation into a local directory)
 - **Run only the web** (without the desktop GUI): `./run-web.sh` (or `python -m maestro_local.webmain`) — starts API + web at `http://127.0.0.1:9777/`
 - **Installable PWA**: the web is a Progressive Web App (manifest + service worker in `webui/public/`). In the browser, use "Install app" to open it in its own window; it works offline for the shell (the API still requires the local server)
+- **Native window (recommended for a modern look)**: `maestro-shell` opens the same web UI in a native desktop window (via [pywebview](https://pywebview.flowrl.com/)) instead of a browser tab — a lighter, more modern alternative to the Qt GUI for everything **except Meetings** (still Qt-only; use `maestro` for it). Install with the `shell` extra and run:
+  ```bash
+  pip install -e '.[shell]'
+  maestro-shell              # or: python -m maestro_local.desktop_shell
+  ```
+  See [`docs/planos/migracao-toolkit-ui.md`](../docs/planos/migracao-toolkit-ui.md) for the migration plan away from Qt.
 
 ```bash
 cd webui
