@@ -57,9 +57,12 @@ panel sitting outside the numbered steps (1 Prepare → 2 Record → **?** →
   (prepare → record → transcribe → analyze), highlighting the current state
   (`FlowIndicator`, computed from existing state — no duplicated state).
   **~1 PD.**
-- **B4 — Contextual actions.** Enable/hide actions per state (e.g. "Create
-  tasks" only when actions exist; "Export" only with content) instead of
-  always-visible, sometimes-inert buttons. **~0.5 PD.**
+- [x] **B4 — Contextual actions.** Each action is enabled only when it makes
+  sense, with the reason in the tooltip (`_refresh_actions`): "Create tasks"
+  needs extracted actions **and** a project; "Export/Copy" need content;
+  "Analyze" needs a transcript + provider and is blocked while recording or
+  analyzing; "My Day" needs the summary. Before, the reason only showed up as
+  an error AFTER the click. **~0.5 PD.**
 
 ### C. Resource optimization
 

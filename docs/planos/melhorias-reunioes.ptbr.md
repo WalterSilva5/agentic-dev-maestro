@@ -59,9 +59,12 @@ a cada extração.
   que passo a reunião está (preparar → gravar → transcrever → analisar), com
   o estado atual destacado (`FlowIndicator`, calculado a partir do estado já
   existente — sem estado duplicado). **~1 HD.**
-- **B4 — Ações contextuais.** Habilitar/ocultar ações conforme o estado (ex.:
-  "Criar tarefas" só quando há ações extraídas; "Exportar" só com conteúdo),
-  em vez de botões sempre visíveis e às vezes inertes. **~0,5 HD.**
+- [x] **B4 — Ações contextuais.** Cada ação só habilita quando faz sentido, com
+  o motivo no tooltip (`_refresh_actions`): "Criar tarefas" exige ações
+  extraídas **e** projeto; "Exportar/Copiar" exigem conteúdo; "Analisar" exige
+  transcrição + provedor e fica bloqueado durante gravação/análise; "Meu Dia"
+  exige o resumo. Antes o motivo só aparecia como erro DEPOIS do clique.
+  **~0,5 HD.**
 
 ### C. Otimização de recursos
 

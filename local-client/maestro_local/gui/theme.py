@@ -229,8 +229,11 @@ QPushButton {{
 QPushButton:hover {{ background-color: {t.accent_hover}; }}
 QPushButton:pressed {{ background-color: {t.accent_pressed}; }}
 QPushButton:disabled {{
-    background-color: {t.bg_selected};
+    /* Cinza NEUTRO: bg_selected é tingido do accent e fazia o botão
+       desabilitado parecer selecionado/ativo, em vez de indisponível. */
+    background-color: {t.bg_badge};
     color: {t.text_muted};
+    border-color: {t.border_light};
 }}
 QPushButton:focus {{
     outline: none;

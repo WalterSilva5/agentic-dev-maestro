@@ -112,6 +112,11 @@ class MeetingAgentService(QObject):
     def is_reading_screen(self) -> bool:
         return self._screen_reader is not None
 
+    def is_analyzing(self) -> bool:
+        """Análise (resumo) ou geração de itens em andamento — enquanto isso o
+        botão "Analisar" fica desabilitado para não disparar em duplicidade."""
+        return self._analyzer is not None or self._extractor is not None
+
     def is_busy(self) -> bool:
         """Algum trabalho de IA em andamento? Usado para não liberar o modelo
         Whisper enquanto uma transcrição/análise ainda corre."""

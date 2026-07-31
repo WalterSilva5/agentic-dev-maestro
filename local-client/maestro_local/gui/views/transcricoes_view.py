@@ -404,6 +404,7 @@ class TranscricoesView(QWidget):
         self.agent.screen_failed.connect(self._on_screen_watch_failed)
 
         self.refresh()
+        self._refresh_ui_state()   # botões já nascem no estado certo
 
     # ------------------------- UI helpers -------------------------
     def _section_card(self, number: str, title_text: str, help_text: str = ""):
@@ -527,6 +528,7 @@ class TranscricoesView(QWidget):
         if pid is not None and pid != get_active_project_id():
             set_active_project_id(pid)
             self.project_changed.emit(pid)
+        self._refresh_actions()
 
     def _check_provider(self):
         provider = get_active_ai_provider()
@@ -638,6 +640,73 @@ class TranscricoesView(QWidget):
             self._session = None
         return self.agent.stop_all(msecs) and done_live
 
+    def _refresh_ui_state(self) -> None:
+        """Reavalia o que a tela mostra a partir do estado atual.
+
+        Chamado nos pontos de transição da reunião (gravar, transcrever,
+        analisar, abrir do histórico, nova reunião).
+        """
+        self._refresh_flow_indicator()
+        self._refresh_actions()
+
+    def _refresh_actions(self) -> None:
+        """Habilita cada ação só quando ela faz sentido.
+
+        Antes os botões ficavam sempre clicáveis e só ao clicar vinha o erro
+        ("Nenhuma ação encontrada", "Nada para exportar"). O motivo agora fica
+        no tooltip, sem precisar clicar para descobrir.
+        """
+        transcript = (self._current.get("transcript")
+                      or self.transcript_edit.toPlainText() or "").strip()
+        summary_md = (self._current.get("markdown") or "").strip()
+        has_live = self._meeting.has_live_items()
+        has_content = bool(transcript or summary_md or has_live)
+        ai_ok = self._provider_ready()
+        recording = self.is_recording()
+
+        # Analisar: precisa de texto e de provedor; não durante a gravação (o
+        # texto ainda está crescendo) nem com uma análise já em andamento.
+        analyzing = self.agent.is_analyzing()
+        can_analyze = bool(transcript) and ai_ok and not recording and not analyzing
+        self.analyze_btn.setEnabled(can_analyze)
+        if analyzing:
+            tip = t("Análise em andamento…")
+        elif can_analyze:
+            tip = t("Gera o resumo e os itens de novo a partir da transcrição atual.")
+        else:
+            tip = t("Disponível quando houver transcrição e um provedor de IA configurado.")
+        self.analyze_btn.setToolTip(tip)
+
+        # Documento: precisa de algo para exportar/copiar.
+        for btn, tip_ok in ((self.export_btn,
+                             t("Exporta um markdown único com todos os itens de todas as abas + transcrição.")),
+                            (self.copy_btn,
+                             t("Copia o markdown completo da reunião para a área de transferência."))):
+            btn.setEnabled(has_content)
+            btn.setToolTip(tip_ok if has_content
+                           else t("Disponível quando a reunião tiver conteúdo."))
+
+        # Criar tarefas: precisa de ações extraídas E de um projeto de destino.
+        actions = self._collect_action_items()
+        has_project = bool(self.proj_combo.currentData())
+        can_tasks = bool(actions) and has_project
+        self.tasks_btn.setEnabled(can_tasks)
+        if not actions:
+            self.tasks_btn.setToolTip(
+                t("Disponível quando o assistente extrair ações da reunião."))
+        elif not has_project:
+            self.tasks_btn.setToolTip(
+                t("Selecione um projeto em “Destino” para criar as tarefas."))
+        else:
+            self.tasks_btn.setToolTip(
+                t("Cria {n} tarefa(s) no projeto selecionado.").format(n=len(actions)))
+
+        # Meu Dia: precisa do resumo gerado.
+        self.save_day_btn.setEnabled(bool(summary_md))
+        self.save_day_btn.setToolTip(
+            t("Adiciona o resumo ao relatório do Meu Dia.") if summary_md
+            else t("Disponível depois que a análise gerar o resumo."))
+
     def _refresh_flow_indicator(self) -> None:
         """Recalcula em que etapa a reunião está (preparar → gravar →
         transcrever → analisar) a partir do estado atual — sem estado próprio
@@ -710,14 +779,14 @@ class TranscricoesView(QWidget):
         self.record_btn.setText(t("■ Parar"))
         if self.live_check.isChecked():
             self._start_live()
-        self._refresh_flow_indicator()
+        self._refresh_ui_state()
 
     def _stop_record(self):
         self._tick.stop()
         self.recording_state_changed.emit(False, self._elapsed)
         self.record_btn.setText(t("● Gravar e transcrever"))
         self._stop_live()
-        self._refresh_flow_indicator()  # sai de "gravar" já aqui, mesmo se salvar falhar
+        self._refresh_ui_state()  # sai de "gravar" já aqui, mesmo se salvar falhar
         # Encerra o observador de tela junto com a gravação (para de consumir IA).
         if self.screen_watch_check.isChecked():
             self.screen_watch_check.setChecked(False)
@@ -920,6 +989,7 @@ class TranscricoesView(QWidget):
         _tab(3, "📌 Decisões", self.live_decisions_list.count())
         # Perguntas: conta só as em aberto (as resolvidas mostram a resposta)
         _tab(4, "❓ Perguntas", open_count)
+        self._refresh_actions()
 
     def _toggle_question_resolved(self, index):
         """Alterna a pergunta de índice `index` entre resolvida e em aberto."""
@@ -1380,7 +1450,7 @@ class TranscricoesView(QWidget):
         # quando a transcrição terminar).
         self._set_transcript_text(self._transcript_base)
         self.agent.transcribe(audio_path, model, lang)
-        self._refresh_flow_indicator()
+        self._refresh_ui_state()
 
     # ------------------- Edição da transcrição -------------------
     def _set_transcript_text(self, text: str):
@@ -1433,7 +1503,7 @@ class TranscricoesView(QWidget):
             )
         )
         self._load_history()
-        self._refresh_flow_indicator()
+        self._refresh_ui_state()
         # Gera o relatório automaticamente — não exige clicar em "Analisar com IA".
         # Usa o texto COMPLETO (inclui os trechos anteriores, se for continuação).
         if full and self._provider_ready():
@@ -1612,7 +1682,7 @@ class TranscricoesView(QWidget):
         self._persist_recording()  # atualiza o registro já criado na transcrição
         self.status_label.setText(t("Análise concluída e salva no histórico."))
         self._load_history()
-        self._refresh_flow_indicator()
+        self._refresh_ui_state()
 
     def _on_analyze_error(self, err):
         self.analyze_btn.setEnabled(True)
@@ -1814,7 +1884,7 @@ class TranscricoesView(QWidget):
         self._render_questions([])
         self.live_box.setVisible(False)
         self.ask_answer.setVisible(False)
-        self._refresh_flow_indicator()
+        self._refresh_ui_state()
 
     def _new_meeting(self):
         """Começa uma reunião do zero: limpa saídas E entradas (preparação/contexto)."""
@@ -1890,4 +1960,4 @@ class TranscricoesView(QWidget):
             self.kind_combo.setCurrentIndex(idx)
         when = r["created_at"].strftime("%d/%m/%Y %H:%M") if r["created_at"] else ""
         self.status_label.setText(t("Gravação de {when}").format(when=when))
-        self._refresh_flow_indicator()
+        self._refresh_ui_state()
