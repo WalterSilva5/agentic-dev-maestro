@@ -166,6 +166,10 @@ class TranscricoesView(QWidget):
         # verdade; `_live_state` abaixo é só um atalho para session.live_state.
         self._meeting = MeetingSession()
         self._current = {"transcript": "", "duration": 0.0, "language": "", "audio_path": ""}
+        # Continuar uma reunião: guardam o que havia ANTES deste trecho, para a
+        # transcrição nova ser SOMADA em vez de substituir a anterior.
+        self._transcript_base = ""
+        self._base_duration = 0.0
         # Visualização do resumo Markdown: fonte editável x preview renderizado.
         self._md_preview = False
         self._md_source = ""
@@ -681,16 +685,29 @@ class TranscricoesView(QWidget):
             self.status_label.setText(t("Erro ao iniciar gravação: {error}").format(error=e))
             self._session = None
             return
-        # Nova gravação: zera o estado e as saídas da reunião anterior (mantém a
-        # preparação/contexto já preenchidos para ESTA reunião).
-        self._current = {"transcript": "", "duration": 0.0, "language": "", "audio_path": ""}
-        self._reset_outputs()
+        # Se já existe transcrição (reunião reaberta do histórico, ou um trecho
+        # gravado antes), esta gravação CONTINUA a reunião: o texto novo é
+        # somado ao que existe e o vínculo com a gravação salva é mantido.
+        # Descartar aqui apagava trabalho — era o comportamento antigo.
+        base = (self._current.get("transcript") or "").strip() \
+            or self.transcript_edit.toPlainText().strip()
+        if base:
+            self._transcript_base = base
+            self._base_duration = float(self._current.get("duration") or 0.0)
+            self._current["audio_path"] = ""   # este trecho gera um arquivo novo
+            self.status_label.setText(t("Continuando a reunião — gravando..."))
+        else:
+            self._transcript_base = ""
+            self._base_duration = 0.0
+            self._current = {"transcript": "", "duration": 0.0,
+                             "language": "", "audio_path": ""}
+            self._reset_outputs()
+            self.status_label.setText(t("Gravando..."))
         self._elapsed = 0
         self.timer_label.setText("00:00")
         self._tick.start()
         self.recording_state_changed.emit(True, 0)
         self.record_btn.setText(t("■ Parar"))
-        self.status_label.setText(t("Gravando..."))
         if self.live_check.isChecked():
             self._start_live()
         self._refresh_flow_indicator()
@@ -715,7 +732,9 @@ class TranscricoesView(QWidget):
             return
         self._session = None
         self._current["audio_path"] = str(path)
-        self._current["duration"] = duration
+        # Continuando: a duração total soma os trechos (o valor final é
+        # consolidado em _on_transcribed, com a duração real do áudio).
+        self._current["duration"] = self._base_duration + duration
         self.status_label.setText(t("Gravação salva ({seconds:.0f}s). Transcrevendo...").format(seconds=duration))
         self._transcribe(path)
 
@@ -749,30 +768,37 @@ class TranscricoesView(QWidget):
     def _start_live(self):
         from maestro_local.transcricoes.transcriber import LiveTranscriber
         _, lang = _whisper_settings()
-        # Reseta o estado ao vivo
-        self._live_transcript = ""
+        # Continuando uma reunião: parte do texto que já existe e PRESERVA os
+        # itens do assistente (plano/ações/decisões/perguntas), que devem
+        # acumular ao longo da reunião em vez de recomeçar do zero.
+        continuing = bool(self._transcript_base)
+        self._live_transcript = self._transcript_base if continuing else ""
         self._live_pending = ""
         self._live_secs_since = 0
-        self._live_state = {
-            "action_items": [], "decisions": [], "questions": [], "plan": [], "tips": [],
-        }
+        if not continuing:
+            self._live_state = {
+                "action_items": [], "decisions": [], "questions": [],
+                "plan": [], "tips": [],
+            }
+            self.live_plan_list.clear()
+            self.live_tips_list.clear()
+            self.live_actions_list.clear()
+            self.live_decisions_list.clear()
+            self._render_questions([])
         self._live_context = self._meeting_context()
-        # O texto ao vivo vai para o campo da etapa 3 — travado enquanto grava,
-        # para o usuário não editar um texto que ainda está crescendo.
-        self._set_transcript_text("")
+        # O texto ao vivo vai para o campo da transcrição — travado enquanto
+        # grava, para o usuário não editar um texto que ainda está crescendo.
+        self._set_transcript_text(self._transcript_base)
         self.transcript_edit.setReadOnly(True)
         self.transcript_label.setText(t("Transcrição (ao vivo):"))
-        self.live_plan_list.clear()
-        self.live_tips_list.clear()
-        self.live_actions_list.clear()
-        self.live_decisions_list.clear()
-        self._render_questions([])
         self.ask_answer.setVisible(False)
         self.live_box.setVisible(True)
-        # Dá o palco ao painel ao vivo: esconde transcrição estática e resumo
-        # (que só interessam depois da gravação).
-        self.transcript_label.setVisible(False)
-        self.transcript_edit.setVisible(False)
+        # O campo da transcrição FICA VISÍVEL: desde a unificação dos dois
+        # campos, é nele que o texto ao vivo aparece (antes havia um campo
+        # próprio dentro do painel, e escondê-lo aqui fazia sentido).
+        # O resumo, sim, só interessa depois da gravação.
+        self.transcript_label.setVisible(True)
+        self.transcript_edit.setVisible(True)
         self.result_edit.setVisible(False)
         ai_ok = self._provider_ready()
         self.ask_input.setEnabled(ai_ok)
@@ -1350,7 +1376,9 @@ class TranscricoesView(QWidget):
         model, lang = _whisper_settings()
         self.progress.setVisible(True)
         self.progress.setValue(0)
-        self._set_transcript_text("")
+        # Continuando: mantém à vista o que já havia (o novo trecho é somado
+        # quando a transcrição terminar).
+        self._set_transcript_text(self._transcript_base)
         self.agent.transcribe(audio_path, model, lang)
         self._refresh_flow_indicator()
 
@@ -1383,12 +1411,21 @@ class TranscricoesView(QWidget):
 
     def _on_transcribed(self, result):
         self.progress.setVisible(False)
-        self._current["transcript"] = result.text
+        # Continuando a reunião: soma o trecho novo ao que já existia.
+        new_text = (result.text or "").strip()
+        if self._transcript_base:
+            full = (self._transcript_base + "\n\n" + new_text).strip() \
+                if new_text else self._transcript_base
+        else:
+            full = new_text
+        self._current["transcript"] = full
         self._current["language"] = result.language
-        self._current["duration"] = result.duration or self._current["duration"]
-        self._set_transcript_text(result.text)
+        self._current["duration"] = self._base_duration + (result.duration or 0.0)
+        self._transcript_base = ""   # trecho incorporado
+        self._base_duration = 0.0
+        self._set_transcript_text(full)
         # Permite salvar/enviar ao Meu Dia mesmo sem análise de IA
-        self.save_day_btn.setEnabled(bool(result.text.strip()))
+        self.save_day_btn.setEnabled(bool(full))
         self._persist_recording()
         self.status_label.setText(
             t("Transcrição concluída ({language}, {count} segmentos). Salva no histórico.").format(
@@ -1398,7 +1435,8 @@ class TranscricoesView(QWidget):
         self._load_history()
         self._refresh_flow_indicator()
         # Gera o relatório automaticamente — não exige clicar em "Analisar com IA".
-        if result.text.strip() and self._provider_ready():
+        # Usa o texto COMPLETO (inclui os trechos anteriores, se for continuação).
+        if full and self._provider_ready():
             self._analyze()
 
     def _persist_recording(self):
@@ -1757,6 +1795,8 @@ class TranscricoesView(QWidget):
         """Limpa apenas as SAÍDAS (transcrição, resumo, itens ao vivo, perguntas)
         e o vínculo com a gravação — mantém preparação/contexto (entradas)."""
         self._current["rec_id"] = None
+        self._transcript_base = ""
+        self._base_duration = 0.0
         self._set_transcript_text("")
         self.transcript_label.setVisible(True)
         self.transcript_edit.setVisible(True)
@@ -1813,6 +1853,9 @@ class TranscricoesView(QWidget):
             "title": r["title"],
             "tags": r["tags"],
         }
+        # Abriu outra reunião: nenhum trecho pendente de soma da anterior.
+        self._transcript_base = ""
+        self._base_duration = 0.0
         # Restaura os itens do assistente salvos com ESTA gravação (plano,
         # dicas, ações, decisões, perguntas) — reabre como estava.
         self._live_transcript = r["transcript"]
