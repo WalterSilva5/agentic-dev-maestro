@@ -437,11 +437,17 @@ class WorkspaceSelectorPopup(QDialog):
         if ws_id == get_active_workspace_id():
             self.close()
             return
-        if not confirm_workspace_switch(self, ws_id):
+        # Fecha ANTES de confirmar. Esta janela é Qt.Popup e mantém um grab de
+        # mouse/teclado; um diálogo modal aberto por cima dele não recebe o
+        # clique, então a confirmação nunca era aceita e a troca não acontecia.
+        # É o mesmo motivo pelo qual _create_workspace e _manage_workspaces
+        # já fechavam antes de abrir os seus diálogos.
+        owner = self.parent()
+        self.close()
+        if not confirm_workspace_switch(owner, ws_id):
             return
         set_active_workspace(ws_id)
         self.workspace_changed.emit(ws_id)
-        self.close()
 
     def _create_workspace(self):
         self.close()
@@ -686,11 +692,17 @@ class WorkspaceSelectorButton(QWidget):
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
+            # A popup fica parenteada ao botão; sem descartar a anterior, cada
+            # clique deixava mais uma acumulada como filha.
+            old = getattr(self, "_popup", None)
+            if old is not None:
+                old.deleteLater()
             popup = WorkspaceSelectorPopup(self)
             popup.workspace_changed.connect(self._on_workspace_changed)
             pos = self.mapToGlobal(self.rect().bottomLeft())
             popup.move(pos.x(), pos.y() + 4)
             popup.show()
+            self._popup = popup
         super().mousePressEvent(event)
 
     def _on_workspace_changed(self, ws_id):
