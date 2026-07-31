@@ -1,6 +1,6 @@
 import logging
 
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import QSize, Qt, QTimer
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QFrame,
@@ -20,7 +20,6 @@ from PySide6.QtWidgets import (
 from maestro_local.gui.theme import (
     DARK,
     LIGHT,
-    NAV_ICONS,
     PRIORITY_LABELS,  # noqa: F401 - exported for other modules
     build_stylesheet,
     current_theme,
@@ -162,7 +161,13 @@ class MainWindow(QMainWindow):
         self.logo_container = logo_container
         sb_layout.addWidget(logo_container)
 
-        # Workspace selector (Obsidian-style)
+        # Contexto: para ONDE o trabalho vai (workspace + projeto). O rótulo
+        # fica acima dos dois seletores — antes ficava abaixo, encostado na
+        # navegação, e parecia rotular a lista de telas.
+        self.section_label_work = QLabel("  " + t("CONTEXTO"))
+        self.section_label_work.setObjectName("navSection")
+        sb_layout.addWidget(self.section_label_work)
+
         self.ws_selector = WorkspaceSelectorButton()
         self.ws_selector.workspace_changed.connect(self._on_workspace_changed)
         sb_layout.addWidget(self.ws_selector)
@@ -175,32 +180,40 @@ class MainWindow(QMainWindow):
         self.project_selector.currentIndexChanged.connect(self._on_project_selected)
         sb_layout.addWidget(self.project_selector)
 
-        # Section label: workspace
-        self.section_label_work = QLabel("  " + t("WORKSPACE"))
-        sb_layout.addWidget(self.section_label_work)
-
-        # Navigation list
+        # Navegação agrupada: o dia a dia primeiro, depois o que se configura.
+        # Dez itens numa lista plana não deixavam ver essa diferença.
         self.nav_list = QListWidget()
         self.nav_list.setObjectName("navList")
-        # Menu enxuto: essenciais do dia a dia + hub "Ferramentas" (extras).
-        nav_items = [
-            (t("Dashboard"), "dashboard"),
-            (t("Meu Dia"), "daily"),
-            (t("Board"), "board"),
-            (t("Assistente"), "chat"),
-            (t("Reuniões"), "transcricoes"),
-            (t("Ferramentas"), "ferramentas"),
-            (t("Projetos"), "projects"),
-            (t("Skills"), "skills"),
-            (t("Instruções"), "guide"),
-            (t("Configurações"), "settings"),
+        nav_groups = [
+            (t("TRABALHO"), [
+                (t("Dashboard"), "dashboard"),
+                (t("Meu Dia"), "daily"),
+                (t("Board"), "board"),
+                (t("Reuniões"), "transcricoes"),
+                (t("Assistente"), "chat"),
+            ]),
+            (t("GERENCIAR"), [
+                (t("Projetos"), "projects"),
+                (t("Ferramentas"), "ferramentas"),
+                (t("Skills"), "skills"),
+            ]),
+            (t("SISTEMA"), [
+                (t("Instruções"), "guide"),
+                (t("Configurações"), "settings"),
+            ]),
         ]
-        self._primary_keys = {k for _, k in nav_items}
-        for label, key in nav_items:
-            icon = NAV_ICONS.get(key, "")
-            item = QListWidgetItem(f"  {icon}   {label}")
-            item.setData(Qt.UserRole, key)
-            self.nav_list.addItem(item)
+        self._primary_keys = {k for _, itens in nav_groups for _, k in itens}
+        self._nav_keys: list[str] = []   # ordem só das telas (pula cabeçalhos)
+        for titulo, itens in nav_groups:
+            header = QListWidgetItem(titulo)
+            header.setFlags(Qt.NoItemFlags)   # rótulo, não é clicável
+            self.nav_list.addItem(header)
+            for label, key in itens:
+                item = QListWidgetItem(f"  {label}")
+                item.setData(Qt.UserRole, key)
+                self.nav_list.addItem(item)
+                self._nav_keys.append(key)
+        self.nav_list.setIconSize(QSize(18, 18))
 
         self.nav_list.currentRowChanged.connect(self._on_nav)
         # itemClicked garante reabrir uma tela do hub mesmo com "Ferramentas" já selecionada
@@ -341,9 +354,10 @@ class MainWindow(QMainWindow):
         escape_shortcut = QShortcut(QKeySequence("Escape"), self)
         escape_shortcut.activated.connect(self._close_search)
 
-        for i in range(min(9, self.nav_list.count())):
+        # Alt+N abre a N-ésima TELA (os cabeçalhos de grupo não contam).
+        for i, key in enumerate(self._nav_keys[:9]):
             shortcut = QShortcut(QKeySequence(f"Alt+{i + 1}"), self)
-            shortcut.activated.connect(lambda idx=i: self.nav_list.setCurrentRow(idx))
+            shortcut.activated.connect(lambda k=key: self._open_key(k))
 
         self._notif_timer = QTimer(self)
         self._notif_timer.timeout.connect(self._send_notification)
@@ -548,6 +562,8 @@ class MainWindow(QMainWindow):
 
     def _apply_theme(self):
         theme = current_theme()
+        from maestro_local.gui.icons import clear_cache
+        clear_cache()   # os ícones são coloridos pelo tema
         self.setStyleSheet(build_stylesheet(theme))
 
         self.sidebar.setStyleSheet(
@@ -569,27 +585,7 @@ class MainWindow(QMainWindow):
             f"font-size: 10px; font-weight: 600; color: {theme.accent}; "
             f"background: transparent; letter-spacing: 0.8px;"
         )
-        self.section_label_work.setStyleSheet(
-            f"color: {theme.text_muted}; font-size: 9px; font-weight: 700; "
-            f"letter-spacing: 1.2px; padding: 6px 12px 2px 12px; background: transparent;"
-        )
-        self.nav_list.setStyleSheet(f"""
-            QListWidget {{
-                background: transparent; border: none; padding: 2px 2px;
-                outline: none;
-            }}
-            QListWidget::item {{
-                padding: 5px 10px; border-radius: 5px; margin: 1px 4px;
-                color: {theme.text_secondary}; font-size: 12px;
-            }}
-            QListWidget::item:selected {{
-                background-color: {theme.bg_selected}; color: {theme.text_primary};
-                font-weight: 600;
-            }}
-            QListWidget::item:hover:!selected {{
-                background-color: {theme.bg_hover};
-            }}
-        """)
+        self._refresh_nav_icons()
         self.transcricoes_quick.apply_theme(theme)
         self.dashboard_view.pomodoro.apply_theme(theme)
         theme_icon = "☾" if not is_dark() else "☀"
@@ -645,10 +641,28 @@ class MainWindow(QMainWindow):
         self.ws_selector.refresh_display()
         self._refresh_all()
 
+    def _refresh_nav_icons(self):
+        """Repinta os ícones: o item ativo usa a cor de destaque, os demais o
+        cinza do texto. Chamado ao navegar e ao trocar de tema."""
+        from maestro_local.gui.icons import nav_icon
+        th = current_theme()
+        atual = self.nav_list.currentRow()
+        for i in range(self.nav_list.count()):
+            item = self.nav_list.item(i)
+            key = item.data(Qt.UserRole)
+            if not key:            # cabeçalho de grupo
+                continue
+            cor = th.accent if i == atual else th.text_muted
+            item.setIcon(nav_icon(key, cor))
+
     def _on_nav(self, row):
         item = self.nav_list.item(row)
-        if item is not None:
-            self._open_key(item.data(Qt.UserRole))
+        if item is None:
+            return
+        key = item.data(Qt.UserRole)
+        if key:            # cabeçalhos de grupo não têm chave
+            self._open_key(key)
+        self._refresh_nav_icons()
 
     def _nav_row_for(self, key):
         for i in range(self.nav_list.count()):
@@ -693,6 +707,7 @@ class MainWindow(QMainWindow):
             self.nav_list.blockSignals(True)
             self.nav_list.setCurrentRow(row)
             self.nav_list.blockSignals(False)
+        self._refresh_nav_icons()
 
     def _open_board(self, project_id):
         self.board_view.set_project(project_id)

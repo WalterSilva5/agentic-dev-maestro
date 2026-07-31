@@ -198,12 +198,14 @@ QListWidget#navList {{
     outline: none;
 }}
 QListWidget#navList::item {{
-    padding: 10px 14px;
-    margin: 2px 2px;
-    border-radius: 10px;
+    /* Densidade: com os grupos, 13 linhas precisam caber sem rolagem. */
+    padding: 6px 12px;
+    margin: 1px 6px;
+    border-radius: 8px;
     border: none;
     background-color: transparent;
     color: {t.text_secondary};
+    font-size: 13px;
     font-weight: 500;
 }}
 QListWidget#navList::item:hover {{
@@ -215,6 +217,25 @@ QListWidget#navList::item:selected:!active {{
     background-color: {t.accent_light};
     color: {t.accent};
     font-weight: 600;
+}}
+/* Cabeçalho de grupo: item sem flags (não clicável), por isso :disabled. */
+QListWidget#navList::item:disabled {{
+    color: {t.text_muted};
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    background: transparent;
+    padding: 10px 12px 2px;
+    margin: 0 6px;
+}}
+QLabel#navSection {{
+    color: {t.text_muted};
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    background: transparent;
+    border: none;
+    padding: 6px 0 2px;
 }}
 QPushButton {{
     background-color: {t.accent};
@@ -583,8 +604,9 @@ PRIORITY_LABELS = {
     "URGENT": "Urgente",
 }
 
-# Conjunto único de ícones (emojis), coeso em vez de misturar glifos
-# geométricos com emojis — neste ambiente renderizam como glifos de linha.
+# Emojis por tela. A navegação lateral NÃO usa mais isto — passou a usar
+# ícones SVG monocromáticos (gui/icons.py), que se colorem com o tema.
+# Mantido para telas que ainda exibem o emoji junto do título.
 NAV_ICONS = {
     "dashboard": "📊",
     "daily": "📅",

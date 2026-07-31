@@ -3,6 +3,8 @@
 A camada LLM é falsificada: o que se verifica aqui é o serviço iniciar o
 worker certo, reemitir o resultado e soltar a referência ao terminar.
 """
+import time
+
 from PySide6.QtCore import QEventLoop, QTimer
 
 from maestro_local.transcricoes.agent_service import MeetingAgentService
@@ -50,7 +52,13 @@ def test_worker_e_liberado_ao_terminar(qapp, monkeypatch):
     svc.extract_live({}, "a")
     assert svc.is_extracting_live() is True
     _wait(svc.live_extracted)
-    qapp.processEvents()
+    # `live_extracted` chega ANTES de `finished`, que é quem solta a
+    # referência. Um único processEvents corria com essa ordem e deixava o
+    # teste intermitente — espera até soltar, com prazo.
+    deadline = time.monotonic() + 5
+    while svc.is_extracting_live() and time.monotonic() < deadline:
+        qapp.processEvents()
+        time.sleep(0.01)
     assert svc.is_extracting_live() is False
 
 
