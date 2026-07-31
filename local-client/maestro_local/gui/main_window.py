@@ -1,3 +1,5 @@
+import logging
+
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
@@ -43,6 +45,8 @@ from maestro_local.gui.views.study_view import StudyView
 # custa memória/import quando o usuário de fato a abre.
 from maestro_local.gui.widgets.transcricoes_quick import TranscricoesQuickWidget
 from maestro_local.gui.workspace_selector import WorkspaceSelectorButton
+
+logger = logging.getLogger("maestro.gui.main_window")
 
 
 class ToastWidget(QLabel):
@@ -883,3 +887,41 @@ class MainWindow(QMainWindow):
             )
         if getattr(self, "coach_tip", None) is not None and self.coach_tip.isVisible():
             self.coach_tip.reposition()
+
+    # --- Encerramento ---
+
+    def closeEvent(self, event):
+        """Encerra as threads antes de sair, senão o processo aborta.
+
+        Sair com uma QThread em execução faz o destrutor do QThread disparar
+        qFatal — o processo morre com SIGABRT e core dump (reproduzido). Isso
+        acontecia ao fechar durante uma chamada de IA: o timeout é de 120s com
+        retries, então um worker podia ficar vivo por minutos.
+
+        QThread não tem cancelamento, então esperamos um tempo limitado; se
+        ainda restar alguma thread viva, saímos SEM rodar os destrutores
+        (os._exit), que é o único jeito de não abortar. Nesse ponto os dados já
+        estão gravados: banco e config são escritos de forma síncrona.
+        """
+        all_stopped = True
+        view = getattr(self, "transcricoes_view", None)
+        if view is not None:
+            try:
+                all_stopped = view.shutdown()
+            except Exception:  # noqa: BLE001
+                all_stopped = False
+
+        worker = getattr(self, "_coach_worker", None)
+        if worker is not None and worker.isRunning():
+            worker.wait(2000)
+            if worker.isRunning():
+                all_stopped = False
+
+        super().closeEvent(event)
+        if not all_stopped:
+            import os
+            import sys
+            logger.warning("Saindo com trabalho de IA em andamento (sem esperar).")
+            sys.stdout.flush()
+            sys.stderr.flush()
+            os._exit(0)

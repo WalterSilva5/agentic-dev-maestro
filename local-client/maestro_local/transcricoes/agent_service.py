@@ -201,10 +201,21 @@ class MeetingAgentService(QObject):
         w.start()
 
     # ------------------------------ parada ------------------------------
-    def stop_all(self, msecs: int = 3000) -> None:
-        """Espera os trabalhos em andamento — usado ao fechar a aplicação."""
+    def stop_all(self, msecs: int = 3000) -> bool:
+        """Espera os trabalhos em andamento — usado ao fechar a aplicação.
+
+        Devolve True se todos pararam. Uma chamada de IA travada NÃO é
+        interrompível (QThread não tem cancelamento): com timeout de 120s e
+        retries, um worker pode seguir vivo por minutos. Quem chama precisa
+        saber disso para não deixar o processo sair com thread rodando — o
+        destrutor do QThread nesse estado aborta o processo (core dump).
+        """
         workers = [self._transcriber, self._analyzer, self._live_extractor,
                    self._extractor, self._asker, self._screen_reader]
+        all_stopped = True
         for w in workers + list(self._vision_workers):
             if w is not None and w.isRunning():
                 w.wait(msecs)
+                if w.isRunning():
+                    all_stopped = False
+        return all_stopped

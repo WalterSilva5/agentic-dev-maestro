@@ -608,6 +608,32 @@ class TranscricoesView(QWidget):
         return self.is_recording() or self.agent.is_busy() \
             or self._live_transcriber is not None
 
+    def shutdown(self, msecs: int = 3000) -> bool:
+        """Encerra captura e trabalhos de IA ao fechar o app.
+
+        Devolve True se tudo parou. Não salva nem transcreve: fechar não é
+        "parar a gravação" — só interrompe a captura para o processo poder sair.
+        """
+        self._tick.stop()
+        if self._live_transcriber is not None:
+            self._live_transcriber.stop()
+            self._live_transcriber.wait(msecs)
+            done_live = self._live_transcriber.isFinished()
+            self._live_transcriber = None
+        else:
+            done_live = True
+        # Encerra os processos de captura (parec) sem gerar arquivo.
+        if self._session is not None:
+            try:
+                if self._session.mic_rec:
+                    self._session.mic_rec.stop()
+                if self._session.mon_rec:
+                    self._session.mon_rec.stop()
+            except Exception:  # noqa: BLE001
+                pass
+            self._session = None
+        return self.agent.stop_all(msecs) and done_live
+
     def _refresh_flow_indicator(self) -> None:
         """Recalcula em que etapa a reunião está (preparar → gravar →
         transcrever → analisar) a partir do estado atual — sem estado próprio
