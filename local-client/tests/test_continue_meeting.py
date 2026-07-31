@@ -27,9 +27,31 @@ def gravavel(meetings_view, monkeypatch):
         def start(self):
             pass
 
+    class _LiveFalso:
+        """Evita subir o Whisper de verdade — uma QThread real ficaria viva no
+        teardown e o Qt aborta ao destruir QThread em execução."""
+
+        def __init__(self, *a, **k):
+            self.partial = types.SimpleNamespace(connect=lambda f: None)
+            self.status = types.SimpleNamespace(connect=lambda f: None)
+
+        def start(self):
+            pass
+
+        def stop(self):
+            pass
+
+        def wait(self, msecs=0):
+            return True
+
+        def isFinished(self):
+            return True
+
     monkeypatch.setattr(audio_backend, "parec_available", lambda: True)
     monkeypatch.setattr(audio_backend, "list_sources", lambda: [src])
     monkeypatch.setattr(audio_backend, "RecordingSession", _Sessao)
+    import maestro_local.transcricoes.transcriber as transcriber
+    monkeypatch.setattr(transcriber, "LiveTranscriber", _LiveFalso)
     v = meetings_view
     v.mic_combo.clear()
     v.mic_combo.addItem("Fonte de teste", "fonte-teste")
@@ -127,3 +149,48 @@ def test_abrir_outra_reuniao_limpa_o_trecho_pendente(gravavel):
     v._open_recording(v.history.item(1))   # troca de reunião no meio
     assert v._transcript_base == ""
     assert v._base_duration == 0.0
+
+
+def _abrir_por_rec_id(v, rid):
+    """Abre pelo rec_id, sem depender da ordem do histórico."""
+    from PySide6.QtCore import Qt
+    v._load_history()
+    item = next(v.history.item(i) for i in range(v.history.count())
+                if v.history.item(i).data(Qt.UserRole) == rid)
+    v._open_recording(item)
+
+
+def test_reuniao_com_itens_e_transcricao_vazia_continua(gravavel):
+    """O sinal de 'reunião pré-existente' é o rec_id, não o texto.
+
+    Uma reunião reaberta pode ter itens e resumo com a transcrição ainda vazia
+    (ex.: a transcrição anterior falhou). Olhando só o texto, clicar em gravar
+    apagava o vínculo e todos os itens.
+    """
+    v = gravavel
+    v.live_check.setChecked(True)
+    rid = repository.save(None, {
+        "title": "Sem transcrição", "transcript": "", "markdown": "# resumo",
+        "live_state_json": '{"decisions":["Adotar Postgres"],"action_items":[],'
+                           '"questions":[],"plan":["Passo 1"],"tips":[]}'})
+    _abrir_por_rec_id(v, rid)
+    assert v._live_state["decisions"] == ["Adotar Postgres"]
+
+    v._start_record()
+    assert v._current["rec_id"] == rid, "perdeu o vínculo com a reunião salva"
+    assert v._live_state["decisions"] == ["Adotar Postgres"], "perdeu as decisões"
+    assert v._live_state["plan"] == ["Passo 1"], "perdeu o plano"
+
+
+def test_ao_vivo_usa_o_mesmo_sinal_de_continuacao(gravavel):
+    """_start_live decidia por conta própria olhando o texto — ficava fora de
+    sincronia com _start_record quando a transcrição estava vazia."""
+    v = gravavel
+    v.live_check.setChecked(True)
+    rid = repository.save(None, {
+        "title": "Sem transcrição", "transcript": "",
+        "live_state_json": '{"decisions":["D"],"action_items":[],'
+                           '"questions":[],"plan":[],"tips":[]}'})
+    _abrir_por_rec_id(v, rid)
+    v._start_record()
+    assert v._continuing_meeting is True

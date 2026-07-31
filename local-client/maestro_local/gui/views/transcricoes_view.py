@@ -171,6 +171,7 @@ class TranscricoesView(QWidget):
         # transcrição nova ser SOMADA em vez de substituir a anterior.
         self._transcript_base = ""
         self._base_duration = 0.0
+        self._continuing_meeting = False
         # Trecho entregue à IA e ainda sem resposta — volta para a fila se falhar.
         self._live_inflight = ""
         # Verificação periódica dos itens: timer próprio, para a cadência não
@@ -762,13 +763,15 @@ class TranscricoesView(QWidget):
             self.status_label.setText(t("Erro ao iniciar gravação: {error}").format(error=e))
             self._session = None
             return
-        # Se já existe transcrição (reunião reaberta do histórico, ou um trecho
-        # gravado antes), esta gravação CONTINUA a reunião: o texto novo é
-        # somado ao que existe e o vínculo com a gravação salva é mantido.
-        # Descartar aqui apagava trabalho — era o comportamento antigo.
+        # Continuar a reunião em vez de descartá-la. O sinal de "reunião
+        # pré-existente" é o VÍNCULO com a gravação salva (rec_id), não o texto:
+        # uma reunião reaberta do histórico pode ter itens e resumo com a
+        # transcrição ainda vazia (ex.: a transcrição anterior falhou), e olhar
+        # só o texto fazia esse caso perder tudo ao clicar em gravar.
         base = (self._current.get("transcript") or "").strip() \
             or self.transcript_edit.toPlainText().strip()
-        if base:
+        self._continuing_meeting = bool(self._current.get("rec_id") or base)
+        if self._continuing_meeting:
             self._transcript_base = base
             self._base_duration = float(self._current.get("duration") or 0.0)
             self._current["audio_path"] = ""   # este trecho gera um arquivo novo
@@ -848,7 +851,9 @@ class TranscricoesView(QWidget):
         # Continuando uma reunião: parte do texto que já existe e PRESERVA os
         # itens do assistente (plano/ações/decisões/perguntas), que devem
         # acumular ao longo da reunião em vez de recomeçar do zero.
-        continuing = bool(self._transcript_base)
+        # Mesmo sinal decidido em _start_record: uma reunião reaberta continua
+        # mesmo com a transcrição vazia (itens/resumo salvos precisam sobreviver).
+        continuing = getattr(self, "_continuing_meeting", False)
         self._live_transcript = self._transcript_base if continuing else ""
         self._live_pending = ""
         self._live_secs_since = 0
