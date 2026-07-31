@@ -30,6 +30,13 @@ LIVE_MIN_SECONDS = 4       # só transcreve quando há ao menos este tanto de á
 # Extração de IA ao vivo: dispara quando acumular tempo OU palavras novas.
 LIVE_AI_MIN_SECONDS = 15
 LIVE_AI_MIN_WORDS = 40
+# Verificação periódica: um timer próprio garante a cadência mesmo quando a
+# fala é curta/esparsa (antes dependia só do tique da gravação).
+LIVE_AI_INTERVAL_MS = 5000
+# Timeout curto no ao vivo: o padrão do provedor é 120s com retries, e uma
+# extração que demora tanto já não serve — a reunião andou. Falhar rápido
+# deixa o ciclo seguinte tentar de novo com o texto preservado.
+LIVE_AI_TIMEOUT = 45
 
 HOTKEY_TOGGLE_RECORDING = "<ctrl>+<shift>+r"
 

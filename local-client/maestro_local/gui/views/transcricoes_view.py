@@ -45,6 +45,7 @@ from maestro_local.transcricoes.session import (
     live_state_from_summary,
 )
 from maestro_local.transcricoes.constants import (
+    LIVE_AI_INTERVAL_MS,
     LIVE_AI_MIN_SECONDS,
     LIVE_AI_MIN_WORDS,
     LIVE_DEFAULT_MODEL,
@@ -170,6 +171,13 @@ class TranscricoesView(QWidget):
         # transcrição nova ser SOMADA em vez de substituir a anterior.
         self._transcript_base = ""
         self._base_duration = 0.0
+        # Trecho entregue à IA e ainda sem resposta — volta para a fila se falhar.
+        self._live_inflight = ""
+        # Verificação periódica dos itens: timer próprio, para a cadência não
+        # depender do tique da gravação nem de acumular palavras suficientes.
+        self._live_poll = QTimer(self)
+        self._live_poll.setInterval(LIVE_AI_INTERVAL_MS)
+        self._live_poll.timeout.connect(self._maybe_extract_live)
         # Visualização do resumo Markdown: fonte editável x preview renderizado.
         self._md_preview = False
         self._md_source = ""
@@ -880,12 +888,17 @@ class TranscricoesView(QWidget):
         self._live_transcriber.partial.connect(self._on_live_partial)
         self._live_transcriber.status.connect(self.live_status.setText)
         self._live_transcriber.start()
+        self._live_poll.start()   # verificação periódica dos itens
 
     def _stop_live(self):
+        self._live_poll.stop()
         if self._live_transcriber is not None:
             self._live_transcriber.stop()
             self._live_transcriber.wait(3000)
             self._live_transcriber = None
+        # Extração final do que sobrou: sem isso, o último trecho falado (abaixo
+        # do limiar) só entraria nos itens depois da transcrição completa.
+        self._flush_live_extract()
         # Restaura a transcrição estática para revisar/analisar o resultado final.
         self.transcript_label.setVisible(True)
         self.transcript_edit.setVisible(True)
@@ -910,6 +923,12 @@ class TranscricoesView(QWidget):
         sb.setValue(sb.maximum())
 
     def _maybe_extract_live(self):
+        """Chamado pelo timer periódico e pelo tique da gravação.
+
+        Dispara quando acumulou tempo OU palavras suficientes — o que vier
+        primeiro; assim uma fala longa atualiza rápido e uma conversa esparsa
+        ainda atualiza na cadência do timer.
+        """
         if self.agent.is_extracting_live():  # já tem uma extração em curso
             return
         if not self._live_pending.strip() or not self._provider_ready():
@@ -919,10 +938,27 @@ class TranscricoesView(QWidget):
             return
         self._start_live_extract()
 
+    def _flush_live_extract(self):
+        """Extração imediata do trecho pendente, ignorando os limiares.
+
+        Usada ao encerrar a gravação: o usuário acabou de falar e espera ver os
+        itens atualizados, sem aguardar a transcrição completa do áudio.
+        """
+        if self.agent.is_extracting_live():
+            return   # a extração em curso já cobre o estado
+        if not self._live_pending.strip() or not self._provider_ready():
+            return
+        self.live_status.setText(t("Atualizando os itens da reunião..."))
+        self._start_live_extract()
+
     def _start_live_extract(self):
         new_text = self._live_pending
         self._live_pending = ""
         self._live_secs_since = 0
+        # Guarda o trecho enviado: se a extração falhar (timeout, provedor
+        # fora), ele volta para a fila em vez de sumir — antes o que foi dito
+        # naquela janela era perdido para sempre.
+        self._live_inflight = new_text
         # Recalcula o contexto a cada extração para captar edições de preparação
         # ou novos anexos feitos durante a reunião.
         self._live_context = self._meeting_context()
@@ -950,6 +986,12 @@ class TranscricoesView(QWidget):
             self._persist_recording()
 
     def _on_live_extracted(self, state: dict):
+        self._live_inflight = ""      # trecho incorporado com sucesso
+        # A extração ao vivo e a análise completa são workers distintos e podem
+        # se cruzar ao parar a gravação. Se a completa já está rodando, o
+        # resultado dela é melhor (transcrição inteira) — não sobrescreve.
+        if self.agent.is_extracting():
+            return
         self._live_state = self._preserve_answers(state)
         self._autosave_live_state()
         self._refresh_live_panels()
@@ -957,6 +999,11 @@ class TranscricoesView(QWidget):
             self.live_status.setText(t("Transcrevendo ao vivo..."))
 
     def _on_live_extract_error(self, err: str):
+        # Devolve o trecho para a fila: sem isso, o que foi dito enquanto a IA
+        # falhava nunca entrava nos itens.
+        if self._live_inflight:
+            self._live_pending = (self._live_inflight + " " + self._live_pending).strip()
+            self._live_inflight = ""
         self.live_status.setText(t("IA ao vivo indisponível: {error}").format(error=err))
 
     def _refresh_live_panels(self):

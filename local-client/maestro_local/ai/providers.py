@@ -104,7 +104,8 @@ class ProviderNotConfigured(Exception):
 _MODEL_CACHE: dict = {}
 
 
-def build_chat_model(provider: dict | None = None, temperature: float = 0.3):
+def build_chat_model(provider: dict | None = None, temperature: float = 0.3,
+                     timeout: int = 120):
     """Constrói (ou reusa do cache) um ChatOpenAI a partir do provedor ativo.
 
     Import de langchain feito aqui dentro para não pesar o boot do app.
@@ -124,6 +125,7 @@ def build_chat_model(provider: dict | None = None, temperature: float = 0.3):
         provider["model"],
         provider.get("api_key") or "",
         round(float(temperature), 2),
+        int(timeout),          # o timeout faz parte da identidade do modelo
     )
     cached = _MODEL_CACHE.get(key)
     if cached is not None:
@@ -136,7 +138,7 @@ def build_chat_model(provider: dict | None = None, temperature: float = 0.3):
         api_key=provider.get("api_key") or "not-needed",
         model=provider["model"],
         temperature=temperature,
-        timeout=120,
+        timeout=timeout,
         max_retries=2,
     )
     _MODEL_CACHE[key] = model

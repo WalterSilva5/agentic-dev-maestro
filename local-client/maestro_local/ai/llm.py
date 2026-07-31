@@ -20,10 +20,16 @@ logger = logging.getLogger("maestro.ai.llm")
 _NO_STRUCTURED: set[str] = set()
 
 
-def get_chat_model(temperature: float = 0.3, provider: dict | None = None):
-    """Modelo de chat (reusado do cache). Levanta ProviderNotConfigured."""
+def get_chat_model(temperature: float = 0.3, provider: dict | None = None,
+                   timeout: int = 120):
+    """Modelo de chat (reusado do cache). Levanta ProviderNotConfigured.
+
+    `timeout` permite que chamadas sensíveis a latência (extração ao vivo)
+    falhem rápido em vez de segurar o worker pelo padrão longo do provedor.
+    """
     from maestro_local.ai.providers import build_chat_model
-    return build_chat_model(provider=provider, temperature=temperature)
+    return build_chat_model(provider=provider, temperature=temperature,
+                            timeout=timeout)
 
 
 def _model_id(model) -> str:
@@ -31,9 +37,10 @@ def _model_id(model) -> str:
             or getattr(model, "model", None) or str(type(model)))
 
 
-def invoke_text(messages, temperature: float = 0.3, provider: dict | None = None) -> str:
+def invoke_text(messages, temperature: float = 0.3, provider: dict | None = None,
+                timeout: int = 120) -> str:
     """Chamada de texto simples. `messages`: lista de (role, content)."""
-    model = get_chat_model(temperature, provider)
+    model = get_chat_model(temperature, provider, timeout=timeout)
     resp = model.invoke(messages)
     return getattr(resp, "content", str(resp))
 
@@ -62,7 +69,7 @@ def invoke_vision(image_bytes: bytes, prompt: str, mime: str = "image/png",
 
 
 def invoke_json(messages, schema=None, temperature: float = 0.2,
-                provider: dict | None = None) -> dict:
+                provider: dict | None = None, timeout: int = 120) -> dict:
     """Chamada que retorna um dict.
 
     Se `schema` (um pydantic BaseModel) for dado e o provedor suportar, usa
@@ -73,7 +80,7 @@ def invoke_json(messages, schema=None, temperature: float = 0.2,
     """
     from maestro_local.transcricoes.summarizer import _parse_json_response
 
-    model = get_chat_model(temperature, provider)
+    model = get_chat_model(temperature, provider, timeout=timeout)
     mid = _model_id(model)
 
     if schema is not None and mid not in _NO_STRUCTURED:

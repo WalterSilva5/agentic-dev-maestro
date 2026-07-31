@@ -15,6 +15,8 @@ import logging
 from PySide6.QtCore import QThread, Signal
 from pydantic import BaseModel, Field
 
+from maestro_local.transcricoes.constants import LIVE_AI_TIMEOUT
+
 logger = logging.getLogger("maestro.transcricoes.live")
 
 
@@ -140,7 +142,8 @@ class LiveExtractWorker(QThread):
                 new_text=_clamp_transcript(self.new_text, 1500),
             )
             parsed = invoke_json([("system", LIVE_EXTRACT_SYSTEM), ("user", user)],
-                                 schema=LiveStateSchema, temperature=0.2)
+                                 schema=LiveStateSchema, temperature=0.2,
+                                 timeout=LIVE_AI_TIMEOUT)
             if not isinstance(parsed, dict) or "parse_error" in parsed or "raw_response" in parsed:
                 # Falhou o parse: mantém o estado anterior para não perder dados.
                 self.done.emit(self.state)
