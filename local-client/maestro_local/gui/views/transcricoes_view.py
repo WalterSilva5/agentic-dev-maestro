@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QDialogButtonBox,
     QFileDialog,
     QFrame,
+    QInputDialog,
     QMessageBox,
     QHBoxLayout,
     QLabel,
@@ -286,6 +287,7 @@ class TranscricoesView(QWidget):
         self.preparation = PreparationCard()
         self.preparation.kind_changed.connect(self._on_kind_changed)
         self.preparation.add_file_requested.connect(self._add_context_file)
+        self.preparation.add_text_requested.connect(self._add_context_text)
         self.preparation.capture_screen_requested.connect(self._capture_screen_context)
         # Aliases (migração incremental — ver HistoryPanel)
         self.kind_combo = self.preparation.kind_combo
@@ -319,6 +321,7 @@ class TranscricoesView(QWidget):
         # ---- Painel do assistente ao vivo (visível só durante gravação ao vivo) ----
         self.live = LiveAssistantPanel()
         self.live.ask_requested.connect(self._ask_meeting)
+        self.live.note_added.connect(self._add_live_note)
         self.live_box = self.live
         self.live_status = self.live.live_status
         self.live_tabs = self.live.live_tabs
@@ -985,6 +988,45 @@ class TranscricoesView(QWidget):
         self.status_label.setText(
             t("Falha ao ler imagem ({label}): {err}").format(label=label, err=err)
         )
+
+    def _add_context_text(self):
+        """Contexto em texto colado/digitado (menu da etapa 1).
+
+        Serve para blocos maiores — ata anterior, requisitos, trecho de e-mail.
+        Para uma informação curta durante a reunião, o campo do painel ao vivo
+        é mais rápido (ver `_add_live_note`).
+        """
+        text, ok = QInputDialog.getMultiLineText(
+            self, t("Adicionar texto ao contexto"),
+            t("Cole ou digite a informação. O assistente passa a considerá-la."))
+        if not ok:
+            return
+        text = (text or "").strip()
+        if not text:
+            self.status_label.setText(t("Nada adicionado — o texto estava vazio."))
+            return
+        n = sum(1 for it in self._context_items
+                if it["label"].startswith(t("Texto"))) + 1
+        self._add_context_item(t("Texto {n}").format(n=n), text)
+        self.status_label.setText(t("Texto adicionado ao contexto da reunião."))
+
+    def _add_live_note(self, text: str):
+        """Informação nova digitada DURANTE a reunião (painel ao vivo).
+
+        Vira um item de contexto com a hora, não entra na transcrição. O
+        contexto é remontado a cada extração do assistente, então a informação
+        passa a valer já na próxima atualização de plano/ações/dicas.
+        """
+        text = (text or "").strip()
+        if not text:
+            return
+        self._add_context_item(
+            t("Nota {hora}").format(hora=datetime.now().strftime("%H:%M")), text)
+        if self._live_transcriber is not None:
+            self.live_status.setText(
+                t("Informação anotada — o assistente vai considerá-la na próxima atualização."))
+        else:
+            self.status_label.setText(t("Informação adicionada ao contexto da reunião."))
 
     def _add_context_item(self, label: str, text: str):
         self._context_items.append({"label": label, "text": text})

@@ -27,6 +27,7 @@ from maestro_local.i18n import t
 class PreparationCard(SectionCard):
     kind_changed = Signal()
     add_file_requested = Signal()
+    add_text_requested = Signal()
     capture_screen_requested = Signal()
 
     def __init__(self, parent=None):
@@ -70,6 +71,8 @@ class PreparationCard(SectionCard):
               "para o assistente da reunião. Pode ser usado a qualquer momento.")
         )
         menu = QMenu(self.context_btn)
+        menu.addAction(t("Texto / nota…"),
+                       lambda: self.add_text_requested.emit())
         menu.addAction(t("Arquivo (imagem, PDF, texto…)"),
                        lambda: self.add_file_requested.emit())
         menu.addAction(t("Capturar tela"),

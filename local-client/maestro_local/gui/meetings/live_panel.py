@@ -46,6 +46,7 @@ def make_live_list() -> QListWidget:
 
 class LiveAssistantPanel(SectionCard):
     ask_requested = Signal()
+    note_added = Signal(str)   # informação nova digitada durante a reunião
 
     def __init__(self, parent=None):
         super().__init__(
@@ -76,6 +77,27 @@ class LiveAssistantPanel(SectionCard):
         self.live_tabs.addTab(self.live_decisions_list, "📌 " + t("Decisões"))
         self.live_tabs.addTab(self._build_questions_panel(), "❓ " + t("Perguntas"))
         lay.addWidget(self.live_tabs, 1)
+
+        # Informar algo ao assistente durante a reunião (vai para o contexto,
+        # não para a transcrição). Fica ANTES de "perguntar" porque alimenta o
+        # assistente, enquanto o de baixo consulta.
+        note = QHBoxLayout()
+        note.setSpacing(8)
+        self.note_input = QLineEdit()
+        self.note_input.setPlaceholderText(
+            t("📝 Informar ao assistente (ex.: o prazo mudou para sexta)"))
+        self.note_input.setToolTip(
+            t("Acrescenta uma informação ao contexto da reunião AGORA — o assistente "
+              "passa a considerá-la nas próximas atualizações de plano, ações e dicas. "
+              "Não entra na transcrição."))
+        self.note_input.returnPressed.connect(self._emit_note)
+        note.addWidget(self.note_input, 1)
+        self.note_btn = QPushButton(t("Adicionar"))
+        self.note_btn.setProperty("flat", "true")
+        self.note_btn.setCursor(Qt.PointingHandCursor)
+        self.note_btn.clicked.connect(self._emit_note)
+        note.addWidget(self.note_btn)
+        lay.addLayout(note)
 
         # Perguntar à reunião
         ask = QHBoxLayout()
@@ -119,7 +141,19 @@ class LiveAssistantPanel(SectionCard):
         scroll.setWidget(self.questions_container)
         return scroll
 
+    def _emit_note(self) -> None:
+        """Emite a nota digitada e limpa o campo (ignora texto vazio)."""
+        text = self.note_input.text().strip()
+        if not text:
+            return
+        self.note_input.clear()
+        self.note_added.emit(text)
+
     def set_ai_enabled(self, enabled: bool) -> None:
-        """Sem provedor de IA, perguntar à reunião fica indisponível."""
+        """Sem provedor de IA, perguntar à reunião fica indisponível.
+
+        O campo de informar continua ativo: anexar contexto não depende de IA
+        (é só texto guardado) e vale a pena registrar mesmo sem provedor.
+        """
         self.ask_input.setEnabled(enabled)
         self.ask_btn.setEnabled(enabled)
