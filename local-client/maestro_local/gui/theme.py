@@ -42,75 +42,81 @@ class ThemeColors:
     shadow_lg: str
 
 
+# Paleta: accent teal + cinzas NEUTROS.
+#
+# Os cinzas antigos eram fortemente azulados (ex.: borda #B9BFD2 tinha 25 pontos
+# a mais de azul que de vermelho), o que dava o ar datado — design systems
+# modernos usam cinzas quase neutros. O accent teal também dá identidade própria,
+# fugindo do azul/roxo que quase todo app usa.
 LIGHT = ThemeColors(
-    # Fundo mais frio e cards bem separados (mais contraste que o cinza anterior)
-    bg_primary="#EEF1F8",
-    bg_secondary="#E2E6F1",
-    bg_sidebar="#E8EBF5",
+    bg_primary="#FAFAFA",
+    bg_secondary="#F5F5F5",
+    bg_sidebar="#FFFFFF",
     bg_card="#FFFFFF",
     bg_input="#FFFFFF",
-    bg_hover="#E9ECFF",
-    bg_selected="#DADEFF",
-    bg_badge="#E1E5F0",
-    bg_overlay="rgba(15,15,35,0.45)",
+    bg_hover="#F5F5F5",
+    bg_selected="#CCFBF1",
+    bg_badge="#F5F5F5",
+    bg_overlay="rgba(10,10,10,0.45)",
 
-    text_primary="#0B0E1A",
-    text_secondary="#242A40",
-    text_muted="#525873",
+    text_primary="#171717",
+    text_secondary="#404040",
+    text_muted="#737373",
     text_on_accent="#FFFFFF",
 
-    # Bordas mais marcadas para o tema claro ficar nítido
-    border="#B9BFD2",
-    border_focus="#4F46E5",
-    border_light="#D3D8E6",
+    border="#E5E5E5",
+    border_focus="#0D9488",
+    border_light="#F5F5F5",
 
-    # Accent índigo vívido
-    accent="#4F46E5",
-    accent_hover="#4338CA",
-    accent_pressed="#3730A3",
-    accent_light="#E6E5FF",
+    accent="#0D9488",
+    accent_hover="#0F766E",
+    accent_pressed="#115E59",
+    accent_light="#CCFBF1",
 
     danger="#DC2626",
-    success="#16A34A",
+    # Verde deslocado para longe do teal: como o accent já é verde-azulado, um
+    # success próximo confundiria (ex.: etapa atual x concluída no FlowIndicator).
+    success="#15803D",
     warning="#D97706",
     info="#0284C7",
 
-    shadow="0 1px 3px rgba(20,22,60,0.10), 0 0 0 0.5px rgba(20,22,60,0.05)",
-    shadow_lg="0 6px 20px rgba(20,22,60,0.14), 0 0 0 1px rgba(20,22,60,0.04)",
+    shadow="0 1px 2px rgba(10,10,10,0.06), 0 1px 3px rgba(10,10,10,0.04)",
+    shadow_lg="0 4px 16px rgba(10,10,10,0.10)",
 )
 
 DARK = ThemeColors(
-    bg_primary="#13141F",
-    bg_secondary="#0F1019",
-    bg_sidebar="#0C0D15",
-    bg_card="#1A1B2A",
-    bg_input="#13141F",
-    bg_hover="#24253A",
-    bg_selected="#2C2D48",
-    bg_badge="#24253A",
-    bg_overlay="rgba(0,0,0,0.55)",
+    bg_primary="#0A0A0A",
+    bg_secondary="#171717",
+    bg_sidebar="#0A0A0A",
+    bg_card="#171717",
+    bg_input="#171717",
+    bg_hover="#262626",
+    bg_selected="#042F2E",
+    bg_badge="#262626",
+    bg_overlay="rgba(0,0,0,0.6)",
 
-    text_primary="#E6E8F4",
-    text_secondary="#9DA1BB",
-    text_muted="#636780",
+    text_primary="#FAFAFA",
+    text_secondary="#A3A3A3",
+    text_muted="#737373",
     text_on_accent="#FFFFFF",
 
-    border="#252638",
-    border_focus="#7B8DFF",
-    border_light="#1E1F30",
+    border="#262626",
+    border_focus="#2DD4BF",
+    border_light="#1C1C1C",
 
-    accent="#7B8DFF",
-    accent_hover="#6A7CF0",
-    accent_pressed="#596BE0",
-    accent_light="#1F2038",
+    accent="#2DD4BF",
+    accent_hover="#14B8A6",
+    accent_pressed="#0D9488",
+    accent_light="#042F2E",
 
-    danger="#FF6B7A",
-    success="#5EC96A",
-    warning="#FFB347",
-    info="#4DB8D5",
+    danger="#F87171",
+    # Ver nota no LIGHT: verde bem separado do teal do accent.
+    success="#4ADE80",
+    warning="#FBBF24",
+    info="#38BDF8",
 
-    shadow="0 1px 3px rgba(0,0,0,0.35)",
-    shadow_lg="0 8px 30px rgba(0,0,0,0.55)",
+    shadow="0 1px 3px rgba(0,0,0,0.4)",
+    shadow_lg="0 8px 28px rgba(0,0,0,0.55)",
 )
 
 
@@ -541,12 +547,15 @@ QPushButton[class="quickMove"]:hover {{
 """
 
 
+# Cores categóricas (badges e barras de gráfico, sempre com texto branco por
+# cima). Atualizadas junto com a paleta: as antigas eram saturadas e escuras
+# demais, destoando dos cinzas neutros. Todas mantêm contraste com branco.
 TYPE_COLORS = {
-    "FEATURE": "#4050C8",
-    "BUG": "#CC222B",
-    "TECH_DEBT": "#D1550B",
-    "IMPROVEMENT": "#1E7E3F",
-    "CHORE": "#5E6273",
+    "FEATURE": "#2563EB",
+    "BUG": "#DC2626",
+    "TECH_DEBT": "#EA580C",
+    "IMPROVEMENT": "#16A34A",
+    "CHORE": "#71717A",
 }
 
 TYPE_LABELS = {
@@ -558,10 +567,10 @@ TYPE_LABELS = {
 }
 
 PRIORITY_COLORS = {
-    "LOW": "#5E6273",
-    "MEDIUM": "#4050C8",
-    "HIGH": "#D1550B",
-    "URGENT": "#CC222B",
+    "LOW": "#71717A",
+    "MEDIUM": "#2563EB",
+    "HIGH": "#EA580C",
+    "URGENT": "#DC2626",
 }
 
 PRIORITY_LABELS = {

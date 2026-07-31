@@ -68,21 +68,27 @@ class FlowIndicator(QWidget):
 
     # ------------------------------------------------------------------
     def _apply_styles(self) -> None:
+        """Três níveis visuais: concluída (cinza escuro), atual (accent, em
+        destaque) e futura (cinza claro).
+
+        A etapa concluída NÃO usa o verde de sucesso de propósito: com o accent
+        teal da paleta, verde e teal ficam quase indistinguíveis lado a lado.
+        Além disso, só a etapa atual em cor forte deixa o olho ir direto para
+        onde a reunião está — o ✓ já carrega o "concluído".
+        """
         th = current_theme()
         current_idx = STAGES.index(self._stage)
         for i, stage in enumerate(STAGES):
             dot, label = self._dots[stage], self._labels[stage]
             if i < current_idx:
-                # concluída
                 dot.setText("✓")
-                color = th.success
+                color = th.text_secondary
                 weight = 600
             elif i == current_idx:
                 dot.setText("●")
                 color = th.accent
                 weight = 700
             else:
-                # ainda não chegou
                 dot.setText("○")
                 color = th.text_muted
                 weight = 500
@@ -93,4 +99,4 @@ class FlowIndicator(QWidget):
         for i, conn in enumerate(self._connectors):
             # conector i fica entre a etapa i e i+1
             done = i < current_idx
-            conn.setStyleSheet(f"background: {th.success if done else th.border_light};")
+            conn.setStyleSheet(f"background: {th.border if done else th.border_light};")

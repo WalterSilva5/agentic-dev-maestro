@@ -101,10 +101,13 @@ class _QACard(QFrame):
         self._index = index
         self._orig_answer = (answer or "").strip()
         self.setToolTip(t("Duplo-clique no card para marcar como resolvida / reabrir."))
-        border = theme.success if resolved else theme.border
+        # Resolvida recua para o neutro; em aberto usa o accent, que é o que
+        # ainda pede atenção. (Antes era o inverso, com verde na resolvida — com
+        # o accent teal da paleta, verde e teal ficam quase indistinguíveis.)
+        edge = theme.border if resolved else theme.accent
         self.setStyleSheet(
-            f"_QACard {{ background: {theme.bg_card}; border: 1px solid {border}; "
-            f"border-left: 4px solid {theme.success if resolved else theme.accent}; "
+            f"_QACard {{ background: {theme.bg_card}; border: 1px solid {theme.border}; "
+            f"border-left: 4px solid {edge}; "
             f"border-radius: 8px; }}")
         lay = QVBoxLayout(self)
         lay.setContentsMargins(10, 8, 10, 8)
