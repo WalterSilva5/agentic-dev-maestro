@@ -158,11 +158,13 @@ ecossistema Python. É o caminho **mais caro**.
 
 ## 9. Decisão
 
-- [ ] **W — Rota web** (recomendada): consolidar na web UI React + daemon Python
-  (WS) + shell nativo (pywebview → Tauri).
-- [ ] **F — Flutter**: reescrita para desktop + mobile nativo (justificada só se
-  mobile for requisito de produto).
+- [ ] **W — Rota web** (era a recomendação técnica): consolidar na web UI React +
+  daemon Python (WS) + shell nativo (pywebview → Tauri).
+- [x] **F — Flutter** — **escolhida**: reescrita da UI em Flutter, mantendo o
+  backend Python como daemon. O plano de execução detalhado está no
+  [Plano 13 — front-end Flutter](frontend-flutter.ptbr.md) (~45–59 HD).
 - [x] **J — Java**: descartada (não atende à meta de interface moderna).
 
-> Marcar a opção escolhida ao bater o martelo; a execução segue a seção
-> correspondente (6 ou 7).
+> Decisão tomada pelo dono do projeto. A recomendação técnica registrada acima
+> era a rota web (menor custo), mas a escolha por Flutter foi mantida
+> conscientemente; a seção 7 deste documento é a base do Plano 13.

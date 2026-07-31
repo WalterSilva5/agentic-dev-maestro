@@ -30,3 +30,11 @@ são decisão de liderança.
   + ML juntos), não na linguagem. Registra o que já foi aplicado (liberar Whisper
   ocioso, widget por evento) e o que falta (imports/telas tardios, daemon
   headless); a eficiência vem de arquitetura, não de trocar a UI.
+
+- [Implementação do front-end Flutter](frontend-flutter.ptbr.md)
+  ([EN](frontend-flutter.md)) — **plano de execução** da decisão por Flutter
+  (backend Python permanece como daemon). Tarefas e subtarefas em 6 fases:
+  fundação, 18 telas CRUD sobre os 127 endpoints existentes, backend de Reuniões
+  (a única funcionalidade sem API), Reuniões no Flutter, paridade/empacotamento
+  e mobile opcional (~45–59 HD). O contrato OpenAPI 3.1 permite **gerar** o
+  cliente Dart.

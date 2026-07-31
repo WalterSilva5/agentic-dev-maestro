@@ -156,11 +156,13 @@ Python ecosystem. It is the **most expensive** path.
 
 ## 9. Decision
 
-- [ ] **W — Web route** (recommended): consolidate on the React web UI + Python
-  daemon (WS) + native shell (pywebview → Tauri).
-- [ ] **F — Flutter**: rewrite for desktop + native mobile (justified only if
-  mobile is a product requirement).
+- [ ] **W — Web route** (was the technical recommendation): consolidate on the
+  React web UI + Python daemon (WS) + native shell (pywebview → Tauri).
+- [x] **F — Flutter** — **chosen**: rewrite the UI in Flutter, keeping the Python
+  backend as a daemon. The detailed execution plan is
+  [Plan 13 — Flutter front end](frontend-flutter.md) (~45–59 PD).
 - [x] **J — Java**: ruled out (does not meet the modern-interface goal).
 
-> Check the chosen option once the call is made; execution follows the matching
-> section (6 or 7).
+> Call made by the project owner. The technical recommendation recorded above was
+> the web route (lower cost), but Flutter was chosen deliberately; section 7 of
+> this document is the basis for Plan 13.
