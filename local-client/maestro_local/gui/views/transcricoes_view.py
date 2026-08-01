@@ -5,7 +5,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from PySide6.QtCore import QBuffer, QByteArray, QIODevice, Qt, QTimer, Signal
+from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtWidgets import (
     QApplication,
     QDialog,
@@ -1171,26 +1171,23 @@ class TranscricoesView(QWidget):
         QTimer.singleShot(400, self._do_grab_screen)
 
     def _do_grab_screen(self):
+        from maestro_local.transcricoes import screen_capture
         win = self.window()
-        pix = None
         try:
-            screen = QApplication.primaryScreen()
-            if screen is not None:
-                pix = screen.grabWindow(0)
+            # A janela do Maestro está minimizada aqui, então "tela toda" mostra
+            # o que o usuário quer anexar, não o próprio app.
+            png = screen_capture.capturar_png(screen_capture.MODO_TELA)
         finally:
             win.showNormal()
             win.raise_()
             win.activateWindow()
-        if pix is None or pix.isNull():
-            self.status_label.setText(t("Não foi possível capturar a tela."))
+        if not png:
+            ok, motivo = screen_capture.disponivel()
+            self.status_label.setText(
+                motivo if not ok else t("Não foi possível capturar a tela."))
             return
-        ba = QByteArray()
-        buf = QBuffer(ba)
-        buf.open(QIODevice.WriteOnly)
-        pix.save(buf, "PNG")
-        buf.close()
         n = sum(1 for it in self._context_items if it["label"].startswith("Captura de tela")) + 1
-        self._run_vision(f"Captura de tela {n}", bytes(ba.data()), "image/png")
+        self._run_vision(f"Captura de tela {n}", png, "image/png")
 
     def _run_vision(self, label: str, image_bytes: bytes, mime: str):
         if not self._provider_ready():
@@ -1308,17 +1305,8 @@ class TranscricoesView(QWidget):
         Wayland nativo — o recurso falhava em silêncio, o usuário ligava o
         observador e nada acontecia. Melhor dizer na hora, com o motivo.
         """
-        app = QApplication.instance()
-        if app is not None and app.platformName().startswith("wayland"):
-            return False, t(
-                "Ver a tela ainda não funciona nesta sessão Wayland — o método de "
-                "captura é do X11. É preciso o portal do sistema (XDG Desktop "
-                "Portal + PipeWire), ainda não implementado. Numa sessão X11 "
-                "funciona normalmente.")
-        screens = QApplication.screens()
-        if not screens:
-            return False, t("Nenhum monitor detectado para capturar.")
-        return True, ""
+        from maestro_local.transcricoes import screen_capture
+        return screen_capture.disponivel()
 
     def _on_screen_watch_toggled(self, on: bool):
         if on:
@@ -1359,25 +1347,16 @@ class TranscricoesView(QWidget):
             return  # leitura anterior ainda em andamento — evita empilhar
         if not self._provider_ready():
             return
-        screens = QApplication.screens()
+        from maestro_local.transcricoes import screen_capture
         idx = self.screen_combo.currentData()
-        idx = idx if isinstance(idx, int) else self.screen_combo.currentIndex()
-        if idx is None or idx < 0 or idx >= len(screens):
+        idx = idx if isinstance(idx, int) else None
+        # Janela ativa por padrão: para um copiloto, o que importa é o que se
+        # está editando — é menos ruído e menos informação privada que a tela toda.
+        png = screen_capture.capturar_png(screen_capture.MODO_JANELA, monitor=idx)
+        if not png:
+            self.screen_watch_status.setText(t("Não foi possível capturar a tela."))
             return
-        screen = screens[idx]
-        geo = screen.geometry()
-        pix = screen.grabWindow(0, geo.x(), geo.y(), geo.width(), geo.height())
-        if pix is None or pix.isNull():
-            self.screen_watch_status.setText(t("Não foi possível capturar o monitor selecionado."))
-            return
-        if pix.width() > 1280:  # reduz o payload enviado à IA
-            pix = pix.scaledToWidth(1280, Qt.SmoothTransformation)
-        ba = QByteArray()
-        buf = QBuffer(ba)
-        buf.open(QIODevice.WriteOnly)
-        pix.save(buf, "PNG")
-        buf.close()
-        self.agent.read_screen(t("Tela ao vivo"), bytes(ba.data()), "image/png")
+        self.agent.read_screen(t("Tela ao vivo"), png, "image/png")
 
     def _on_screen_watch_captured(self, label: str, text: str):
         if text and self.screen_watch_check.isChecked():
