@@ -1300,12 +1300,37 @@ class TranscricoesView(QWidget):
             self._live_context = self._meeting_context()
 
     # -------------------- Observador de tela ao vivo ------------------
+    @staticmethod
+    def _captura_de_tela_disponivel() -> tuple[bool, str]:
+        """A captura funciona neste ambiente?
+
+        `QScreen.grabWindow` é API da era X11 e devolve um pixmap VAZIO no
+        Wayland nativo — o recurso falhava em silêncio, o usuário ligava o
+        observador e nada acontecia. Melhor dizer na hora, com o motivo.
+        """
+        app = QApplication.instance()
+        if app is not None and app.platformName().startswith("wayland"):
+            return False, t(
+                "Ver a tela ainda não funciona nesta sessão Wayland — o método de "
+                "captura é do X11. É preciso o portal do sistema (XDG Desktop "
+                "Portal + PipeWire), ainda não implementado. Numa sessão X11 "
+                "funciona normalmente.")
+        screens = QApplication.screens()
+        if not screens:
+            return False, t("Nenhum monitor detectado para capturar.")
+        return True, ""
+
     def _on_screen_watch_toggled(self, on: bool):
         if on:
             if not self._provider_ready():
                 self.screen_watch_check.setChecked(False)
                 self.status_label.setText(
                     t("Configure um provedor de IA (com visão) para o assistente ver a tela."))
+                return
+            ok, motivo = self._captura_de_tela_disponivel()
+            if not ok:
+                self.screen_watch_check.setChecked(False)
+                self.status_label.setText(motivo)
                 return
             self._start_screen_watch()
         else:

@@ -185,11 +185,13 @@ class MainWindow(QMainWindow):
         self.nav_list = QListWidget()
         self.nav_list.setObjectName("navList")
         nav_groups = [
+            # Reuniões/Copiloto primeiro: é o eixo do produto (ver
+            # docs/planos/copiloto-ambiente).
             (t("TRABALHO"), [
+                (t("Reuniões"), "transcricoes"),
                 (t("Dashboard"), "dashboard"),
                 (t("Meu Dia"), "daily"),
                 (t("Board"), "board"),
-                (t("Reuniões"), "transcricoes"),
                 (t("Assistente"), "chat"),
             ]),
             (t("GERENCIAR"), [

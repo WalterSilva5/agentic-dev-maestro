@@ -31,6 +31,13 @@ são decisão de liderança.
   ocioso, widget por evento) e o que falta (imports/telas tardios, daemon
   headless); a eficiência vem de arquitetura, não de trocar a UI.
 
+- [Copiloto de ambiente — Reuniões como eixo do produto](copiloto-ambiente.ptbr.md)
+  ([EN](copiloto-ambiente.md)) — pivô para transformar Reuniões no eixo do app e
+  ampliá-la para copiloto do programador (referência: Cluely). Registra o achado
+  de que **ver a tela está quebrado no Wayland** (`grabWindow` devolve vazio) e
+  precisa de portal + PipeWire; 6 fases (~20–29 HD) e a decisão pendente sobre
+  perseguir ou não a "indetectabilidade" da referência.
+
 - [Implementação do front-end Flutter](frontend-flutter.ptbr.md)
   ([EN](frontend-flutter.md)) — **plano de execução** da decisão por Flutter
   (backend Python permanece como daemon). Tarefas e subtarefas em 6 fases:

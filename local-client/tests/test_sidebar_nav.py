@@ -36,7 +36,6 @@ def test_atalhos_pulam_os_cabecalhos(qapp, temp_db):
     """Alt+N abre a N-ésima TELA — antes contava a linha crua da lista."""
     from maestro_local.gui.main_window import MainWindow
     w = MainWindow()
-    assert w._nav_keys[0] == "dashboard"
     assert "TRABALHO" not in w._nav_keys
     assert w._nav_keys == _keys(w)
 
@@ -70,3 +69,10 @@ def test_troca_de_tema_descarta_o_cache(qapp):
     assert icons._CACHE
     icons.clear_cache()
     assert not icons._CACHE
+
+
+def test_reunioes_e_o_primeiro_item(qapp, temp_db):
+    """Reuniões é o eixo do produto — abre a lista do grupo TRABALHO."""
+    from maestro_local.gui.main_window import MainWindow
+    w = MainWindow()
+    assert w._nav_keys[0] == "transcricoes"
