@@ -200,10 +200,12 @@ QListWidget#navList {{
 QListWidget#navList::item {{
     /* Densidade: com os grupos, 13 linhas precisam caber sem rolagem. */
     padding: 6px 12px;
-    margin: 1px 6px;
+    margin: 2px 6px;
     border-radius: 8px;
     border: none;
-    background-color: transparent;
+    /* Fundo próprio para separar cada item do painel — sem borda, para não
+       voltar ao aspecto de "caixinha" que envelhecia o menu. */
+    background-color: {t.bg_secondary};
     color: {t.text_secondary};
     font-size: 13px;
     font-weight: 500;

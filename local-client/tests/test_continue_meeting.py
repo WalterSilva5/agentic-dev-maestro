@@ -47,6 +47,12 @@ def gravavel(meetings_view, monkeypatch):
         def isFinished(self):
             return True
 
+    # Gravar pergunta se o contexto do projeto vai ao assistente; num teste o
+    # modal travaria a suíte. Padrão do teste: NÃO compartilhar.
+    import maestro_local.gui.confirm_context as confirm_context
+    monkeypatch.setattr(confirm_context, "confirm_share_context",
+                        lambda *a, **k: False)
+
     monkeypatch.setattr(audio_backend, "parec_available", lambda: True)
     monkeypatch.setattr(audio_backend, "list_sources", lambda: [src])
     monkeypatch.setattr(audio_backend, "RecordingSession", _Sessao)
