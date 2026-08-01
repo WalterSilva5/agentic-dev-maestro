@@ -48,16 +48,18 @@ class CoachTip(QFrame):
         head.addWidget(self._title)
         head.addStretch()
         close = QPushButton("✕")
-        close.setProperty("flat", True)
         close.setFixedSize(22, 22)
         close.setCursor(Qt.PointingHandCursor)
+        close.setToolTip(t("Dispensar"))
+        # Estilo próprio: a classe "flat" do tema usa padding 8x16, que num
+        # botão de 22x22 não deixa espaço e o ✕ some.
+        self._close = close
         close.clicked.connect(self.hide)
         head.addWidget(close)
         lay.addLayout(head)
 
         self._msg = QLabel("")
         self._msg.setWordWrap(True)
-        self._msg.setMaximumWidth(340)
         lay.addWidget(self._msg)
 
         actions = QHBoxLayout()
@@ -78,15 +80,43 @@ class CoachTip(QFrame):
             f"color: {th.text_primary}; font-weight: 700; border: none; background: transparent;")
         cat = f"  ·  {category}" if category else ""
         self._title.setText(t("💡 Dica do agente") + cat)
+        self._close.setStyleSheet(
+            f"QPushButton {{ color: {th.text_muted}; background: transparent; "
+            f"border: none; padding: 0; font-size: 13px; }} "
+            f"QPushButton:hover {{ color: {th.text_primary}; }}")
         self._msg.setStyleSheet(
             f"color: {th.text_secondary}; font-size: 12px; border: none; background: transparent;")
         self._msg.setText(text)
-        self.adjustSize()
         self.reposition()
         self.show()
         self.raise_()
 
+    # Limites do card. Abaixo do mínimo o texto vira uma coluna ilegível;
+    # acima do máximo a dica domina a janela.
+    _LARGURA_MAX = 380
+    _LARGURA_MIN = 240
+
     def reposition(self):
-        p = self.parent()
-        if p:
-            self.move(p.width() - self.width() - 20, p.height() - self.height() - 20)
+        """Redimensiona ao conteúdo/janela e reencosta no canto.
+
+        A altura de um QLabel com quebra de linha depende da largura
+        (heightForWidth) e o Qt não resolve isso sozinho ao dimensionar o pai —
+        `adjustSize()` puro deixava o card baixo demais e cortava o texto.
+        Por isso a largura é fixada primeiro e a altura calculada a partir dela.
+        """
+        pai = self.parent()
+        if not pai:
+            return
+        largura = max(self._LARGURA_MIN,
+                      min(self._LARGURA_MAX, pai.width() - 40))
+        self.setFixedWidth(largura)
+
+        m = self.layout().contentsMargins()
+        util = largura - m.left() - m.right()
+        self._msg.setFixedWidth(util)
+        self._msg.setMinimumHeight(self._msg.heightForWidth(util))
+        self.adjustSize()
+
+        # Nunca sai da janela: em janela pequena, encosta no canto.
+        self.move(max(0, pai.width() - self.width() - 20),
+                  max(0, pai.height() - self.height() - 20))
