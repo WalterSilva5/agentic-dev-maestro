@@ -389,6 +389,11 @@ class MainWindow(QMainWindow):
         self._todo_timer.start()
         QTimer.singleShot(4000, self._check_todo_reminders)
 
+        # Foco do dia: uma vez por dia, ao abrir. Adiado para a janela já estar
+        # desenhada — um modal em cima de uma janela ainda em construção fica
+        # deslocado e sem o tema aplicado.
+        QTimer.singleShot(600, self._maybe_show_daily_focus)
+
         # Coach proativo: dicas do agente ao longo do dia (opt-in em Configurações)
         from maestro_local.gui.coach_widget import CoachTip
         self.coach_tip = CoachTip(self, lambda: self._open_key("chat"))
@@ -640,6 +645,27 @@ class MainWindow(QMainWindow):
         self._apply_theme()
         self.ws_selector.refresh_display()
         self._refresh_all()
+
+    def _maybe_show_daily_focus(self):
+        """Mostra o modal de foco se ainda não apareceu hoje."""
+        from datetime import date
+
+        from maestro_local.config import (
+            daily_focus_pending,
+            get_daily_focus_config,
+            set_daily_focus_config,
+        )
+        hoje = date.today().isoformat()
+        if not daily_focus_pending(hoje):
+            return
+        from maestro_local.gui.daily_focus_dialog import DailyFocusDialog, todos_abertos
+        dlg = DailyFocusDialog(self, get_daily_focus_config()["message"], todos_abertos())
+        dlg.exec()
+        # Marca como visto mesmo se fechado no X: o objetivo é aparecer uma vez
+        # por dia, não insistir até clicar no botão.
+        set_daily_focus_config(last_shown=hoje)
+        if dlg.concluidos():
+            self._refresh_all()
 
     def _refresh_nav_icons(self):
         """Repinta os ícones: o item ativo usa a cor de destaque, os demais o

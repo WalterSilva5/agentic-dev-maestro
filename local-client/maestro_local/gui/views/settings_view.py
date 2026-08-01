@@ -72,6 +72,7 @@ class SettingsView(QWidget):
         self._build_language_section()
         self._build_ai_section()
         self._build_transcricoes_section()
+        self._build_daily_focus_section()
         self._build_pomodoro_section()
         self._build_coach_section()
         self._build_notification_section()
@@ -373,6 +374,31 @@ class SettingsView(QWidget):
         text = f"~{mb} MB" if mb < 1000 else f"~{mb / 1000:.1f} GB"
         self.whisper_ram_hint.setText(t("≈ {ram} de RAM enquanto em uso").format(ram=text))
 
+    def _build_daily_focus_section(self):
+        card, layout = self._make_card("🎯", t("Foco do dia"))
+
+        desc = QLabel(
+            t("Ao abrir o programa, uma vez por dia, mostra esta mensagem com a "
+              "lista das suas pendências."))
+        desc.setWordWrap(True)
+        desc.setProperty("class", "hint")
+        layout.addWidget(desc)
+
+        self.focus_enabled = QCheckBox(t("Mostrar ao abrir o programa"))
+        self.focus_enabled.toggled.connect(self._save_settings)
+        layout.addWidget(self.focus_enabled)
+
+        row = QHBoxLayout()
+        row.setSpacing(8)
+        row.addWidget(QLabel(t("Mensagem:")))
+        self.focus_message = QLineEdit()
+        self.focus_message.setPlaceholderText(t("FOCO NO OBJETIVO"))
+        self.focus_message.setToolTip(
+            t("Aparece em destaque no topo do modal. Vazio volta ao padrão."))
+        self.focus_message.textChanged.connect(self._save_settings)
+        row.addWidget(self.focus_message, 1)
+        layout.addLayout(row)
+
     def _build_pomodoro_section(self):
         card, layout = self._make_card("🍅", t("Pomodoro"))
 
@@ -516,6 +542,11 @@ class SettingsView(QWidget):
 
         self.pomodoro_duration.setValue(settings.get("pomodoro_minutes", 25))
 
+        from maestro_local.config import get_daily_focus_config
+        foco = get_daily_focus_config()
+        self.focus_enabled.setChecked(foco["enabled"])
+        self.focus_message.setText(foco["message"])
+
         coach = settings.get("coach", {})
         self.coach_enabled.setChecked(coach.get("enabled", True))
         self.coach_interval.setValue(int(coach.get("interval_min", 90)))
@@ -542,8 +573,18 @@ class SettingsView(QWidget):
         if self._loading:
             return
         cfg = load_config()
+        # `settings` é reescrito inteiro, então o que não estiver aqui some.
+        # `last_shown` do foco do dia é gravado por outro caminho (ao exibir o
+        # modal) e precisa sobreviver a um salvamento de configurações — senão
+        # mexer em qualquer opção faria o modal reaparecer no mesmo dia.
+        foco_anterior = cfg.get("settings", {}).get("daily_focus", {})
         cfg["settings"] = {
             "pomodoro_minutes": self.pomodoro_duration.value(),
+            "daily_focus": {
+                "enabled": self.focus_enabled.isChecked(),
+                "message": self.focus_message.text().strip(),
+                "last_shown": foco_anterior.get("last_shown", ""),
+            },
             "coach": {
                 "enabled": self.coach_enabled.isChecked(),
                 "interval_min": self.coach_interval.value(),

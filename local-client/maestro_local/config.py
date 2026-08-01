@@ -53,6 +53,41 @@ def set_active_project_id(project_id):
 _COACH_DEFAULTS = {"enabled": True, "interval_min": 90}
 
 
+_FOCO_DEFAULTS = {"enabled": True, "message": "FOCO NO OBJETIVO"}
+
+
+def get_daily_focus_config() -> dict:
+    """Modal de foco do dia: mensagem e se aparece ao abrir o programa."""
+    cfg = load_config().get("settings", {}).get("daily_focus", {})
+    msg = (cfg.get("message") or "").strip() or _FOCO_DEFAULTS["message"]
+    return {
+        "enabled": bool(cfg.get("enabled", _FOCO_DEFAULTS["enabled"])),
+        "message": msg,
+        "last_shown": cfg.get("last_shown", ""),   # AAAA-MM-DD
+    }
+
+
+def set_daily_focus_config(enabled: bool | None = None,
+                           message: str | None = None,
+                           last_shown: str | None = None):
+    cfg = load_config()
+    foco = cfg.setdefault("settings", {}).setdefault("daily_focus", {})
+    if enabled is not None:
+        foco["enabled"] = bool(enabled)
+    if message is not None:
+        # Mensagem vazia volta ao padrão em vez de deixar o modal sem título.
+        foco["message"] = message.strip() or _FOCO_DEFAULTS["message"]
+    if last_shown is not None:
+        foco["last_shown"] = last_shown
+    save_config(cfg)
+
+
+def daily_focus_pending(hoje: str) -> bool:
+    """True se o modal ainda não foi exibido hoje (e está habilitado)."""
+    cfg = get_daily_focus_config()
+    return bool(cfg["enabled"]) and cfg["last_shown"] != hoje
+
+
 def get_coach_config() -> dict:
     cfg = load_config().get("settings", {}).get("coach", {})
     return {
