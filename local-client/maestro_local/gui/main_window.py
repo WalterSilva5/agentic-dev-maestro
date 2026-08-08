@@ -204,6 +204,13 @@ class MainWindow(QMainWindow):
                 (t("Configurações"), "settings"),
             ]),
         ]
+        # Só entra o que o usuário deixou ligado (ver maestro_local/features).
+        from maestro_local import features
+        nav_groups = [(titulo, [(rot, k) for rot, k in itens
+                                if features.habilitada(k)])
+                      for titulo, itens in nav_groups]
+        nav_groups = [(titulo, itens) for titulo, itens in nav_groups if itens]
+
         self._primary_keys = {k for _, itens in nav_groups for _, k in itens}
         self._nav_keys: list[str] = []   # ordem só das telas (pula cabeçalhos)
         for titulo, itens in nav_groups:
@@ -224,6 +231,7 @@ class MainWindow(QMainWindow):
 
         # Transcrições — acesso rápido à gravação
         self.transcricoes_quick = TranscricoesQuickWidget()
+        self.transcricoes_quick.setVisible(features.habilitada("quick_record"))
         self.transcricoes_quick.toggle_requested.connect(self._transcricoes_quick_toggle)
         self.transcricoes_quick.open_requested.connect(lambda: self._open_key("transcricoes"))
         sb_layout.addWidget(self.transcricoes_quick)
@@ -480,6 +488,9 @@ class MainWindow(QMainWindow):
 
     # ---- Lembretes de TODOs ----
     def _check_todo_reminders(self):
+        from maestro_local import features
+        if not features.habilitada("todo_reminder"):
+            return
         from datetime import datetime
         s = get_session()
         try:

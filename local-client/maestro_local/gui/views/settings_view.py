@@ -72,6 +72,7 @@ class SettingsView(QWidget):
         self._build_language_section()
         self._build_ai_section()
         self._build_transcricoes_section()
+        self._build_features_section()
         self._build_daily_focus_section()
         self._build_pomodoro_section()
         self._build_coach_section()
@@ -373,6 +374,39 @@ class SettingsView(QWidget):
             return
         text = f"~{mb} MB" if mb < 1000 else f"~{mb / 1000:.1f} GB"
         self.whisper_ram_hint.setText(t("≈ {ram} de RAM enquanto em uso").format(ram=text))
+
+    def _build_features_section(self):
+        from maestro_local import features
+        card, layout = self._make_card("🧩", t("Funcionalidades"))
+
+        desc = QLabel(
+            t("Desligue o que você não usa para deixar a interface mais enxuta. "
+              "Nada é apagado — é só deixar de aparecer, e dá para religar aqui "
+              "a qualquer momento. Exige reiniciar o aplicativo."))
+        desc.setWordWrap(True)
+        desc.setProperty("class", "hint")
+        layout.addWidget(desc)
+
+        self.feature_checks = {}
+        for grupo, itens in features.por_grupo().items():
+            titulo = QLabel(grupo.upper())
+            titulo.setObjectName("navSection")
+            layout.addWidget(titulo)
+            for f in itens:
+                chk = QCheckBox(t(f.rotulo))
+                if f.descricao:
+                    chk.setToolTip(t(f.descricao))
+                chk.setChecked(features.habilitada(f.chave))
+                chk.toggled.connect(
+                    lambda on, chave=f.chave: self._on_feature_toggled(chave, on))
+                layout.addWidget(chk)
+                self.feature_checks[f.chave] = chk
+
+    def _on_feature_toggled(self, chave: str, ligada: bool):
+        if self._loading:
+            return
+        from maestro_local import features
+        features.definir(chave, ligada)
 
     def _build_daily_focus_section(self):
         card, layout = self._make_card("🎯", t("Foco do dia"))

@@ -90,7 +90,10 @@ class ToolsHubView(QWidget):
         self._grid.setSpacing(12)
         self._grid.setContentsMargins(0, 0, 0, 0)
         cols = 3
-        for i, (key, icon, label, desc) in enumerate(HUB_ITEMS):
+        # Só as ferramentas que o usuário deixou ligadas (ver maestro_local/features).
+        from maestro_local import features
+        visiveis = [it for it in HUB_ITEMS if features.habilitada(it[0])]
+        for i, (key, icon, label, desc) in enumerate(visiveis):
             card = _HubCard(key, icon, label, desc)
             card.clicked.connect(self._on_open)
             self._grid.addWidget(card, i // cols, i % cols)

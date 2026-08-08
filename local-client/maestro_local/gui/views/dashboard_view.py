@@ -57,6 +57,8 @@ class DashboardView(QWidget):
         # Pomodoro em destaque no topo
         pomo_row = QHBoxLayout()
         self.pomodoro = PomodoroWidget()
+        from maestro_local import features
+        self.pomodoro.setVisible(features.habilitada("pomodoro"))
         self.pomodoro.setMaximumWidth(260)
         self.pomodoro.apply_theme(current_theme())
         pomo_row.addWidget(self.pomodoro)
