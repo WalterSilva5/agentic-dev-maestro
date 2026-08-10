@@ -53,6 +53,18 @@ def set_active_project_id(project_id):
 _COACH_DEFAULTS = {"enabled": True, "interval_min": 90}
 
 
+def get_theme_name() -> str:
+    """Tema salvo. Antes o tema não era persistido e voltava ao claro sempre."""
+    nome = (load_config().get("settings", {}).get("theme") or "").strip()
+    return nome or "light"
+
+
+def set_theme_name(nome: str) -> None:
+    cfg = load_config()
+    cfg.setdefault("settings", {})["theme"] = nome
+    save_config(cfg)
+
+
 _FOCO_DEFAULTS = {"enabled": True, "message": "FOCO NO OBJETIVO"}
 
 

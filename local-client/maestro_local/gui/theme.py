@@ -41,6 +41,10 @@ class ThemeColors:
     shadow: str
     shadow_lg: str
 
+    # Tipografia — o tema hacker troca por monoespaçada.
+    font_family: str = ('"Inter", "Segoe UI", "Noto Sans", "Roboto", '
+                        'system-ui, sans-serif')
+
 
 # Paleta: accent teal + cinzas NEUTROS.
 #
@@ -120,6 +124,62 @@ DARK = ThemeColors(
 )
 
 
+# Tema "hacker": preto com verde de fósforo e tipografia monoespaçada.
+# O accent É verde, então `success` NÃO pode ser verde também — usa lima, que
+# se distingue do verde-terminal. (Mesmo cuidado tomado no tema teal.)
+HACKER = ThemeColors(
+    bg_primary="#060A07",
+    bg_secondary="#0C130E",
+    bg_sidebar="#040706",
+    bg_card="#0B110C",
+    bg_input="#080D09",
+    bg_hover="#15241A",
+    bg_selected="#0B2E18",
+    bg_badge="#15241A",
+    bg_overlay="rgba(0,0,0,0.72)",
+
+    text_primary="#CFF7D8",
+    text_secondary="#7FCF95",
+    text_muted="#4C8560",
+    text_on_accent="#04140A",
+
+    border="#1B3322",
+    border_focus="#00E97A",
+    border_light="#122419",
+
+    accent="#00E97A",
+    accent_hover="#00C765",
+    accent_pressed="#00A554",
+    accent_light="#0B2E18",
+
+    danger="#FF6B6B",
+    success="#A3E635",     # lima: separa do verde do accent
+    warning="#FBBF24",
+    info="#22D3EE",
+
+    shadow="0 1px 3px rgba(0,0,0,0.6)",
+    shadow_lg="0 8px 28px rgba(0,0,0,0.75)",
+    font_family='"JetBrains Mono", "Fira Code", "Hack", "DejaVu Sans Mono", monospace',
+)
+
+# Ordem do rodízio do botão da barra lateral.
+TEMAS = {"light": LIGHT, "dark": DARK, "hacker": HACKER}
+NOMES_TEMAS = ("light", "dark", "hacker")
+ROTULOS_TEMAS = {"light": "Claro", "dark": "Escuro", "hacker": "Hacker"}
+
+
+def nome_do_tema(t: ThemeColors) -> str:
+    for nome, tema in TEMAS.items():
+        if tema is t:
+            return nome
+    return "light"
+
+
+def proximo_tema(nome: str) -> str:
+    i = NOMES_TEMAS.index(nome) if nome in NOMES_TEMAS else 0
+    return NOMES_TEMAS[(i + 1) % len(NOMES_TEMAS)]
+
+
 _current: ThemeColors = LIGHT
 
 
@@ -141,7 +201,7 @@ def build_stylesheet(t: ThemeColors) -> str:
 QMainWindow, QWidget {{
     background-color: {t.bg_primary};
     color: {t.text_primary};
-    font-family: "Inter", "Segoe UI", "Noto Sans", "Roboto", system-ui, sans-serif;
+    font-family: {t.font_family};
     font-size: 13px;
 }}
 QMenuBar {{

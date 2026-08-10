@@ -18,12 +18,9 @@ from PySide6.QtWidgets import (
 )
 
 from maestro_local.gui.theme import (
-    DARK,
-    LIGHT,
     PRIORITY_LABELS,  # noqa: F401 - exported for other modules
     build_stylesheet,
     current_theme,
-    is_dark,
     set_theme,
 )
 from maestro_local.config import get_active_workspace_id, get_workspace_db_path
@@ -614,8 +611,10 @@ class MainWindow(QMainWindow):
         self._refresh_nav_icons()
         self.transcricoes_quick.apply_theme(theme)
         self.dashboard_view.pomodoro.apply_theme(theme)
-        theme_icon = "☾" if not is_dark() else "☀"
-        self.theme_btn.setText(f"  {theme_icon}   {t('Tema escuro') if not is_dark() else t('Tema claro')}")
+        from maestro_local.gui.theme import ROTULOS_TEMAS, nome_do_tema, proximo_tema
+        prox = proximo_tema(nome_do_tema(theme))
+        icone = {"light": "☀", "dark": "☾", "hacker": "❯"}.get(prox, "☾")
+        self.theme_btn.setText(f"  {icone}   {t('Tema')}: {t(ROTULOS_TEMAS[prox])}")
         self.theme_btn.setStyleSheet(
             f"color: {theme.text_muted}; font-size: 11px; padding: 4px 12px; "
             f"text-align: left; border: 1px solid {theme.border}; background: transparent; "
@@ -662,7 +661,12 @@ class MainWindow(QMainWindow):
         )
 
     def _toggle_theme(self):
-        set_theme(DARK if not is_dark() else LIGHT)
+        """Roda entre claro, escuro e hacker, guardando a escolha."""
+        from maestro_local.config import set_theme_name
+        from maestro_local.gui.theme import TEMAS, nome_do_tema, proximo_tema
+        novo = proximo_tema(nome_do_tema(current_theme()))
+        set_theme(TEMAS[novo])
+        set_theme_name(novo)
         self._apply_theme()
         self.ws_selector.refresh_display()
         self._refresh_all()

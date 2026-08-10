@@ -44,6 +44,10 @@ def main():
     from maestro_local.gui.main_window import MainWindow
 
     app = QApplication(sys.argv)
+    # Tema escolhido pelo usuário — antes voltava ao claro a cada abertura.
+    from maestro_local.config import get_theme_name
+    from maestro_local.gui.theme import TEMAS, set_theme
+    set_theme(TEMAS.get(get_theme_name(), TEMAS["light"]))
     _restore_utf8_locale()  # Qt zera o locale ao criar o QApplication
     app.setApplicationName("Maestro Local")
     window = MainWindow(api_port=port)
