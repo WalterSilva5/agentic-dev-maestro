@@ -79,13 +79,17 @@ class EyecareBreak(QWidget):
             f"background: transparent; border: none;")
         lay.addWidget(titulo)
 
-        instrucao = QLabel(t("Olhe para algo a uns 6 metros de distância e pisque algumas vezes."))
-        instrucao.setAlignment(Qt.AlignCenter)
-        instrucao.setWordWrap(True)
-        instrucao.setStyleSheet(
-            f"color: {th.text_secondary}; font-size: 14px; "
+        # Uma dica diferente a cada pausa. Uma frase fixa vira paisagem depois
+        # de algumas repetições e a tela deixa de ensinar qualquer coisa.
+        from maestro_local.eyecare import proxima_dica
+        self.dica = QLabel(t(proxima_dica()))
+        self.dica.setAlignment(Qt.AlignCenter)
+        self.dica.setWordWrap(True)
+        self.dica.setStyleSheet(
+            f"color: {th.text_secondary}; font-size: 15px; line-height: 150%; "
             f"background: transparent; border: none;")
-        lay.addWidget(instrucao)
+        lay.addWidget(self.dica, 0, Qt.AlignHCenter)
+        self._largura_dica = 620
 
         self._contador = QLabel("")
         self._contador.setAlignment(Qt.AlignCenter)
@@ -137,11 +141,28 @@ class EyecareBreak(QWidget):
         if principal is not None:
             self.setScreen(principal)
             self.setGeometry(principal.geometry())
+        self._ajustar_dica(principal)
         self.showFullScreen()
         self.raise_()
         self.activateWindow()
         self.btn_pular.setFocus()
         self._tick.start()
+
+    def _ajustar_dica(self, tela):
+        """Fixa a largura da dica e reserva a altura que o texto quebrado ocupa.
+
+        Um QLabel com wordWrap não informa ao layout a altura que vai precisar:
+        o layout pergunta a altura para a largura natural, e o texto sai cortado
+        na última linha. Com a largura fixada dá para perguntar direto ao
+        heightForWidth.
+
+        A linha também não pode ser larga demais: percorrer uma linha longa em
+        tela cheia cansa justamente o olho que a pausa quer descansar.
+        """
+        disponivel = tela.geometry().width() if tela is not None else 800
+        largura = max(280, min(self._largura_dica, disponivel - 80))
+        self.dica.setFixedWidth(largura)
+        self.dica.setMinimumHeight(self.dica.heightForWidth(largura))
 
     def keyPressEvent(self, event):
         # Esc adia em vez de fechar sem mais: uma janela em tela cheia que some

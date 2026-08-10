@@ -130,3 +130,55 @@ def devida(agora: datetime | None = None, em_reuniao: bool = False) -> bool:
 def cancelar_adiamento() -> None:
     """Volta a valer o ciclo normal (usado pelo menu da bandeja)."""
     _gravar_instante("adiada_ate", None)
+
+
+# ---------------------------------------------------------------------------
+# Dicas exibidas durante a pausa
+#
+# São de ergonomia e hábito, não de tratamento: o programa não tem como saber
+# de sintoma nenhum. Quando o assunto passa disso, a dica manda procurar um
+# oftalmologista em vez de sugerir conduta.
+#
+# A rotação é sequencial e guardada na configuração, não sorteada: sorteio
+# repete a mesma dica em pausas seguidas com frequência incômoda, e depois de
+# ver a mesma frase três vezes ninguém lê a quarta.
+# ---------------------------------------------------------------------------
+
+DICAS: tuple[str, ...] = (
+    "Pisque algumas vezes de propósito. Diante da tela a gente pisca bem menos, "
+    "e é isso que resseca os olhos.",
+    "Olhe para algo a uns 6 metros. O músculo que foca de perto passa horas "
+    "contraído — longe é o que o solta.",
+    "Deixe a tela a mais ou menos um braço de distância, com o topo na altura "
+    "dos olhos ou um pouco abaixo.",
+    "Compare o brilho da tela com o da parede atrás dela. Tela muito mais clara "
+    "que o ambiente cansa a vista.",
+    "Aumente o tamanho da fonte em vez de aproximar o rosto da tela.",
+    "Desvie o ar do ventilador ou do ar-condicionado do rosto: vento direto "
+    "resseca os olhos mais rápido que a tela.",
+    "Posicione a luz de forma que não reflita na tela. Reflexo faz apertar os "
+    "olhos sem perceber.",
+    "Beba água. Olho seco também vem de desidratação, não só do tempo de tela.",
+    "Levante e caminhe um pouco: a pausa vale para a postura e a circulação "
+    "tanto quanto para os olhos.",
+    "Ardência, vista embaçada ou dor de cabeça que não passam com pausa são "
+    "caso de oftalmologista, não de ajuste de tela.",
+    "Se usa óculos, confira se o grau está em dia — grau vencido faz forçar a "
+    "vista o dia inteiro.",
+)
+
+
+def proxima_dica() -> str:
+    """Dica da vez, avançando a rotação para a pausa seguinte."""
+    bruto = _bruto()
+    try:
+        indice = int(bruto.get("dica", 0))
+    except (TypeError, ValueError):
+        indice = 0
+    indice %= len(DICAS)
+
+    cfg = load_config()
+    cfg.setdefault("settings", {}).setdefault("eyecare", {})["dica"] = (
+        (indice + 1) % len(DICAS))
+    save_config(cfg)
+    return DICAS[indice]

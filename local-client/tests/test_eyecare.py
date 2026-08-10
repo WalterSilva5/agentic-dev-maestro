@@ -168,3 +168,70 @@ def test_esc_adia_em_vez_de_so_fechar(qapp, temp_db):
     br.adiada.connect(lambda: adiado.append(True))
     br.keyPressEvent(QKeyEvent(QKeyEvent.KeyPress, Qt.Key_Escape, Qt.NoModifier))
     assert adiado == [True]
+
+
+def test_dicas_nao_repetem_em_pausas_seguidas(temp_db):
+    vistas = [eyecare.proxima_dica() for _ in range(len(eyecare.DICAS))]
+    assert len(set(vistas)) == len(eyecare.DICAS)   # o ciclo passa por todas
+
+
+def test_rotacao_de_dicas_da_a_volta(temp_db):
+    for _ in range(len(eyecare.DICAS)):
+        eyecare.proxima_dica()
+    assert eyecare.proxima_dica() == eyecare.DICAS[0]
+
+
+def test_rotacao_sobrevive_ao_reinicio(temp_db):
+    primeira = eyecare.proxima_dica()
+    # nova leitura da configuração = como se o programa tivesse reaberto
+    assert eyecare.proxima_dica() != primeira
+
+
+def test_indice_corrompido_nao_quebra_a_pausa(temp_db):
+    from maestro_local.config import load_config, save_config
+    cfg = load_config()
+    cfg.setdefault("settings", {}).setdefault("eyecare", {})["dica"] = "xyz"
+    save_config(cfg)
+    assert eyecare.proxima_dica() in eyecare.DICAS
+
+
+def test_a_janela_da_pausa_mostra_uma_dica(qapp, temp_db):
+    from PySide6.QtWidgets import QWidget
+
+    from maestro_local.gui.eyecare_break import EyecareBreak
+    br = EyecareBreak(QWidget(), duracao_seg=5)
+    assert br.dica.text() in eyecare.DICAS
+
+
+def test_dica_longa_nao_fica_cortada(qapp, temp_db):
+    """wordWrap sem heightForWidth cortava a última linha da dica."""
+    from PySide6.QtGui import QGuiApplication
+    from PySide6.QtWidgets import QWidget
+
+    from maestro_local.gui.eyecare_break import EyecareBreak
+    # começa pela dica mais longa, que é onde o corte aparecia
+    mais_longa = max(range(len(eyecare.DICAS)), key=lambda i: len(eyecare.DICAS[i]))
+    from maestro_local.config import load_config, save_config
+    cfg = load_config()
+    cfg.setdefault("settings", {}).setdefault("eyecare", {})["dica"] = mais_longa
+    save_config(cfg)
+
+    br = EyecareBreak(QWidget(), duracao_seg=5)
+    br._ajustar_dica(QGuiApplication.primaryScreen())
+    largura = br.dica.width()
+    assert br.dica.minimumHeight() >= br.dica.heightForWidth(largura)
+
+
+def test_dica_cabe_em_tela_estreita(qapp, temp_db):
+    from PySide6.QtWidgets import QWidget
+
+    from maestro_local.gui.eyecare_break import EyecareBreak
+
+    class TelaFalsa:
+        def geometry(self):
+            from PySide6.QtCore import QRect
+            return QRect(0, 0, 500, 400)
+
+    br = EyecareBreak(QWidget(), duracao_seg=5)
+    br._ajustar_dica(TelaFalsa())
+    assert br.dica.width() <= 500 - 80
