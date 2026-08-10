@@ -14,6 +14,9 @@ mesmo ícone serve para tema claro, escuro e para o estado selecionado.
 """
 from __future__ import annotations
 
+import os
+import tempfile
+
 from PySide6.QtCore import QByteArray, Qt
 from PySide6.QtGui import QIcon, QPainter, QPixmap
 from PySide6.QtSvg import QSvgRenderer
@@ -118,3 +121,74 @@ def nav_icon(key: str, color: str, size: int = 18) -> QIcon:
 def clear_cache() -> None:
     """Descarta os ícones (ao trocar de tema as cores mudam)."""
     _CACHE.clear()
+
+# --- marca de seleção dos checkboxes -----------------------------------------
+#
+# O QSS precisa de um ARQUIVO para `image:`. E precisamos dele porque, assim que
+# o indicador recebe `background-color`, o Qt deixa de desenhar o ✓ nativo — o
+# checkbox marcado virava um quadrado colorido sólido, sem sinal de marcação.
+#
+# Os arquivos vão para um diretório temporário do processo, não para a pasta de
+# dados do usuário: são cache descartável e não devem sujar nada permanente.
+_DIR_CHECK: str | None = None
+_CACHE_CHECK: dict[tuple[str, int], str] = {}
+
+_CHECK_SVG = '<polyline points="4,12.5 9,17.5 20,6.5"/>'
+
+
+def caminho_do_check(cor: str, tamanho: int = 16) -> str:
+    """Caminho de um PNG com o ✓ na cor pedida, pronto para `image:` no QSS."""
+    global _DIR_CHECK
+    chave = (cor, tamanho)
+    existente = _CACHE_CHECK.get(chave)
+    if existente and os.path.exists(existente):
+        return existente
+
+    if _DIR_CHECK is None:
+        _DIR_CHECK = tempfile.mkdtemp(prefix="maestro-check-")
+
+    renderer = QSvgRenderer(QByteArray(_svg(_CHECK_SVG, cor)))
+    pix = QPixmap(tamanho, tamanho)
+    pix.fill(Qt.transparent)
+    painter = QPainter(pix)
+    painter.setRenderHint(QPainter.Antialiasing)
+    renderer.render(painter)
+    painter.end()
+
+    destino = os.path.join(_DIR_CHECK, f"check-{abs(hash(chave))}.png")
+    pix.save(destino, "PNG")
+    _CACHE_CHECK[chave] = destino
+    return destino
+
+
+# --- ícone do aplicativo (bandeja / janela) ----------------------------------
+#
+# Cor fixa, não a do tema: o fundo da bandeja é do painel do sistema, que o
+# programa não conhece. Um "M" claro sobre um quadrado teal se lê tanto em
+# painel claro quanto escuro.
+_APP_SVG = (
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
+    '<rect x="1" y="1" width="22" height="22" rx="6" fill="#0D9488"/>'
+    '<path d="M6 17V8l6 6 6-6v9" fill="none" stroke="#FFFFFF" stroke-width="2.4" '
+    'stroke-linecap="round" stroke-linejoin="round"/></svg>'
+)
+_ICONE_APP: QIcon | None = None
+
+
+def icone_do_app() -> QIcon:
+    """Ícone do programa, em vários tamanhos (a bandeja escolhe o que couber)."""
+    global _ICONE_APP
+    if _ICONE_APP is not None:
+        return _ICONE_APP
+    renderer = QSvgRenderer(QByteArray(_APP_SVG.encode("utf-8")))
+    icon = QIcon()
+    for tamanho in (16, 22, 24, 32, 48, 64):
+        pix = QPixmap(tamanho, tamanho)
+        pix.fill(Qt.transparent)
+        painter = QPainter(pix)
+        painter.setRenderHint(QPainter.Antialiasing)
+        renderer.render(painter)
+        painter.end()
+        icon.addPixmap(pix)
+    _ICONE_APP = icon
+    return icon

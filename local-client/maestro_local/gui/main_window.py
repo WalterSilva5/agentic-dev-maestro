@@ -127,7 +127,10 @@ class MainWindow(QMainWindow):
         self.sidebar = QWidget()
         self.sidebar.setFixedWidth(180)
         sb_layout = QVBoxLayout(self.sidebar)
-        sb_layout.setContentsMargins(0, 0, 0, 0)
+        # Recuo lateral: sem ele os controles encostam na borda da janela e os
+        # cantos arredondados são cortados — o que dava a cada bloco aspecto de
+        # caixa quadrada. O mesmo recuo que os itens de navegação já usavam.
+        sb_layout.setContentsMargins(8, 0, 8, 8)
         sb_layout.setSpacing(0)
 
         # Logo / branding section
@@ -235,11 +238,17 @@ class MainWindow(QMainWindow):
 
         sb_layout.addSpacing(12)
 
-        # Theme toggle
-        self.theme_btn = QPushButton(t("Tema escuro"))
-        self.theme_btn.setCursor(Qt.PointingHandCursor)
-        self.theme_btn.clicked.connect(self._toggle_theme)
-        sb_layout.addWidget(self.theme_btn)
+        # Seletor de tema: com três temas, um botão que só cicla esconde as
+        # opções — o usuário precisa clicar até acertar. O select mostra todas.
+        from PySide6.QtWidgets import QComboBox
+        from maestro_local.gui.theme import NOMES_TEMAS, ROTULOS_TEMAS
+        self.theme_combo = QComboBox()
+        self.theme_combo.setCursor(Qt.PointingHandCursor)
+        for nome in NOMES_TEMAS:
+            self.theme_combo.addItem(t(ROTULOS_TEMAS[nome]), nome)
+        self.theme_combo.setProperty("class", "sidebar")
+        self.theme_combo.currentIndexChanged.connect(self._on_theme_selected)
+        sb_layout.addWidget(self.theme_combo)
 
         # API label
         self.api_label = QLabel("  " + t("API: localhost:{port}").format(port=api_port))
@@ -403,6 +412,12 @@ class MainWindow(QMainWindow):
         self._eyecare_timer.setInterval(60000)
         self._eyecare_timer.timeout.connect(self._maybe_show_eyecare)
         self._eyecare_timer.start()
+
+        # Bandeja: adiar a pausa sem precisar trazer a janela para a frente.
+        from maestro_local.gui.icons import icone_do_app
+        from maestro_local.gui.tray import instalar as instalar_bandeja
+        self.setWindowIcon(icone_do_app())
+        self._tray = instalar_bandeja(self)
 
         # Foco do dia: uma vez por dia, ao abrir. Adiado para a janela já estar
         # desenhada — um modal em cima de uma janela ainda em construção fica
@@ -611,15 +626,14 @@ class MainWindow(QMainWindow):
         self._refresh_nav_icons()
         self.transcricoes_quick.apply_theme(theme)
         self.dashboard_view.pomodoro.apply_theme(theme)
-        from maestro_local.gui.theme import ROTULOS_TEMAS, nome_do_tema, proximo_tema
-        prox = proximo_tema(nome_do_tema(theme))
-        icone = {"light": "☀", "dark": "☾", "hacker": "❯"}.get(prox, "☾")
-        self.theme_btn.setText(f"  {icone}   {t('Tema')}: {t(ROTULOS_TEMAS[prox])}")
-        self.theme_btn.setStyleSheet(
-            f"color: {theme.text_muted}; font-size: 11px; padding: 4px 12px; "
-            f"text-align: left; border: 1px solid {theme.border}; background: transparent; "
-            f"border-radius: 6px; margin: 2px 4px;"
-        )
+        from maestro_local.gui.theme import nome_do_tema
+        atual = nome_do_tema(theme)
+        # Sem bloquear, reposicionar o select dispararia outra troca de tema.
+        self.theme_combo.blockSignals(True)
+        indice = self.theme_combo.findData(atual)
+        if indice >= 0:
+            self.theme_combo.setCurrentIndex(indice)
+        self.theme_combo.blockSignals(False)
         self.api_label.setStyleSheet(
             f"color: {theme.text_muted}; font-size: 9px; padding: 2px 12px; background: transparent;"
         )
@@ -660,11 +674,15 @@ class MainWindow(QMainWindow):
             f"padding: 10px 20px; font-size: 13px; font-weight: 500;"
         )
 
-    def _toggle_theme(self):
-        """Roda entre claro, escuro e hacker, guardando a escolha."""
+    def _on_theme_selected(self, _indice):
+        self._aplicar_tema_por_nome(self.theme_combo.currentData())
+
+    def _aplicar_tema_por_nome(self, novo: str):
+        """Troca o tema e guarda a escolha."""
         from maestro_local.config import set_theme_name
-        from maestro_local.gui.theme import TEMAS, nome_do_tema, proximo_tema
-        novo = proximo_tema(nome_do_tema(current_theme()))
+        from maestro_local.gui.theme import TEMAS
+        if novo not in TEMAS:
+            return
         set_theme(TEMAS[novo])
         set_theme_name(novo)
         self._apply_theme()
@@ -687,6 +705,17 @@ class MainWindow(QMainWindow):
         if self._eyecare_overlay is not None:
             return                      # já tem uma na tela
         if not eyecare.devida(em_reuniao=self._em_reuniao()):
+            return
+        self._mostrar_eyecare()
+
+    def testar_eyecare(self):
+        """Dispara a pausa na hora, ignorando ciclo e adiamento.
+
+        É o que permite conferir a aparência e a duração sem esperar 20 min.
+        Concluir/pular reinicia o ciclo normalmente, então testar não deixa uma
+        pausa "atrasada" pronta para pular na cara logo em seguida.
+        """
+        if self._eyecare_overlay is not None:
             return
         self._mostrar_eyecare()
 
@@ -960,7 +989,9 @@ class MainWindow(QMainWindow):
         try:
             from PySide6.QtWidgets import QSystemTrayIcon
             from PySide6.QtGui import QIcon
-            if not hasattr(self, "_tray_icon"):
+            if getattr(self, "_tray", None) is not None:
+                self._tray_icon = self._tray      # uma bandeja só, não duas
+            elif not hasattr(self, "_tray_icon"):
                 self._tray_icon = QSystemTrayIcon(self)
                 self._tray_icon.setIcon(QIcon.fromTheme("dialog-information"))
                 self._tray_icon.show()
@@ -1021,6 +1052,18 @@ class MainWindow(QMainWindow):
             worker.wait(2000)
             if worker.isRunning():
                 all_stopped = False
+
+        tray = getattr(self, "_tray", None)
+        if tray is not None:
+            tray.hide()
+
+        # A pausa agora é janela própria (e as coberturas dos outros monitores
+        # não têm pai): sem fechar aqui, sair do Maestro deixaria telas cheias
+        # órfãs na área de trabalho.
+        pausa = getattr(self, "_eyecare_overlay", None)
+        if pausa is not None:
+            pausa._encerrar()
+            self._eyecare_overlay = None
 
         super().closeEvent(event)
         if not all_stopped:

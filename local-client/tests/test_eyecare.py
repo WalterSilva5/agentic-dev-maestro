@@ -112,3 +112,59 @@ def test_pular_conta_como_pausa_feita(qapp, temp_db):
     br.concluida.connect(lambda: recebido.append(True))
     br._on_pular()
     assert recebido == [True]
+
+
+def test_cancelar_adiamento_libera_a_pausa(temp_db):
+    """Ação 'Retomar agora' da bandeja."""
+    eyecare.marcar_pausa_feita(AGORA)
+    devida_em = AGORA + timedelta(minutes=21)
+    eyecare.adiar(30, devida_em)
+    assert eyecare.devida(devida_em) is False
+    eyecare.cancelar_adiamento()
+    assert eyecare.devida(devida_em) is True
+
+
+def test_cancelar_adiamento_nao_mexe_no_ciclo(temp_db):
+    eyecare.marcar_pausa_feita(AGORA)
+    eyecare.adiar(30, AGORA)
+    eyecare.cancelar_adiamento()
+    assert eyecare.config()["ultima_pausa"] is not None
+
+
+def test_pausa_e_janela_separada(qapp, temp_db):
+    """O pedido: sair de dentro da janela do Maestro."""
+    from maestro_local.gui.eyecare_break import EyecareBreak
+    from PySide6.QtCore import Qt
+    from PySide6.QtWidgets import QWidget
+    host = QWidget()
+    br = EyecareBreak(host, duracao_seg=5)
+    assert br.isWindow()
+    assert br.windowFlags() & Qt.FramelessWindowHint
+
+
+def test_todos_os_monitores_sao_cobertos(qapp, temp_db):
+    from PySide6.QtGui import QGuiApplication
+    from PySide6.QtWidgets import QWidget
+
+    from maestro_local.gui.eyecare_break import EyecareBreak
+    host = QWidget()
+    br = EyecareBreak(host, duracao_seg=5)
+    br.iniciar()
+    # a própria janela cobre uma tela; as demais recebem uma cobertura
+    assert len(br._coberturas) == len(QGuiApplication.screens()) - 1
+    br._encerrar()
+    assert br._coberturas == []
+
+
+def test_esc_adia_em_vez_de_so_fechar(qapp, temp_db):
+    from PySide6.QtCore import Qt
+    from PySide6.QtGui import QKeyEvent
+    from PySide6.QtWidgets import QWidget
+
+    from maestro_local.gui.eyecare_break import EyecareBreak
+    host = QWidget()
+    br = EyecareBreak(host, duracao_seg=20)
+    adiado = []
+    br.adiada.connect(lambda: adiado.append(True))
+    br.keyPressEvent(QKeyEvent(QKeyEvent.KeyPress, Qt.Key_Escape, Qt.NoModifier))
+    assert adiado == [True]

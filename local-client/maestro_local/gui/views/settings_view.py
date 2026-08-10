@@ -469,7 +469,27 @@ class SettingsView(QWidget):
         self.eye_adiar.valueChanged.connect(self._save_eyecare)
         linha.addWidget(self.eye_adiar)
         linha.addStretch()
+
+        # Sem isso só dá para conferir a pausa esperando o intervalo inteiro.
+        self.eye_testar = QPushButton(t("Testar agora"))
+        self.eye_testar.setProperty("class", "secondary")
+        self.eye_testar.setToolTip(
+            t("Mostra a pausa imediatamente, sem esperar o intervalo."))
+        self.eye_testar.clicked.connect(self._testar_eyecare)
+        linha.addWidget(self.eye_testar)
         layout.addLayout(linha)
+
+        atalho = QLabel(
+            t("O ícone na bandeja do sistema permite adiar ou fazer a pausa "
+              "sem abrir esta tela."))
+        atalho.setWordWrap(True)
+        atalho.setProperty("class", "hint")
+        layout.addWidget(atalho)
+
+    def _testar_eyecare(self):
+        janela = self.window()
+        if hasattr(janela, "testar_eyecare"):
+            janela.testar_eyecare()
 
     def _save_eyecare(self):
         if self._loading:

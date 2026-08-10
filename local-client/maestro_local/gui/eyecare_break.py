@@ -1,10 +1,17 @@
 """Tela da pausa para os olhos.
 
-Cobre a janela do Maestro com uma contagem regressiva, para o olhar sair da
-tela de fato. Não cobre a área de trabalho inteira como o SafeEyes faz: no
-Wayland um cliente não consegue se sobrepor às outras janelas de forma
-portátil (mesma restrição registrada no plano 14 para o overlay do copiloto).
-Então a pausa é firme dentro do aplicativo, e não uma barreira do sistema.
+Janela própria em tela cheia, fora da janela do Maestro — como o SafeEyes faz.
+Uma pausa desenhada dentro do aplicativo só interrompe quem já estava olhando
+para ele; quem estava no editor ou no navegador nem via o lembrete, que é
+justamente quem mais precisa dele.
+
+Com vários monitores, cada tela recebe uma cobertura: deixar uma livre
+convidaria a continuar trabalhando nela e a pausa não aconteceria.
+
+Sobre o "sempre por cima": `WindowStaysOnTopHint` só é respeitado no X11 — no
+Wayland o cliente não escolhe a ordem das janelas (mesma restrição registrada
+no plano 14). O que funciona nos dois é a tela cheia com foco, então é nela que
+a pausa se apoia; a dica de topo fica como reforço onde vale.
 
 Sempre dá para sair: "Pular" encerra e "Adiar" empurra alguns minutos — um
 lembrete que não se pode dispensar vira obstáculo, não ajuda.
@@ -12,6 +19,7 @@ lembrete que não se pode dispensar vira obstáculo, não ajuda.
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, QTimer, Signal
+from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -24,16 +32,38 @@ from maestro_local.gui.theme import current_theme
 from maestro_local.i18n import t
 
 
+class _Cobertura(QWidget):
+    """Painel liso para os monitores secundários (sem contador nem botões)."""
+
+    def __init__(self, tela, cor: str):
+        super().__init__(None, Qt.Window | Qt.FramelessWindowHint
+                         | Qt.WindowStaysOnTopHint)
+        self.setAttribute(Qt.WA_StyledBackground, True)
+        self.setStyleSheet(f"_Cobertura {{ background: {cor}; }}")
+        self.setScreen(tela)
+        self.setGeometry(tela.geometry())
+
+
 class EyecareBreak(QWidget):
-    """Sobreposição com contagem regressiva. Emite o que o usuário escolheu."""
+    """Janela da pausa, com contagem regressiva. Emite o que o usuário escolheu.
+
+    `parent` não é o pai visual (a janela é independente): serve só para saber
+    em qual monitor o usuário está e para a janela não ser coletada enquanto
+    aparece.
+    """
 
     concluida = Signal()     # a pausa foi até o fim ou foi pulada
     adiada = Signal()        # empurrar para daqui a alguns minutos
 
     def __init__(self, parent, duracao_seg: int = 20):
-        super().__init__(parent)
+        super().__init__(parent, Qt.Window | Qt.FramelessWindowHint
+                         | Qt.WindowStaysOnTopHint)
+        self._dono = parent
+        self._coberturas: list[_Cobertura] = []
         self._restante = max(1, int(duracao_seg))
         th = current_theme()
+        self._cor_fundo = th.bg_card
+        self.setWindowTitle(t("Pausa para os olhos"))
         self.setAttribute(Qt.WA_StyledBackground, True)
         self.setStyleSheet(f"EyecareBreak {{ background: {th.bg_card}; }}")
 
@@ -86,13 +116,40 @@ class EyecareBreak(QWidget):
         self._atualizar_contador()
 
     # ------------------------------------------------------------------
+    def _tela_do_usuario(self):
+        """O monitor onde o Maestro está — não necessariamente o primário."""
+        dono = self._dono
+        if dono is not None:
+            tela = dono.screen()
+            if tela is not None:
+                return tela
+        return QGuiApplication.primaryScreen()
+
     def iniciar(self):
-        pai = self.parent()
-        if pai is not None:
-            self.setGeometry(pai.rect())
-        self.show()
+        principal = self._tela_do_usuario()
+        for tela in QGuiApplication.screens():
+            if tela is principal:
+                continue
+            cobertura = _Cobertura(tela, self._cor_fundo)
+            cobertura.showFullScreen()
+            self._coberturas.append(cobertura)
+
+        if principal is not None:
+            self.setScreen(principal)
+            self.setGeometry(principal.geometry())
+        self.showFullScreen()
         self.raise_()
+        self.activateWindow()
+        self.btn_pular.setFocus()
         self._tick.start()
+
+    def keyPressEvent(self, event):
+        # Esc adia em vez de fechar sem mais: uma janela em tela cheia que some
+        # sem consequência ensina a dispensá-la por reflexo.
+        if event.key() == Qt.Key_Escape:
+            self._on_adiar()
+            return
+        super().keyPressEvent(event)
 
     def _atualizar_contador(self):
         self._contador.setText(t("{s}s").format(s=self._restante))
@@ -116,6 +173,10 @@ class EyecareBreak(QWidget):
 
     def _encerrar(self):
         self._tick.stop()
+        for cobertura in self._coberturas:
+            cobertura.hide()
+            cobertura.deleteLater()
+        self._coberturas.clear()
         self.hide()
         self.deleteLater()
 

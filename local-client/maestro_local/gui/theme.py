@@ -197,6 +197,9 @@ def is_dark() -> bool:
 
 
 def build_stylesheet(t: ThemeColors) -> str:
+    from maestro_local.gui.icons import caminho_do_check
+    check_marcado = caminho_do_check(t.text_on_accent)
+    check_desabilitado = caminho_do_check(t.text_muted)
     return f"""
 QMainWindow, QWidget {{
     background-color: {t.bg_primary};
@@ -254,13 +257,13 @@ QListWidget::item:hover, QTreeWidget::item:hover {{
 QListWidget#navList {{
     background-color: transparent;
     border: none;
-    padding: 2px;
+    padding: 2px 0;
     outline: none;
 }}
 QListWidget#navList::item {{
     /* Densidade: com os grupos, 13 linhas precisam caber sem rolagem. */
     padding: 6px 12px;
-    margin: 2px 6px;
+    margin: 2px 0;
     border-radius: 8px;
     border: none;
     /* Fundo próprio para separar cada item do painel — sem borda, para não
@@ -288,7 +291,7 @@ QListWidget#navList::item:disabled {{
     letter-spacing: 1px;
     background: transparent;
     padding: 10px 12px 2px;
-    margin: 0 6px;
+    margin: 0;
 }}
 QLabel#navSection {{
     color: {t.text_muted};
@@ -480,7 +483,7 @@ QProgressBar::chunk {{
     background-color: {t.accent};
     border-radius: 4px;
 }}
-QCheckBox {{ spacing: 7px; }}
+QCheckBox {{ spacing: 8px; }}
 QCheckBox::indicator {{
     width: 18px;
     height: 18px;
@@ -488,13 +491,33 @@ QCheckBox::indicator {{
     border: 2px solid {t.border};
     background-color: {t.bg_input};
 }}
-QCheckBox::indicator:checked {{
-    background-color: {t.accent};
-    border-color: {t.accent};
-}}
 QCheckBox::indicator:hover {{
     border-color: {t.border_focus};
 }}
+/* O ✓ precisa vir de `image:`: assim que o indicador recebe background-color,
+   o Qt para de desenhar a marca nativa e o "marcado" viraria só um quadrado
+   colorido, indistinguível de um enfeite. */
+QCheckBox::indicator:checked {{
+    background-color: {t.accent};
+    border-color: {t.accent};
+    image: url({check_marcado});
+}}
+QCheckBox::indicator:checked:hover {{
+    background-color: {t.accent_hover};
+    border-color: {t.accent_hover};
+}}
+/* Desabilitado precisa parecer inerte: antes ficava idêntico ao ativo e dava a
+   impressão de que dava para clicar. */
+QCheckBox::indicator:disabled {{
+    border-color: {t.border_light};
+    background-color: {t.bg_badge};
+}}
+QCheckBox::indicator:checked:disabled {{
+    background-color: {t.bg_badge};
+    border-color: {t.border};
+    image: url({check_desabilitado});
+}}
+QCheckBox:disabled {{ color: {t.text_muted}; }}
 QSplitter::handle {{ background: {t.border_light}; }}
 QScrollArea {{ background: transparent; border: none; }}
 QScrollArea > QWidget > QWidget {{ background: transparent; }}

@@ -125,3 +125,8 @@ def devida(agora: datetime | None = None, em_reuniao: bool = False) -> bool:
         marcar_pausa_feita(agora)
         return False
     return agora >= proxima_pausa(agora)
+
+
+def cancelar_adiamento() -> None:
+    """Volta a valer o ciclo normal (usado pelo menu da bandeja)."""
+    _gravar_instante("adiada_ate", None)
