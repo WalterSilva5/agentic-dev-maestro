@@ -399,6 +399,14 @@ class MainWindow(QMainWindow):
         self._todo_timer.start()
         QTimer.singleShot(4000, self._check_todo_reminders)
 
+        # Pausa para os olhos: verifica de minuto em minuto (a precisão de um
+        # lembrete de 20 min não precisa ser melhor que isso).
+        self._eyecare_overlay = None
+        self._eyecare_timer = QTimer(self)
+        self._eyecare_timer.setInterval(60000)
+        self._eyecare_timer.timeout.connect(self._maybe_show_eyecare)
+        self._eyecare_timer.start()
+
         # Foco do dia: uma vez por dia, ao abrir. Adiado para a janela já estar
         # desenhada — um modal em cima de uma janela ainda em construção fica
         # deslocado e sem o tema aplicado.
@@ -658,6 +666,45 @@ class MainWindow(QMainWindow):
         self._apply_theme()
         self.ws_selector.refresh_display()
         self._refresh_all()
+
+    def _em_reuniao(self) -> bool:
+        """Gravando ou transcrevendo — hora de não interromper."""
+        v = getattr(self, "transcricoes_view", None)
+        try:
+            return bool(v is not None and v.is_busy())
+        except Exception:  # noqa: BLE001
+            return False
+
+    def _maybe_show_eyecare(self):
+        """Mostra a pausa se for devida e nada estiver segurando."""
+        from maestro_local import eyecare, features
+        if not features.habilitada("eyecare"):
+            return
+        if self._eyecare_overlay is not None:
+            return                      # já tem uma na tela
+        if not eyecare.devida(em_reuniao=self._em_reuniao()):
+            return
+        self._mostrar_eyecare()
+
+    def _mostrar_eyecare(self):
+        from maestro_local import eyecare
+        from maestro_local.gui.eyecare_break import EyecareBreak
+        overlay = EyecareBreak(self, eyecare.config()["duracao_seg"])
+        overlay.concluida.connect(self._on_eyecare_concluida)
+        overlay.adiada.connect(self._on_eyecare_adiada)
+        self._eyecare_overlay = overlay
+        overlay.iniciar()
+
+    def _on_eyecare_concluida(self):
+        from maestro_local import eyecare
+        eyecare.marcar_pausa_feita()
+        self._eyecare_overlay = None
+
+    def _on_eyecare_adiada(self):
+        from maestro_local import eyecare
+        ate = eyecare.adiar()
+        self._eyecare_overlay = None
+        self.show_toast(t("Pausa adiada para {hora}").format(hora=ate.strftime("%H:%M")))
 
     def _maybe_show_daily_focus(self):
         """Mostra o modal de foco se ainda não apareceu hoje."""

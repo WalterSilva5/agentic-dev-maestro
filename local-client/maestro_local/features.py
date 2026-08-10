@@ -81,6 +81,8 @@ FUNCIONALIDADES: tuple[Funcionalidade, ...] = (
                    GRUPO_EXTRAS, "Aviso periódico de TODOs vencidos"),
     Funcionalidade("pomodoro", "Pomodoro no Dashboard",
                    GRUPO_EXTRAS, "Cronômetro de foco"),
+    Funcionalidade("eyecare", "Pausa para os olhos", GRUPO_EXTRAS,
+                   "Lembrete periódico de descanso visual (não aparece durante reuniões)"),
 )
 
 _POR_CHAVE = {f.chave: f for f in FUNCIONALIDADES}

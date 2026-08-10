@@ -74,6 +74,7 @@ class SettingsView(QWidget):
         self._build_transcricoes_section()
         self._build_features_section()
         self._build_daily_focus_section()
+        self._build_eyecare_section()
         self._build_pomodoro_section()
         self._build_coach_section()
         self._build_notification_section()
@@ -433,6 +434,51 @@ class SettingsView(QWidget):
         row.addWidget(self.focus_message, 1)
         layout.addLayout(row)
 
+    def _build_eyecare_section(self):
+        card, layout = self._make_card("👁", t("Pausa para os olhos"))
+
+        desc = QLabel(
+            t("Lembrete periódico para olhar para longe (regra 20-20-20). "
+              "Não aparece enquanto uma reunião está sendo gravada — a pausa "
+              "espera terminar em vez de ser perdida. Ligue/desligue em "
+              "Funcionalidades."))
+        desc.setWordWrap(True)
+        desc.setProperty("class", "hint")
+        layout.addWidget(desc)
+
+        linha = QHBoxLayout()
+        linha.setSpacing(8)
+        linha.addWidget(QLabel(t("A cada (min):")))
+        self.eye_intervalo = QSpinBox()
+        self.eye_intervalo.setRange(5, 180)
+        self.eye_intervalo.setFixedWidth(70)
+        self.eye_intervalo.valueChanged.connect(self._save_eyecare)
+        linha.addWidget(self.eye_intervalo)
+
+        linha.addWidget(QLabel(t("Duração (s):")))
+        self.eye_duracao = QSpinBox()
+        self.eye_duracao.setRange(5, 300)
+        self.eye_duracao.setFixedWidth(70)
+        self.eye_duracao.valueChanged.connect(self._save_eyecare)
+        linha.addWidget(self.eye_duracao)
+
+        linha.addWidget(QLabel(t("Adiar (min):")))
+        self.eye_adiar = QSpinBox()
+        self.eye_adiar.setRange(1, 60)
+        self.eye_adiar.setFixedWidth(70)
+        self.eye_adiar.valueChanged.connect(self._save_eyecare)
+        linha.addWidget(self.eye_adiar)
+        linha.addStretch()
+        layout.addLayout(linha)
+
+    def _save_eyecare(self):
+        if self._loading:
+            return
+        from maestro_local import eyecare
+        eyecare.definir(intervalo_min=self.eye_intervalo.value(),
+                        duracao_seg=self.eye_duracao.value(),
+                        adiar_min=self.eye_adiar.value())
+
     def _build_pomodoro_section(self):
         card, layout = self._make_card("🍅", t("Pomodoro"))
 
@@ -575,6 +621,12 @@ class SettingsView(QWidget):
             self.lang_combo.setCurrentIndex(li)
 
         self.pomodoro_duration.setValue(settings.get("pomodoro_minutes", 25))
+
+        from maestro_local import eyecare
+        eye = eyecare.config()
+        self.eye_intervalo.setValue(eye["intervalo_min"])
+        self.eye_duracao.setValue(eye["duracao_seg"])
+        self.eye_adiar.setValue(eye["adiar_min"])
 
         from maestro_local.config import get_daily_focus_config
         foco = get_daily_focus_config()
