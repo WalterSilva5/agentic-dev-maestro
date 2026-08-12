@@ -28,8 +28,21 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from maestro_local.gui.theme import current_theme
 from maestro_local.i18n import t
+
+# Paleta fixa, escura, independente do tema do aplicativo.
+#
+# A tela seguia o tema e no tema claro ficava quase branca em tela cheia — o
+# oposto do que a pausa quer: uma parede de luz nos olhos que se pretende
+# descansar. Preto puro também não serve: o contraste extremo com o texto claro
+# incomoda e o corte brusco ao aparecer assusta. Daí um cinza-azulado escuro.
+FUNDO = "#12171F"
+TITULO = "#2DD4BF"
+TEXTO = "#94A3B8"
+CONTADOR = "#E2E8F0"
+BORDA = "#334155"
+ACENTO = "#0D9488"
+ACENTO_HOVER = "#0F766E"
 
 
 class _Cobertura(QWidget):
@@ -61,11 +74,20 @@ class EyecareBreak(QWidget):
         self._dono = parent
         self._coberturas: list[_Cobertura] = []
         self._restante = max(1, int(duracao_seg))
-        th = current_theme()
-        self._cor_fundo = th.bg_card
+        self._cor_fundo = FUNDO
         self.setWindowTitle(t("Pausa para os olhos"))
         self.setAttribute(Qt.WA_StyledBackground, True)
-        self.setStyleSheet(f"EyecareBreak {{ background: {th.bg_card}; }}")
+        self.setStyleSheet(
+            f"EyecareBreak {{ background: {FUNDO}; }}"
+            f"EyecareBreak QPushButton {{ background: {ACENTO}; color: #FFFFFF; "
+            f"border: none; border-radius: 10px; padding: 10px 22px; "
+            f"font-size: 13px; font-weight: 600; }}"
+            f"EyecareBreak QPushButton:hover {{ background: {ACENTO_HOVER}; }}"
+            f'EyecareBreak QPushButton[flat="true"] {{ background: transparent; '
+            f"color: {TEXTO}; border: 1px solid {BORDA}; }}"
+            f'EyecareBreak QPushButton[flat="true"]:hover {{ '
+            f"background: rgba(255, 255, 255, 0.06); color: {CONTADOR}; }}"
+        )
 
         lay = QVBoxLayout(self)
         lay.setContentsMargins(40, 40, 40, 40)
@@ -75,7 +97,7 @@ class EyecareBreak(QWidget):
         titulo = QLabel(t("Pausa para os olhos"))
         titulo.setAlignment(Qt.AlignCenter)
         titulo.setStyleSheet(
-            f"color: {th.accent}; font-size: 26px; font-weight: 800; "
+            f"color: {TITULO}; font-size: 26px; font-weight: 800; "
             f"background: transparent; border: none;")
         lay.addWidget(titulo)
 
@@ -86,7 +108,7 @@ class EyecareBreak(QWidget):
         self.dica.setAlignment(Qt.AlignCenter)
         self.dica.setWordWrap(True)
         self.dica.setStyleSheet(
-            f"color: {th.text_secondary}; font-size: 15px; line-height: 150%; "
+            f"color: {TEXTO}; font-size: 15px; line-height: 150%; "
             f"background: transparent; border: none;")
         lay.addWidget(self.dica, 0, Qt.AlignHCenter)
         self._largura_dica = 620
@@ -94,7 +116,7 @@ class EyecareBreak(QWidget):
         self._contador = QLabel("")
         self._contador.setAlignment(Qt.AlignCenter)
         self._contador.setStyleSheet(
-            f"color: {th.text_primary}; font-size: 46px; font-weight: 800; "
+            f"color: {CONTADOR}; font-size: 46px; font-weight: 800; "
             f"letter-spacing: 2px; background: transparent; border: none;")
         lay.addWidget(self._contador)
 

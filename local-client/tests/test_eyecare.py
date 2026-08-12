@@ -235,3 +235,34 @@ def test_dica_cabe_em_tela_estreita(qapp, temp_db):
     br = EyecareBreak(QWidget(), duracao_seg=5)
     br._ajustar_dica(TelaFalsa())
     assert br.dica.width() <= 500 - 80
+
+
+def test_tela_da_pausa_e_escura_mesmo_no_tema_claro(qapp, temp_db):
+    """A pausa não segue o tema: no claro virava uma parede de luz."""
+    from PySide6.QtWidgets import QWidget
+
+    from maestro_local.gui import theme
+    from maestro_local.gui.eyecare_break import EyecareBreak
+
+    anterior = theme.current_theme()
+    try:
+        theme.set_theme(theme.LIGHT)
+        host = QWidget()
+        host.setStyleSheet(theme.build_stylesheet(theme.LIGHT))
+        br = EyecareBreak(host, duracao_seg=5)
+        br.iniciar()
+        cor = br.grab().toImage().pixelColor(5, 5)
+        # luminância perceptual: bem abaixo da metade da escala
+        luz = 0.2126 * cor.red() + 0.7152 * cor.green() + 0.0722 * cor.blue()
+        assert luz < 60, f"fundo claro demais: {cor.name()}"
+        br._encerrar()
+    finally:
+        theme.set_theme(anterior)
+
+
+def test_coberturas_usam_o_mesmo_fundo_escuro(qapp, temp_db):
+    from PySide6.QtWidgets import QWidget
+
+    from maestro_local.gui.eyecare_break import FUNDO, EyecareBreak
+    br = EyecareBreak(QWidget(), duracao_seg=5)
+    assert br._cor_fundo == FUNDO
