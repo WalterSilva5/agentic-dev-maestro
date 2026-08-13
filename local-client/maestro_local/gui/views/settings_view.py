@@ -2,6 +2,7 @@ from PySide6.QtCore import Qt, QThread, QTimer, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
+    QDialog,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -25,16 +26,16 @@ from maestro_local.i18n import t
 
 
 class ConnTestWorker(QThread):
-    done = Signal(bool, str)
+    done = Signal(bool, str, list)
 
     def __init__(self, provider):
         super().__init__()
         self._provider = provider
 
     def run(self):
-        from maestro_local.ai.providers import test_connection
-        ok, msg = test_connection(self._provider)
-        self.done.emit(ok, msg)
+        from maestro_local.ai.providers import listar_modelos
+        ok, msg, modelos = listar_modelos(self._provider)
+        self.done.emit(ok, msg, modelos)
 
 
 class SettingsView(QWidget):
@@ -319,13 +320,27 @@ class SettingsView(QWidget):
         self._conn_worker.done.connect(self._on_conn_tested)
         self._conn_worker.start()
 
-    def _on_conn_tested(self, ok, msg):
+    def _on_conn_tested(self, ok, msg, modelos):
         theme = current_theme()
         color = theme.text_secondary if ok else getattr(theme, "danger", "#D32F2F")
         prefix = "✓ " if ok else "✕ "
         self.ai_status.setText(prefix + msg)
         self.ai_status.setStyleSheet(f"color: {color}; font-size: 12px;")
         self.ai_test_btn.setEnabled(True)
+        if ok and modelos:
+            self._mostrar_modelos(modelos)
+
+    def _mostrar_modelos(self, modelos):
+        """Lista o que o provedor respondeu, para copiar ou usar direto.
+
+        Antes só cabiam cinco nomes truncados no rótulo de status — dava para
+        ver que a conexão funcionou, mas não para saber como o modelo se chama.
+        """
+        from maestro_local.gui.model_picker_dialog import ModelPickerDialog
+        dlg = ModelPickerDialog(self, modelos, self.ai_model.text().strip())
+        if dlg.exec() == QDialog.Accepted and dlg.escolhido:
+            # setText já dispara _on_ai_field_changed, que grava o provedor.
+            self.ai_model.setText(dlg.escolhido)
 
     def _build_transcricoes_section(self):
         card, layout = self._make_card("🎙", t("Reuniões"))

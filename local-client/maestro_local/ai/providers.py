@@ -151,14 +151,29 @@ def clear_model_cache() -> None:
 
 
 def test_connection(provider: dict) -> tuple[bool, str]:
-    """Testa se o provedor responde e lista modelos. Retorna (ok, mensagem)."""
+    """Testa se o provedor responde. Retorna (ok, mensagem).
+
+    Mantido para quem só quer o resultado; a lista de modelos vem de
+    `listar_modelos`.
+    """
+    ok, msg, _ = listar_modelos(provider)
+    return ok, msg
+
+
+def listar_modelos(provider: dict) -> tuple[bool, str, list[str]]:
+    """Testa o provedor e devolve (ok, mensagem, modelos).
+
+    A lista completa importa: o nome do modelo é digitado à mão na
+    configuração e errar um caractere só aparece depois, como falha de
+    chamada. Ver o nome exato e copiar evita isso.
+    """
     import json
     import urllib.error
     import urllib.request
 
     base = (provider.get("base_url") or "").rstrip("/")
     if not base:
-        return False, "base_url vazia"
+        return False, "base_url vazia", []
     url = f"{base}/models"
     # User-Agent de navegador: alguns provedores (ex.: opencode/Cloudflare)
     # bloqueiam o UA padrão do urllib com erro 403/1010.
@@ -170,14 +185,13 @@ def test_connection(provider: dict) -> tuple[bool, str]:
     try:
         with urllib.request.urlopen(req, timeout=8) as resp:
             data = json.loads(resp.read())
-        models = [m.get("id") for m in data.get("data", []) if m.get("id")]
+        models = sorted({m.get("id") for m in data.get("data", []) if m.get("id")})
         if models:
-            preview = ", ".join(models[:5])
-            return True, f"Conectado. Modelos: {preview}" + ("..." if len(models) > 5 else "")
-        return True, "Conectado, mas nenhum modelo retornado."
+            return True, f"Conectado. {len(models)} modelo(s) disponível(is).", models
+        return True, "Conectado, mas nenhum modelo retornado.", []
     except urllib.error.HTTPError as e:
-        return False, f"HTTP {e.code}: {e.reason}"
+        return False, f"HTTP {e.code}: {e.reason}", []
     except urllib.error.URLError as e:
-        return False, f"Sem conexão: {e.reason}"
+        return False, f"Sem conexão: {e.reason}", []
     except Exception as e:  # noqa: BLE001
-        return False, f"Erro: {e}"
+        return False, f"Erro: {e}", []
