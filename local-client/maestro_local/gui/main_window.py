@@ -1053,6 +1053,15 @@ class MainWindow(QMainWindow):
             if worker.isRunning():
                 all_stopped = False
 
+        # A gravação do provedor de IA espera a digitação parar; fechar antes
+        # disso perderia a última edição.
+        settings = getattr(self, "settings_view", None)
+        if settings is not None and hasattr(settings, "_persistir_provedor_ai"):
+            try:
+                settings._persistir_provedor_ai()
+            except Exception:  # noqa: BLE001
+                logger.warning("Nao foi possivel gravar o provedor de IA ao sair.")
+
         tray = getattr(self, "_tray", None)
         if tray is not None:
             tray.hide()

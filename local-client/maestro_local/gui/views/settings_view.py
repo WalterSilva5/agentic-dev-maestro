@@ -46,6 +46,15 @@ class SettingsView(QWidget):
         super().__init__()
         self._loading = False
 
+        # Espera a digitação parar antes de gravar o provedor de IA (ver
+        # _on_ai_field_changed). 600 ms: acima do intervalo entre teclas de
+        # quem digita rápido, e curto o bastante para não parecer que a
+        # configuração não foi salva.
+        self._ai_save_timer = QTimer(self)
+        self._ai_save_timer.setSingleShot(True)
+        self._ai_save_timer.setInterval(600)
+        self._ai_save_timer.timeout.connect(self._persistir_provedor_ai)
+
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(14, 14, 14, 14)
         main_layout.setSpacing(10)
@@ -191,6 +200,8 @@ class SettingsView(QWidget):
             if password:
                 edit.setEchoMode(QLineEdit.Password)
             edit.textChanged.connect(self._on_ai_field_changed)
+            # Enter ou sair do campo grava na hora, sem esperar a pausa.
+            edit.editingFinished.connect(self._persistir_provedor_ai)
             row.addWidget(edit)
             layout.addLayout(row)
             return edit
@@ -272,8 +283,22 @@ class SettingsView(QWidget):
         self.ai_provider_changed.emit()
 
     def _on_ai_field_changed(self):
+        """Adia a gravação até a digitação parar.
+
+        Gravar a cada tecla salvava o campo pela metade, e como salvar também
+        invalida o cache de modelos, a IA passava a ser chamada com o nome
+        incompleto: os erros que apareciam eram "Model minim is not supported",
+        "Model minimax-m2. is not supported" — prefixos exatos do que estava
+        sendo digitado.
+        """
         if self._loading:
             return
+        self._ai_save_timer.start()
+
+    def _persistir_provedor_ai(self):
+        if self._loading:
+            return
+        self._ai_save_timer.stop()
         providers = self._current_providers()
         pid = self.ai_combo.currentData()
         for p in providers:
@@ -309,6 +334,7 @@ class SettingsView(QWidget):
         self.ai_provider_changed.emit()
 
     def _test_ai_connection(self):
+        self._persistir_provedor_ai()   # testa o que está na tela, não o antigo
         provider = {
             "base_url": self.ai_base_url.text().strip(),
             "api_key": self.ai_api_key.text().strip(),
@@ -339,8 +365,9 @@ class SettingsView(QWidget):
         from maestro_local.gui.model_picker_dialog import ModelPickerDialog
         dlg = ModelPickerDialog(self, modelos, self.ai_model.text().strip())
         if dlg.exec() == QDialog.Accepted and dlg.escolhido:
-            # setText já dispara _on_ai_field_changed, que grava o provedor.
             self.ai_model.setText(dlg.escolhido)
+            # Escolha explícita: grava agora, sem a espera da digitação.
+            self._persistir_provedor_ai()
 
     def _build_transcricoes_section(self):
         card, layout = self._make_card("🎙", t("Reuniões"))
