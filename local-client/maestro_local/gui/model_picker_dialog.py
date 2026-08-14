@@ -8,10 +8,16 @@ tira o palpite do caminho.
 Duas saídas porque são dois usos diferentes: **Usar** preenche o campo (o caso
 comum) e **Copiar** manda para a área de transferência, para quem quer o nome em
 outro lugar — um script, o `.env` de outro projeto.
+
+Estar na lista não garante que o modelo funcione: `/models` é catálogo, não
+lista de permissões, e não diz nada sobre região, plano ou opt-in. Daí o botão
+**Verificar**, que faz uma chamada mínima de verdade. Ele é botão, e não
+verificação automática ao selecionar, porque a chamada custa — quem decide
+gastar é o usuário, num clique explícito.
 """
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QThread, Qt, Signal
 from PySide6.QtWidgets import (
     QApplication,
     QDialog,
@@ -26,10 +32,29 @@ from PySide6.QtWidgets import (
 from maestro_local.i18n import t
 
 
+class _VerificacaoWorker(QThread):
+    """Fora da thread da interface: a chamada pode levar segundos."""
+
+    done = Signal(bool, str)
+
+    def __init__(self, provider, modelo):
+        super().__init__()
+        self._provider = provider
+        self._modelo = modelo
+
+    def run(self):
+        from maestro_local.ai.providers import verificar_modelo
+        ok, msg = verificar_modelo(self._provider, self._modelo)
+        self.done.emit(ok, msg)
+
+
 class ModelPickerDialog(QDialog):
-    def __init__(self, parent, modelos: list[str], atual: str = ""):
+    def __init__(self, parent, modelos: list[str], atual: str = "",
+                 provider: dict | None = None):
         super().__init__(parent)
         self._modelos = list(modelos)
+        self._provider = provider or {}
+        self._worker = None
         self.escolhido: str | None = None
         self.setWindowTitle(t("Modelos disponíveis"))
         self.setMinimumSize(460, 420)
@@ -54,10 +79,25 @@ class ModelPickerDialog(QDialog):
 
         self.lista = QListWidget()
         self.lista.itemDoubleClicked.connect(lambda _: self._usar())
+        # O resultado é de um modelo só; trocar a seleção o torna enganoso.
+        self.lista.currentItemChanged.connect(self._on_selecao_mudou)
         lay.addWidget(self.lista, 1)
+
+        self.status = QLabel("")
+        self.status.setWordWrap(True)
+        self.status.setProperty("class", "hint")
+        lay.addWidget(self.status)
 
         acoes = QHBoxLayout()
         acoes.setSpacing(8)
+        self.btn_verificar = QPushButton(t("Verificar"))
+        self.btn_verificar.setProperty("class", "secondary")
+        self.btn_verificar.setToolTip(
+            t("Faz uma chamada real e mínima ao provedor para confirmar que o "
+              "modelo responde. Estar na lista não garante acesso — pode ser "
+              "recusado por região ou plano. A chamada é cobrada."))
+        self.btn_verificar.clicked.connect(self._verificar)
+        acoes.addWidget(self.btn_verificar)
         self.btn_copiar = QPushButton(t("Copiar nome"))
         self.btn_copiar.setProperty("class", "secondary")
         self.btn_copiar.clicked.connect(self._copiar)
@@ -87,6 +127,10 @@ class ModelPickerDialog(QDialog):
             self.lista.setCurrentRow(0)
         self._atualizar_acoes()
 
+    def _on_selecao_mudou(self, *_a):
+        self.status.setText("")
+        self._atualizar_acoes()
+
     def _selecionar(self, nome: str):
         """Deixa o modelo já configurado em foco, se ele estiver na lista."""
         if not nome:
@@ -101,6 +145,9 @@ class ModelPickerDialog(QDialog):
         tem = self.lista.currentItem() is not None
         self.btn_usar.setEnabled(tem)
         self.btn_copiar.setEnabled(tem)
+        # Sem base_url não há o que chamar; esconder o botão explicaria menos
+        # do que deixá-lo visível e inerte.
+        self.btn_verificar.setEnabled(tem and bool(self._provider.get("base_url")))
 
     def selecionado(self) -> str:
         item = self.lista.currentItem()
@@ -111,9 +158,36 @@ class ModelPickerDialog(QDialog):
         if nome:
             QApplication.clipboard().setText(nome)
 
+    def _verificar(self):
+        modelo = self.selecionado()
+        if not modelo:
+            return
+        self.status.setText(t("Verificando {m}...").format(m=modelo))
+        self.btn_verificar.setEnabled(False)
+        self._worker = _VerificacaoWorker(self._provider, modelo)
+        self._worker.done.connect(self._on_verificado)
+        self._worker.start()
+
+    def _on_verificado(self, ok, msg):
+        self.status.setText(("✓ " if ok else "✕ ") + msg)
+        self.btn_verificar.setEnabled(True)
+
     def _usar(self):
         nome = self.selecionado()
         if not nome:
             return
         self.escolhido = nome
         self.accept()
+
+    def closeEvent(self, event):
+        """Espera a verificação antes de sumir com o diálogo.
+
+        Destruir uma QThread em execução dispara qFatal e o processo morre com
+        SIGABRT — o mesmo modo de falha já visto ao fechar o programa durante
+        uma chamada de IA. Aqui a chamada tem timeout de 30s, então a espera é
+        limitada e o pior caso é o diálogo demorar a fechar.
+        """
+        worker = self._worker
+        if worker is not None and worker.isRunning():
+            worker.wait(31000)
+        super().closeEvent(event)

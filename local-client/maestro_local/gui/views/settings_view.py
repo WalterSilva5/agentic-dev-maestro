@@ -363,7 +363,10 @@ class SettingsView(QWidget):
         ver que a conexão funcionou, mas não para saber como o modelo se chama.
         """
         from maestro_local.gui.model_picker_dialog import ModelPickerDialog
-        dlg = ModelPickerDialog(self, modelos, self.ai_model.text().strip())
+        dlg = ModelPickerDialog(
+            self, modelos, self.ai_model.text().strip(),
+            provider={"base_url": self.ai_base_url.text().strip(),
+                      "api_key": self.ai_api_key.text().strip()})
         if dlg.exec() == QDialog.Accepted and dlg.escolhido:
             self.ai_model.setText(dlg.escolhido)
             # Escolha explícita: grava agora, sem a espera da digitação.

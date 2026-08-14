@@ -195,3 +195,70 @@ def listar_modelos(provider: dict) -> tuple[bool, str, list[str]]:
         return False, f"Sem conexão: {e.reason}", []
     except Exception as e:  # noqa: BLE001
         return False, f"Erro: {e}", []
+
+
+def verificar_modelo(provider: dict, modelo: str) -> tuple[bool, str]:
+    """Confirma se o modelo realmente responde. Devolve (ok, mensagem).
+
+    Por que existe: `/models` é um catálogo, não uma lista de permissões. Ele
+    devolve só id/object/created/owned_by — nada sobre região, plano ou opt-in.
+    Um modelo listado pode ser recusado na chamada (403 RegionError, 401 "not
+    supported"), e sem esta verificação a falha só aparecia muito depois, no
+    meio de uma reunião, como "Live extract falhou".
+
+    Faz uma chamada real, mínima (um token), então custa. Por isso é acionada
+    por botão, nunca sozinha.
+    """
+    import json
+    import urllib.error
+    import urllib.request
+
+    base = (provider.get("base_url") or "").rstrip("/")
+    if not base:
+        return False, "base_url vazia"
+    if not (modelo or "").strip():
+        return False, "nenhum modelo informado"
+
+    corpo = json.dumps({
+        "model": modelo,
+        "messages": [{"role": "user", "content": "ping"}],
+        "max_tokens": 1,
+    }).encode("utf-8")
+    req = urllib.request.Request(
+        f"{base}/chat/completions", data=corpo, method="POST", headers={
+            "Authorization": f"Bearer {provider.get('api_key') or 'x'}",
+            "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) Maestro/1.0",
+            "Accept": "application/json",
+        })
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            resp.read()
+        return True, f"{modelo} respondeu."
+    except urllib.error.HTTPError as e:
+        return False, f"HTTP {e.code}: {_mensagem_de_erro(e)}"
+    except urllib.error.URLError as e:
+        return False, f"Sem conexão: {e.reason}"
+    except Exception as e:  # noqa: BLE001
+        return False, f"Erro: {e}"
+
+
+def _mensagem_de_erro(erro) -> str:
+    """Texto que o provedor mandou, e não só o código do HTTP.
+
+    A recusa útil vem no corpo — "requires explicit opt in" com o link, ou
+    "Model X is not supported". Mostrar apenas "HTTP 403" esconderia o que o
+    usuário precisa saber para resolver.
+    """
+    import json
+    try:
+        dados = json.loads(erro.read())
+    except Exception:  # noqa: BLE001
+        return getattr(erro, "reason", "") or "sem detalhe"
+    if isinstance(dados, dict):
+        alvo = dados.get("error", dados)
+        if isinstance(alvo, dict):
+            return str(alvo.get("message") or alvo.get("mensagem") or alvo)
+        if alvo:
+            return str(alvo)
+    return str(dados)
