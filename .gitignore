@@ -33,6 +33,9 @@ Thumbs.db
 # Arquivos soltos não relacionados ao projeto (só na raiz)
 /*.pdf
 
+# Transcrições de reunião interna (dados sensíveis — não versionar)
+reuniao-*.md
+
 # Cache de build TS
 *.tsbuildinfo
 

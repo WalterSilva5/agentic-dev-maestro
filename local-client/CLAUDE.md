@@ -185,13 +185,15 @@ Sem autenticação. Tarefas identificadas por código (`KEY-NUM`, ex: `DEMO-1`) 
 
 ## Skills para agentes
 
-12 skills com prefixo `maestro-` no catálogo (`skills/catalog.py`):
+14 skills com prefixo `maestro-` no catálogo (`skills/catalog.py`):
+- `maestro-use` — orquestrador: analisa o momento e escolhe skills (`/maestro-use`)
 - `maestro-run` — iniciar a aplicação
 - `maestro-api-agent` — interagir com a API REST
 - `maestro-task-workflow` — fluxo completo de trabalho (cria tarefa de revisão obrigatória)
 - `maestro-project-setup` — criar projeto com colunas e labels
 - `maestro-sprint-planning` — planejar sprint
 - `maestro-code-review-log` — registrar code reviews
+- `maestro-agentic-memory` — memória agentic (buscar, gravar, ingerir, Q&A)
 - `maestro-bug-triage` — triagem de bugs
 - `maestro-daily-standup` — standup automático
 - `maestro-tech-debt-tracker` — dívida técnica

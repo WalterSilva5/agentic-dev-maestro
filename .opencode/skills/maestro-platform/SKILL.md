@@ -29,6 +29,10 @@ Todas as ferramentas estão no namespace `maestro_*`:
 - `maestro_addComment` — posta comentário (code review, commits)
 - `maestro_createDocument` — cria documento (spec, ADR, plano)
 
+## Orquestrador
+
+Quando não souber o que fazer no Maestro, ou após várias ações no chat, use a skill/comando **`maestro-use`** (`/maestro-use [foco]`): classifica o momento (boot, executar, revisar, memorizar, diário…) e aciona no máximo 3 skills certas.
+
 ## Fluxo de Trabalho Esperado
 
 ### Ao receber uma solicitação do usuário:

@@ -110,6 +110,7 @@ Ferramentas customizadas para agentes de IA no terminal.
 
 ### Comandos
 
+- `/maestro-use [foco]` — Orquestra skills: analisa o momento e escolhe o que fazer no Maestro
 - `/review <task>` — Code review de uma tarefa
 - `/decompose <task>` — Decompor em subtarefas
 
