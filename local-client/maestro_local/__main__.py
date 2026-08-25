@@ -44,6 +44,7 @@ def main():
     from maestro_local.gui.main_window import MainWindow
 
     app = QApplication(sys.argv)
+    app.setQuitOnLastWindowClosed(False)
     # Tema escolhido pelo usuário — antes voltava ao claro a cada abertura.
     from maestro_local.config import get_theme_name
     from maestro_local.gui.theme import TEMAS, set_theme

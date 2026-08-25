@@ -119,6 +119,28 @@ def set_coach_config(enabled: bool | None = None, interval_min: int | None = Non
     save_config(cfg)
 
 
+_CHAT_COMPACT_DEFAULTS = {"enabled": True, "interval_min": 30}
+
+
+def get_chat_compact_config() -> dict:
+    cfg = load_config().get("settings", {}).get("chat_compact", {})
+    return {
+        "enabled": bool(cfg.get("enabled", _CHAT_COMPACT_DEFAULTS["enabled"])),
+        "interval_min": int(cfg.get("interval_min", _CHAT_COMPACT_DEFAULTS["interval_min"])),
+    }
+
+
+def set_chat_compact_config(enabled: bool | None = None, interval_min: int | None = None):
+    cfg = load_config()
+    settings = cfg.setdefault("settings", {})
+    chat = settings.setdefault("chat_compact", {})
+    if enabled is not None:
+        chat["enabled"] = bool(enabled)
+    if interval_min is not None:
+        chat["interval_min"] = max(5, int(interval_min))
+    save_config(cfg)
+
+
 # ---------------------------------------------------------------------------
 # Workspace helpers
 # ---------------------------------------------------------------------------

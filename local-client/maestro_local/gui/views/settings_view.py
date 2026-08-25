@@ -87,6 +87,7 @@ class SettingsView(QWidget):
         self._build_eyecare_section()
         self._build_pomodoro_section()
         self._build_coach_section()
+        self._build_chat_compact_section()
         self._build_notification_section()
         self._build_startup_section()
 
@@ -626,6 +627,33 @@ class SettingsView(QWidget):
         interval_row.addStretch()
         layout.addLayout(interval_row)
 
+    def _build_chat_compact_section(self):
+        card, layout = self._make_card("🗜️", t("Lembrete de compactação"))
+
+        desc = QLabel(
+            t("Lembra periodicamente de compactar o chat no opencode para economizar tokens. "
+              "A compactação em si é feita no opencode (/compact).")
+        )
+        desc.setWordWrap(True)
+        desc.setProperty("class", "hint")
+        layout.addWidget(desc)
+
+        self.chat_compact_enabled = QCheckBox(t("Lembrar de compactar o chat periodicamente"))
+        self.chat_compact_enabled.toggled.connect(self._save_settings)
+        layout.addWidget(self.chat_compact_enabled)
+
+        interval_row = QHBoxLayout()
+        interval_row.setSpacing(8)
+        interval_row.addWidget(QLabel(t("Intervalo (minutos):")))
+        self.chat_compact_interval = QSpinBox()
+        self.chat_compact_interval.setRange(5, 120)
+        self.chat_compact_interval.setValue(30)
+        self.chat_compact_interval.setFixedWidth(80)
+        self.chat_compact_interval.valueChanged.connect(self._save_settings)
+        interval_row.addWidget(self.chat_compact_interval)
+        interval_row.addStretch()
+        layout.addLayout(interval_row)
+
     def _build_notification_section(self):
         card, layout = self._make_card("🔔", t("Notificações push"))
 
@@ -702,6 +730,10 @@ class SettingsView(QWidget):
         self.coach_enabled.setChecked(coach.get("enabled", True))
         self.coach_interval.setValue(int(coach.get("interval_min", 90)))
 
+        chat_compact = settings.get("chat_compact", {})
+        self.chat_compact_enabled.setChecked(chat_compact.get("enabled", True))
+        self.chat_compact_interval.setValue(int(chat_compact.get("interval_min", 30)))
+
         notif = settings.get("notifications", {})
         self.notif_enabled.setChecked(notif.get("enabled", False))
         self.notif_interval.setValue(notif.get("interval_minutes", 30))
@@ -739,6 +771,10 @@ class SettingsView(QWidget):
             "coach": {
                 "enabled": self.coach_enabled.isChecked(),
                 "interval_min": self.coach_interval.value(),
+            },
+            "chat_compact": {
+                "enabled": self.chat_compact_enabled.isChecked(),
+                "interval_min": self.chat_compact_interval.value(),
             },
             "notifications": {
                 "enabled": self.notif_enabled.isChecked(),

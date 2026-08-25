@@ -1,6 +1,6 @@
 import logging
 
-from PySide6.QtCore import QSize, Qt, QTimer
+from PySide6.QtCore import QEvent, QSize, Qt, QTimer
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QFrame,
@@ -418,6 +418,7 @@ class MainWindow(QMainWindow):
         from maestro_local.gui.tray import instalar as instalar_bandeja
         self.setWindowIcon(icone_do_app())
         self._tray = instalar_bandeja(self)
+        self._force_quit = False
 
         # Foco do dia: uma vez por dia, ao abrir. Adiado para a janela já estar
         # desenhada — um modal em cima de uma janela ainda em construção fica
@@ -440,6 +441,12 @@ class MainWindow(QMainWindow):
         self._coach_signal_timer.setInterval(300000)  # 5 min
         self._coach_signal_timer.timeout.connect(self._check_coach_signals)
         self._coach_signal_timer.start()
+
+        # Lembrete de compactação do chat (só lembrete, compact é no opencode)
+        self._chat_compact_timer = QTimer(self)
+        self._chat_compact_timer.timeout.connect(self._send_chat_compact_reminder)
+        self._setup_chat_compact_timer()
+        self.settings_view.notification_changed.connect(self._setup_chat_compact_timer)
 
         self._populate_project_selector()
         self._apply_theme()
@@ -981,6 +988,50 @@ class MainWindow(QMainWindow):
         pomodoro_mins = self.settings_view.pomodoro_duration.value()
         self.dashboard_view.pomodoro.set_duration_minutes(pomodoro_mins)
 
+    def _setup_chat_compact_timer(self):
+        self._chat_compact_timer.stop()
+        try:
+            from maestro_local.config import get_chat_compact_config
+            cfg = get_chat_compact_config()
+        except Exception:
+            return
+        if cfg.get("enabled") and cfg.get("interval_min", 0) > 0:
+            self._chat_compact_timer.start(max(5, int(cfg["interval_min"])) * 60 * 1000)
+
+    def _send_chat_compact_reminder(self):
+        try:
+            from maestro_local.config import get_chat_compact_config
+            cfg = get_chat_compact_config()
+        except Exception:
+            return
+        if not cfg.get("enabled"):
+            return
+        msg = t("Lembrete: hora de compactar o chat no opencode para economizar tokens (/compact)")
+        try:
+            from PySide6.QtWidgets import QSystemTrayIcon
+            from PySide6.QtGui import QIcon
+            if getattr(self, "_tray", None) is not None:
+                self._tray_icon = self._tray
+            elif not hasattr(self, "_tray_icon"):
+                self._tray_icon = QSystemTrayIcon(self)
+                self._tray_icon.setIcon(QIcon.fromTheme("dialog-information"))
+                self._tray_icon.show()
+            if hasattr(self, "_tray_icon") and self._tray_icon.supportsMessages():
+                self._tray_icon.showMessage("Agentic Dev Maestro", msg, QSystemTrayIcon.Information, 5000)
+        except Exception:
+            pass
+        self.show_toast(msg)
+        # Fallback notify-send se tray não suportar
+        try:
+            import subprocess
+            if not getattr(self, "_tray_icon", None) or not self._tray_icon.supportsMessages():
+                subprocess.Popen(
+                    ["notify-send", "-a", "Maestro", "Agentic Dev Maestro", msg],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                )
+        except Exception:
+            pass
+
     def _send_notification(self):
         settings = self.settings_view.get_notification_settings()
         if not settings["enabled"]:
@@ -1024,6 +1075,19 @@ class MainWindow(QMainWindow):
         if getattr(self, "coach_tip", None) is not None and self.coach_tip.isVisible():
             self.coach_tip.reposition()
 
+    # --- Minimizar para bandeja ---
+
+    def changeEvent(self, event):  # noqa: N802
+        if event.type() == QEvent.WindowStateChange and self.isMinimized():
+            tray = getattr(self, "_tray", None)
+            if tray is not None:
+                from PySide6.QtWidgets import QSystemTrayIcon
+                if QSystemTrayIcon.isSystemTrayAvailable():
+                    event.ignore()
+                    QTimer.singleShot(0, self.hide)
+                    return
+        super().changeEvent(event)
+
     # --- Encerramento ---
 
     def closeEvent(self, event):
@@ -1039,6 +1103,14 @@ class MainWindow(QMainWindow):
         (os._exit), que é o único jeito de não abortar. Nesse ponto os dados já
         estão gravados: banco e config são escritos de forma síncrona.
         """
+        if not getattr(self, "_force_quit", False):
+            tray = getattr(self, "_tray", None)
+            if tray is not None:
+                from PySide6.QtWidgets import QSystemTrayIcon
+                if QSystemTrayIcon.isSystemTrayAvailable():
+                    event.ignore()
+                    self.hide()
+                    return
         all_stopped = True
         view = getattr(self, "transcricoes_view", None)
         if view is not None:

@@ -49,7 +49,7 @@ class MaestroTray(QSystemTrayIcon):
             self._menu.addSeparator()
 
         sair = QAction(t("Sair"), self._menu)
-        sair.triggered.connect(self._janela.close)
+        sair.triggered.connect(self._sair)
         self._menu.addAction(sair)
 
     def _montar_eyecare(self, eyecare):
@@ -105,6 +105,12 @@ class MaestroTray(QSystemTrayIcon):
         from maestro_local import eyecare
         eyecare.cancelar_adiamento()
         self._janela.show_toast(t("Adiamento cancelado."))
+
+    def _sair(self):
+        from PySide6.QtWidgets import QApplication
+        janela = self._janela
+        janela._force_quit = True  # type: ignore[attr-defined]
+        QApplication.instance().quit()  # type: ignore[union-attr]
 
 
 def instalar(janela) -> MaestroTray | None:
