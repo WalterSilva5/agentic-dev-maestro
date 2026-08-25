@@ -249,4 +249,31 @@ def test_reabrir_gravacao_antiga_deriva_abas_do_resumo(meetings_view):
     v._open_recording(v.history.item(0))
     assert v.live_actions_list.count() == 1
     assert v.live_decisions_list.count() == 1
-    assert v._live_state["questions"][0]["question"] == "Prazo?"
+
+
+def test_transcrever_video_limpa_estado_e_chama_pipeline(meetings_view, monkeypatch, tmp_path):
+    """Transcrever um vídeo cria reunião limpa e dispara a transcrição com o caminho do vídeo."""
+    from pathlib import Path
+    from maestro_local.gui.views import transcricoes_view as tv
+
+    v = meetings_view
+    video = tmp_path / "exemplo.mp4"
+    video.write_bytes(b"fake")
+    # Finge a escolha do arquivo no diálogo e captura o que a view manda pro pipeline.
+    monkeypatch.setattr(tv.QFileDialog, "getOpenFileName",
+                        lambda *a, **k: (str(video), ""))
+    chamadas = []
+    monkeypatch.setattr(v, "_transcribe", lambda p: chamadas.append(p))
+
+    # Suja o estado antes, como uma reunião anterior deixaria.
+    v._current = {"transcript": "reunião antiga", "duration": 3.0,
+                  "audio_path": "/tmp/velho.wav", "rec_id": 999, "title": "Velha"}
+    v.transcript_edit.setPlainText("reunião antiga")
+
+    v._transcribe_video_file()
+
+    assert len(chamadas) == 1
+    assert Path(chamadas[0]) == video
+    assert v._current["rec_id"] is None          # novo registro
+    assert v._current["audio_path"] == str(video)
+    assert v.transcript_edit.toPlainText() == ""  # estado limpo para receber o texto

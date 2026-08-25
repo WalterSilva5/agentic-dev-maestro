@@ -264,6 +264,15 @@ class TranscricoesView(QWidget):
               "ações, decisões, perguntas)."))
         self.import_btn.clicked.connect(self._import_meeting_from_file)
         title_row.addWidget(self.import_btn)
+        self.import_video_btn = QPushButton(t("🎬 Transcrever vídeo"))
+        self.import_video_btn.setProperty("flat", "true")
+        self.import_video_btn.setFixedHeight(32)
+        self.import_video_btn.setCursor(Qt.PointingHandCursor)
+        self.import_video_btn.setToolTip(
+            t("Extrai o texto (transcrição) do áudio de um arquivo de vídeo "
+              "(mp4, mkv, webm…) usando o Whisper local."))
+        self.import_video_btn.clicked.connect(self._transcribe_video_file)
+        title_row.addWidget(self.import_video_btn)
         self.tips_btn = QPushButton(t("💡 Dicas"))
         self.tips_btn.setProperty("flat", "true")
         self.tips_btn.setFixedHeight(32)
@@ -1713,6 +1722,46 @@ class TranscricoesView(QWidget):
         else:
             self.status_label.setText(
                 t("Arquivo importado como reunião. Configure um provedor de IA para gerar a análise."))
+
+    def _transcribe_video_file(self):
+        """Transcreve o áudio de um arquivo de vídeo (mp4, mkv, webm…) com o Whisper.
+
+        Reaproveita todo o pipeline de gravação: extrai o texto, salva no
+        histórico como uma reunião e (se houver provedor de IA) gera a análise.
+        O faster-whisper (via PyAV) decodifica o áudio do vídeo diretamente,
+        então não há necessidade de extrair um WAV intermediário.
+        """
+        exts = "*.mp4 *.m4v *.mkv *.webm *.mov *.avi *.mp3 *.wav *.m4a *.ogg *.flac"
+        path, _ = QFileDialog.getOpenFileName(
+            self, t("Transcrever vídeo/áudio"), "",
+            t("Vídeo / áudio") + f" ({exts});;"
+            + t("Todos os arquivos") + " (*)")
+        if not path:
+            return
+        pth = Path(path)
+        if self.is_recording():
+            self.status_label.setText(t("Pare a gravação antes de transcrever um vídeo."))
+            return
+        # Nova reunião a partir do vídeo (estado limpo, novo registro).
+        idx = self.kind_combo.findData("meeting")
+        if idx >= 0:
+            self.kind_combo.setCurrentIndex(idx)
+        self._current = {"transcript": "", "duration": 0.0, "language": "",
+                         "audio_path": str(pth), "rec_id": None, "title": ""}
+        self._live_transcript = ""
+        self._live_pending = ""
+        self._live_state = empty_live_state()
+        self._refresh_live_panels()
+        self._render_questions([])
+        self.live_box.setVisible(False)
+        self.transcript_label.setVisible(True)
+        self.transcript_edit.setVisible(True)
+        self._set_transcript_text("")
+        self.result_edit.clear()
+        self.result_edit.setVisible(False)
+        self.status_label.setText(
+            t("Transcrevendo vídeo: {name}...").format(name=pth.name))
+        self._transcribe(pth)
 
     # ------------------------- Análise IA -------------------------
     def _analyze(self):
