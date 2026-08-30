@@ -2,6 +2,7 @@ import re
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
+    QFileDialog,
     QFormLayout,
     QFrame,
     QHBoxLayout,
@@ -29,8 +30,10 @@ from maestro_local.i18n import t as _t
 class ProjectCard(QFrame):
     open_clicked = Signal(int)
     delete_clicked = Signal(int)
+    docs_clicked = Signal(int)
+    sync_clicked = Signal(int)
 
-    def __init__(self, project_id, key, name, description, done, total, theme):
+    def __init__(self, project_id, key, name, description, done, total, theme, docs_path=""):
         super().__init__()
         t = theme
         pct = int(done / total * 100) if total else 0
@@ -124,6 +127,43 @@ class ProjectCard(QFrame):
         stats_row.addWidget(del_btn)
 
         content.addLayout(stats_row)
+
+        # Docs path row (quando Fase 1: projeto vinculado a diretório)
+        docs_row = QHBoxLayout()
+        docs_row.setSpacing(6)
+        docs_icon = QLabel("📁")
+        docs_icon.setStyleSheet("border: none; font-size: 11px;")
+        docs_row.addWidget(docs_icon)
+        if docs_path:
+            docs_lbl = QLabel(docs_path)
+            docs_lbl.setStyleSheet(f"color: {t.text_secondary}; font-size: 11px; border: none;")
+            docs_lbl.setToolTip(docs_path)
+            docs_lbl.setMaximumWidth(320)
+            docs_row.addWidget(docs_lbl, 1)
+        else:
+            docs_lbl = QLabel(_t("Sem pasta vinculada"))
+            docs_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 11px; border: none; font-style: italic;")
+            docs_row.addWidget(docs_lbl, 1)
+        docs_btn = QPushButton(_t("Pasta"))
+        docs_btn.setFixedHeight(24)
+        docs_btn.setCursor(Qt.PointingHandCursor)
+        docs_btn.setStyleSheet(
+            f"QPushButton {{ background: transparent; color: {t.accent}; border: 1px solid {t.border}; "
+            f"border-radius: 4px; padding: 2px 8px; font-size: 11px; }}"
+        )
+        docs_btn.clicked.connect(lambda: self.docs_clicked.emit(project_id))
+        docs_row.addWidget(docs_btn)
+        if docs_path:
+            sync_btn = QPushButton(_t("Sync"))
+            sync_btn.setFixedHeight(24)
+            sync_btn.setCursor(Qt.PointingHandCursor)
+            sync_btn.setStyleSheet(
+                f"QPushButton {{ background: transparent; color: {t.accent}; border: 1px solid {t.border}; "
+                f"border-radius: 4px; padding: 2px 8px; font-size: 11px; }}"
+            )
+            sync_btn.clicked.connect(lambda: self.sync_clicked.emit(project_id))
+            docs_row.addWidget(sync_btn)
+        content.addLayout(docs_row)
         outer.addLayout(content, 1)
 
 
@@ -258,9 +298,12 @@ class ProjectsView(QWidget):
                     done=done,
                     total=total,
                     theme=t,
+                    docs_path=getattr(p, "external_docs_path", "") or "",
                 )
                 card.open_clicked.connect(self.project_selected.emit)
                 card.delete_clicked.connect(self._delete)
+                card.docs_clicked.connect(self._pick_docs_path)
+                card.sync_clicked.connect(self._sync_docs)
                 self.cards_layout.addWidget(card)
 
             self.cards_layout.addStretch()
@@ -313,5 +356,70 @@ class ProjectsView(QWidget):
                 s.delete(p)
                 s.commit()
             self.refresh()
+        finally:
+            s.close()
+
+    def _pick_docs_path(self, project_id):
+        path = QFileDialog.getExistingDirectory(self, _t("Selecionar pasta de documentos"))
+        if not path:
+            return
+        s = get_session()
+        try:
+            p = s.query(Project).get(project_id)
+            if p:
+                p.external_docs_path = path
+                s.commit()
+            self.refresh()
+        finally:
+            s.close()
+
+    def _sync_docs(self, project_id):
+        s = get_session()
+        try:
+            p = s.query(Project).get(project_id)
+            if not p or not (p.external_docs_path or "").strip():
+                QMessageBox.information(self, _t("Pasta não vinculada"), _t("Selecione uma pasta primeiro."))
+                return
+            base = p.external_docs_path
+            import os, re
+            from maestro_local.db.models import Document
+            os.makedirs(base, exist_ok=True)
+            existing = {d.title: d for d in s.query(Document).filter(Document.project_id == p.id).all()}
+            exported = 0
+            for d in existing.values():
+                fname = re.sub(r'[^\w\- ]', '', d.title or "untitled").strip().replace(" ", "-")[:80] or f"doc-{d.id}"
+                fpath = os.path.join(base, f"{fname}.md")
+                if not os.path.exists(fpath):
+                    with open(fpath, "w", encoding="utf-8") as f:
+                        f.write(f"# {d.title}\n\n{(d.body or '').strip()}\n")
+                    exported += 1
+            imported = 0
+            for fname in os.listdir(base):
+                if not fname.lower().endswith(".md"):
+                    continue
+                title = os.path.splitext(fname)[0].replace("-", " ")
+                if any(t.lower() == title.lower() for t in existing):
+                    continue
+                fpath = os.path.join(base, fname)
+                try:
+                    with open(fpath, encoding="utf-8") as f:
+                        body = f.read()
+                except OSError:
+                    continue
+                m = re.match(r'\s*#\s+(.+)\n', body)
+                doc_title = m.group(1).strip() if m else title
+                if doc_title.lower() in {k.lower() for k in existing}:
+                    continue
+                d = Document(project_id=p.id, title=doc_title[:200], body=body, type="NOTES")
+                s.add(d)
+                imported += 1
+            if imported:
+                s.commit()
+            QMessageBox.information(self, _t("Sync concluído"),
+                                    _t("Exportados: {exp}, Importados: {imp}").format(exp=exported, imp=imported))
+            self.refresh()
+        except Exception as e:  # noqa: BLE001
+            s.rollback()
+            QMessageBox.warning(self, _t("Erro no sync"), str(e))
         finally:
             s.close()

@@ -378,6 +378,7 @@ def _project_dict(p: Project) -> dict:
         "key": p.key,
         "description": p.description,
         "taskSeq": p.task_seq,
+        "externalDocsPath": getattr(p, "external_docs_path", "") or "",
         "createdAt": p.created_at.isoformat() if p.created_at else None,
     }
 
@@ -680,8 +681,101 @@ def update_project(project_id: int, body: dict, s: Session = Depends(db)):
         p.name = body["name"]
     if "description" in body:
         p.description = body["description"]
+    if "externalDocsPath" in body:
+        p.external_docs_path = (body["externalDocsPath"] or "").strip()
+    if "external_docs_path" in body:
+        p.external_docs_path = (body["external_docs_path"] or "").strip()
     s.commit()
     return _project_dict(p)
+
+
+def _validate_docs_path(path: str) -> str:
+    path = (path or "").strip()
+    if not path:
+        return ""
+    import os
+    p = os.path.expanduser(path)
+    if not os.path.isabs(p):
+        raise HTTPException(400, "externalDocsPath deve ser absoluto")
+    # não exige existir agora — só valida formato
+    return p
+
+
+@app.get("/api/projects/{project_id}/docs/files")
+def project_docs_files(project_id: int, s: Session = Depends(db)):
+    p = s.query(Project).get(project_id)
+    if not p:
+        raise HTTPException(404, "Project not found")
+    base = (p.external_docs_path or "").strip()
+    if not base:
+        return {"projectId": p.id, "base": "", "files": []}
+    import os
+    if not os.path.isdir(base):
+        return {"projectId": p.id, "base": base, "files": [], "error": "diretório não existe"}
+    files = []
+    for fname in sorted(os.listdir(base)):
+        if not fname.lower().endswith(".md"):
+            continue
+        fpath = os.path.join(base, fname)
+        try:
+            st = os.stat(fpath)
+            files.append({"name": fname, "path": fpath, "size": st.st_size, "mtime": st.st_mtime})
+        except OSError:
+            continue
+    return {"projectId": p.id, "base": base, "files": files}
+
+
+@app.post("/api/projects/{project_id}/docs/sync")
+def project_docs_sync(project_id: int, s: Session = Depends(db)):
+    p = s.query(Project).get(project_id)
+    if not p:
+        raise HTTPException(404, "Project not found")
+    base = (p.external_docs_path or "").strip()
+    if not base:
+        raise HTTPException(400, "externalDocsPath não configurado")
+    import os
+    import re
+    os.makedirs(base, exist_ok=True)
+    # exporta Document do projeto → .md ; importa .md órfãos → Document
+    existing = {d.title: d for d in s.query(Document).filter(Document.project_id == p.id).all()}
+    # export
+    exported = 0
+    for d in existing.values():
+        fname = re.sub(r'[^\w\- ]', '', d.title or "untitled").strip().replace(" ", "-")[:80] or f"doc-{d.id}"
+        fpath = os.path.join(base, f"{fname}.md")
+        if not os.path.exists(fpath):
+            try:
+                with open(fpath, "w", encoding="utf-8") as f:
+                    f.write(f"# {d.title}\n\n{(d.body or '').strip()}\n")
+                exported += 1
+            except OSError as e:
+                raise HTTPException(500, str(e))
+    # import .md órfãos → Document
+    imported = 0
+    for fname in os.listdir(base):
+        if not fname.lower().endswith(".md"):
+            continue
+        title = os.path.splitext(fname)[0].replace("-", " ")
+        # título já existe? ignora
+        if any(t.lower() == title.lower() for t in existing):
+            continue
+        fpath = os.path.join(base, fname)
+        try:
+            with open(fpath, encoding="utf-8") as f:
+                body = f.read()
+        except OSError:
+            continue
+        # primeira linha # título → usa como título real se houver
+        m = re.match(r'\s*#\s+(.+)\n', body)
+        doc_title = m.group(1).strip() if m else title
+        if doc_title.lower() in {k.lower() for k in existing}:
+            continue
+        d = Document(project_id=p.id, title=doc_title[:200], body=body, type="NOTES")
+        s.add(d)
+        imported += 1
+    if imported:
+        s.commit()
+    return {"projectId": p.id, "base": base, "exported": exported, "imported": imported}
 
 
 # ---------------------------------------------------------------------------
@@ -1929,6 +2023,8 @@ class TodoCreate(BaseModel):
     priority: Optional[str] = None
     notes: Optional[str] = None
     recurrence: Optional[str] = None  # NONE | DAILY | WEEKLY | MONTHLY
+    projectId: Optional[int] = None
+    tags: Optional[str] = None
 
 
 class TodoUpdate(BaseModel):
@@ -1938,6 +2034,8 @@ class TodoUpdate(BaseModel):
     priority: Optional[str] = None
     notes: Optional[str] = None
     recurrence: Optional[str] = None
+    projectId: Optional[int] = None
+    tags: Optional[str] = None
 
 
 class TodoSnooze(BaseModel):
@@ -1957,15 +2055,31 @@ def _todo_dict(t: Todo) -> dict:
         "snoozedUntil": t.snoozed_until.isoformat() if t.snoozed_until else None,
         "createdAt": t.created_at.isoformat() if t.created_at else None,
         "completedAt": t.completed_at.isoformat() if t.completed_at else None,
+        "projectId": t.project_id,
+        "tags": t.tags or "",
     }
 
 
 @app.get("/api/todos")
-def list_todos(done: Optional[bool] = None, s: Session = Depends(db)):
-    q = s.query(Todo)
+def list_todos(
+    done: Optional[bool] = None,
+    projectId: Optional[int] = None,
+    q: Optional[str] = None,
+    tags: Optional[str] = None,
+    s: Session = Depends(db),
+):
+    query = s.query(Todo)
     if done is not None:
-        q = q.filter(Todo.done.is_(done))
-    todos = q.order_by(Todo.done, Todo.sort_order, Todo.id).all()
+        query = query.filter(Todo.done.is_(done))
+    if projectId is not None:
+        query = query.filter(Todo.project_id == projectId)
+    if tags:
+        for tg in [t.strip() for t in tags.split(",") if t.strip()]:
+            query = query.filter(Todo.tags.ilike(f"%{tg}%"))
+    if q and q.strip():
+        like = f"%{q.strip()}%"
+        query = query.filter((Todo.text.ilike(like)) | (Todo.notes.ilike(like)) | (Todo.tags.ilike(like)))
+    todos = query.order_by(Todo.done, Todo.sort_order, Todo.id).all()
     return [_todo_dict(t) for t in todos]
 
 
@@ -1997,6 +2111,7 @@ def create_todo(body: TodoCreate, s: Session = Depends(db)):
         text=text, sort_order=s.query(Todo).count(),
         priority=body.priority or "MEDIUM", notes=(body.notes or None),
         due_at=_parse_dt(body.dueAt), recurrence=(body.recurrence or "NONE").upper(),
+        project_id=body.projectId, tags=(body.tags or "")[:500],
     )
     s.add(t)
     s.commit()
@@ -2028,6 +2143,10 @@ def update_todo(todo_id: int, body: TodoUpdate, s: Session = Depends(db)):
     if "dueAt" in data:
         t.due_at = _parse_dt(body.dueAt)
         t.snoozed_until = None  # reagendou: limpa o adiamento
+    if "projectId" in data:
+        t.project_id = body.projectId
+    if "tags" in data:
+        t.tags = (body.tags or "")[:500]
     s.commit()
     s.refresh(t)
     return _todo_dict(t)

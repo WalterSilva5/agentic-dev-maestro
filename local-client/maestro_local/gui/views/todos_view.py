@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from maestro_local.db.models import Todo, get_session
+from maestro_local.db.models import Project, Todo, get_session
 from maestro_local.gui.theme import PRIORITY_COLORS, current_theme
 from maestro_local.i18n import t as _t
 
@@ -59,6 +59,18 @@ class TodoRow(QFrame):
         else:
             text.setStyleSheet(f"color: {t.text_primary}; font-size: 14px; border: none;")
         row.addWidget(text, 1)
+
+        # projeto/tags (se vinculados)
+        extra = []
+        if todo_data.get("project_key"):
+            extra.append(todo_data["project_key"])
+        if todo_data.get("tags"):
+            extra.append(todo_data["tags"])
+        if extra:
+            meta = QLabel(" · ".join(extra))
+            meta.setStyleSheet(f"color: {t.text_muted}; font-size: 11px; border: none;")
+            meta.setMaximumWidth(160)
+            row.addWidget(meta)
 
         small_combo = (
             f"QComboBox {{ background: {t.bg_input}; border: 1px solid {t.border_light}; "
@@ -154,6 +166,17 @@ class TodosView(QWidget):
         subtitle.setObjectName("subtitle")
         layout.addWidget(subtitle)
 
+        # Filtro por projeto
+        filter_row = QHBoxLayout()
+        filter_row.setSpacing(8)
+        filter_row.addWidget(QLabel(_t("Projeto:")))
+        self.filter_project = QComboBox()
+        self.filter_project.setFixedWidth(180)
+        self.filter_project.currentIndexChanged.connect(self.refresh)
+        filter_row.addWidget(self.filter_project)
+        filter_row.addStretch()
+        layout.addLayout(filter_row)
+
         add_row = QHBoxLayout()
         add_row.setSpacing(8)
         self.input = QLineEdit()
@@ -173,6 +196,15 @@ class TodosView(QWidget):
             self.rec_combo.addItem(("🔁 " if val != "NONE" else "") + _t(label), val)
         self.rec_combo.setFixedWidth(110)
         add_row.addWidget(self.rec_combo)
+
+        self.project_combo = QComboBox()
+        self.project_combo.setFixedWidth(140)
+        add_row.addWidget(self.project_combo)
+
+        self.tags_input = QLineEdit()
+        self.tags_input.setPlaceholderText(_t("tags, vírgula"))
+        self.tags_input.setFixedWidth(120)
+        add_row.addWidget(self.tags_input)
 
         self.sched_check = QCheckBox(_t("Agendar"))
         self.sched_check.toggled.connect(lambda on: self.due_edit.setEnabled(on))
@@ -221,7 +253,27 @@ class TodosView(QWidget):
 
         self.refresh()
 
+    def _refresh_project_combos(self):
+        s = get_session()
+        try:
+            projs = s.query(Project).order_by(Project.name).all()
+            for combo in (self.filter_project, self.project_combo):
+                cur = combo.currentData()
+                combo.blockSignals(True)
+                combo.clear()
+                combo.addItem(_t("Todos"), None)
+                combo.addItem(_t("Sem projeto"), 0)
+                for p in projs:
+                    combo.addItem(f"{p.key} — {p.name}", p.id)
+                # restaura seleção
+                idx = combo.findData(cur) if cur is not None else 0
+                combo.setCurrentIndex(idx if idx >= 0 else 0)
+                combo.blockSignals(False)
+        finally:
+            s.close()
+
     def refresh(self):
+        self._refresh_project_combos()
         while self.rows_layout.count():
             item = self.rows_layout.takeAt(0)
             if item.widget():
@@ -229,7 +281,16 @@ class TodosView(QWidget):
 
         s = get_session()
         try:
-            todos = s.query(Todo).order_by(Todo.done, Todo.sort_order, Todo.id).all()
+            q = s.query(Todo)
+            pid = self.filter_project.currentData() if hasattr(self, "filter_project") else None
+            if pid == 0:
+                q = q.filter(Todo.project_id.is_(None))
+            elif pid not in (None,):
+                q = q.filter(Todo.project_id == pid)
+            todos = q.order_by(Todo.done, Todo.sort_order, Todo.id).all()
+
+            # mapa id→key para badge
+            pmap = {p.id: p.key for p in s.query(Project).all()}
 
             total = len(todos)
             done = sum(1 for td in todos if td.done)
@@ -247,6 +308,8 @@ class TodosView(QWidget):
                         "id": td.id, "text": td.text, "done": td.done,
                         "priority": td.priority or "MEDIUM", "due_at": td.due_at,
                         "recurrence": td.recurrence or "NONE",
+                        "project_key": pmap.get(getattr(td, "project_id", None) or -1),
+                        "tags": getattr(td, "tags", "") or "",
                     }
                     self.rows_layout.addWidget(
                         TodoRow(data, self._toggle, self._delete, self._update)
@@ -267,11 +330,18 @@ class TodosView(QWidget):
         s = get_session()
         try:
             max_order = s.query(Todo).count()
+            pid = self.project_combo.currentData() if hasattr(self, "project_combo") else None
+            if pid == 0:
+                pid = None
+            tags = self.tags_input.text().strip()[:500] if hasattr(self, "tags_input") else ""
             s.add(Todo(text=text, sort_order=max_order,
                        priority=self.prio_combo.currentData(), due_at=due,
-                       recurrence=self.rec_combo.currentData()))
+                       recurrence=self.rec_combo.currentData(),
+                       project_id=pid, tags=tags))
             s.commit()
             self.input.clear()
+            if hasattr(self, "tags_input"):
+                self.tags_input.clear()
             self.sched_check.setChecked(False)
             self.rec_combo.setCurrentIndex(0)
             self.refresh()

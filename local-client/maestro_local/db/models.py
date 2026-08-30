@@ -42,6 +42,7 @@ class Project(Base):
     key = Column(String(20), nullable=False, unique=True)
     description = Column(Text)
     task_seq = Column(Integer, default=0)
+    external_docs_path = Column(String(500), default="")
     created_at = Column(DateTime, default=datetime.utcnow)
 
     columns = relationship("BoardColumn", back_populates="project", cascade="all,delete-orphan", order_by="BoardColumn.order")
@@ -230,6 +231,10 @@ class Todo(Base):
     notes = Column(Text)
     snoozed_until = Column(DateTime)       # adiar: silencia o lembrete até este momento
     recurrence = Column(String(10), default="NONE")  # NONE | DAILY | WEEKLY | MONTHLY
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="SET NULL"))
+    tags = Column(String(500), default="")  # separadas por vírgula
+
+    project = relationship("Project")
 
 
 def advance_todo_recurrence(todo, now=None):
@@ -365,10 +370,19 @@ def _run_light_migrations(engine):
             tadds.append("ALTER TABLE todos ADD COLUMN snoozed_until DATETIME")
         if "recurrence" not in tcols:
             tadds.append("ALTER TABLE todos ADD COLUMN recurrence VARCHAR(10) DEFAULT 'NONE'")
+        if "project_id" not in tcols:
+            tadds.append("ALTER TABLE todos ADD COLUMN project_id INTEGER REFERENCES projects(id)")
+        if "tags" not in tcols:
+            tadds.append("ALTER TABLE todos ADD COLUMN tags VARCHAR(500) DEFAULT ''")
         if tadds:
             with engine.begin() as conn:
                 for stmt in tadds:
                     conn.execute(text(stmt))
+    if "projects" in tables:
+        pcols = {c["name"] for c in insp.get_columns("projects")}
+        if "external_docs_path" not in pcols:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE projects ADD COLUMN external_docs_path VARCHAR(500) DEFAULT ''"))
 
 
 def init_db(db_path=None):
