@@ -23,7 +23,11 @@ __pycache__/
 .DS_Store
 Thumbs.db
 
-# Config local do Claude
+# BMAD — overrides pessoais (não versionar; veja _bmad/custom/)
+_bmad/*.user.toml
+_bmad/**/*.user.toml
+
+# Config local do Claude (skills BMAD em .claude/skills são regeneráveis via installer)
 .claude/
 
 # Config local de editores/IDE
