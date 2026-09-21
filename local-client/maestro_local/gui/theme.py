@@ -8,6 +8,7 @@ class ThemeColors:
     bg_secondary: str
     bg_sidebar: str
     bg_card: str
+    bg_card_tint: str
     bg_input: str
     bg_hover: str
     bg_selected: str
@@ -57,6 +58,7 @@ LIGHT = ThemeColors(
     bg_secondary="#F5F5F5",
     bg_sidebar="#FFFFFF",
     bg_card="#FFFFFF",
+    bg_card_tint="#5EEAD4",
     bg_input="#FFFFFF",
     bg_hover="#F5F5F5",
     bg_selected="#CCFBF1",
@@ -93,6 +95,7 @@ DARK = ThemeColors(
     bg_secondary="#171717",
     bg_sidebar="#0A0A0A",
     bg_card="#171717",
+    bg_card_tint="#134E4A",
     bg_input="#171717",
     bg_hover="#262626",
     bg_selected="#042F2E",
@@ -132,6 +135,7 @@ HACKER = ThemeColors(
     bg_secondary="#0C130E",
     bg_sidebar="#040706",
     bg_card="#0B110C",
+    bg_card_tint="#123D22",
     bg_input="#080D09",
     bg_hover="#15241A",
     bg_selected="#0B2E18",
@@ -688,7 +692,7 @@ QLabel[class="homeSection"] {{
     padding-top: 4px;
 }}
 QFrame[class="featureCard"] {{
-    background: {t.accent_light};
+    background: {t.bg_card_tint};
     border: 1px solid {t.border};
     border-radius: 14px;
 }}
@@ -696,7 +700,7 @@ QFrame[class="featureCard"]:hover {{
     border-color: {t.accent};
 }}
 QFrame[class="summaryCard"] {{
-    background: {t.accent_light};
+    background: {t.bg_card_tint};
     border: 1px solid {t.border};
     border-radius: 14px;
 }}
@@ -705,6 +709,11 @@ QFrame[class="summaryCard"] {{
 QFrame[class="featureCard"] QLabel,
 QFrame[class="summaryCard"] QLabel {{
     background: transparent;
+}}
+/* Sobre o fundo colorido, o cinza do hint perde contraste. */
+QFrame[class="featureCard"] QLabel[class="hint"],
+QFrame[class="summaryCard"] QLabel[class="hint"] {{
+    color: {t.text_secondary};
 }}
 QLabel[class="summaryValue"] {{
     font-size: 18px; font-weight: 800; color: {t.text_primary};
