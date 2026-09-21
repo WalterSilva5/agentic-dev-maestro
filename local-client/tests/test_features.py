@@ -4,7 +4,7 @@ from maestro_local import features
 
 def test_tudo_ligado_por_padrao(temp_db):
     for f in features.FUNCIONALIDADES:
-        assert features.habilitada(f.chave) is True
+        assert features.habilitada(f.chave) is f.padrao
 
 
 def test_desligar_e_religar(temp_db):
@@ -54,7 +54,7 @@ def test_grupos_cobrem_todas_as_funcionalidades():
 def test_menu_respeita_o_que_esta_ligado(qapp, temp_db):
     from maestro_local.gui.main_window import MainWindow
     antes = len(MainWindow()._nav_keys)
-    for k in ("dashboard", "daily", "board"):
+    for k in ("dashboard", "daily", "chat"):
         features.definir(k, False)
     depois = MainWindow()._nav_keys
     assert len(depois) == antes - 3

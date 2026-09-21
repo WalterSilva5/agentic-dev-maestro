@@ -165,10 +165,10 @@ class EyecareBreak(QWidget):
 
         Só de leitura de propósito: concluir aqui convidaria a continuar
         trabalhando, e a pausa deixaria de acontecer. Concluir segue na tela
-        de TODOs (ou no modal de foco do dia).
+        de TODOs.
         """
         try:
-            from maestro_local.gui.daily_focus_dialog import todos_abertos
+            from maestro_local.todos import todos_abertos
             self._todos = todos_abertos(limite=20)
         except Exception:  # noqa: BLE001 - a pausa não pode falhar por causa da lista
             self._todos = []
