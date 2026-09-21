@@ -11,6 +11,10 @@ Três coisas seguram a pausa, em ordem de prioridade:
 
 O estado (`ultima_pausa`, `adiada_ate`) fica na configuração, então fechar e
 reabrir o programa não zera o ciclo nem cancela um adiamento.
+
+Na janela de sono (ver `hora_de_dormir`), a mesma pausa vira a tela vermelha
+"HORA DE DORMIR" e só pode ser dispensada depois de alguns segundos — de nada
+adianta um lembrete de dormir que se pula por reflexo.
 """
 from __future__ import annotations
 
@@ -22,6 +26,9 @@ PADROES = {
     "intervalo_min": 20,     # 20-20-20
     "duracao_seg": 20,
     "adiar_min": 5,
+    "dormir_ativo": True,    # liga o modo hora de dormir
+    "dormir_hora": "22:00",
+    "acordar_hora": "06:00",
 }
 _LIMITES = {
     "intervalo_min": (5, 180),
@@ -53,6 +60,20 @@ def _instante(texto: str | None) -> datetime | None:
         return None
 
 
+def _hora_valida(texto, padrao: str) -> str:
+    """Normaliza "HH:MM"; valor corrompido cai no padrão."""
+    try:
+        h, m = str(texto).split(":")
+        return f"{int(h) % 24:02d}:{int(m) % 60:02d}"
+    except (ValueError, AttributeError):
+        return padrao
+
+
+def _minutos(texto: str) -> int:
+    h, m = texto.split(":")
+    return int(h) * 60 + int(m)
+
+
 def config() -> dict:
     b = _bruto()
     return {
@@ -61,11 +82,15 @@ def config() -> dict:
         "adiar_min": _num(b, "adiar_min"),
         "ultima_pausa": _instante(b.get("ultima_pausa")),
         "adiada_ate": _instante(b.get("adiada_ate")),
+        "dormir_ativo": bool(b.get("dormir_ativo", PADROES["dormir_ativo"])),
+        "dormir_hora": _hora_valida(b.get("dormir_hora"), PADROES["dormir_hora"]),
+        "acordar_hora": _hora_valida(b.get("acordar_hora"), PADROES["acordar_hora"]),
     }
 
 
 def definir(intervalo_min: int | None = None, duracao_seg: int | None = None,
-            adiar_min: int | None = None) -> None:
+            adiar_min: int | None = None, dormir_ativo: bool | None = None,
+            dormir_hora: str | None = None, acordar_hora: str | None = None) -> None:
     cfg = load_config()
     olhos = cfg.setdefault("settings", {}).setdefault("eyecare", {})
     for chave, valor in (("intervalo_min", intervalo_min),
@@ -74,7 +99,33 @@ def definir(intervalo_min: int | None = None, duracao_seg: int | None = None,
         if valor is not None:
             minimo, maximo = _LIMITES[chave]
             olhos[chave] = max(minimo, min(maximo, int(valor)))
+    if dormir_ativo is not None:
+        olhos["dormir_ativo"] = bool(dormir_ativo)
+    if dormir_hora is not None:
+        olhos["dormir_hora"] = _hora_valida(dormir_hora, PADROES["dormir_hora"])
+    if acordar_hora is not None:
+        olhos["acordar_hora"] = _hora_valida(acordar_hora, PADROES["acordar_hora"])
     save_config(cfg)
+
+
+def hora_de_dormir(agora: datetime | None = None) -> bool:
+    """A pausa entra em modo dormir agora?
+
+    A janela vai de `dormir_hora` até `acordar_hora` e pode cruzar a
+    meia-noite (ex.: 22:00 → 06:00). Desligada, nunca é hora de dormir.
+    """
+    c = config()
+    if not c["dormir_ativo"]:
+        return False
+    agora = agora or datetime.now()
+    atual = agora.hour * 60 + agora.minute
+    dormir = _minutos(c["dormir_hora"])
+    acordar = _minutos(c["acordar_hora"])
+    if dormir == acordar:
+        return False               # janela nula: não faz sentido
+    if dormir < acordar:
+        return dormir <= atual < acordar
+    return atual >= dormir or atual < acordar
 
 
 def _gravar_instante(chave: str, quando: datetime | None) -> None:

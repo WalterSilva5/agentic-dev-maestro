@@ -1,4 +1,4 @@
-from PySide6.QtCore import Qt, QThread, QTimer, Signal
+from PySide6.QtCore import QTime, Qt, QThread, QTimer, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QScrollArea,
     QSpinBox,
+    QTimeEdit,
     QVBoxLayout,
     QWidget,
 )
@@ -506,6 +507,37 @@ class SettingsView(QWidget):
         atalho.setProperty("class", "hint")
         layout.addWidget(atalho)
 
+        # Modo hora de dormir: a partir do horário, a pausa fica vermelha e só
+        # libera a saída depois de alguns segundos.
+        self.eye_dormir = QCheckBox(t("Modo hora de dormir"))
+        self.eye_dormir.toggled.connect(self._save_eyecare)
+        layout.addWidget(self.eye_dormir)
+
+        linha_sono = QHBoxLayout()
+        linha_sono.setSpacing(8)
+        linha_sono.addWidget(QLabel(t("Dormir às:")))
+        self.eye_dormir_hora = QTimeEdit()
+        self.eye_dormir_hora.setDisplayFormat("HH:mm")
+        self.eye_dormir_hora.setFixedWidth(80)
+        self.eye_dormir_hora.timeChanged.connect(self._save_eyecare)
+        linha_sono.addWidget(self.eye_dormir_hora)
+        linha_sono.addWidget(QLabel(t("Acordar às:")))
+        self.eye_acordar_hora = QTimeEdit()
+        self.eye_acordar_hora.setDisplayFormat("HH:mm")
+        self.eye_acordar_hora.setFixedWidth(80)
+        self.eye_acordar_hora.timeChanged.connect(self._save_eyecare)
+        linha_sono.addWidget(self.eye_acordar_hora)
+        linha_sono.addStretch()
+        layout.addLayout(linha_sono)
+
+        dica_sono = QLabel(
+            t("Do horário de dormir até o de acordar, a pausa vira a tela "
+              "vermelha \"HORA DE DORMIR\" e só libera Pular/Adiar depois de "
+              "5 segundos."))
+        dica_sono.setWordWrap(True)
+        dica_sono.setProperty("class", "hint")
+        layout.addWidget(dica_sono)
+
     def _testar_eyecare(self):
         janela = self.window()
         if hasattr(janela, "testar_eyecare"):
@@ -515,9 +547,14 @@ class SettingsView(QWidget):
         if self._loading:
             return
         from maestro_local import eyecare
-        eyecare.definir(intervalo_min=self.eye_intervalo.value(),
-                        duracao_seg=self.eye_duracao.value(),
-                        adiar_min=self.eye_adiar.value())
+        eyecare.definir(
+            intervalo_min=self.eye_intervalo.value(),
+            duracao_seg=self.eye_duracao.value(),
+            adiar_min=self.eye_adiar.value(),
+            dormir_ativo=self.eye_dormir.isChecked(),
+            dormir_hora=self.eye_dormir_hora.time().toString("HH:mm"),
+            acordar_hora=self.eye_acordar_hora.time().toString("HH:mm"),
+        )
 
     def _build_pomodoro_section(self):
         card, layout = self._make_card("🍅", t("Pomodoro"))
@@ -694,6 +731,9 @@ class SettingsView(QWidget):
         self.eye_intervalo.setValue(eye["intervalo_min"])
         self.eye_duracao.setValue(eye["duracao_seg"])
         self.eye_adiar.setValue(eye["adiar_min"])
+        self.eye_dormir.setChecked(eye["dormir_ativo"])
+        self.eye_dormir_hora.setTime(QTime.fromString(eye["dormir_hora"], "HH:mm"))
+        self.eye_acordar_hora.setTime(QTime.fromString(eye["acordar_hora"], "HH:mm"))
 
         coach = settings.get("coach", {})
         self.coach_enabled.setChecked(coach.get("enabled", True))

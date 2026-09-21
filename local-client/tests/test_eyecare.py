@@ -320,3 +320,93 @@ def test_lista_acompanha_a_largura_da_dica(qapp, temp_db):
     br = EyecareBreak(QWidget(), duracao_seg=5)
     br._ajustar_dica(None)
     assert br.pendencias.width() == br.dica.width()
+
+
+# ---------------------------------------------------------------------------
+# Modo hora de dormir
+# ---------------------------------------------------------------------------
+
+def test_hora_de_dormir_janela_que_cruza_a_meia_noite(temp_db):
+    eyecare.definir(dormir_ativo=True, dormir_hora="22:00", acordar_hora="06:00")
+    assert eyecare.hora_de_dormir(datetime(2026, 8, 1, 21, 59)) is False
+    assert eyecare.hora_de_dormir(datetime(2026, 8, 1, 22, 0)) is True
+    assert eyecare.hora_de_dormir(datetime(2026, 8, 1, 23, 30)) is True
+    assert eyecare.hora_de_dormir(datetime(2026, 8, 2, 5, 59)) is True
+    assert eyecare.hora_de_dormir(datetime(2026, 8, 2, 6, 0)) is False
+
+
+def test_hora_de_dormir_janela_no_mesmo_dia(temp_db):
+    eyecare.definir(dormir_ativo=True, dormir_hora="01:00", acordar_hora="08:00")
+    assert eyecare.hora_de_dormir(datetime(2026, 8, 1, 0, 30)) is False
+    assert eyecare.hora_de_dormir(datetime(2026, 8, 1, 3, 0)) is True
+    assert eyecare.hora_de_dormir(datetime(2026, 8, 1, 8, 0)) is False
+
+
+def test_hora_de_dormir_desligada(temp_db):
+    eyecare.definir(dormir_ativo=False, dormir_hora="22:00", acordar_hora="06:00")
+    assert eyecare.hora_de_dormir(datetime(2026, 8, 1, 23, 0)) is False
+
+
+def test_hora_de_dormir_corrompida_cai_no_padrao(temp_db):
+    from maestro_local.config import load_config, save_config
+    cfg = load_config()
+    cfg.setdefault("settings", {}).setdefault("eyecare", {})["dormir_hora"] = "xx"
+    save_config(cfg)
+    assert eyecare.config()["dormir_hora"] == eyecare.PADROES["dormir_hora"]
+
+
+def test_modo_dormir_usa_fundo_vermelho_e_titulo_grande(qapp, temp_db):
+    from PySide6.QtWidgets import QWidget
+
+    from maestro_local.gui.eyecare_break import DORMIR_FUNDO, EyecareBreak
+    br = EyecareBreak(QWidget(), duracao_seg=20, dormir=True)
+    assert br._cor_fundo == DORMIR_FUNDO
+    assert br.titulo.text() == "HORA DE DORMIR"
+    assert "58px" in br.titulo.styleSheet()
+    br._encerrar()
+
+
+def test_modo_dormir_nao_libera_antes_de_5_segundos(qapp, temp_db):
+    from PySide6.QtCore import Qt
+    from PySide6.QtGui import QKeyEvent
+    from PySide6.QtWidgets import QWidget
+
+    from maestro_local.gui.eyecare_break import EyecareBreak
+    br = EyecareBreak(QWidget(), duracao_seg=20, dormir=True)
+    assert not br.btn_pular.isEnabled()
+    assert not br.btn_adiar.isEnabled()
+
+    # Esc, Pular e Adiar não dispensam enquanto bloqueado
+    adiado, pulado = [], []
+    br.adiada.connect(lambda: adiado.append(True))
+    br.concluida.connect(lambda: pulado.append(True))
+    br.keyPressEvent(QKeyEvent(QKeyEvent.KeyPress, Qt.Key_Escape, Qt.NoModifier))
+    br._on_pular()
+    br._on_adiar()
+    assert adiado == [] and pulado == []
+
+    for _ in range(5):
+        br._on_tick()
+    assert br.btn_pular.isEnabled()
+    assert br.btn_adiar.isEnabled()
+    br._encerrar()
+
+
+def test_modo_dormir_nao_mostra_pendencias(qapp, temp_db):
+    from PySide6.QtWidgets import QWidget
+
+    from maestro_local.gui.eyecare_break import EyecareBreak
+    _cria_todo("não deve aparecer no modo dormir")
+    br = EyecareBreak(QWidget(), duracao_seg=20, dormir=True)
+    assert br.pendencias is None
+    br._encerrar()
+
+
+def test_pausa_normal_nao_tem_bloqueio(qapp, temp_db):
+    from PySide6.QtWidgets import QWidget
+
+    from maestro_local.gui.eyecare_break import EyecareBreak
+    br = EyecareBreak(QWidget(), duracao_seg=20)
+    assert br.btn_pular.isEnabled()
+    assert br._bloqueado() is False
+    br._encerrar()

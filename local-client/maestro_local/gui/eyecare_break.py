@@ -52,6 +52,16 @@ ACENTO_HOVER = "#0F766E"
 PERIGO = "#F87171"   # pendência urgente
 ALERTA = "#FBBF24"   # pendência de prioridade alta
 
+# Modo hora de dormir: fundo vermelho, texto grande. Vermelho escuro em vez do
+# puro (#DC2626): em tela cheia o tom saturado ofusca, e a tela já chega tarde
+# da noite, quando a vista está cansada.
+DORMIR_FUNDO = "#B91C1C"
+DORMIR_FUNDO_HOVER = "#991B1B"
+DORMIR_TITULO = "#FFFFFF"
+DORMIR_TEXTO = "#FECACA"
+# Segundos mínimos antes de liberar "Pular"/"Adiar" no modo dormir.
+DORMIR_BLOQUEIO_SEG = 5
+
 
 class _Cobertura(QWidget):
     """Painel liso para os monitores secundários (sem contador nem botões)."""
@@ -76,61 +86,73 @@ class EyecareBreak(QWidget):
     concluida = Signal()     # a pausa foi até o fim ou foi pulada
     adiada = Signal()        # empurrar para daqui a alguns minutos
 
-    def __init__(self, parent, duracao_seg: int = 20):
+    def __init__(self, parent, duracao_seg: int = 20, dormir: bool = False):
         super().__init__(parent, Qt.Window | Qt.FramelessWindowHint
                          | Qt.WindowStaysOnTopHint)
         self._dono = parent
         self._coberturas: list[_Cobertura] = []
         self._restante = max(1, int(duracao_seg))
-        self._cor_fundo = FUNDO
-        self.setWindowTitle(t("Pausa para os olhos"))
+        self._dormir = bool(dormir)
+        # No modo dormir nada dispensa antes de alguns segundos: um lembrete de
+        # dormir que se pula por reflexo não serve para nada.
+        self._bloqueio_seg = DORMIR_BLOQUEIO_SEG if self._dormir else 0
+        self._cor_fundo = DORMIR_FUNDO if self._dormir else FUNDO
+        self.setWindowTitle(t("Hora de dormir") if self._dormir
+                            else t("Pausa para os olhos"))
         self.setAttribute(Qt.WA_StyledBackground, True)
-        self.setStyleSheet(
-            f"EyecareBreak {{ background: {FUNDO}; }}"
-            f"EyecareBreak QPushButton {{ background: {ACENTO}; color: #FFFFFF; "
-            f"border: none; border-radius: 10px; padding: 10px 22px; "
-            f"font-size: 13px; font-weight: 600; }}"
-            f"EyecareBreak QPushButton:hover {{ background: {ACENTO_HOVER}; }}"
-            f'EyecareBreak QPushButton[flat="true"] {{ background: transparent; '
-            f"color: {TEXTO}; border: 1px solid {BORDA}; }}"
-            f'EyecareBreak QPushButton[flat="true"]:hover {{ '
-            f"background: rgba(255, 255, 255, 0.06); color: {CONTADOR}; }}"
-        )
+        self.setStyleSheet(self._folha())
 
         lay = QVBoxLayout(self)
         lay.setContentsMargins(40, 40, 40, 40)
         lay.setSpacing(18)
         lay.addStretch()
 
-        titulo = QLabel(t("Pausa para os olhos"))
-        titulo.setAlignment(Qt.AlignCenter)
-        titulo.setStyleSheet(
-            f"color: {TITULO}; font-size: 26px; font-weight: 800; "
-            f"background: transparent; border: none;")
-        lay.addWidget(titulo)
+        self.titulo = QLabel(t("HORA DE DORMIR") if self._dormir
+                             else t("Pausa para os olhos"))
+        self.titulo.setAlignment(Qt.AlignCenter)
+        self.titulo.setWordWrap(True)
+        self.titulo.setStyleSheet(
+            f"color: {DORMIR_TITULO if self._dormir else TITULO}; "
+            f"font-size: {58 if self._dormir else 26}px; font-weight: 800; "
+            f"letter-spacing: 2px; background: transparent; border: none;")
+        lay.addWidget(self.titulo)
 
         # Uma dica diferente a cada pausa. Uma frase fixa vira paisagem depois
         # de algumas repetições e a tela deixa de ensinar qualquer coisa.
-        from maestro_local.eyecare import proxima_dica
-        self.dica = QLabel(t(proxima_dica()))
+        if self._dormir:
+            self.dica = QLabel(t("Salve o trabalho, desligue as telas e vá "
+                                 "descansar. O corpo agradece."))
+        else:
+            from maestro_local.eyecare import proxima_dica
+            self.dica = QLabel(t(proxima_dica()))
         self.dica.setAlignment(Qt.AlignCenter)
         self.dica.setWordWrap(True)
         self.dica.setStyleSheet(
-            f"color: {TEXTO}; font-size: 15px; line-height: 150%; "
-            f"background: transparent; border: none;")
+            f"color: {DORMIR_TEXTO if self._dormir else TEXTO}; font-size: 15px; "
+            f"line-height: 150%; background: transparent; border: none;")
         lay.addWidget(self.dica, 0, Qt.AlignHCenter)
         self._largura_dica = 620
 
         self._contador = QLabel("")
         self._contador.setAlignment(Qt.AlignCenter)
         self._contador.setStyleSheet(
-            f"color: {CONTADOR}; font-size: 46px; font-weight: 800; "
+            f"color: {DORMIR_TITULO if self._dormir else CONTADOR}; "
+            f"font-size: 46px; font-weight: 800; "
             f"letter-spacing: 2px; background: transparent; border: none;")
         lay.addWidget(self._contador)
 
+        # Aviso do bloqueio de saída (só no modo dormir).
+        self._aviso = QLabel("")
+        self._aviso.setAlignment(Qt.AlignCenter)
+        self._aviso.setStyleSheet(
+            f"color: {DORMIR_TEXTO}; font-size: 13px; font-weight: 600; "
+            f"background: transparent; border: none;")
+        lay.addWidget(self._aviso)
+
         # Pendências em aberto: a pausa já tem a atenção de quem está diante da
         # tela, então é um bom lugar para a lista sem tirar o foco do descanso.
-        self.pendencias = self._montar_pendencias()
+        # No modo dormir, não: a lista convidaria a continuar trabalhando.
+        self.pendencias = None if self._dormir else self._montar_pendencias()
         if self.pendencias is not None:
             linha = QHBoxLayout()
             linha.addStretch()
@@ -154,12 +176,61 @@ class EyecareBreak(QWidget):
         lay.addLayout(acoes)
         lay.addStretch()
 
+        if self._bloqueado():
+            self.btn_adiar.setEnabled(False)
+            self.btn_pular.setEnabled(False)
+            self._atualizar_aviso()
+
         self._tick = QTimer(self)
         self._tick.setInterval(1000)
         self._tick.timeout.connect(self._on_tick)
         self._atualizar_contador()
 
     # ------------------------------------------------------------------
+    def _folha(self) -> str:
+        """QSS da janela: paleta normal ou a vermelha do modo dormir."""
+        if self._dormir:
+            return (
+                f"EyecareBreak {{ background: {DORMIR_FUNDO}; }}"
+                f"EyecareBreak QPushButton {{ background: #FFFFFF; "
+                f"color: {DORMIR_FUNDO}; border: none; border-radius: 10px; "
+                f"padding: 10px 22px; font-size: 13px; font-weight: 700; }}"
+                f"EyecareBreak QPushButton:hover {{ background: {DORMIR_TEXTO}; }}"
+                f"EyecareBreak QPushButton:disabled {{ "
+                f"background: rgba(255, 255, 255, 0.22); "
+                f"color: rgba(255, 255, 255, 0.55); }}"
+                f'EyecareBreak QPushButton[flat="true"] {{ background: transparent; '
+                f"color: {DORMIR_TEXTO}; border: 1px solid rgba(255,255,255,0.55); }}"
+                f'EyecareBreak QPushButton[flat="true"]:hover {{ '
+                f"background: rgba(255, 255, 255, 0.12); }}"
+            )
+        return (
+            f"EyecareBreak {{ background: {FUNDO}; }}"
+            f"EyecareBreak QPushButton {{ background: {ACENTO}; color: #FFFFFF; "
+            f"border: none; border-radius: 10px; padding: 10px 22px; "
+            f"font-size: 13px; font-weight: 600; }}"
+            f"EyecareBreak QPushButton:hover {{ background: {ACENTO_HOVER}; }}"
+            f'EyecareBreak QPushButton[flat="true"] {{ background: transparent; '
+            f"color: {TEXTO}; border: 1px solid {BORDA}; }}"
+            f'EyecareBreak QPushButton[flat="true"]:hover {{ '
+            f"background: rgba(255, 255, 255, 0.06); color: {CONTADOR}; }}"
+        )
+
+    def _bloqueado(self) -> bool:
+        """Ainda não dá para sair? (só acontece no modo dormir)"""
+        return self._dormir and self._bloqueio_seg > 0
+
+    def _atualizar_aviso(self):
+        self._aviso.setText(
+            t("Você poderá pular em {s}s").format(s=self._bloqueio_seg)
+            if self._bloqueado() else "")
+
+    def _liberar(self):
+        self.btn_adiar.setEnabled(True)
+        self.btn_pular.setEnabled(True)
+        self._aviso.setText("")
+        self.btn_pular.setFocus()
+
     def _montar_pendencias(self):
         """Lista das pendências em aberto, ou None quando não há nenhuma.
 
@@ -265,7 +336,8 @@ class EyecareBreak(QWidget):
         self.showFullScreen()
         self.raise_()
         self.activateWindow()
-        self.btn_pular.setFocus()
+        if not self._bloqueado():
+            self.btn_pular.setFocus()
         self._tick.start()
 
     def _ajustar_dica(self, tela):
@@ -290,6 +362,8 @@ class EyecareBreak(QWidget):
         # Esc adia em vez de fechar sem mais: uma janela em tela cheia que some
         # sem consequência ensina a dispensá-la por reflexo.
         if event.key() == Qt.Key_Escape:
+            if self._bloqueado():
+                return       # no modo dormir, Esc também espera o bloqueio
             self._on_adiar()
             return
         super().keyPressEvent(event)
@@ -299,6 +373,12 @@ class EyecareBreak(QWidget):
 
     def _on_tick(self):
         self._restante -= 1
+        if self._bloqueio_seg > 0:
+            self._bloqueio_seg -= 1
+            if self._bloqueio_seg <= 0:
+                self._liberar()
+            else:
+                self._atualizar_aviso()
         if self._restante <= 0:
             self._encerrar()
             self.concluida.emit()
@@ -306,11 +386,15 @@ class EyecareBreak(QWidget):
         self._atualizar_contador()
 
     def _on_pular(self):
+        if self._bloqueado():
+            return
         # Pular conta como pausa feita: o ciclo reinicia em vez de insistir.
         self._encerrar()
         self.concluida.emit()
 
     def _on_adiar(self):
+        if self._bloqueado():
+            return
         self._encerrar()
         self.adiada.emit()
 

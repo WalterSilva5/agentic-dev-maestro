@@ -706,7 +706,8 @@ class MainWindow(QMainWindow):
     def _mostrar_eyecare(self):
         from maestro_local import eyecare
         from maestro_local.gui.eyecare_break import EyecareBreak
-        overlay = EyecareBreak(self, eyecare.config()["duracao_seg"])
+        overlay = EyecareBreak(self, eyecare.config()["duracao_seg"],
+                               dormir=eyecare.hora_de_dormir())
         overlay.concluida.connect(self._on_eyecare_concluida)
         overlay.adiada.connect(self._on_eyecare_adiada)
         self._eyecare_overlay = overlay
