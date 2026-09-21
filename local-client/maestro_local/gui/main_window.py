@@ -146,10 +146,12 @@ class MainWindow(QMainWindow):
         brand_text.addWidget(self.brand_subtitle)
         top.addLayout(brand_text)
 
-        # Início: volta para a home (lançador).
+        # Início: volta para a home (lançador). Destacado com o texto ao lado.
         self.home_btn = QToolButton()
-        self.home_btn.setProperty("class", "topIcon")
-        self.home_btn.setToolTip(t("Início"))
+        self.home_btn.setProperty("class", "homeBtn")
+        self.home_btn.setText(t("Início"))
+        self.home_btn.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        self.home_btn.setToolTip(t("Ir para o início"))
         self.home_btn.setCursor(Qt.PointingHandCursor)
         self.home_btn.clicked.connect(lambda: self._open_key("home"))
         top.addWidget(self.home_btn)
@@ -607,7 +609,7 @@ class MainWindow(QMainWindow):
         self.setStyleSheet(build_stylesheet(theme))
 
         # Ícones da barra superior: são pixmaps, então o QSS não os recolore.
-        self.home_btn.setIcon(nav_icon("home", theme.text_secondary, size=20))
+        self.home_btn.setIcon(nav_icon("home", theme.text_on_accent, size=18))
         self.search_btn.setIcon(nav_icon("search", theme.text_secondary, size=20))
         self.notif_btn.setIcon(nav_icon("bell", theme.text_secondary, size=20))
         self.quick_record_btn.setIcon(
@@ -987,6 +989,11 @@ class MainWindow(QMainWindow):
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
+        # Barra superior responsiva: em janelas estreitas o seletor de projeto
+        # some para dar lugar ao botão "Início" com texto (o projeto continua
+        # acessível nas telas de Projetos/Reuniões).
+        if hasattr(self, "project_selector"):
+            self.project_selector.setVisible(self.width() >= 980)
         if self.toast.isVisible():
             self.toast.move(
                 self.width() - self.toast.width() - 20,

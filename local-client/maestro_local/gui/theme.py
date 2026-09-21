@@ -676,6 +676,13 @@ QToolButton[class="topIcon"] {{
     background: transparent; border: none; border-radius: 9px; padding: 6px;
 }}
 QToolButton[class="topIcon"]:hover {{ background: {t.bg_hover}; }}
+QToolButton[class="homeBtn"] {{
+    background: {t.accent}; color: {t.text_on_accent};
+    border: none; border-radius: 9px; padding: 6px 14px;
+    font-weight: 700; font-size: 13px;
+}}
+QToolButton[class="homeBtn"]:hover {{ background: {t.accent_hover}; }}
+QToolButton[class="homeBtn"]:pressed {{ background: {t.accent_pressed}; }}
 QLabel#badgeCount {{
     background: {t.danger}; color: #FFFFFF; border-radius: 9px;
     font-size: 10px; font-weight: 800; padding: 1px 6px;
