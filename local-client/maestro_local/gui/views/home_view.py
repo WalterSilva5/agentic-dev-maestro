@@ -71,20 +71,20 @@ class FeatureCard(QFrame):
         self.setProperty("class", "featureCard")
         self.setAttribute(Qt.WA_Hover, True)
         self.setCursor(Qt.PointingHandCursor)
-        self.setMinimumHeight(104)
+        self.setMinimumHeight(84)
 
         col = QVBoxLayout(self)
-        col.setContentsMargins(14, 12, 14, 12)
-        col.setSpacing(6)
+        col.setContentsMargins(12, 10, 12, 10)
+        col.setSpacing(5)
 
         self._icone = QLabel()
-        self._icone.setFixedSize(26, 26)
+        self._icone.setFixedSize(20, 20)
         self._icone.setStyleSheet("background: transparent; border: none;")
         col.addWidget(self._icone)
 
         self._titulo = QLabel(rotulo)
         self._titulo.setProperty("class", "cardTitle")
-        self._titulo.setStyleSheet("font-size: 14px;")
+        self._titulo.setStyleSheet("font-size: 13px;")
         col.addWidget(self._titulo)
 
         if descricao:
@@ -99,7 +99,7 @@ class FeatureCard(QFrame):
         th = current_theme()
         cor = th.accent if ativo else th.text_secondary
         icone = nav_icon(self._chave, cor)
-        self._icone.setPixmap(icone.pixmap(26, 26))
+        self._icone.setPixmap(icone.pixmap(20, 20))
 
     def mousePressEvent(self, event):  # noqa: N802
         if event.button() == Qt.LeftButton:
@@ -118,13 +118,13 @@ class SummaryCard(QFrame):
         super().__init__(parent)
         self.setProperty("class", "summaryCard")
         col = QVBoxLayout(self)
-        col.setContentsMargins(16, 14, 16, 14)
-        col.setSpacing(6)
+        col.setContentsMargins(14, 12, 14, 12)
+        col.setSpacing(5)
 
         cabecalho = QHBoxLayout()
-        cabecalho.setSpacing(8)
+        cabecalho.setSpacing(7)
         self._icone = QLabel()
-        self._icone.setFixedSize(20, 20)
+        self._icone.setFixedSize(16, 16)
         self._icone.setStyleSheet("background: transparent; border: none;")
         cabecalho.addWidget(self._icone)
         rotulo = QLabel(titulo)
@@ -157,7 +157,7 @@ class SummaryCard(QFrame):
     def apply_theme(self):
         th = current_theme()
         icone = nav_icon(self._icone_chave, th.accent)
-        self._icone.setPixmap(icone.pixmap(20, 20))
+        self._icone.setPixmap(icone.pixmap(16, 16))
 
 
 class HomeView(QWidget):
@@ -182,8 +182,8 @@ class HomeView(QWidget):
 
         container = QWidget()
         col = QVBoxLayout(container)
-        col.setContentsMargins(28, 22, 28, 28)
-        col.setSpacing(16)
+        col.setContentsMargins(22, 18, 22, 22)
+        col.setSpacing(14)
 
         self.greeting = QLabel(_saudacao())
         self.greeting.setObjectName("homeGreeting")
@@ -204,7 +204,7 @@ class HomeView(QWidget):
         self.card_pausa.action.connect(self.eyecare_test.emit)
 
         resumo = QHBoxLayout()
-        resumo.setSpacing(12)
+        resumo.setSpacing(10)
         for card in (self.card_pendencias, self.card_projeto, self.card_pausa):
             resumo.addWidget(card, 1)
         col.addLayout(resumo)
@@ -221,8 +221,8 @@ class HomeView(QWidget):
             col.addWidget(label)
 
             grade = QGridLayout()
-            grade.setHorizontalSpacing(12)
-            grade.setVerticalSpacing(12)
+            grade.setHorizontalSpacing(10)
+            grade.setVerticalSpacing(10)
             for indice, chave in enumerate(ativas):
                 f = catalogo.get(chave)
                 if f is not None:

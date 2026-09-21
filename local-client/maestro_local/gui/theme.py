@@ -679,7 +679,7 @@ QLabel#badgeCount {{
 
 /* --- Home (lançador) --- */
 QLabel#homeGreeting {{
-    font-size: 24px; font-weight: 800; color: {t.text_primary};
+    font-size: 20px; font-weight: 800; color: {t.text_primary};
     background: transparent; border: none;
 }}
 QLabel[class="homeSection"] {{
@@ -688,21 +688,26 @@ QLabel[class="homeSection"] {{
     padding-top: 4px;
 }}
 QFrame[class="featureCard"] {{
-    background: {t.bg_card};
-    border: 1px solid {t.border_light};
+    background: {t.accent_light};
+    border: 1px solid {t.border};
     border-radius: 14px;
 }}
 QFrame[class="featureCard"]:hover {{
     border-color: {t.accent};
-    background: {t.bg_hover};
 }}
 QFrame[class="summaryCard"] {{
-    background: {t.bg_card};
-    border: 1px solid {t.border_light};
+    background: {t.accent_light};
+    border: 1px solid {t.border};
     border-radius: 14px;
 }}
+/* Mesma proteção do card genérico: sem isto os QLabel herdam um fundo
+   calculado da paleta quando o ancestral é estilizado. */
+QFrame[class="featureCard"] QLabel,
+QFrame[class="summaryCard"] QLabel {{
+    background: transparent;
+}}
 QLabel[class="summaryValue"] {{
-    font-size: 22px; font-weight: 800; color: {t.text_primary};
+    font-size: 18px; font-weight: 800; color: {t.text_primary};
     background: transparent; border: none;
 }}
 """
