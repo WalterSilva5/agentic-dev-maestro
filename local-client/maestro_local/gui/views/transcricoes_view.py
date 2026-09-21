@@ -148,10 +148,10 @@ class TranscricoesView(QWidget):
     # Emitido quando o usuário troca o workspace pela própria tela de reuniões;
     # a janela principal faz a troca de banco + refresh geral.
     workspace_change_requested = Signal(str)
-    # Projeto ativo alterado pela tela de reuniões (sidebar sincroniza).
+    # Projeto ativo alterado pela tela de reuniões (barra superior sincroniza).
     project_changed = Signal(object)
-    # (gravando, segundos) — a sidebar atualiza o widget rápido por evento,
-    # em vez de um poll de 1s sempre ativo.
+    # (gravando, segundos) — a barra superior atualiza o botão de gravação por
+    # evento, em vez de um poll de 1s sempre ativo.
     recording_state_changed = Signal(bool, int)
 
     def __init__(self):
@@ -519,7 +519,7 @@ class TranscricoesView(QWidget):
             self._load_history()
 
     def _populate_projects(self):
-        """Lista os projetos, seguindo o projeto ativo (seletor da sidebar)."""
+        """Lista os projetos, seguindo o projeto ativo (seletor do topo)."""
         from maestro_local.config import get_active_project_id
         self._loading_proj = True
         try:
@@ -541,7 +541,7 @@ class TranscricoesView(QWidget):
             self._loading_proj = False
 
     def _on_proj_combo_changed(self):
-        """Trocar o projeto aqui também define o projeto ativo (sidebar)."""
+        """Trocar o projeto aqui também define o projeto ativo (barra superior)."""
         if getattr(self, "_loading_proj", False):
             return
         from maestro_local.config import get_active_project_id, set_active_project_id

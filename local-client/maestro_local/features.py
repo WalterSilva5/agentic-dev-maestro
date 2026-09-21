@@ -1,7 +1,7 @@
 """Funcionalidades que o usuário pode ligar/desligar.
 
 Com tudo habilitado a interface fica cheia: 18 telas somando o menu e o hub de
-Ferramentas, mais os extras da barra lateral. Aqui ficam quais existem, o padrão
+Ferramentas, mais os extras da barra superior. Aqui ficam quais existem, o padrão
 de cada uma e a leitura/gravação da escolha — num só lugar, para não virar um
 punhado de flags espalhadas pelas telas.
 
@@ -76,7 +76,7 @@ FUNCIONALIDADES: tuple[Funcionalidade, ...] = (
                    "Tradução entre idiomas"),
 
     # --- extras da interface ---
-    Funcionalidade("quick_record", "Gravação rápida na barra lateral",
+    Funcionalidade("quick_record", "Gravação rápida na barra superior",
                    GRUPO_EXTRAS, "Botão de gravar sempre à mão"),
     Funcionalidade("todo_reminder", "Lembrete de pendências",
                    GRUPO_EXTRAS, "Aviso periódico de TODOs vencidos"),

@@ -653,6 +653,58 @@ QPushButton[class="quickMove"]:hover {{
     color: {t.text_on_accent};
     border-color: {t.accent};
 }}
+
+/* --- Barra superior --- */
+QFrame#topBar {{
+    background: {t.bg_sidebar};
+    border-bottom: 1px solid {t.border_light};
+}}
+QFrame#topBar QLabel {{ background: transparent; }}
+QLabel#brandName {{
+    font-size: 14px; font-weight: 800; color: {t.text_primary};
+    border: none; background: transparent;
+}}
+QLabel#brandSub {{
+    font-size: 10px; font-weight: 600; color: {t.accent};
+    letter-spacing: 1px; background: transparent;
+}}
+QToolButton[class="topIcon"] {{
+    background: transparent; border: none; border-radius: 9px; padding: 6px;
+}}
+QToolButton[class="topIcon"]:hover {{ background: {t.bg_hover}; }}
+QLabel#badgeCount {{
+    background: {t.danger}; color: #FFFFFF; border-radius: 9px;
+    font-size: 10px; font-weight: 800; padding: 1px 6px;
+}}
+
+/* --- Home (lançador) --- */
+QLabel#homeGreeting {{
+    font-size: 24px; font-weight: 800; color: {t.text_primary};
+    background: transparent; border: none;
+}}
+QLabel[class="homeSection"] {{
+    font-size: 11px; font-weight: 700; color: {t.text_muted};
+    letter-spacing: 1.2px; background: transparent; border: none;
+    padding-top: 4px;
+}}
+QFrame[class="featureCard"] {{
+    background: {t.bg_card};
+    border: 1px solid {t.border_light};
+    border-radius: 14px;
+}}
+QFrame[class="featureCard"]:hover {{
+    border-color: {t.accent};
+    background: {t.bg_hover};
+}}
+QFrame[class="summaryCard"] {{
+    background: {t.bg_card};
+    border: 1px solid {t.border_light};
+    border-radius: 14px;
+}}
+QLabel[class="summaryValue"] {{
+    font-size: 22px; font-weight: 800; color: {t.text_primary};
+    background: transparent; border: none;
+}}
 """
 
 

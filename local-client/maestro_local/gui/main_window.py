@@ -1,6 +1,6 @@
 import logging
 
-from PySide6.QtCore import QEvent, QSize, Qt, QTimer
+from PySide6.QtCore import QEvent, Qt, QTimer
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QFrame,
@@ -10,9 +10,11 @@ from PySide6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QMainWindow,
+    QMenu,
     QPushButton,
     QStackedWidget,
     QStatusBar,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -25,6 +27,7 @@ from maestro_local.gui.theme import (
 )
 from maestro_local.config import get_active_workspace_id, get_workspace_db_path
 from maestro_local.i18n import t
+from maestro_local import features
 from maestro_local.db.models import Todo, get_session, switch_db
 from maestro_local.gui.views.board_view import BoardView
 from maestro_local.gui.views.daily_view import DailyView
@@ -35,12 +38,13 @@ from maestro_local.gui.views.tools_hub_view import ToolsHubView
 from maestro_local.gui.views.settings_view import SettingsView
 from maestro_local.gui.views.projects_view import ProjectsView
 from maestro_local.gui.views.study_view import StudyView
+from maestro_local.gui.views.home_view import HomeView, SECOES
 # Telas raramente abertas (vault/library/apitester/kb/memory/english/translate/
 # skills/guide): import E CONSTRUÇÃO tardios (ver _ensure_view). Nenhuma delas é
 # referenciada fora do dicionário de navegação, então adiar é seguro — a tela só
 # custa memória/import quando o usuário de fato a abre.
-from maestro_local.gui.widgets.transcricoes_quick import TranscricoesQuickWidget
 from maestro_local.gui.workspace_selector import WorkspaceSelectorButton
+from maestro_local.todos import todos_abertos
 
 logger = logging.getLogger("maestro.gui.main_window")
 
@@ -114,151 +118,108 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.api_port = api_port
         self.setWindowTitle("Agentic Dev Maestro")
-        self.resize(960, 640)
-        self.setMinimumSize(700, 450)
+        self.resize(1120, 720)
+        self.setMinimumSize(840, 540)
 
         central = QWidget()
         self.setCentralWidget(central)
-        layout = QHBoxLayout(central)
+        layout = QVBoxLayout(central)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # --- Sidebar ---
-        self.sidebar = QWidget()
-        self.sidebar.setFixedWidth(180)
-        sb_layout = QVBoxLayout(self.sidebar)
-        # Recuo lateral: sem ele os controles encostam na borda da janela e os
-        # cantos arredondados são cortados — o que dava a cada bloco aspecto de
-        # caixa quadrada. O mesmo recuo que os itens de navegação já usavam.
-        sb_layout.setContentsMargins(8, 0, 8, 8)
-        sb_layout.setSpacing(0)
-
-        # Logo / branding section
-        logo_container = QWidget()
-        logo_layout = QVBoxLayout(logo_container)
-        logo_layout.setContentsMargins(12, 8, 12, 6)
-        logo_layout.setSpacing(2)
-
-        brand_row = QHBoxLayout()
-        brand_row.setSpacing(10)
-
-        self.logo_badge = QLabel("A")
-        self.logo_badge.setFixedSize(28, 28)
-        self.logo_badge.setAlignment(Qt.AlignCenter)
-        brand_row.addWidget(self.logo_badge)
+        # --- Barra superior ---
+        # Sem painel lateral: marca, contexto, busca, notificações e tema no topo.
+        self.topbar = QFrame()
+        self.topbar.setObjectName("topBar")
+        self.topbar.setFixedHeight(58)
+        top = QHBoxLayout(self.topbar)
+        top.setContentsMargins(16, 8, 16, 8)
+        top.setSpacing(10)
 
         brand_text = QVBoxLayout()
         brand_text.setSpacing(0)
-        self.logo_text = QLabel("Agentic Dev")
-        self.logo_subtitle = QLabel("Maestro")
-        brand_text.addWidget(self.logo_text)
-        brand_text.addWidget(self.logo_subtitle)
-        brand_row.addLayout(brand_text)
-        brand_row.addStretch()
+        self.brand_name = QLabel("Agentic Dev")
+        self.brand_name.setObjectName("brandName")
+        self.brand_subtitle = QLabel("MAESTRO")
+        self.brand_subtitle.setObjectName("brandSub")
+        brand_text.addWidget(self.brand_name)
+        brand_text.addWidget(self.brand_subtitle)
+        top.addLayout(brand_text)
 
-        logo_layout.addLayout(brand_row)
+        # Início: volta para a home (lançador).
+        self.home_btn = QToolButton()
+        self.home_btn.setProperty("class", "topIcon")
+        self.home_btn.setToolTip(t("Início"))
+        self.home_btn.setCursor(Qt.PointingHandCursor)
+        self.home_btn.clicked.connect(lambda: self._open_key("home"))
+        top.addWidget(self.home_btn)
 
-        self.logo_container = logo_container
-        sb_layout.addWidget(logo_container)
+        top.addSpacing(8)
 
-        # Contexto: para ONDE o trabalho vai (workspace + projeto). O rótulo
-        # fica acima dos dois seletores — antes ficava abaixo, encostado na
-        # navegação, e parecia rotular a lista de telas.
-        self.section_label_work = QLabel("  " + t("CONTEXTO"))
-        self.section_label_work.setObjectName("navSection")
-        sb_layout.addWidget(self.section_label_work)
-
+        # Contexto: para ONDE o trabalho vai (workspace + projeto).
         self.ws_selector = WorkspaceSelectorButton()
+        self.ws_selector.setMinimumWidth(150)
+        self.ws_selector.setMaximumWidth(210)
         self.ws_selector.workspace_changed.connect(self._on_workspace_changed)
-        sb_layout.addWidget(self.ws_selector)
+        top.addWidget(self.ws_selector)
 
-        # Seletor de projeto ativo (logo abaixo do workspace). Ignora a roda do
-        # mouse: só troca clicando e escolhendo.
+        # Seletor de projeto ativo. Ignora a roda do mouse: só troca clicando.
         from maestro_local.gui.no_wheel_combo import NoWheelComboBox
         self.project_selector = NoWheelComboBox()
+        self.project_selector.setMinimumWidth(150)
+        self.project_selector.setMaximumWidth(210)
         self.project_selector.setToolTip(t("Projeto ativo"))
         self.project_selector.currentIndexChanged.connect(self._on_project_selected)
-        sb_layout.addWidget(self.project_selector)
+        top.addWidget(self.project_selector)
 
-        # Navegação agrupada: o dia a dia primeiro, depois o que se configura.
-        # Dez itens numa lista plana não deixavam ver essa diferença.
-        self.nav_list = QListWidget()
-        self.nav_list.setObjectName("navList")
-        nav_groups = [
-            # Reuniões/Copiloto primeiro: é o eixo do produto (ver
-            # docs/planos/copiloto-ambiente).
-            (t("TRABALHO"), [
-                (t("Reuniões"), "transcricoes"),
-                (t("Dashboard"), "dashboard"),
-                (t("Meu Dia"), "daily"),
-                (t("Board"), "board"),
-                (t("Assistente"), "chat"),
-            ]),
-            (t("GERENCIAR"), [
-                (t("Projetos"), "projects"),
-                (t("Ferramentas"), "ferramentas"),
-                (t("Skills"), "skills"),
-            ]),
-            (t("SISTEMA"), [
-                (t("Instruções"), "guide"),
-                (t("Configurações"), "settings"),
-            ]),
-        ]
-        # Só entra o que o usuário deixou ligado (ver maestro_local/features).
-        from maestro_local import features
-        nav_groups = [(titulo, [(rot, k) for rot, k in itens
-                                if features.habilitada(k)])
-                      for titulo, itens in nav_groups]
-        nav_groups = [(titulo, itens) for titulo, itens in nav_groups if itens]
+        top.addStretch(1)
 
-        self._primary_keys = {k for _, itens in nav_groups for _, k in itens}
-        self._nav_keys: list[str] = []   # ordem só das telas (pula cabeçalhos)
-        for titulo, itens in nav_groups:
-            header = QListWidgetItem(titulo)
-            header.setFlags(Qt.NoItemFlags)   # rótulo, não é clicável
-            self.nav_list.addItem(header)
-            for label, key in itens:
-                item = QListWidgetItem(f"  {label}")
-                item.setData(Qt.UserRole, key)
-                self.nav_list.addItem(item)
-                self._nav_keys.append(key)
-        self.nav_list.setIconSize(QSize(18, 18))
+        # Gravação rápida (quando ligada em Funcionalidades).
+        self.quick_record_btn = QToolButton()
+        self.quick_record_btn.setProperty("class", "topIcon")
+        self.quick_record_btn.setCursor(Qt.PointingHandCursor)
+        self.quick_record_btn.setToolTip(t("Gravar reunião"))
+        self.quick_record_btn.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        self.quick_record_btn.clicked.connect(self._transcricoes_quick_toggle)
+        self.quick_record_btn.setVisible(features.habilitada("quick_record"))
+        top.addWidget(self.quick_record_btn)
 
-        self.nav_list.currentRowChanged.connect(self._on_nav)
-        # itemClicked garante reabrir uma tela do hub mesmo com "Ferramentas" já selecionada
-        self.nav_list.itemClicked.connect(lambda it: self._open_key(it.data(Qt.UserRole)))
-        sb_layout.addWidget(self.nav_list)
+        # Busca global (Ctrl+K).
+        self.search_btn = QToolButton()
+        self.search_btn.setProperty("class", "topIcon")
+        self.search_btn.setCursor(Qt.PointingHandCursor)
+        self.search_btn.setToolTip(t("Buscar (Ctrl+K)"))
+        self.search_btn.clicked.connect(self._toggle_search)
+        top.addWidget(self.search_btn)
 
-        # Transcrições — acesso rápido à gravação
-        self.transcricoes_quick = TranscricoesQuickWidget()
-        self.transcricoes_quick.setVisible(features.habilitada("quick_record"))
-        self.transcricoes_quick.toggle_requested.connect(self._transcricoes_quick_toggle)
-        self.transcricoes_quick.open_requested.connect(lambda: self._open_key("transcricoes"))
-        sb_layout.addWidget(self.transcricoes_quick)
+        # Notificações: sino com a contagem de TODOs pendentes no topo.
+        self.notif_btn = QToolButton()
+        self.notif_btn.setProperty("class", "topIcon")
+        self.notif_btn.setCursor(Qt.PointingHandCursor)
+        self.notif_btn.clicked.connect(self._show_todo_menu)
+        top.addWidget(self.notif_btn)
+        self.notif_badge = QLabel("")
+        self.notif_badge.setObjectName("badgeCount")
+        self.notif_badge.hide()
+        top.addWidget(self.notif_badge)
 
-        sb_layout.addSpacing(12)
-
-        # Seletor de tema: com três temas, um botão que só cicla esconde as
-        # opções — o usuário precisa clicar até acertar. O select mostra todas.
+        # Seletor de tema: o select mostra todas as opções (um botão que cicla
+        # esconderia as escolhas).
         from PySide6.QtWidgets import QComboBox
         from maestro_local.gui.theme import NOMES_TEMAS, ROTULOS_TEMAS
         self.theme_combo = QComboBox()
         self.theme_combo.setCursor(Qt.PointingHandCursor)
         for nome in NOMES_TEMAS:
             self.theme_combo.addItem(t(ROTULOS_TEMAS[nome]), nome)
-        self.theme_combo.setProperty("class", "sidebar")
         self.theme_combo.currentIndexChanged.connect(self._on_theme_selected)
-        sb_layout.addWidget(self.theme_combo)
+        top.addWidget(self.theme_combo)
 
-        # API label
-        self.api_label = QLabel("  " + t("API: localhost:{port}").format(port=api_port))
-        sb_layout.addWidget(self.api_label)
+        layout.addWidget(self.topbar)
 
-        # Version label
-        self.version_label = QLabel("  v1.0.0")
-        sb_layout.addWidget(self.version_label)
-
-        layout.addWidget(self.sidebar)
+        # Telas visíveis, na ordem das seções da home: base dos atalhos Alt+N e
+        # dos testes de funcionalidades (features ligadas/desligadas).
+        self._nav_keys: list[str] = [k for _, chaves in SECOES for k in chaves
+                                     if features.habilitada(k)]
 
         # --- Content area ---
         content_widget = QWidget()
@@ -292,6 +253,13 @@ class MainWindow(QMainWindow):
 
         # Stacked widget with views
         self.stack = QStackedWidget()
+
+        # Home (lançador): primeira tela, substitui o painel lateral.
+        self.home_view = HomeView()
+        self.home_view.open_key.connect(self._open_key)
+        self.home_view.open_todos.connect(self._goto_todos)
+        self.home_view.eyecare_test.connect(self.testar_eyecare)
+
         self.dashboard_view = DashboardView()
         self.daily_view = DailyView()
         self.study_view = StudyView()
@@ -307,6 +275,7 @@ class MainWindow(QMainWindow):
         self.settings_view.notification_changed.connect(self._setup_coach_timer)
         self.settings_view.ai_provider_changed.connect(self.chat_view.refresh)
 
+        self.stack.addWidget(self.home_view)
         self.stack.addWidget(self.dashboard_view)
         self.stack.addWidget(self.daily_view)
         self.stack.addWidget(self.study_view)
@@ -322,6 +291,7 @@ class MainWindow(QMainWindow):
         # FÁBRICA (lambda) em vez de instância — só são importadas/construídas
         # no primeiro _open_key, economizando import e memória de boot.
         self._view_by_key = {
+            "home": self.home_view,
             "dashboard": self.dashboard_view,
             "daily": self.daily_view,
             "study": self.study_view,
@@ -352,8 +322,8 @@ class MainWindow(QMainWindow):
         self.dashboard_view.task_clicked.connect(self._open_task_from_dashboard)
         self.dashboard_view.project_clicked.connect(self._open_board)
 
-        # Default to Meu Dia view
-        self._open_key("daily")
+        # Default to Home (lançador)
+        self._open_key("home")
 
         # Status bar
         self.status = QStatusBar()
@@ -381,10 +351,12 @@ class MainWindow(QMainWindow):
 
         self._setup_global_hotkeys()
 
-        # Atualiza o widget rápido de Transcrições por EVENTO (a view avisa ao
+        # Atualiza o botão de gravação do topo por EVENTO (a view avisa ao
         # iniciar/parar e a cada segundo enquanto grava) — sem poll de 1s ocioso.
+        self._gravando = False
+        self._gravando_seg = 0
         self.transcricoes_view.recording_state_changed.connect(
-            self.transcricoes_quick.set_recording)
+            self._on_recording_state)
 
         # Libera o modelo Whisper da RAM quando ocioso: ele fica residente após o
         # primeiro uso (o 'small' int8 são centenas de MB). Depois de ~4 min sem
@@ -521,25 +493,36 @@ class MainWindow(QMainWindow):
                 Todo.done.is_(False), Todo.due_at.isnot(None), Todo.due_at <= now
             ).all()
             ids = [td.id for td in todos if not (td.snoozed_until and td.snoozed_until > now)]
+            abertos = s.query(Todo).filter(Todo.done.is_(False)).count()
         finally:
             s.close()
         self._pending_todo_ids = ids
-        self._update_nav_badge(len(ids))
+        self._update_notif_badge(abertos)
         if ids:
             self.todo_reminder.show_count(len(ids))  # reaparece a cada ciclo enquanto houver pendentes
         else:
             self.todo_reminder.hide()
 
-    def _update_nav_badge(self, n):
-        """Badge ⏰N no item do menu que abriga os TODOs (Dashboard)."""
-        item = self.nav_list.item(0)
-        if item is None:
-            return
-        base = item.data(Qt.UserRole + 1)
-        if base is None:
-            base = item.text()
-            item.setData(Qt.UserRole + 1, base)
-        item.setText(f"{base}  ⏰{n}" if n else base)
+    def _update_notif_badge(self, n):
+        """Sino do topo: contagem de TODOs pendentes (some quando zera)."""
+        self.notif_badge.setText(str(n) if n else "")
+        self.notif_badge.setVisible(bool(n))
+        self.notif_btn.setToolTip(
+            t("{n} TODO(s) pendente(s)").format(n=n) if n else t("Sem pendências"))
+
+    def _show_todo_menu(self):
+        """Menu do sino: lista as pendências e as ações rápidas."""
+        menu = QMenu(self)
+        itens = todos_abertos(limite=8)
+        if itens:
+            for item in itens:
+                acao = menu.addAction(item["text"])
+                acao.triggered.connect(self._goto_todos)
+            menu.addSeparator()
+        menu.addAction(t("Abrir TODOs"), self._goto_todos)
+        if self._pending_todo_ids:
+            menu.addAction(t("Adiar 10min"), self._snooze_todos)
+        menu.exec(self.notif_btn.mapToGlobal(self.notif_btn.rect().bottomLeft()))
 
     def _goto_todos(self):
         self.todo_reminder.hide()
@@ -576,6 +559,23 @@ class MainWindow(QMainWindow):
         self._open_key("transcricoes")
         self.transcricoes_view.toggle_record_external()
 
+    def _on_recording_state(self, gravando: bool, segundos: int = 0):
+        """Espelha no botão do topo o estado da gravação rápida."""
+        self._gravando = bool(gravando)
+        self._gravando_seg = int(segundos or 0)
+        self._atualizar_icone_gravacao()
+
+    def _atualizar_icone_gravacao(self):
+        if not hasattr(self, "quick_record_btn"):
+            return
+        if getattr(self, "_gravando", False):
+            m, s = divmod(int(getattr(self, "_gravando_seg", 0)), 60)
+            self.quick_record_btn.setText(f"■ {m:02d}:{s:02d}")
+            self.quick_record_btn.setToolTip(t("Parar gravação"))
+        else:
+            self.quick_record_btn.setText(t("Gravar"))
+            self.quick_record_btn.setToolTip(t("Gravar reunião"))
+
     def _maybe_release_whisper(self):
         """Libera o modelo Whisper após dois ciclos ociosos consecutivos (~4 min).
         Só quando não há gravação/transcrição em curso — senão o worker quebra."""
@@ -602,31 +602,19 @@ class MainWindow(QMainWindow):
 
     def _apply_theme(self):
         theme = current_theme()
-        from maestro_local.gui.icons import clear_cache
+        from maestro_local.gui.icons import clear_cache, nav_icon
         clear_cache()   # os ícones são coloridos pelo tema
         self.setStyleSheet(build_stylesheet(theme))
 
-        self.sidebar.setStyleSheet(
-            f"background-color: {theme.bg_sidebar}; border-right: 1px solid {theme.border};"
-        )
-        self.logo_container.setStyleSheet(
-            f"background-color: {theme.bg_sidebar}; "
-            f"border-bottom: 1px solid {theme.border_light};"
-        )
-        self.logo_badge.setStyleSheet(
-            f"background-color: {theme.accent}; color: {theme.text_on_accent}; "
-            f"font-size: 14px; font-weight: 800; border-radius: 7px;"
-        )
-        self.logo_text.setStyleSheet(
-            f"font-size: 13px; font-weight: 700; color: {theme.text_primary}; "
-            f"background: transparent; letter-spacing: 0.3px;"
-        )
-        self.logo_subtitle.setStyleSheet(
-            f"font-size: 10px; font-weight: 600; color: {theme.accent}; "
-            f"background: transparent; letter-spacing: 0.8px;"
-        )
-        self._refresh_nav_icons()
-        self.transcricoes_quick.apply_theme(theme)
+        # Ícones da barra superior: são pixmaps, então o QSS não os recolore.
+        self.home_btn.setIcon(nav_icon("home", theme.text_secondary, size=20))
+        self.search_btn.setIcon(nav_icon("search", theme.text_secondary, size=20))
+        self.notif_btn.setIcon(nav_icon("bell", theme.text_secondary, size=20))
+        self.quick_record_btn.setIcon(
+            nav_icon("transcricoes", theme.text_secondary, size=18))
+        self._atualizar_icone_gravacao()
+
+        self.home_view.apply_theme()
         self.dashboard_view.pomodoro.apply_theme(theme)
         from maestro_local.gui.theme import nome_do_tema
         atual = nome_do_tema(theme)
@@ -636,12 +624,6 @@ class MainWindow(QMainWindow):
         if indice >= 0:
             self.theme_combo.setCurrentIndex(indice)
         self.theme_combo.blockSignals(False)
-        self.api_label.setStyleSheet(
-            f"color: {theme.text_muted}; font-size: 9px; padding: 2px 12px; background: transparent;"
-        )
-        self.version_label.setStyleSheet(
-            f"color: {theme.text_muted}; font-size: 9px; padding: 1px 12px 8px 12px; background: transparent;"
-        )
         self.status.setStyleSheet(
             f"background-color: {theme.bg_sidebar}; color: {theme.text_muted}; "
             f"border-top: 1px solid {theme.border}; font-size: 12px; padding: 2px 8px;"
@@ -741,35 +723,6 @@ class MainWindow(QMainWindow):
         self._eyecare_overlay = None
         self.show_toast(t("Pausa adiada para {hora}").format(hora=ate.strftime("%H:%M")))
 
-    def _refresh_nav_icons(self):
-        """Repinta os ícones: o item ativo usa a cor de destaque, os demais o
-        cinza do texto. Chamado ao navegar e ao trocar de tema."""
-        from maestro_local.gui.icons import nav_icon
-        th = current_theme()
-        atual = self.nav_list.currentRow()
-        for i in range(self.nav_list.count()):
-            item = self.nav_list.item(i)
-            key = item.data(Qt.UserRole)
-            if not key:            # cabeçalho de grupo
-                continue
-            cor = th.accent if i == atual else th.text_muted
-            item.setIcon(nav_icon(key, cor))
-
-    def _on_nav(self, row):
-        item = self.nav_list.item(row)
-        if item is None:
-            return
-        key = item.data(Qt.UserRole)
-        if key:            # cabeçalhos de grupo não têm chave
-            self._open_key(key)
-        self._refresh_nav_icons()
-
-    def _nav_row_for(self, key):
-        for i in range(self.nav_list.count()):
-            if self.nav_list.item(i).data(Qt.UserRole) == key:
-                return i
-        return None
-
     def _lazy_factory(self, module_suffix: str, class_name: str):
         """Fábrica de tela: import + construção só acontecem no primeiro uso.
 
@@ -793,21 +746,13 @@ class MainWindow(QMainWindow):
         return widget
 
     def _open_key(self, key):
-        """Troca a tela pela chave. Telas do hub 'Ferramentas' destacam o item
-        'Ferramentas' no menu (que não as lista diretamente)."""
+        """Troca a tela pela chave (home ou qualquer funcionalidade)."""
         w = self._ensure_view(key)
         if w is None:
             return
         self.stack.setCurrentWidget(w)
         if hasattr(w, "refresh"):
             w.refresh()
-        nav_key = key if key in self._primary_keys else "ferramentas"
-        row = self._nav_row_for(nav_key)
-        if row is not None and row != self.nav_list.currentRow():
-            self.nav_list.blockSignals(True)
-            self.nav_list.setCurrentRow(row)
-            self.nav_list.blockSignals(False)
-        self._refresh_nav_icons()
 
     def _open_board(self, project_id):
         self.board_view.set_project(project_id)
@@ -819,7 +764,7 @@ class MainWindow(QMainWindow):
         dlg.task_updated.connect(self._refresh_all)
         dlg.exec()
 
-    # ---- Projeto ativo (seletor da sidebar) ----
+    # ---- Projeto ativo (seletor do topo) ----
     def _populate_project_selector(self):
         """Lista os projetos do workspace ativo, marcando o projeto ativo."""
         from maestro_local.config import get_active_project_id
@@ -841,7 +786,7 @@ class MainWindow(QMainWindow):
             self._loading_projects = False
 
     def _sync_project_selector(self, pid):
-        """Reflete na sidebar o projeto escolhido em outra tela (sem redisparar)."""
+        """Reflete no topo o projeto escolhido em outra tela (sem redisparar)."""
         idx = self.project_selector.findData(pid)
         if idx >= 0 and idx != self.project_selector.currentIndex():
             self._loading_projects = True

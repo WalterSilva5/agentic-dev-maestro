@@ -16,7 +16,7 @@ from maestro_local.i18n import t
 
 class DestinationBar(QFrame):
     """Barra de destino. Emite os índices trocados; quem decide o que fazer
-    (confirmar, mover a gravação, sincronizar a sidebar) é a view."""
+    (confirmar, mover a gravação, sincronizar a barra superior) é a view."""
 
     workspace_index_changed = Signal()
     project_index_changed = Signal()

@@ -82,6 +82,69 @@ _PATHS: dict[str, str] = {
         '<line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2"/>'
         '<line x1="4" y1="18" x2="20" y2="18"/><circle cx="9" cy="18" r="2"/>'
     ),
+    # livro aberto (estudos)
+    "study": (
+        '<path d="M12 6.5C10.4 5 7.8 4.5 4 4.5v14c3.8 0 6.4.5 8 2 1.6-1.5 4.2-2 8-2v-14'
+        'c-3.8 0-6.4.5-8 2z"/><line x1="12" y1="6.5" x2="12" y2="20.5"/>'
+    ),
+    # cadeado (cofre de senhas)
+    "vault": (
+        '<rect x="4" y="10" width="16" height="10" rx="2"/>'
+        '<path d="M8 10V7a4 4 0 0 1 8 0v3"/><circle cx="12" cy="15" r="1.4"/>'
+    ),
+    # pilha de livros (biblioteca)
+    "library": (
+        '<rect x="4" y="4" width="4" height="16" rx="1"/>'
+        '<rect x="10" y="4" width="4" height="16" rx="1"/>'
+        '<path d="M16.6 4.9l3.4.9-3 15-3.4-.9z"/>'
+    ),
+    # janela de terminal (testador de API)
+    "apitester": (
+        '<rect x="3" y="4" width="18" height="16" rx="2"/>'
+        '<polyline points="7,9 10,12 7,15"/><line x1="12" y1="15" x2="17" y2="15"/>'
+    ),
+    # lâmpada (base de conhecimento)
+    "kb": (
+        '<path d="M9.5 18h5"/><path d="M10.5 21h3"/>'
+        '<path d="M12 3a6 6 0 0 0-3.6 10.8c.5.4.9 1 .9 1.7V16h5.4v-.5'
+        'c0-.7.4-1.3.9-1.7A6 6 0 0 0 12 3z"/>'
+    ),
+    # chip (memória agentic)
+    "memory": (
+        '<rect x="7" y="7" width="10" height="10" rx="2"/>'
+        '<path d="M10 3v2M14 3v2M10 19v2M14 19v2M3 10h2M3 14h2M19 10h2M19 14h2"/>'
+    ),
+    # balão de fala (praticar inglês)
+    "english": (
+        '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v7'
+        'a2.5 2.5 0 0 1-2.5 2.5H10l-4 4v-4H6.5A2.5 2.5 0 0 1 4 12.5z"/>'
+    ),
+    # idiomas (tradutor)
+    "translate": (
+        '<path d="M4 6h9"/><path d="M8.5 6c0 5-2 8.5-5.5 10.5"/>'
+        '<path d="M6 10.5c1.2 2.6 3.2 4.4 5.5 5.5"/>'
+        '<line x1="12.5" y1="20" x2="17" y2="9"/><line x1="15" y1="20" x2="19.5" y2="9"/>'
+        '<line x1="13.8" y1="17" x2="18.7" y2="17"/>'
+    ),
+    # sino (notificações)
+    "bell": (
+        '<path d="M18 9a6 6 0 1 0-12 0c0 5-2 6-2 6h16s-2-1-2-6"/>'
+        '<path d="M10.5 20a1.8 1.8 0 0 0 3 0"/>'
+    ),
+    # casa (início)
+    "home": (
+        '<path d="M4 11l8-6.5 8 6.5"/>'
+        '<path d="M6 10v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-9"/>'
+    ),
+    # lupa (busca)
+    "search": (
+        '<circle cx="11" cy="11" r="6"/><line x1="15.5" y1="15.5" x2="20" y2="20"/>'
+    ),
+    # olho (pausa para os olhos)
+    "eye": (
+        '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/>'
+        '<circle cx="12" cy="12" r="3"/>'
+    ),
 }
 
 _CACHE: dict[tuple[str, str, int], QIcon] = {}
