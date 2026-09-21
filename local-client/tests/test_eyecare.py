@@ -266,3 +266,57 @@ def test_coberturas_usam_o_mesmo_fundo_escuro(qapp, temp_db):
     from maestro_local.gui.eyecare_break import FUNDO, EyecareBreak
     br = EyecareBreak(QWidget(), duracao_seg=5)
     assert br._cor_fundo == FUNDO
+
+
+def _cria_todo(texto: str, prioridade: str = "MEDIUM", done: bool = False) -> None:
+    from maestro_local.db.models import Todo, get_session
+    s = get_session()
+    try:
+        s.add(Todo(text=texto, priority=prioridade, done=done))
+        s.commit()
+    finally:
+        s.close()
+
+
+def test_pausa_mostra_as_pendencias_em_aberto(qapp, temp_db):
+    """A tela da pausa lista os TODOs — pedido da tela de mensagem periódica."""
+    from PySide6.QtWidgets import QWidget
+
+    from maestro_local.gui.eyecare_break import EyecareBreak
+
+    _cria_todo("comprar café", "HIGH")
+    _cria_todo("já feito", done=True)
+
+    br = EyecareBreak(QWidget(), duracao_seg=5)
+    assert br.pendencias is not None
+    assert [td["text"] for td in br._todos] == ["comprar café"]
+
+
+def test_pausa_sem_pendencias_nao_mostra_lista(qapp, temp_db):
+    from PySide6.QtWidgets import QWidget
+
+    from maestro_local.gui.eyecare_break import EyecareBreak
+    br = EyecareBreak(QWidget(), duracao_seg=5)
+    assert br.pendencias is None
+
+
+def test_lista_da_pausa_e_so_leitura(qapp, temp_db):
+    """Concluir na pausa convidaria a continuar trabalhando — só leitura."""
+    from PySide6.QtWidgets import QCheckBox, QWidget
+
+    from maestro_local.gui.eyecare_break import EyecareBreak
+
+    _cria_todo("uma pendência")
+    br = EyecareBreak(QWidget(), duracao_seg=5)
+    assert br.pendencias.findChildren(QCheckBox) == []
+
+
+def test_lista_acompanha_a_largura_da_dica(qapp, temp_db):
+    from PySide6.QtWidgets import QWidget
+
+    from maestro_local.gui.eyecare_break import EyecareBreak
+
+    _cria_todo("uma pendência")
+    br = EyecareBreak(QWidget(), duracao_seg=5)
+    br._ajustar_dica(None)
+    assert br.pendencias.width() == br.dica.width()

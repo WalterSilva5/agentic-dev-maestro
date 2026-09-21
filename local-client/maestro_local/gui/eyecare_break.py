@@ -15,15 +15,21 @@ a pausa se apoia; a dica de topo fica como reforço onde vale.
 
 Sempre dá para sair: "Pular" encerra e "Adiar" empurra alguns minutos — um
 lembrete que não se pode dispensar vira obstáculo, não ajuda.
+
+A lista de pendências entra como leitura: a pausa também é um bom momento para
+reencontrar o que ficou em aberto sem trocar de tela. Marcar como concluído,
+não — isso convidaria a continuar trabalhando em plena pausa.
 """
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import (
+    QFrame,
     QHBoxLayout,
     QLabel,
     QPushButton,
+    QScrollArea,
     QVBoxLayout,
     QWidget,
 )
@@ -43,6 +49,8 @@ CONTADOR = "#E2E8F0"
 BORDA = "#334155"
 ACENTO = "#0D9488"
 ACENTO_HOVER = "#0F766E"
+PERIGO = "#F87171"   # pendência urgente
+ALERTA = "#FBBF24"   # pendência de prioridade alta
 
 
 class _Cobertura(QWidget):
@@ -120,6 +128,16 @@ class EyecareBreak(QWidget):
             f"letter-spacing: 2px; background: transparent; border: none;")
         lay.addWidget(self._contador)
 
+        # Pendências em aberto: a pausa já tem a atenção de quem está diante da
+        # tela, então é um bom lugar para a lista sem tirar o foco do descanso.
+        self.pendencias = self._montar_pendencias()
+        if self.pendencias is not None:
+            linha = QHBoxLayout()
+            linha.addStretch()
+            linha.addWidget(self.pendencias)
+            linha.addStretch()
+            lay.addLayout(linha)
+
         acoes = QHBoxLayout()
         acoes.setSpacing(10)
         acoes.addStretch()
@@ -142,6 +160,86 @@ class EyecareBreak(QWidget):
         self._atualizar_contador()
 
     # ------------------------------------------------------------------
+    def _montar_pendencias(self):
+        """Lista das pendências em aberto, ou None quando não há nenhuma.
+
+        Só de leitura de propósito: concluir aqui convidaria a continuar
+        trabalhando, e a pausa deixaria de acontecer. Concluir segue na tela
+        de TODOs (ou no modal de foco do dia).
+        """
+        try:
+            from maestro_local.gui.daily_focus_dialog import todos_abertos
+            self._todos = todos_abertos(limite=20)
+        except Exception:  # noqa: BLE001 - a pausa não pode falhar por causa da lista
+            self._todos = []
+        if not self._todos:
+            return None
+
+        caixa = QFrame()
+        caixa.setObjectName("eyecarePendencias")
+        caixa.setStyleSheet(
+            f"#eyecarePendencias {{ background: transparent; "
+            f"border: 1px solid {BORDA}; border-radius: 12px; }}")
+        col = QVBoxLayout(caixa)
+        col.setContentsMargins(18, 12, 18, 12)
+        col.setSpacing(8)
+
+        titulo = QLabel(t("Pendências ({n})").format(n=len(self._todos)))
+        titulo.setStyleSheet(
+            f"color: {TITULO}; font-size: 13px; font-weight: 700; "
+            f"background: transparent; border: none;")
+        col.addWidget(titulo)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setMaximumHeight(200)
+        scroll.setStyleSheet(
+            "QScrollArea { background: transparent; border: none; }"
+            "QScrollArea > QWidget > QWidget { background: transparent; }")
+        cont = QWidget()
+        lista = QVBoxLayout(cont)
+        lista.setContentsMargins(0, 0, 0, 0)
+        lista.setSpacing(4)
+        for td in self._todos:
+            lista.addWidget(self._linha_pendencia(td))
+        lista.addStretch()
+        scroll.setWidget(cont)
+        col.addWidget(scroll)
+        return caixa
+
+    def _linha_pendencia(self, td: dict) -> QWidget:
+        w = QWidget()
+        row = QHBoxLayout(w)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(8)
+
+        marca = QLabel("•")
+        marca.setStyleSheet(
+            f"color: {TITULO}; font-size: 13px; background: transparent; border: none;")
+        row.addWidget(marca)
+
+        texto = QLabel(td["text"])
+        texto.setWordWrap(True)
+        texto.setStyleSheet(
+            f"color: {TEXTO}; font-size: 12px; background: transparent; border: none;")
+        row.addWidget(texto, 1)
+
+        if td.get("priority") in ("URGENT", "HIGH"):
+            urgente = td["priority"] == "URGENT"
+            tag = QLabel(t("urgente") if urgente else t("alta"))
+            tag.setStyleSheet(
+                f"color: {PERIGO if urgente else ALERTA}; font-size: 10px; "
+                f"font-weight: 700; background: transparent; border: none;")
+            row.addWidget(tag)
+
+        if td.get("due_at"):
+            venc = QLabel(td["due_at"].strftime("%d/%m"))
+            venc.setStyleSheet(
+                f"color: {TEXTO}; font-size: 10px; background: transparent; border: none;")
+            row.addWidget(venc)
+        return w
+
     def _tela_do_usuario(self):
         """O monitor onde o Maestro está — não necessariamente o primário."""
         dono = self._dono
@@ -185,6 +283,8 @@ class EyecareBreak(QWidget):
         largura = max(280, min(self._largura_dica, disponivel - 80))
         self.dica.setFixedWidth(largura)
         self.dica.setMinimumHeight(self.dica.heightForWidth(largura))
+        if self.pendencias is not None:
+            self.pendencias.setFixedWidth(largura)
 
     def keyPressEvent(self, event):
         # Esc adia em vez de fechar sem mais: uma janela em tela cheia que some
