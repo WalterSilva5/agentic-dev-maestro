@@ -5,6 +5,8 @@ basta variar base_url + api_key + model.
 """
 from __future__ import annotations
 
+import uuid
+
 from maestro_local.config import get_active_ai_provider
 
 # Provedores padrão sugeridos (todos compatíveis com OpenAI).
@@ -98,6 +100,43 @@ class ProviderNotConfigured(Exception):
     pass
 
 
+# User-Agent próprio (a doc do Go pede que o cliente se identifique, em vez de
+# usar o nome genérico do SDK/HTTP). Só entra nos provedores opencode; os demais
+# seguem com o UA de navegador que evita o bloqueio 1010 do Cloudflare.
+_USER_AGENT = "maestro-local/1.0"
+
+
+def eh_opencode(provider: dict | None) -> bool:
+    """O provedor é o gateway do OpenCode (Console/Go)?"""
+    return "opencode.ai" in ((provider or {}).get("base_url") or "").lower()
+
+
+def _id_sessao() -> str:
+    """ID de sessão estável para o gateway do OpenCode.
+
+    O gateway exige o header `x-opencode-session` (roteamento e cache de
+    prompt); sem ele responde 400 MissingSessionID. Fica na config para ser
+    o mesmo entre reinícios — a doc pede um ID estável por conversa, e o
+    Maestro trata cada chamada como a mesma sessão lógica.
+    """
+    from maestro_local.config import load_config, save_config
+    cfg = load_config()
+    settings = cfg.setdefault("settings", {})
+    sid = (settings.get("opencode_session_id") or "").strip()
+    if not sid:
+        sid = uuid.uuid4().hex
+        settings["opencode_session_id"] = sid
+        save_config(cfg)
+    return sid
+
+
+def headers_extras(provider: dict | None) -> dict:
+    """Headers que o provedor exige além do Authorization."""
+    if not eh_opencode(provider):
+        return {}
+    return {"x-opencode-session": _id_sessao(), "User-Agent": _USER_AGENT}
+
+
 # Cache de instâncias ChatOpenAI por (base_url, model, api_key, temperatura).
 # O cliente é um wrapper leve e sem estado, então reusar evita recriar a cada
 # chamada (muitas features chamam o LLM em sequência).
@@ -133,6 +172,7 @@ def build_chat_model(provider: dict | None = None, temperature: float = 0.3,
 
     from langchain_openai import ChatOpenAI
 
+    extras = headers_extras(provider)
     model = ChatOpenAI(
         base_url=provider["base_url"],
         api_key=provider.get("api_key") or "not-needed",
@@ -140,6 +180,7 @@ def build_chat_model(provider: dict | None = None, temperature: float = 0.3,
         temperature=temperature,
         timeout=timeout,
         max_retries=2,
+        **({"default_headers": extras} if extras else {}),
     )
     _MODEL_CACHE[key] = model
     return model
@@ -177,11 +218,13 @@ def listar_modelos(provider: dict) -> tuple[bool, str, list[str]]:
     url = f"{base}/models"
     # User-Agent de navegador: alguns provedores (ex.: opencode/Cloudflare)
     # bloqueiam o UA padrão do urllib com erro 403/1010.
-    req = urllib.request.Request(url, headers={
+    headers = {
         "Authorization": f"Bearer {provider.get('api_key') or 'x'}",
         "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) Maestro/1.0",
         "Accept": "application/json",
-    })
+    }
+    headers.update(headers_extras(provider))
+    req = urllib.request.Request(url, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=8) as resp:
             data = json.loads(resp.read())
@@ -190,7 +233,7 @@ def listar_modelos(provider: dict) -> tuple[bool, str, list[str]]:
             return True, f"Conectado. {len(models)} modelo(s) disponível(is).", models
         return True, "Conectado, mas nenhum modelo retornado.", []
     except urllib.error.HTTPError as e:
-        return False, f"HTTP {e.code}: {e.reason}", []
+        return False, f"HTTP {e.code}: {_mensagem_de_erro(e)}", []
     except urllib.error.URLError as e:
         return False, f"Sem conexão: {e.reason}", []
     except Exception as e:  # noqa: BLE001
@@ -230,6 +273,7 @@ def verificar_modelo(provider: dict, modelo: str) -> tuple[bool, str]:
             "Content-Type": "application/json",
             "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) Maestro/1.0",
             "Accept": "application/json",
+            **headers_extras(provider),
         })
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
