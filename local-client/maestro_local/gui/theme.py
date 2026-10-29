@@ -72,46 +72,45 @@ class ThemeColors:
                         'system-ui, sans-serif')
 
 
-# Paleta: accent teal + cinzas NEUTROS.
+# Paleta clara: neutros frios (slate) + accent indigo.
 #
-# Os cinzas antigos eram fortemente azulados (ex.: borda #B9BFD2 tinha 25 pontos
-# a mais de azul que de vermelho), o que dava o ar datado — design systems
-# modernos usam cinzas quase neutros. O accent teal também dá identidade própria,
-# fugindo do azul/roxo que quase todo app usa.
+# O indigo dá mais contraste e o ar de dashboard moderno (mesma família usada
+# no webui); os cinzas frios deixam os cards brancos legíveis sem o aspecto
+# "papel" do cinza puro nem o azul datado das bordas antigas.
 LIGHT = ThemeColors(
-    bg_primary="#FAFAFA",
-    bg_secondary="#F5F5F5",
+    bg_primary="#F5F6F8",
+    bg_secondary="#EEF0F4",
     bg_sidebar="#FFFFFF",
     bg_card="#FFFFFF",
     bg_input="#FFFFFF",
-    bg_hover="#F5F5F5",
-    bg_selected="#CCFBF1",
-    bg_badge="#F5F5F5",
-    bg_overlay="rgba(10,10,10,0.45)",
+    bg_hover="#F3F4F7",
+    bg_selected="#EEF2FF",
+    bg_badge="#F3F4F7",
+    bg_overlay="rgba(17,24,39,0.45)",
 
-    text_primary="#171717",
-    text_secondary="#404040",
-    text_muted="#737373",
+    text_primary="#111827",
+    text_secondary="#374151",
+    text_muted="#6B7280",
     text_on_accent="#FFFFFF",
 
-    border="#E5E5E5",
-    border_focus="#0D9488",
-    border_light="#F5F5F5",
+    border="#E5E7EB",
+    border_focus="#6366F1",
+    border_light="#F1F3F6",
 
-    accent="#0D9488",
-    accent_hover="#0F766E",
-    accent_pressed="#115E59",
-    accent_light="#CCFBF1",
+    accent="#4F46E5",
+    accent_hover="#4338CA",
+    accent_pressed="#3730A3",
+    accent_light="#EEF2FF",
 
     danger="#DC2626",
-    # Verde deslocado para longe do teal: como o accent já é verde-azulado, um
-    # success próximo confundiria (ex.: etapa atual x concluída no FlowIndicator).
-    success="#15803D",
+    # Verde distinto do indigo: no FlowIndicator, "etapa atual" não pode se
+    # confundir com "concluída".
+    success="#16A34A",
     warning="#D97706",
-    info="#0284C7",
+    info="#2563EB",
 
-    shadow="0 1px 2px rgba(10,10,10,0.06), 0 1px 3px rgba(10,10,10,0.04)",
-    shadow_lg="0 4px 16px rgba(10,10,10,0.10)",
+    shadow="0 1px 2px rgba(17,24,39,0.06), 0 1px 3px rgba(17,24,39,0.05)",
+    shadow_lg="0 4px 16px rgba(17,24,39,0.10)",
 )
 
 DARK = ThemeColors(
@@ -693,7 +692,7 @@ QWidget#sidebar {{
 }}
 QWidget#sidebar QLabel {{ background: transparent; }}
 QFrame#topBar {{
-    background: {t.bg_primary};
+    background: {t.bg_card};
     border-bottom: 1px solid {t.border_light};
 }}
 QFrame#topBar QLabel {{ background: transparent; }}

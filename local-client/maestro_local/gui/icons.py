@@ -231,7 +231,7 @@ def caminho_do_check(cor: str, tamanho: int = 16) -> str:
 # painel claro quanto escuro.
 _APP_SVG = (
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">'
-    '<rect x="1" y="1" width="22" height="22" rx="6" fill="#0D9488"/>'
+    '<rect x="1" y="1" width="22" height="22" rx="6" fill="#4F46E5"/>'
     '<path d="M6 17V8l6 6 6-6v9" fill="none" stroke="#FFFFFF" stroke-width="2.4" '
     'stroke-linecap="round" stroke-linejoin="round"/></svg>'
 )
