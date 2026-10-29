@@ -45,9 +45,13 @@ def main():
 
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
+    # Fonte moderna embutida (Inter) — sem isso o Qt cai em DejaVu/Adwaita.
+    from maestro_local.gui.theme import TEMAS, carregar_fontes, set_theme
+    from PySide6.QtGui import QFont
+    familia = carregar_fontes()
+    app.setFont(QFont(familia, 10))
     # Tema escolhido pelo usuário — antes voltava ao claro a cada abertura.
     from maestro_local.config import get_theme_name
-    from maestro_local.gui.theme import TEMAS, set_theme
     set_theme(TEMAS.get(get_theme_name(), TEMAS["light"]))
     _restore_utf8_locale()  # Qt zera o locale ao criar o QApplication
     app.setApplicationName("Maestro Local")

@@ -22,9 +22,12 @@ from PySide6.QtWidgets import (
 from maestro_local.gui.theme import (
     PRIORITY_LABELS,  # noqa: F401 - exported for other modules
     build_stylesheet,
+    carregar_fontes,
     current_theme,
+    is_dark,
     set_theme,
 )
+from maestro_local.gui.efeitos import aplicar_sombras
 from maestro_local.config import get_active_workspace_id, get_workspace_db_path
 from maestro_local.i18n import t
 from maestro_local import features
@@ -115,6 +118,7 @@ class TodoReminder(QFrame):
 class MainWindow(QMainWindow):
     def __init__(self, api_port: int = 9777):
         super().__init__()
+        carregar_fontes()   # Inter embutida (precisa vir antes de criar widgets)
         self.api_port = api_port
         self.setWindowTitle("Agentic Dev Maestro")
         self.resize(1120, 720)
@@ -673,6 +677,7 @@ class MainWindow(QMainWindow):
             f"background: {theme.accent}; color: {theme.text_on_accent}; "
             f"font-size: 15px; font-weight: 800; border-radius: 8px;")
         self._refresh_nav_icons()
+        aplicar_sombras(self, escuro=is_dark())
         self.dashboard_view.pomodoro.apply_theme(theme)
         from maestro_local.gui.theme import nome_do_tema
         atual = nome_do_tema(theme)
@@ -839,6 +844,7 @@ class MainWindow(QMainWindow):
         self.stack.setCurrentWidget(w)
         if hasattr(w, "refresh"):
             w.refresh()
+        aplicar_sombras(w, escuro=is_dark())
         row = self._nav_row_for(key)
         if row is not None and row != self.nav_list.currentRow():
             self.nav_list.blockSignals(True)

@@ -1,4 +1,30 @@
 from dataclasses import dataclass
+from pathlib import Path
+
+
+_FAMILIA_FONTE: str | None = None
+
+
+def carregar_fontes() -> str:
+    """Registra a Inter embutida e devolve a família para o QSS/app.
+
+    Sem isso o Qt cai em DejaVu/Adwaita e o app parece datado mesmo com o
+    restante do estilo moderno. Idempotente: pode ser chamado mais de uma vez.
+    """
+    global _FAMILIA_FONTE
+    if _FAMILIA_FONTE is not None:
+        return _FAMILIA_FONTE
+    from PySide6.QtGui import QFontDatabase
+    base = Path(__file__).resolve().parent.parent / "assets" / "fonts"
+    familia = None
+    for arquivo in sorted(base.glob("*.ttf")):
+        ident = QFontDatabase.addApplicationFont(str(arquivo))
+        if ident >= 0:
+            nomes = QFontDatabase.applicationFontFamilies(ident)
+            if nomes and familia is None:
+                familia = nomes[0]
+    _FAMILIA_FONTE = familia or "Inter"
+    return _FAMILIA_FONTE
 
 
 @dataclass
@@ -193,7 +219,13 @@ def set_theme(theme: ThemeColors):
 
 
 def is_dark() -> bool:
-    return _current is DARK
+    """O tema atual é escuro? (inclui o hacker, que não é o DARK puro)."""
+    cor = _current.bg_primary.lstrip("#")
+    try:
+        r, g, b = int(cor[0:2], 16), int(cor[2:4], 16), int(cor[4:6], 16)
+    except ValueError:
+        return False
+    return (0.2126 * r + 0.7152 * g + 0.0722 * b) < 128
 
 
 def build_stylesheet(t: ThemeColors) -> str:
@@ -261,14 +293,12 @@ QListWidget#navList {{
     outline: none;
 }}
 QListWidget#navList::item {{
-    /* Densidade: com os grupos, 13 linhas precisam caber sem rolagem. */
-    padding: 6px 12px;
-    margin: 2px 0;
+    /* Densidade: com os grupos, as telas precisam caber sem rolagem. */
+    padding: 8px 12px;
+    margin: 1px 0;
     border-radius: 8px;
     border: none;
-    /* Fundo próprio para separar cada item do painel — sem borda, para não
-       voltar ao aspecto de "caixinha" que envelhecia o menu. */
-    background-color: {t.bg_secondary};
+    background-color: transparent;
     color: {t.text_secondary};
     font-size: 13px;
     font-weight: 500;
@@ -288,9 +318,9 @@ QListWidget#navList::item:disabled {{
     color: {t.text_muted};
     font-size: 10px;
     font-weight: 700;
-    letter-spacing: 1px;
+    letter-spacing: 1.2px;
     background: transparent;
-    padding: 10px 12px 2px;
+    padding: 14px 10px 4px;
     margin: 0;
 }}
 QLabel#navSection {{
@@ -305,12 +335,13 @@ QLabel#navSection {{
 QPushButton {{
     background-color: {t.accent};
     color: {t.text_on_accent};
-    border: none;
-    border-radius: 10px;
-    padding: 8px 18px;
-    min-height: 20px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    padding: 9px 16px;
+    min-height: 22px;
     font-weight: 600;
     font-size: 13px;
+    letter-spacing: 0.1px;
 }}
 QPushButton:hover {{ background-color: {t.accent_hover}; }}
 QPushButton:pressed {{ background-color: {t.accent_pressed}; }}
@@ -330,9 +361,9 @@ QPushButton[flat="true"], QPushButton#flatBtn {{
     background-color: {t.bg_card};
     color: {t.text_secondary};
     font-weight: 600;
-    border: 1px solid {t.border_light};
-    border-radius: 10px;
-    padding: 8px 16px;
+    border: 1px solid {t.border};
+    border-radius: 8px;
+    padding: 8px 14px;
 }}
 QPushButton[flat="true"]:hover, QPushButton#flatBtn:hover {{
     background-color: {t.bg_hover};
@@ -362,8 +393,8 @@ QToolButton::menu-indicator {{ image: none; width: 0; }}
 QLineEdit, QTextEdit, QPlainTextEdit, QComboBox, QSpinBox, QDoubleSpinBox {{
     background-color: {t.bg_input};
     color: {t.text_primary};
-    border: 1px solid {t.border_light};
-    border-radius: 10px;
+    border: 1px solid {t.border};
+    border-radius: 8px;
     padding: 8px 11px;
     selection-background-color: {t.accent};
     selection-color: {t.text_on_accent};
@@ -403,12 +434,12 @@ QComboBox QAbstractItemView {{
 }}
 QScrollBar:vertical {{
     background: transparent;
-    width: 11px;
+    width: 8px;
     margin: 2px;
 }}
 QScrollBar::handle:vertical {{
     background: {t.border};
-    border-radius: 5px;
+    border-radius: 4px;
     min-height: 40px;
 }}
 QScrollBar::handle:vertical:hover {{
@@ -418,12 +449,12 @@ QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0; }}
 QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{ background: transparent; }}
 QScrollBar:horizontal {{
     background: transparent;
-    height: 11px;
+    height: 8px;
     margin: 2px;
 }}
 QScrollBar::handle:horizontal {{
     background: {t.border};
-    border-radius: 5px;
+    border-radius: 4px;
     min-width: 40px;
 }}
 QScrollBar::handle:horizontal:hover {{
@@ -432,9 +463,8 @@ QScrollBar::handle:horizontal:hover {{
 QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{ width: 0; }}
 QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{ background: transparent; }}
 QTabWidget::pane {{
-    border: 1px solid {t.border};
-    border-top: none;
-    border-radius: 0 0 8px 8px;
+    border: none;
+    background: transparent;
 }}
 QTabBar {{
     border-bottom: 2px solid {t.border_light};
@@ -442,11 +472,12 @@ QTabBar {{
 QTabBar::tab {{
     background-color: transparent;
     color: {t.text_muted};
-    padding: 10px 18px;
+    padding: 10px 16px;
     border: none;
     border-bottom: 2px solid transparent;
     margin-bottom: -2px;
-    margin-right: 4px;
+    margin-right: 2px;
+    font-weight: 500;
 }}
 QTabBar::tab:selected {{
     color: {t.accent};
@@ -458,10 +489,10 @@ QTabBar::tab:hover:!selected {{
     border-bottom: 2px solid {t.border};
 }}
 QLabel#sectionTitle {{
-    font-size: 18px;
+    font-size: 22px;
     font-weight: 800;
     color: {t.text_primary};
-    letter-spacing: -0.3px;
+    letter-spacing: -0.5px;
     margin-bottom: 2px;
     border: none;
     background: transparent;
@@ -563,8 +594,8 @@ QMessageBox QPushButton {{
 QFrame[class="card"] {{
     background: {t.bg_card};
     border: 1px solid {t.border};
-    border-radius: 12px;
-    padding: 8px;
+    border-radius: 14px;
+    padding: 12px;
 }}
 /* Qt: uma vez que um QFrame ancestral tem `border`/`background` via seletor de
    classe, ele entra no modo "estilizado" e QLabels descendentes sem regra
@@ -632,9 +663,10 @@ QDateEdit {{
     padding: 4px 8px;
 }}
 QLabel#summaryValue {{
-    font-size: 22px;
+    font-size: 28px;
     font-weight: 800;
     color: {t.text_primary};
+    letter-spacing: -0.8px;
     border: none;
     background: transparent;
 }}

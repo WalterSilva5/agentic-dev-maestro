@@ -51,8 +51,8 @@ class DashboardView(QWidget):
         container = QWidget()
         scroll.setWidget(container)
         self._layout = QVBoxLayout(container)
-        self._layout.setContentsMargins(14, 14, 14, 14)
-        self._layout.setSpacing(12)
+        self._layout.setContentsMargins(20, 18, 20, 20)
+        self._layout.setSpacing(16)
 
         # Pomodoro em destaque no topo
         pomo_row = QHBoxLayout()
@@ -66,7 +66,7 @@ class DashboardView(QWidget):
         self._layout.addLayout(pomo_row)
 
         self._cards_row = QHBoxLayout()
-        self._cards_row.setSpacing(10)
+        self._cards_row.setSpacing(14)
         self._layout.addLayout(self._cards_row)
 
         self._summary_cards = {}
@@ -172,7 +172,7 @@ class DashboardView(QWidget):
         frame.setProperty("class", "card")
         frame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         layout = QVBoxLayout(frame)
-        layout.setContentsMargins(12, 10, 12, 10)
+        layout.setContentsMargins(16, 14, 16, 14)
         layout.setSpacing(4)
 
         value_label = QLabel("0")
