@@ -1,6 +1,6 @@
 import logging
 
-from PySide6.QtCore import QEvent, Qt, QTimer
+from PySide6.QtCore import QEvent, QSize, Qt, QTimer
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QFrame,
@@ -38,7 +38,6 @@ from maestro_local.gui.views.tools_hub_view import ToolsHubView
 from maestro_local.gui.views.settings_view import SettingsView
 from maestro_local.gui.views.projects_view import ProjectsView
 from maestro_local.gui.views.study_view import StudyView
-from maestro_local.gui.views.home_view import HomeView, SECOES
 # Telas raramente abertas (vault/library/apitester/kb/memory/english/translate/
 # skills/guide): import E CONSTRUÇÃO tardios (ver _ensure_view). Nenhuma delas é
 # referenciada fora do dicionário de navegação, então adiar é seguro — a tela só
@@ -123,64 +122,144 @@ class MainWindow(QMainWindow):
 
         central = QWidget()
         self.setCentralWidget(central)
-        layout = QVBoxLayout(central)
+        layout = QHBoxLayout(central)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        # --- Barra superior ---
-        # Sem painel lateral: marca, contexto, busca, notificações e tema no topo.
-        self.topbar = QFrame()
-        self.topbar.setObjectName("topBar")
-        self.topbar.setFixedHeight(58)
-        top = QHBoxLayout(self.topbar)
-        top.setContentsMargins(16, 8, 16, 8)
-        top.setSpacing(10)
+        # --- Painel lateral ---
+        self.sidebar = QWidget()
+        self.sidebar.setObjectName("sidebar")
+        self.sidebar.setFixedWidth(224)
+        sb = QVBoxLayout(self.sidebar)
+        sb.setContentsMargins(10, 14, 10, 12)
+        sb.setSpacing(8)
 
-        brand_text = QVBoxLayout()
-        brand_text.setSpacing(0)
-        self.brand_name = QLabel("Agentic Dev")
-        self.brand_name.setObjectName("brandName")
-        self.brand_subtitle = QLabel("MAESTRO")
-        self.brand_subtitle.setObjectName("brandSub")
-        brand_text.addWidget(self.brand_name)
-        brand_text.addWidget(self.brand_subtitle)
-        top.addLayout(brand_text)
+        marca = QHBoxLayout()
+        marca.setSpacing(10)
+        self.logo_badge = QLabel("A")
+        self.logo_badge.setFixedSize(30, 30)
+        self.logo_badge.setAlignment(Qt.AlignCenter)
+        marca.addWidget(self.logo_badge)
+        marca_texto = QVBoxLayout()
+        marca_texto.setSpacing(0)
+        self.logo_text = QLabel("Agentic Dev")
+        self.logo_text.setObjectName("brandName")
+        self.logo_subtitle = QLabel("MAESTRO")
+        self.logo_subtitle.setObjectName("brandSub")
+        marca_texto.addWidget(self.logo_text)
+        marca_texto.addWidget(self.logo_subtitle)
+        marca.addLayout(marca_texto)
+        marca.addStretch()
+        sb.addLayout(marca)
 
-        # Início: volta para a home (lançador). Destacado com o texto ao lado.
-        self.home_btn = QToolButton()
-        self.home_btn.setProperty("class", "homeBtn")
-        self.home_btn.setText(t("Início"))
-        self.home_btn.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
-        self.home_btn.setToolTip(t("Ir para o início"))
-        self.home_btn.setCursor(Qt.PointingHandCursor)
-        self.home_btn.clicked.connect(lambda: self._open_key("home"))
-        top.addWidget(self.home_btn)
-
-        top.addSpacing(8)
-
-        # Contexto: para ONDE o trabalho vai (workspace + projeto).
         self.ws_selector = WorkspaceSelectorButton()
-        self.ws_selector.setMinimumWidth(150)
-        self.ws_selector.setMaximumWidth(210)
         self.ws_selector.workspace_changed.connect(self._on_workspace_changed)
-        top.addWidget(self.ws_selector)
+        sb.addWidget(self.ws_selector)
 
-        # Seletor de projeto ativo. Ignora a roda do mouse: só troca clicando.
         from maestro_local.gui.no_wheel_combo import NoWheelComboBox
         self.project_selector = NoWheelComboBox()
-        self.project_selector.setMinimumWidth(150)
-        self.project_selector.setMaximumWidth(210)
         self.project_selector.setToolTip(t("Projeto ativo"))
         self.project_selector.currentIndexChanged.connect(self._on_project_selected)
-        top.addWidget(self.project_selector)
+        sb.addWidget(self.project_selector)
 
+        # Navegação agrupada. O Dashboard é a tela inicial (visão geral com
+        # abas); o resto segue a mesma separação de antes, agora no painel.
+        nav_groups = [
+            (t("PRINCIPAL"), [
+                (t("Dashboard"), "dashboard"),
+                (t("Reuniões"), "transcricoes"),
+                (t("Meu Dia"), "daily"),
+                (t("Assistente"), "chat"),
+            ]),
+            (t("TRABALHO"), [
+                (t("Projetos"), "projects"),
+                (t("Board"), "board"),
+                (t("Skills"), "skills"),
+            ]),
+            (t("FERRAMENTAS"), [
+                (t("Estudos"), "study"),
+                (t("Biblioteca"), "library"),
+                (t("Senhas"), "vault"),
+                (t("Testador de API"), "apitester"),
+                (t("Base de conhecimento"), "kb"),
+                (t("Memória agentic"), "memory"),
+                (t("Praticar Inglês"), "english"),
+                (t("Tradutor"), "translate"),
+            ]),
+            (t("SISTEMA"), [
+                (t("Instruções"), "guide"),
+                (t("Configurações"), "settings"),
+            ]),
+        ]
+        # Só entra o que o usuário deixou ligado (ver maestro_local/features).
+        nav_groups = [(titulo, [(rot, k) for rot, k in itens
+                                if features.habilitada(k)])
+                      for titulo, itens in nav_groups]
+        nav_groups = [(titulo, itens) for titulo, itens in nav_groups if itens]
+
+        self._labels = {k: rot for _, itens in nav_groups for rot, k in itens}
+        self._nav_keys: list[str] = []
+        self.nav_list = QListWidget()
+        self.nav_list.setObjectName("navList")
+        for titulo, itens in nav_groups:
+            header = QListWidgetItem(titulo)
+            header.setFlags(Qt.NoItemFlags)   # rótulo, não é clicável
+            self.nav_list.addItem(header)
+            for rotulo, key in itens:
+                item = QListWidgetItem(f"  {rotulo}")
+                item.setData(Qt.UserRole, key)
+                self.nav_list.addItem(item)
+                self._nav_keys.append(key)
+        self.nav_list.setIconSize(QSize(18, 18))
+        self.nav_list.currentRowChanged.connect(self._on_nav)
+        sb.addWidget(self.nav_list, 1)
+
+        from PySide6.QtWidgets import QComboBox
+        from maestro_local.gui.theme import NOMES_TEMAS, ROTULOS_TEMAS
+        self.theme_combo = QComboBox()
+        self.theme_combo.setCursor(Qt.PointingHandCursor)
+        for nome in NOMES_TEMAS:
+            self.theme_combo.addItem(t(ROTULOS_TEMAS[nome]), nome)
+        self.theme_combo.currentIndexChanged.connect(self._on_theme_selected)
+        sb.addWidget(self.theme_combo)
+
+        self.version_label = QLabel("v1.0.0")
+        self.version_label.setObjectName("versionLabel")
+        self.version_label.setAlignment(Qt.AlignCenter)
+        sb.addWidget(self.version_label)
+
+        layout.addWidget(self.sidebar)
+
+        # --- Área de conteúdo ---
+        content_widget = QWidget()
+        content_layout = QVBoxLayout(content_widget)
+        content_layout.setContentsMargins(0, 0, 0, 0)
+        content_layout.setSpacing(0)
+
+        # Barra superior: título da tela + ações globais.
+        self.topbar = QFrame()
+        self.topbar.setObjectName("topBar")
+        self.topbar.setFixedHeight(60)
+        top = QHBoxLayout(self.topbar)
+        top.setContentsMargins(22, 8, 18, 8)
+        top.setSpacing(10)
+
+        titulos = QVBoxLayout()
+        titulos.setSpacing(0)
+        self.page_title = QLabel(t("Dashboard"))
+        self.page_title.setObjectName("pageTitle")
+        self.page_subtitle = QLabel(t("Visão geral do seu trabalho"))
+        self.page_subtitle.setObjectName("pageSubtitle")
+        titulos.addWidget(self.page_title)
+        titulos.addWidget(self.page_subtitle)
+        top.addLayout(titulos)
         top.addStretch(1)
 
         # Gravação rápida (quando ligada em Funcionalidades).
         self.quick_record_btn = QToolButton()
         self.quick_record_btn.setProperty("class", "topIcon")
         self.quick_record_btn.setCursor(Qt.PointingHandCursor)
-        self.quick_record_btn.setToolTip(t("Gravar reunião"))
+        self.quick_record_btn.setToolTip(t("Iniciar uma reunião"))
         self.quick_record_btn.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
         self.quick_record_btn.clicked.connect(self._transcricoes_quick_toggle)
         self.quick_record_btn.setVisible(features.habilitada("quick_record"))
@@ -194,7 +273,7 @@ class MainWindow(QMainWindow):
         self.search_btn.clicked.connect(self._toggle_search)
         top.addWidget(self.search_btn)
 
-        # Notificações: sino com a contagem de TODOs pendentes no topo.
+        # Notificações: sino com a contagem de TODOs pendentes.
         self.notif_btn = QToolButton()
         self.notif_btn.setProperty("class", "topIcon")
         self.notif_btn.setCursor(Qt.PointingHandCursor)
@@ -205,29 +284,8 @@ class MainWindow(QMainWindow):
         self.notif_badge.hide()
         top.addWidget(self.notif_badge)
 
-        # Seletor de tema: o select mostra todas as opções (um botão que cicla
-        # esconderia as escolhas).
-        from PySide6.QtWidgets import QComboBox
-        from maestro_local.gui.theme import NOMES_TEMAS, ROTULOS_TEMAS
-        self.theme_combo = QComboBox()
-        self.theme_combo.setCursor(Qt.PointingHandCursor)
-        for nome in NOMES_TEMAS:
-            self.theme_combo.addItem(t(ROTULOS_TEMAS[nome]), nome)
-        self.theme_combo.currentIndexChanged.connect(self._on_theme_selected)
-        top.addWidget(self.theme_combo)
-
-        layout.addWidget(self.topbar)
-
-        # Telas visíveis, na ordem das seções da home: base dos atalhos Alt+N e
-        # dos testes de funcionalidades (features ligadas/desligadas).
-        self._nav_keys: list[str] = [k for _, chaves in SECOES for k in chaves
-                                     if features.habilitada(k)]
-
-        # --- Content area ---
-        content_widget = QWidget()
-        content_layout = QVBoxLayout(content_widget)
-        content_layout.setContentsMargins(0, 0, 0, 0)
-        content_layout.setSpacing(0)
+        content_layout.addWidget(self.topbar)
+        layout.addWidget(content_widget)
 
         # Global search bar
         search_container = QWidget()
@@ -256,12 +314,6 @@ class MainWindow(QMainWindow):
         # Stacked widget with views
         self.stack = QStackedWidget()
 
-        # Home (lançador): primeira tela, substitui o painel lateral.
-        self.home_view = HomeView()
-        self.home_view.open_key.connect(self._open_key)
-        self.home_view.open_todos.connect(self._goto_todos)
-        self.home_view.eyecare_test.connect(self.testar_eyecare)
-
         self.dashboard_view = DashboardView()
         self.daily_view = DailyView()
         self.study_view = StudyView()
@@ -277,7 +329,6 @@ class MainWindow(QMainWindow):
         self.settings_view.notification_changed.connect(self._setup_coach_timer)
         self.settings_view.ai_provider_changed.connect(self.chat_view.refresh)
 
-        self.stack.addWidget(self.home_view)
         self.stack.addWidget(self.dashboard_view)
         self.stack.addWidget(self.daily_view)
         self.stack.addWidget(self.study_view)
@@ -293,7 +344,6 @@ class MainWindow(QMainWindow):
         # FÁBRICA (lambda) em vez de instância — só são importadas/construídas
         # no primeiro _open_key, economizando import e memória de boot.
         self._view_by_key = {
-            "home": self.home_view,
             "dashboard": self.dashboard_view,
             "daily": self.daily_view,
             "study": self.study_view,
@@ -324,8 +374,8 @@ class MainWindow(QMainWindow):
         self.dashboard_view.task_clicked.connect(self._open_task_from_dashboard)
         self.dashboard_view.project_clicked.connect(self._open_board)
 
-        # Default to Home (lançador)
-        self._open_key("home")
+        # Tela inicial: Dashboard (visão geral com abas)
+        self._open_key("dashboard")
 
         # Status bar
         self.status = QStatusBar()
@@ -558,7 +608,11 @@ class MainWindow(QMainWindow):
         self.todo_reminder.hide()
 
     def _transcricoes_quick_toggle(self):
+        """Abre Reuniões. O botão do topo inicia a gravação, mas nunca encerra
+        uma reunião em andamento — parar é ação explícita da tela de Reuniões."""
         self._open_key("transcricoes")
+        if self.transcricoes_view.is_busy():
+            return
         self.transcricoes_view.toggle_record_external()
 
     def _on_recording_state(self, gravando: bool, segundos: int = 0):
@@ -572,11 +626,11 @@ class MainWindow(QMainWindow):
             return
         if getattr(self, "_gravando", False):
             m, s = divmod(int(getattr(self, "_gravando_seg", 0)), 60)
-            self.quick_record_btn.setText(f"■ {m:02d}:{s:02d}")
-            self.quick_record_btn.setToolTip(t("Parar gravação"))
+            self.quick_record_btn.setText(f"● {m:02d}:{s:02d}")
+            self.quick_record_btn.setToolTip(t("Reunião em andamento — abrir Reuniões"))
         else:
             self.quick_record_btn.setText(t("Gravar"))
-            self.quick_record_btn.setToolTip(t("Gravar reunião"))
+            self.quick_record_btn.setToolTip(t("Iniciar uma reunião"))
 
     def _maybe_release_whisper(self):
         """Libera o modelo Whisper após dois ciclos ociosos consecutivos (~4 min).
@@ -609,14 +663,16 @@ class MainWindow(QMainWindow):
         self.setStyleSheet(build_stylesheet(theme))
 
         # Ícones da barra superior: são pixmaps, então o QSS não os recolore.
-        self.home_btn.setIcon(nav_icon("home", theme.text_on_accent, size=18))
         self.search_btn.setIcon(nav_icon("search", theme.text_secondary, size=20))
         self.notif_btn.setIcon(nav_icon("bell", theme.text_secondary, size=20))
         self.quick_record_btn.setIcon(
             nav_icon("transcricoes", theme.text_secondary, size=18))
         self._atualizar_icone_gravacao()
 
-        self.home_view.apply_theme()
+        self.logo_badge.setStyleSheet(
+            f"background: {theme.accent}; color: {theme.text_on_accent}; "
+            f"font-size: 15px; font-weight: 800; border-radius: 8px;")
+        self._refresh_nav_icons()
         self.dashboard_view.pomodoro.apply_theme(theme)
         from maestro_local.gui.theme import nome_do_tema
         atual = nome_do_tema(theme)
@@ -748,14 +804,48 @@ class MainWindow(QMainWindow):
         self.stack.addWidget(widget)
         return widget
 
+    def _nav_row_for(self, key):
+        for i in range(self.nav_list.count()):
+            if self.nav_list.item(i).data(Qt.UserRole) == key:
+                return i
+        return None
+
+    def _on_nav(self, row):
+        item = self.nav_list.item(row)
+        if item is None:
+            return
+        key = item.data(Qt.UserRole)
+        if key:            # cabeçalhos de grupo não têm chave
+            self._open_key(key)
+
+    def _refresh_nav_icons(self):
+        """Ícones da sidebar: o item ativo usa o accent, os demais o cinza."""
+        from maestro_local.gui.icons import nav_icon
+        th = current_theme()
+        atual = self.nav_list.currentRow()
+        for i in range(self.nav_list.count()):
+            item = self.nav_list.item(i)
+            key = item.data(Qt.UserRole)
+            if not key:
+                continue
+            cor = th.accent if i == atual else th.text_muted
+            item.setIcon(nav_icon(key, cor))
+
     def _open_key(self, key):
-        """Troca a tela pela chave (home ou qualquer funcionalidade)."""
+        """Troca a tela pela chave e sincroniza a sidebar e o título."""
         w = self._ensure_view(key)
         if w is None:
             return
         self.stack.setCurrentWidget(w)
         if hasattr(w, "refresh"):
             w.refresh()
+        row = self._nav_row_for(key)
+        if row is not None and row != self.nav_list.currentRow():
+            self.nav_list.blockSignals(True)
+            self.nav_list.setCurrentRow(row)
+            self.nav_list.blockSignals(False)
+        self.page_title.setText(self._labels.get(key, key))
+        self._refresh_nav_icons()
 
     def _open_board(self, project_id):
         self.board_view.set_project(project_id)

@@ -8,7 +8,6 @@ class ThemeColors:
     bg_secondary: str
     bg_sidebar: str
     bg_card: str
-    bg_card_tint: str
     bg_input: str
     bg_hover: str
     bg_selected: str
@@ -58,7 +57,6 @@ LIGHT = ThemeColors(
     bg_secondary="#F5F5F5",
     bg_sidebar="#FFFFFF",
     bg_card="#FFFFFF",
-    bg_card_tint="#86EFAC",
     bg_input="#FFFFFF",
     bg_hover="#F5F5F5",
     bg_selected="#CCFBF1",
@@ -95,7 +93,6 @@ DARK = ThemeColors(
     bg_secondary="#171717",
     bg_sidebar="#0A0A0A",
     bg_card="#171717",
-    bg_card_tint="#14532D",
     bg_input="#171717",
     bg_hover="#262626",
     bg_selected="#042F2E",
@@ -135,7 +132,6 @@ HACKER = ThemeColors(
     bg_secondary="#0C130E",
     bg_sidebar="#040706",
     bg_card="#0B110C",
-    bg_card_tint="#14532D",
     bg_input="#080D09",
     bg_hover="#15241A",
     bg_selected="#0B2E18",
@@ -566,7 +562,7 @@ QMessageBox QPushButton {{
 }}
 QFrame[class="card"] {{
     background: {t.bg_card};
-    border: 1px solid {t.border_light};
+    border: 1px solid {t.border};
     border-radius: 12px;
     padding: 8px;
 }}
@@ -658,12 +654,25 @@ QPushButton[class="quickMove"]:hover {{
     border-color: {t.accent};
 }}
 
-/* --- Barra superior --- */
-QFrame#topBar {{
+/* --- Shell: painel lateral + barra superior --- */
+QWidget#sidebar {{
     background: {t.bg_sidebar};
+    border-right: 1px solid {t.border_light};
+}}
+QWidget#sidebar QLabel {{ background: transparent; }}
+QFrame#topBar {{
+    background: {t.bg_primary};
     border-bottom: 1px solid {t.border_light};
 }}
 QFrame#topBar QLabel {{ background: transparent; }}
+QLabel#pageTitle {{
+    font-size: 17px; font-weight: 800; color: {t.text_primary};
+    border: none; background: transparent;
+}}
+QLabel#pageSubtitle {{
+    font-size: 11px; color: {t.text_muted};
+    border: none; background: transparent;
+}}
 QLabel#brandName {{
     font-size: 14px; font-weight: 800; color: {t.text_primary};
     border: none; background: transparent;
@@ -672,59 +681,21 @@ QLabel#brandSub {{
     font-size: 10px; font-weight: 600; color: {t.accent};
     letter-spacing: 1px; background: transparent;
 }}
+QLabel#versionLabel {{
+    font-size: 10px; color: {t.text_muted};
+    border: none; background: transparent;
+}}
 QToolButton[class="topIcon"] {{
-    background: transparent; border: none; border-radius: 9px; padding: 6px;
+    background: transparent; border: 1px solid transparent; border-radius: 9px;
+    padding: 6px 10px; color: {t.text_secondary}; font-weight: 600;
 }}
-QToolButton[class="topIcon"]:hover {{ background: {t.bg_hover}; }}
-QToolButton[class="homeBtn"] {{
-    background: {t.accent}; color: {t.text_on_accent};
-    border: none; border-radius: 9px; padding: 6px 14px;
-    font-weight: 700; font-size: 13px;
+QToolButton[class="topIcon"]:hover {{
+    background: {t.bg_hover}; border-color: {t.border_light};
+    color: {t.text_primary};
 }}
-QToolButton[class="homeBtn"]:hover {{ background: {t.accent_hover}; }}
-QToolButton[class="homeBtn"]:pressed {{ background: {t.accent_pressed}; }}
 QLabel#badgeCount {{
     background: {t.danger}; color: #FFFFFF; border-radius: 9px;
     font-size: 10px; font-weight: 800; padding: 1px 6px;
-}}
-
-/* --- Home (lançador) --- */
-QLabel#homeGreeting {{
-    font-size: 20px; font-weight: 800; color: {t.text_primary};
-    background: transparent; border: none;
-}}
-QLabel[class="homeSection"] {{
-    font-size: 11px; font-weight: 700; color: {t.text_muted};
-    letter-spacing: 1.2px; background: transparent; border: none;
-    padding-top: 4px;
-}}
-QFrame[class="featureCard"] {{
-    background: {t.bg_card_tint};
-    border: 1px solid {t.border};
-    border-radius: 14px;
-}}
-QFrame[class="featureCard"]:hover {{
-    border-color: {t.accent};
-}}
-QFrame[class="summaryCard"] {{
-    background: {t.bg_card_tint};
-    border: 1px solid {t.border};
-    border-radius: 14px;
-}}
-/* Mesma proteção do card genérico: sem isto os QLabel herdam um fundo
-   calculado da paleta quando o ancestral é estilizado. */
-QFrame[class="featureCard"] QLabel,
-QFrame[class="summaryCard"] QLabel {{
-    background: transparent;
-}}
-/* Sobre o fundo colorido, o cinza do hint perde contraste. */
-QFrame[class="featureCard"] QLabel[class="hint"],
-QFrame[class="summaryCard"] QLabel[class="hint"] {{
-    color: {t.text_secondary};
-}}
-QLabel[class="summaryValue"] {{
-    font-size: 18px; font-weight: 800; color: {t.text_primary};
-    background: transparent; border: none;
 }}
 """
 
