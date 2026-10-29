@@ -162,6 +162,7 @@ class MainWindow(QMainWindow):
 
         from maestro_local.gui.no_wheel_combo import NoWheelComboBox
         self.project_selector = NoWheelComboBox()
+        self.project_selector.setObjectName("sidebarCombo")
         self.project_selector.setToolTip(t("Projeto ativo"))
         self.project_selector.currentIndexChanged.connect(self._on_project_selected)
         sb.addWidget(self.project_selector)
@@ -221,6 +222,7 @@ class MainWindow(QMainWindow):
         from PySide6.QtWidgets import QComboBox
         from maestro_local.gui.theme import NOMES_TEMAS, ROTULOS_TEMAS
         self.theme_combo = QComboBox()
+        self.theme_combo.setObjectName("sidebarCombo")
         self.theme_combo.setCursor(Qt.PointingHandCursor)
         for nome in NOMES_TEMAS:
             self.theme_combo.addItem(t(ROTULOS_TEMAS[nome]), nome)
@@ -688,8 +690,8 @@ class MainWindow(QMainWindow):
             self.theme_combo.setCurrentIndex(indice)
         self.theme_combo.blockSignals(False)
         self.status.setStyleSheet(
-            f"background-color: {theme.bg_sidebar}; color: {theme.text_muted}; "
-            f"border-top: 1px solid {theme.border}; font-size: 12px; padding: 2px 8px;"
+            f"background-color: {theme.bg_sidebar}; color: {theme.sidebar_muted}; "
+            f"border-top: 1px solid {theme.sidebar_border}; font-size: 11px; padding: 2px 8px;"
         )
         self.search_container.setStyleSheet(
             f"background-color: {theme.bg_primary}; "
@@ -833,7 +835,7 @@ class MainWindow(QMainWindow):
             key = item.data(Qt.UserRole)
             if not key:
                 continue
-            cor = th.accent if i == atual else th.text_muted
+            cor = th.sidebar_active_text if i == atual else th.sidebar_muted
             item.setIcon(nav_icon(key, cor))
 
     def _open_key(self, key):

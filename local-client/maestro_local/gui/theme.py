@@ -40,6 +40,15 @@ class ThemeColors:
     bg_badge: str
     bg_overlay: str
 
+    # Sidebar tem paleta própria: no tema claro ela é escura (cara de dev tool);
+    # nos temas escuros acompanha o restante.
+    sidebar_text: str
+    sidebar_muted: str
+    sidebar_hover: str
+    sidebar_active_bg: str
+    sidebar_active_text: str
+    sidebar_border: str
+
     # Text
     text_primary: str
     text_secondary: str
@@ -78,29 +87,36 @@ class ThemeColors:
 # no webui); os cinzas frios deixam os cards brancos legíveis sem o aspecto
 # "papel" do cinza puro nem o azul datado das bordas antigas.
 LIGHT = ThemeColors(
-    bg_primary="#F5F6F8",
-    bg_secondary="#EEF0F4",
-    bg_sidebar="#FFFFFF",
+    bg_primary="#F4F5F9",
+    bg_secondary="#ECEFF5",
+    bg_sidebar="#0F1117",
     bg_card="#FFFFFF",
     bg_input="#FFFFFF",
-    bg_hover="#F3F4F7",
-    bg_selected="#EEF2FF",
-    bg_badge="#F3F4F7",
-    bg_overlay="rgba(17,24,39,0.45)",
+    bg_hover="#F1F3F9",
+    bg_selected="#EEEBFF",
+    bg_badge="#ECEFF5",
+    bg_overlay="rgba(11,13,18,0.45)",
 
-    text_primary="#111827",
-    text_secondary="#374151",
+    sidebar_text="#E6E8EF",
+    sidebar_muted="#8B93A7",
+    sidebar_hover="#1A1E29",
+    sidebar_active_bg="#242A3A",
+    sidebar_active_text="#FFFFFF",
+    sidebar_border="#1E2230",
+
+    text_primary="#0B0D12",
+    text_secondary="#3A4152",
     text_muted="#6B7280",
     text_on_accent="#FFFFFF",
 
-    border="#E5E7EB",
-    border_focus="#6366F1",
-    border_light="#F1F3F6",
+    border="#E3E6EE",
+    border_focus="#6D5EF8",
+    border_light="#EDEFF5",
 
-    accent="#4F46E5",
-    accent_hover="#4338CA",
-    accent_pressed="#3730A3",
-    accent_light="#EEF2FF",
+    accent="#6D5EF8",
+    accent_hover="#5B4BE0",
+    accent_pressed="#4A3BC7",
+    accent_light="#EEEBFF",
 
     danger="#DC2626",
     # Verde distinto do indigo: no FlowIndicator, "etapa atual" não pode se
@@ -123,6 +139,13 @@ DARK = ThemeColors(
     bg_selected="#042F2E",
     bg_badge="#262626",
     bg_overlay="rgba(0,0,0,0.6)",
+
+    sidebar_text="#FAFAFA",
+    sidebar_muted="#737373",
+    sidebar_hover="#262626",
+    sidebar_active_bg="#042F2E",
+    sidebar_active_text="#2DD4BF",
+    sidebar_border="#262626",
 
     text_primary="#FAFAFA",
     text_secondary="#A3A3A3",
@@ -162,6 +185,13 @@ HACKER = ThemeColors(
     bg_selected="#0B2E18",
     bg_badge="#15241A",
     bg_overlay="rgba(0,0,0,0.72)",
+
+    sidebar_text="#CFF7D8",
+    sidebar_muted="#4C8560",
+    sidebar_hover="#15241A",
+    sidebar_active_bg="#0B2E18",
+    sidebar_active_text="#00E97A",
+    sidebar_border="#1B3322",
 
     text_primary="#CFF7D8",
     text_secondary="#7FCF95",
@@ -298,23 +328,23 @@ QListWidget#navList::item {{
     border-radius: 8px;
     border: none;
     background-color: transparent;
-    color: {t.text_secondary};
+    color: {t.sidebar_muted};
     font-size: 13px;
     font-weight: 500;
 }}
 QListWidget#navList::item:hover {{
-    background-color: {t.bg_hover};
-    color: {t.text_primary};
+    background-color: {t.sidebar_hover};
+    color: {t.sidebar_text};
 }}
 QListWidget#navList::item:selected,
 QListWidget#navList::item:selected:!active {{
-    background-color: {t.accent_light};
-    color: {t.accent};
+    background-color: {t.sidebar_active_bg};
+    color: {t.sidebar_active_text};
     font-weight: 600;
 }}
 /* Cabeçalho de grupo: item sem flags (não clicável), por isso :disabled. */
 QListWidget#navList::item:disabled {{
-    color: {t.text_muted};
+    color: {t.sidebar_muted};
     font-size: 10px;
     font-weight: 700;
     letter-spacing: 1.2px;
@@ -662,8 +692,9 @@ QDateEdit {{
     padding: 4px 8px;
 }}
 QLabel#summaryValue {{
-    font-size: 28px;
-    font-weight: 800;
+    font-family: "Fira Code", "JetBrains Mono", "DejaVu Sans Mono", monospace;
+    font-size: 27px;
+    font-weight: 700;
     color: {t.text_primary};
     letter-spacing: -0.8px;
     border: none;
@@ -688,9 +719,18 @@ QPushButton[class="quickMove"]:hover {{
 /* --- Shell: painel lateral + barra superior --- */
 QWidget#sidebar {{
     background: {t.bg_sidebar};
-    border-right: 1px solid {t.border_light};
+    border-right: 1px solid {t.sidebar_border};
 }}
 QWidget#sidebar QLabel {{ background: transparent; }}
+QComboBox#sidebarCombo {{
+    background: {t.sidebar_hover};
+    color: {t.sidebar_text};
+    border: 1px solid {t.sidebar_border};
+    border-radius: 8px;
+    padding: 7px 10px;
+}}
+QComboBox#sidebarCombo:hover {{ border-color: {t.sidebar_muted}; }}
+QComboBox#sidebarCombo::drop-down {{ border: none; padding-right: 6px; }}
 QFrame#topBar {{
     background: {t.bg_card};
     border-bottom: 1px solid {t.border_light};
@@ -705,15 +745,15 @@ QLabel#pageSubtitle {{
     border: none; background: transparent;
 }}
 QLabel#brandName {{
-    font-size: 14px; font-weight: 800; color: {t.text_primary};
+    font-size: 14px; font-weight: 800; color: {t.sidebar_text};
     border: none; background: transparent;
 }}
 QLabel#brandSub {{
     font-size: 10px; font-weight: 600; color: {t.accent};
-    letter-spacing: 1px; background: transparent;
+    letter-spacing: 1.4px; background: transparent;
 }}
 QLabel#versionLabel {{
-    font-size: 10px; color: {t.text_muted};
+    font-size: 10px; color: {t.sidebar_muted};
     border: none; background: transparent;
 }}
 QToolButton[class="topIcon"] {{

@@ -677,17 +677,21 @@ class WorkspaceSelectorButton(QWidget):
             f"font-size: 11px; font-weight: 700; border-radius: 6px;"
         )
         self._name.setText(active["name"])
+        texto = getattr(t, "sidebar_text", t.text_primary)
+        muted = getattr(t, "sidebar_muted", t.text_muted)
+        hover = getattr(t, "sidebar_hover", t.bg_hover)
+        borda = getattr(t, "sidebar_border", t.border_light)
         self._name.setStyleSheet(
-            f"font-weight: 600; font-size: 12px; color: {t.text_primary};"
+            f"font-weight: 600; font-size: 12px; color: {texto};"
         )
         self._chevron.setStyleSheet(
-            f"color: {t.text_muted}; font-size: 9px;"
+            f"color: {muted}; font-size: 9px;"
         )
         self.setStyleSheet(
             f"WorkspaceSelectorButton {{ background: transparent; "
             f"border: 1px solid transparent; border-radius: 8px; }}"
-            f"WorkspaceSelectorButton:hover {{ background: {t.bg_hover}; "
-            f"border: 1px solid {t.border_light}; }}"
+            f"WorkspaceSelectorButton:hover {{ background: {hover}; "
+            f"border: 1px solid {borda}; }}"
         )
 
     def mousePressEvent(self, event):
