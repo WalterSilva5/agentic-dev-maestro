@@ -462,35 +462,46 @@ QComboBox QAbstractItemView {{
     padding: 4px;
 }}
 QScrollBar:vertical {{
-    background: transparent;
-    width: 8px;
-    margin: 2px;
+    background: {t.bg_secondary};
+    width: 13px;
+    margin: 0;
+    border-radius: 7px;
 }}
 QScrollBar::handle:vertical {{
-    background: {t.border};
-    border-radius: 4px;
+    background: {t.text_muted};
+    border-radius: 6px;
     min-height: 40px;
+    margin: 2px;
 }}
 QScrollBar::handle:vertical:hover {{
     background: {t.accent};
 }}
+QScrollBar::handle:vertical:pressed {{
+    background: {t.accent_pressed};
+}}
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0; }}
 QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{ background: transparent; }}
 QScrollBar:horizontal {{
-    background: transparent;
-    height: 8px;
-    margin: 2px;
+    background: {t.bg_secondary};
+    height: 13px;
+    margin: 0;
+    border-radius: 7px;
 }}
 QScrollBar::handle:horizontal {{
-    background: {t.border};
-    border-radius: 4px;
+    background: {t.text_muted};
+    border-radius: 6px;
     min-width: 40px;
+    margin: 2px;
 }}
 QScrollBar::handle:horizontal:hover {{
     background: {t.accent};
 }}
+QScrollBar::handle:horizontal:pressed {{
+    background: {t.accent_pressed};
+}}
 QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{ width: 0; }}
 QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{ background: transparent; }}
+QScrollBar::corner {{ background: transparent; }}
 QTabWidget::pane {{
     border: none;
     background: transparent;
