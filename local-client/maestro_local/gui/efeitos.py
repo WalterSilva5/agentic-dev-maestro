@@ -31,3 +31,20 @@ def aplicar_sombras(raiz, escuro: bool = False) -> None:
         efeito.setColor(cor)
         widget.setGraphicsEffect(efeito)
         widget.setProperty("_sombra", True)
+
+
+def sombra_topo(widget, escuro: bool = False) -> None:
+    """Sombra sob a barra superior (dá profundidade ao cabeçalho)."""
+    if widget is None:
+        return
+    cor = QColor(0, 0, 0, 60 if escuro else 18)
+    efeito = widget.graphicsEffect()
+    if widget.property("_sombra_topo") and isinstance(efeito, QGraphicsDropShadowEffect):
+        efeito.setColor(cor)
+        return
+    efeito = QGraphicsDropShadowEffect(widget)
+    efeito.setBlurRadius(16)
+    efeito.setOffset(0, 3)
+    efeito.setColor(cor)
+    widget.setGraphicsEffect(efeito)
+    widget.setProperty("_sombra_topo", True)

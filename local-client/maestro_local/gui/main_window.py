@@ -28,7 +28,7 @@ from maestro_local.gui.theme import (
     is_dark,
     set_theme,
 )
-from maestro_local.gui.efeitos import aplicar_sombras
+from maestro_local.gui.efeitos import aplicar_sombras, sombra_topo
 from maestro_local.config import get_active_workspace_id, get_workspace_db_path
 from maestro_local.i18n import t
 from maestro_local import features
@@ -687,6 +687,7 @@ class MainWindow(QMainWindow):
             f"background: {theme.accent}; color: {theme.text_on_accent}; "
             f"font-size: 15px; font-weight: 800; border-radius: 8px;")
         self._refresh_nav_icons()
+        sombra_topo(self.topbar, escuro=is_dark())
         aplicar_sombras(self, escuro=is_dark())
         self.dashboard_view.pomodoro.apply_theme(theme)
         from maestro_local.gui.theme import nome_do_tema
