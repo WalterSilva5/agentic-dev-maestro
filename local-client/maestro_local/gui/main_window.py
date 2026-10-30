@@ -205,6 +205,8 @@ class MainWindow(QMainWindow):
         nav_groups = [(titulo, itens) for titulo, itens in nav_groups if itens]
 
         self._labels = {k: rot for _, itens in nav_groups for rot, k in itens}
+        self._descricoes = {f.chave: t(f.descricao) for f in features.FUNCIONALIDADES}
+        self._descricoes["settings"] = t("Idioma, provedores de IA e transcrições")
         self._nav_keys: list[str] = []
         self.nav_list = QListWidget()
         self.nav_list.setObjectName("navList")
@@ -862,6 +864,7 @@ class MainWindow(QMainWindow):
             self.nav_list.setCurrentRow(row)
             self.nav_list.blockSignals(False)
         self.page_title.setText(self._labels.get(key, key))
+        self.page_subtitle.setText(self._descricoes.get(key, ""))
         self._refresh_nav_icons()
 
     def _open_board(self, project_id):
