@@ -742,7 +742,7 @@ QLabel#summaryValue {{
     font-family: "Fira Code", "JetBrains Mono", "DejaVu Sans Mono", monospace;
     font-size: 27px;
     font-weight: 700;
-    color: {t.text_primary};
+    color: {t.accent};
     letter-spacing: -0.8px;
     border: none;
     background: transparent;
