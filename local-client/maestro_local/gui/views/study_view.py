@@ -326,7 +326,7 @@ class StudyView(QWidget):
     def _build_list_page(self):
         page = QWidget()
         layout = QVBoxLayout(page)
-        layout.setContentsMargins(14, 14, 14, 14)
+        layout.setContentsMargins(20, 18, 20, 20)
         layout.setSpacing(10)
         title = QLabel(_t("Estudos"))
         title.setObjectName("sectionTitle")
@@ -391,7 +391,7 @@ class StudyView(QWidget):
     def _build_detail_page(self):
         page = QWidget()
         layout = QVBoxLayout(page)
-        layout.setContentsMargins(14, 14, 14, 14)
+        layout.setContentsMargins(20, 18, 20, 20)
         layout.setSpacing(10)
 
         header_row = QHBoxLayout()

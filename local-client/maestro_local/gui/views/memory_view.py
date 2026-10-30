@@ -33,7 +33,7 @@ class MemoryView(QWidget):
     def __init__(self):
         super().__init__()
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(14, 14, 14, 14)
+        layout.setContentsMargins(20, 18, 20, 20)
         layout.setSpacing(10)
 
         title = QLabel(_t("Memória agentic"))

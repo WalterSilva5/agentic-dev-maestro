@@ -1517,7 +1517,7 @@ class BoardView(QWidget):
         self._sprint_filter_initialized = False  # já aplicou o default (sprint ativa)?
 
         self.main_layout = QVBoxLayout(self)
-        self.main_layout.setContentsMargins(14, 14, 14, 14)
+        self.main_layout.setContentsMargins(20, 18, 20, 20)
         self.main_layout.setSpacing(12)
 
         # -- Empty state (project selection) --

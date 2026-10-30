@@ -74,7 +74,7 @@ class MetricsView(QWidget):
     def __init__(self):
         super().__init__()
         self.main_layout = QVBoxLayout(self)
-        self.main_layout.setContentsMargins(14, 14, 14, 14)
+        self.main_layout.setContentsMargins(20, 18, 20, 20)
         self.main_layout.setSpacing(10)
 
         title = QLabel(_t("Métricas"))

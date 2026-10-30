@@ -65,7 +65,7 @@ class EnglishView(QWidget):
         self._tmp_wav = None
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(14, 14, 14, 14)
+        layout.setContentsMargins(20, 18, 20, 20)
         layout.setSpacing(10)
 
         title = QLabel(_t("Praticar Inglês"))

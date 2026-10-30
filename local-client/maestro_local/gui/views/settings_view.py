@@ -57,7 +57,7 @@ class SettingsView(QWidget):
         self._ai_save_timer.timeout.connect(self._persistir_provedor_ai)
 
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(14, 14, 14, 14)
+        main_layout.setContentsMargins(20, 18, 20, 20)
         main_layout.setSpacing(10)
 
         title = QLabel(t("Configurações"))

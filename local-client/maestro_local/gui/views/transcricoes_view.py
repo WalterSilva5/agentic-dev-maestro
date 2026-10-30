@@ -210,7 +210,7 @@ class TranscricoesView(QWidget):
         self._tick.timeout.connect(self._on_tick)
 
         root = QHBoxLayout(self)
-        root.setContentsMargins(14, 14, 14, 14)
+        root.setContentsMargins(20, 18, 20, 20)
         root.setSpacing(0)
         # Splitter horizontal: histórico (esq) x conteúdo (dir), arrastável.
         self._main_split = QSplitter(Qt.Horizontal)
@@ -237,8 +237,8 @@ class TranscricoesView(QWidget):
         # ---- Coluna direita: gravação + transcrição ----
         right_widget = QWidget()
         right = QVBoxLayout(right_widget)
-        right.setContentsMargins(8, 0, 0, 0)
-        right.setSpacing(10)
+        right.setContentsMargins(12, 0, 0, 0)
+        right.setSpacing(12)
 
         title_row = QHBoxLayout()
         # Botão de histórico — aparece só quando a tela é estreita (histórico colapsa)

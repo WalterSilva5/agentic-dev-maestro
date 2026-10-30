@@ -96,7 +96,7 @@ class VaultView(QWidget):
         self._lock_timer.timeout.connect(self._auto_lock)
 
         root = QVBoxLayout(self)
-        root.setContentsMargins(14, 14, 14, 14)
+        root.setContentsMargins(20, 18, 20, 20)
         root.setSpacing(10)
 
         header = QHBoxLayout()
