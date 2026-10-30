@@ -315,6 +315,37 @@ QListWidget::item:selected, QTreeWidget::item:selected {{
 QListWidget::item:hover, QTreeWidget::item:hover {{
     background-color: {t.bg_hover};
 }}
+/* Tabelas/cabeçalhos: sem o QHeaderView estilizado, o Qt desenha o padrão
+   do sistema (setas e cinza de widget antigo). */
+QHeaderView::section {{
+    background: {t.bg_secondary};
+    color: {t.text_muted};
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    padding: 8px 10px;
+    border: none;
+    border-bottom: 1px solid {t.border};
+}}
+QHeaderView::section:hover {{
+    color: {t.text_primary};
+}}
+QTableCornerButton::section {{
+    background: {t.bg_secondary};
+    border: none;
+}}
+QTableWidget, QTableView {{
+    gridline-color: {t.border_light};
+    alternate-background-color: {t.bg_secondary};
+}}
+QTableWidget::item, QTableView::item {{
+    padding: 6px 8px;
+    border: none;
+}}
+QTableWidget::item:selected, QTableView::item:selected {{
+    background: {t.accent_light};
+    color: {t.text_primary};
+}}
 QListWidget#navList {{
     background-color: transparent;
     border: none;
@@ -648,7 +679,7 @@ QFrame[class="card"] QLabel {{
 }}
 QLabel[class="cardTitle"] {{
     font-weight: 700;
-    font-size: 13px;
+    font-size: 14px;
     color: {t.text_primary};
     border: none;
     background: transparent;
@@ -660,9 +691,10 @@ QLabel[class="hint"] {{
     background: transparent;
 }}
 QLabel[class="sectionLabel"] {{
-    color: {t.text_secondary};
-    font-weight: 600;
+    color: {t.text_muted};
+    font-weight: 700;
     font-size: 11px;
+    letter-spacing: 0.6px;
     border: none;
     background: transparent;
 }}
@@ -670,13 +702,16 @@ QPushButton[class="secondary"] {{
     background: {t.bg_badge};
     color: {t.text_secondary};
     border: 1px solid {t.border};
-    border-radius: 5px;
-    padding: 3px 10px;
+    border-radius: 7px;
+    padding: 4px 12px;
     font-size: 11px;
     font-weight: 600;
+    min-height: 22px;
 }}
 QPushButton[class="secondary"]:hover {{
     background: {t.bg_hover};
+    color: {t.text_primary};
+    border-color: {t.accent};
 }}
 QTextEdit[class="mono"] {{
     background: {t.bg_input};
