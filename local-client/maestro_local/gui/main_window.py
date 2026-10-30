@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QMenu,
     QPushButton,
+    QSplitter,
     QStackedWidget,
     QStatusBar,
     QToolButton,
@@ -133,7 +134,8 @@ class MainWindow(QMainWindow):
         # --- Painel lateral ---
         self.sidebar = QWidget()
         self.sidebar.setObjectName("sidebar")
-        self.sidebar.setFixedWidth(224)
+        self.sidebar.setMinimumWidth(184)
+        self.sidebar.setMaximumWidth(380)
         sb = QVBoxLayout(self.sidebar)
         sb.setContentsMargins(10, 14, 10, 12)
         sb.setSpacing(8)
@@ -234,7 +236,13 @@ class MainWindow(QMainWindow):
         self.version_label.setAlignment(Qt.AlignCenter)
         sb.addWidget(self.version_label)
 
-        layout.addWidget(self.sidebar)
+        self._splitter = QSplitter(Qt.Horizontal)
+        self._splitter.setChildrenCollapsible(False)
+        self._splitter.setHandleWidth(8)
+        self._splitter.addWidget(self.sidebar)
+        self._splitter.setStretchFactor(0, 0)
+        self._splitter.setStretchFactor(1, 1)
+        layout.addWidget(self._splitter)
 
         # --- Área de conteúdo ---
         content_widget = QWidget()
@@ -291,7 +299,6 @@ class MainWindow(QMainWindow):
         top.addWidget(self.notif_badge)
 
         content_layout.addWidget(self.topbar)
-        layout.addWidget(content_widget)
 
         # Global search bar
         search_container = QWidget()
@@ -371,7 +378,8 @@ class MainWindow(QMainWindow):
         }
 
         content_layout.addWidget(self.stack)
-        layout.addWidget(content_widget)
+        self._splitter.addWidget(content_widget)
+        self._splitter.setSizes([224, 1200])
 
         # Connections
         self.projects_view.project_selected.connect(self._open_board)

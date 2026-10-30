@@ -621,6 +621,7 @@ QCheckBox::indicator:checked:disabled {{
 }}
 QCheckBox:disabled {{ color: {t.text_muted}; }}
 QSplitter::handle {{ background: {t.border_light}; }}
+QSplitter::handle:hover {{ background: {t.accent}; }}
 QScrollArea {{ background: transparent; border: none; }}
 QScrollArea > QWidget > QWidget {{ background: transparent; }}
 QGroupBox {{
