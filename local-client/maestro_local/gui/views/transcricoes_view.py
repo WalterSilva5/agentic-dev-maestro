@@ -1977,6 +1977,13 @@ class TranscricoesView(QWidget):
         self.history.clearSelection()
         self.status_label.setText(t("Nova reunião — campos limpos."))
 
+    def abrir_gravacao(self, rec_id: int):
+        """Abre uma gravação por id (usado pela busca global)."""
+        from PySide6.QtWidgets import QListWidgetItem
+        item = QListWidgetItem()
+        item.setData(Qt.UserRole, rec_id)
+        self._open_recording(item)
+
     def _open_recording(self, item):
         rec_id = item.data(Qt.UserRole)
         r = repository.get(rec_id)

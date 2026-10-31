@@ -32,7 +32,7 @@ from maestro_local.gui.efeitos import aplicar_sombras, sombra_topo
 from maestro_local.config import get_active_workspace_id, get_workspace_db_path
 from maestro_local.i18n import t
 from maestro_local import features
-from maestro_local.db.models import Project, Todo, get_session, switch_db
+from maestro_local.db.models import Project, Recording, Todo, get_session, switch_db
 from maestro_local.gui.views.board_view import BoardView
 from maestro_local.gui.views.daily_view import DailyView
 from maestro_local.gui.views.dashboard_view import DashboardView
@@ -386,6 +386,9 @@ class MainWindow(QMainWindow):
         _largura = int(_persistido.get("sidebar_width", 224) or 224)
         self._largura_sidebar_desejada = max(184, min(380, _largura))
         self._splitter.setSizes([self._largura_sidebar_desejada, 1200])
+        _tab = int(_persistido.get("dashboard_tab", 0) or 0)
+        if hasattr(self.dashboard_view, "_tabs") and 0 <= _tab < self.dashboard_view._tabs.count():
+            self.dashboard_view._tabs.setCurrentIndex(_tab)
 
         # Connections
         self.projects_view.project_selected.connect(self._open_board)
@@ -412,6 +415,15 @@ class MainWindow(QMainWindow):
 
         escape_shortcut = QShortcut(QKeySequence("Escape"), self)
         escape_shortcut.activated.connect(self._close_search)
+
+        new_meeting_shortcut = QShortcut(QKeySequence("Ctrl+N"), self)
+        new_meeting_shortcut.activated.connect(self._nova_reuniao_atalho)
+
+        new_todo_shortcut = QShortcut(QKeySequence("Ctrl+T"), self)
+        new_todo_shortcut.activated.connect(self._novo_todo_atalho)
+
+        help_shortcut = QShortcut(QKeySequence("Ctrl+/"), self)
+        help_shortcut.activated.connect(self._mostrar_atalhos)
 
         # Alt+N abre a N-ésima TELA (os cabeçalhos de grupo não contam).
         for i, key in enumerate(self._nav_keys[:9]):
@@ -1013,6 +1025,33 @@ class MainWindow(QMainWindow):
         self.search_bar.setVisible(True)
         self.search_bar.setFocus()
 
+    def _nova_reuniao_atalho(self):
+        """Ctrl+N: abre Reuniões e começa uma do zero."""
+        self._open_key("transcricoes")
+        if hasattr(self.transcricoes_view, "_new_meeting"):
+            self.transcricoes_view._new_meeting()
+
+    def _novo_todo_atalho(self):
+        """Ctrl+T: abre a aba TODOs e foca o campo de adicionar."""
+        self._goto_todos()
+        todo_view = getattr(self.dashboard_view, "_tab_todos", None)
+        if todo_view is not None and hasattr(todo_view, "input"):
+            todo_view.input.setFocus()
+
+    def _mostrar_atalhos(self):
+        """Ctrl+/: lista os atalhos de teclado."""
+        from PySide6.QtWidgets import QMessageBox
+        QMessageBox.information(
+            self, t("Atalhos de teclado"),
+            "\n".join([
+                "Ctrl+K   " + t("Busca global (tarefas, TODOs, projetos e reuniões)"),
+                "Ctrl+N   " + t("Nova reunião"),
+                "Ctrl+T   " + t("Novo TODO"),
+                "Ctrl+/   " + t("Esta ajuda"),
+                "Alt+1…9  " + t("Abrir a N-ésima tela do menu"),
+                "Esc      " + t("Fecha a busca"),
+            ]))
+
     def _on_search(self, text):
         self.search_results.clear()
         if not text or len(text) < 2:
@@ -1060,6 +1099,22 @@ class MainWindow(QMainWindow):
             finally:
                 s.close()
 
+        # Reuniões (gravações)
+        if len(results) < 20:
+            s = get_session()
+            try:
+                for rec in s.query(Recording).filter(
+                        Recording.archived_at == None  # noqa: E711
+                    ).order_by(Recording.created_at.desc()).all():
+                    if query in (rec.title or "").lower():
+                        results.append({"kind": "meeting", "id": rec.id,
+                                        "label": rec.title or t("(sem título)"),
+                                        "prefix": "🎙"})
+                        if len(results) >= 20:
+                            break
+            finally:
+                s.close()
+
         if not results:
             self.search_results.setVisible(False)
             return
@@ -1095,6 +1150,10 @@ class MainWindow(QMainWindow):
             self._goto_todos()
         elif kind == "project":
             self._open_board(r["id"])
+        elif kind == "meeting":
+            self._open_key("transcricoes")
+            if hasattr(self.transcricoes_view, "abrir_gravacao"):
+                self.transcricoes_view.abrir_gravacao(r["id"])
 
     # --- Notifications ---
 
@@ -1241,6 +1300,9 @@ class MainWindow(QMainWindow):
             cfg = load_config()
             cfg.setdefault("settings", {})["sidebar_width"] = int(self.sidebar.width())
             cfg.setdefault("settings", {})["last_screen"] = getattr(self, "_last_screen", "dashboard")
+            tabs = getattr(self.dashboard_view, "_tabs", None)
+            if tabs is not None:
+                cfg.setdefault("settings", {})["dashboard_tab"] = tabs.currentIndex()
             save_config(cfg)
         except Exception:  # noqa: BLE001
             pass
