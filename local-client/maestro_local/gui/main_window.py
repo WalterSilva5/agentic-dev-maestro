@@ -32,7 +32,7 @@ from maestro_local.gui.efeitos import aplicar_sombras, sombra_topo
 from maestro_local.config import get_active_workspace_id, get_workspace_db_path
 from maestro_local.i18n import t
 from maestro_local import features
-from maestro_local.db.models import Todo, get_session, switch_db
+from maestro_local.db.models import Project, Todo, get_session, switch_db
 from maestro_local.gui.views.board_view import BoardView
 from maestro_local.gui.views.daily_view import DailyView
 from maestro_local.gui.views.dashboard_view import DashboardView
@@ -395,7 +395,6 @@ class MainWindow(QMainWindow):
 
         # Status bar
         self.status = QStatusBar()
-        self.status.showMessage(t("API rodando em http://127.0.0.1:{port}").format(port=api_port))
         self.setStatusBar(self.status)
 
         # Toast notification
@@ -484,6 +483,7 @@ class MainWindow(QMainWindow):
         self.settings_view.notification_changed.connect(self._setup_chat_compact_timer)
 
         self._populate_project_selector()
+        self._atualizar_status()
         self._apply_theme()
 
     # ---- Coach proativo ----
@@ -550,9 +550,6 @@ class MainWindow(QMainWindow):
 
     # ---- Lembretes de TODOs ----
     def _check_todo_reminders(self):
-        from maestro_local import features
-        if not features.habilitada("todo_reminder"):
-            return
         from datetime import datetime
         s = get_session()
         try:
@@ -565,11 +562,30 @@ class MainWindow(QMainWindow):
         finally:
             s.close()
         self._pending_todo_ids = ids
+        # O sino reflete o que está em aberto mesmo com o lembrete desligado.
         self._update_notif_badge(abertos)
+        from maestro_local import features
+        if not features.habilitada("todo_reminder"):
+            return
         if ids:
             self.todo_reminder.show_count(len(ids))  # reaparece a cada ciclo enquanto houver pendentes
         else:
             self.todo_reminder.hide()
+
+    def _complete_todo(self, todo_id):
+        """Conclui um TODO a partir do menu do sino e atualiza badge/telas."""
+        from datetime import datetime
+        s = get_session()
+        try:
+            td = s.get(Todo, todo_id)
+            if td is not None and not td.done:
+                td.done = True
+                td.completed_at = datetime.utcnow()
+                s.commit()
+        finally:
+            s.close()
+        self._check_todo_reminders()
+        self._refresh_all()
 
     def _update_notif_badge(self, n):
         """Sino do topo: contagem de TODOs pendentes (some quando zera)."""
@@ -579,13 +595,14 @@ class MainWindow(QMainWindow):
             t("{n} TODO(s) pendente(s)").format(n=n) if n else t("Sem pendências"))
 
     def _show_todo_menu(self):
-        """Menu do sino: lista as pendências e as ações rápidas."""
+        """Menu do sino: conclui uma pendência ou abre as ações rápidas."""
         menu = QMenu(self)
-        itens = todos_abertos(limite=8)
+        itens = todos_abertos(limite=12)
         if itens:
             for item in itens:
-                acao = menu.addAction(item["text"])
-                acao.triggered.connect(self._goto_todos)
+                acao = menu.addAction("✓  " + item["text"])
+                acao.triggered.connect(
+                    lambda _=False, tid=item["id"]: self._complete_todo(tid))
             menu.addSeparator()
         menu.addAction(t("Abrir TODOs"), self._goto_todos)
         if self._pending_todo_ids:
@@ -909,6 +926,32 @@ class MainWindow(QMainWindow):
                 self._loading_projects = False
         self.board_view.set_project(pid)
 
+    def _atualizar_status(self):
+        """Barra de status: workspace · projeto ativo (contexto de onde salva)."""
+        from maestro_local.config import (
+            get_active_project_id, get_active_workspace_id, list_workspaces)
+        partes = []
+        try:
+            wid = get_active_workspace_id()
+            ws = next((w for w in list_workspaces() if w.get("id") == wid), None)
+            if ws and ws.get("name"):
+                partes.append(ws["name"])
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            pid = get_active_project_id()
+            if pid:
+                s = get_session()
+                try:
+                    p = s.get(Project, pid)
+                    if p is not None:
+                        partes.append(f"{p.key} · {p.name}")
+                finally:
+                    s.close()
+        except Exception:  # noqa: BLE001
+            pass
+        self.status.showMessage("   ·   ".join(partes))
+
     def _on_project_selected(self):
         if getattr(self, "_loading_projects", False):
             return
@@ -921,6 +964,7 @@ class MainWindow(QMainWindow):
         self.board_view.set_project(pid)
         if hasattr(self.transcricoes_view, "refresh"):
             self.transcricoes_view.refresh()
+        self._atualizar_status()
         self.show_toast(t("Projeto ativo alterado"))
 
     def _on_workspace_changed(self, ws_id):
@@ -930,6 +974,7 @@ class MainWindow(QMainWindow):
         self._refresh_all()
         self._populate_project_selector()  # projetos são por workspace
         self.ws_selector.refresh_display()
+        self._atualizar_status()
         self.show_toast(t("Workspace alterado"))
 
     def _refresh_all(self):
@@ -970,25 +1015,51 @@ class MainWindow(QMainWindow):
         query = text.lower()
         results = []
 
-        # Search in board_view tasks if available
-        if hasattr(self.board_view, "_tasks"):
-            for task in self.board_view._tasks:
-                title = task.get("title", "")
-                code = task.get("code", "")
-                if query in title.lower() or query in code.lower():
-                    results.append(task)
-                    if len(results) >= 10:
-                        break
+        # Tarefas do board (se houver projeto carregado)
+        for task in getattr(self.board_view, "_tasks", []) or []:
+            title = task.get("title", "")
+            code = task.get("code", "")
+            if query in title.lower() or query in code.lower():
+                results.append({"kind": "task", "task": task,
+                                "label": (f"{code}  {title}" if code else title),
+                                "prefix": "🔧"})
+                if len(results) >= 20:
+                    break
+
+        # TODOs
+        if len(results) < 20:
+            s = get_session()
+            try:
+                for td in s.query(Todo).all():
+                    if query in (td.text or "").lower():
+                        results.append({"kind": "todo", "text": td.text,
+                                        "label": td.text, "prefix": "✅"})
+                        if len(results) >= 20:
+                            break
+            finally:
+                s.close()
+
+        # Projetos
+        if len(results) < 20:
+            s = get_session()
+            try:
+                for p in s.query(Project).all():
+                    if query in (p.name or "").lower() or query in (p.key or "").lower():
+                        results.append({"kind": "project", "id": p.id,
+                                        "label": f"{p.key} · {p.name}",
+                                        "prefix": "📁"})
+                        if len(results) >= 20:
+                            break
+            finally:
+                s.close()
 
         if not results:
             self.search_results.setVisible(False)
             return
 
-        for task in results:
-            code = task.get("code", "")
-            title = task.get("title", "")
-            item = QListWidgetItem(f"{code}  {title}" if code else title)
-            item.setData(Qt.UserRole, task)
+        for r in results:
+            item = QListWidgetItem(f"{r['prefix']}  {r['label']}")
+            item.setData(Qt.UserRole, r)
             self.search_results.addItem(item)
 
         # Position popup below search bar
@@ -997,18 +1068,26 @@ class MainWindow(QMainWindow):
         )
         self.search_results.setFixedWidth(self.search_bar.width())
         self.search_results.setFixedHeight(
-            min(len(results) * 36 + 10, 300)
+            min(len(results) * 36 + 10, 320)
         )
         self.search_results.move(global_pos)
         self.search_results.setVisible(True)
 
     def _on_search_result(self, item):
-        task = item.data(Qt.UserRole)
+        r = item.data(Qt.UserRole)
         self.search_results.setVisible(False)
         self._close_search()
-        if task and hasattr(self.board_view, "open_task_detail"):
-            self.board_view.open_task_detail(task)
-            self._open_key("board")
+        if not r:
+            return
+        kind = r.get("kind")
+        if kind == "task":
+            if hasattr(self.board_view, "open_task_detail"):
+                self.board_view.open_task_detail(r["task"])
+                self._open_key("board")
+        elif kind == "todo":
+            self._goto_todos()
+        elif kind == "project":
+            self._open_board(r["id"])
 
     # --- Notifications ---
 
