@@ -152,7 +152,7 @@ class TaskCard(QFrame):
         self.setStyleSheet(f"""
             TaskCard {{
                 background-color: {t.bg_card};
-                border: 1px solid {t.border_light};
+                border: 1px solid {t.border};
                 border-left: 4px solid {left_color};
                 border-radius: 8px;
             }}
@@ -171,7 +171,7 @@ class TaskCard(QFrame):
             blocked_bar = QFrame()
             blocked_bar.setFixedHeight(20)
             blocked_bar.setStyleSheet(
-                f"background: {t.danger}; border-radius: 3px;"
+                f"background: {t.danger}; border-radius: 5px;"
             )
             blocked_label = QLabel(_t("BLOQUEADA"))
             blocked_label.setAlignment(Qt.AlignCenter)
@@ -197,7 +197,7 @@ class TaskCard(QFrame):
         tc = TYPE_COLORS.get(task_type, "#868E96")
         type_badge.setStyleSheet(
             f"background: {tc}; color: white; padding: 1px 6px; "
-            f"border-radius: 3px; font-size: 10px; font-weight: 600; border: none;"
+            f"border-radius: 5px; font-size: 10px; font-weight: 600; border: none;"
         )
         top.addWidget(type_badge)
 
@@ -285,7 +285,7 @@ class TaskCard(QFrame):
             human_badge = QLabel(_t("DEV"))
             human_badge.setStyleSheet(
                 f"background: {t.warning}; color: white; padding: 1px 6px; "
-                f"border-radius: 3px; font-size: 9px; font-weight: 700; border: none;"
+                f"border-radius: 5px; font-size: 9px; font-weight: 700; border: none;"
             )
             human_badge.setToolTip(_t("Requer desenvolvedor"))
             bottom.addWidget(human_badge)

@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
 
 from maestro_local.db.models import Project, Todo, get_session
 from maestro_local.gui.theme import PRIORITY_COLORS, current_theme
+from maestro_local.gui.widgets.empty_state import EmptyState
 from maestro_local.i18n import t as _t
 
 TODO_PRIORITIES = [("LOW", "Baixa"), ("MEDIUM", "Média"), ("HIGH", "Alta")]
@@ -296,10 +297,10 @@ class TodosView(QWidget):
             done = sum(1 for td in todos if td.done)
 
             if not todos:
-                t = current_theme()
-                empty = QLabel(_t("Nenhum TODO ainda. Adicione um acima."))
-                empty.setAlignment(Qt.AlignCenter)
-                empty.setStyleSheet(f"color: {t.text_muted}; font-size: 14px; padding: 40px;")
+                empty = EmptyState(icon="✅", title=_t("Nenhum TODO"),
+                                   hint=_t("Adicione um acima."),
+                                   action_text=_t("Adicionar TODO"))
+                empty.action.connect(self.input.setFocus)
                 self.rows_layout.addWidget(empty)
                 self.counter.setText("")
             else:

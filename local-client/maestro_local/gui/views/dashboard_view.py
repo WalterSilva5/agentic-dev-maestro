@@ -27,6 +27,7 @@ from maestro_local.gui.views.labels_view import LabelsView
 from maestro_local.i18n import t as _t
 from maestro_local.gui.views.metrics_view import MetricsView
 from maestro_local.gui.views.todos_view import TodosView
+from maestro_local.gui.widgets.empty_state import EmptyState
 from maestro_local.gui.widgets.pomodoro import PomodoroWidget
 
 
@@ -282,8 +283,8 @@ class DashboardView(QWidget):
         )
 
         if not overdue_tasks:
-            empty = QLabel(_t("Nenhuma tarefa vencida"))
-            empty.setProperty("class", "hint")
+            empty = EmptyState(icon="🎉", title=_t("Tudo em dia"),
+                               hint=_t("Nenhuma tarefa vencida."))
             self._overdue_list.addWidget(empty)
             return
 
@@ -336,8 +337,8 @@ class DashboardView(QWidget):
         )
 
         if not entries:
-            empty = QLabel(_t("Nenhuma atividade registrada"))
-            empty.setProperty("class", "hint")
+            empty = EmptyState(icon="📄", title=_t("Sem atividade"),
+                               hint=_t("Nenhuma atividade registrada."))
             self._activity_list.addWidget(empty)
             return
 
@@ -380,8 +381,8 @@ class DashboardView(QWidget):
         projects = s.query(Project).order_by(Project.name).all()
 
         if not projects:
-            empty = QLabel(_t("Nenhum projeto"))
-            empty.setProperty("class", "hint")
+            empty = EmptyState(icon="📁", title=_t("Sem projetos"),
+                               hint=_t("Nenhum projeto criado ainda."))
             self._projects_list.addWidget(empty)
             return
 
