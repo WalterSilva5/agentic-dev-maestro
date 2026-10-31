@@ -381,7 +381,11 @@ class MainWindow(QMainWindow):
 
         content_layout.addWidget(self.stack)
         self._splitter.addWidget(content_widget)
-        self._splitter.setSizes([224, 1200])
+        from maestro_local.config import load_config
+        _persistido = load_config().get("settings", {})
+        _largura = int(_persistido.get("sidebar_width", 224) or 224)
+        self._largura_sidebar_desejada = max(184, min(380, _largura))
+        self._splitter.setSizes([self._largura_sidebar_desejada, 1200])
 
         # Connections
         self.projects_view.project_selected.connect(self._open_board)
@@ -390,8 +394,10 @@ class MainWindow(QMainWindow):
         self.dashboard_view.task_clicked.connect(self._open_task_from_dashboard)
         self.dashboard_view.project_clicked.connect(self._open_board)
 
-        # Tela inicial: Dashboard (visão geral com abas)
-        self._open_key("dashboard")
+        # Tela inicial: a última aberta (ou Dashboard, visão geral com abas).
+        _ultima = _persistido.get("last_screen")
+        self._last_screen = "dashboard"
+        self._open_key(_ultima if _ultima in self._nav_keys else "dashboard")
 
         # Status bar
         self.status = QStatusBar()
@@ -871,6 +877,7 @@ class MainWindow(QMainWindow):
         w = self._ensure_view(key)
         if w is None:
             return
+        self._last_screen = key
         self.stack.setCurrentWidget(w)
         if hasattr(w, "refresh"):
             w.refresh()
@@ -1206,6 +1213,15 @@ class MainWindow(QMainWindow):
 
     # --- Encerramento ---
 
+    def showEvent(self, event):
+        super().showEvent(event)
+        # Restaura a largura exata da sidebar (o setSizes do __init__ é
+        # proporcional; aqui a janela já tem largura real).
+        if getattr(self, "_largura_sidebar_desejada", None) is not None:
+            w = self._largura_sidebar_desejada
+            self._splitter.setSizes([w, max(300, self._splitter.width() - w)])
+            self._largura_sidebar_desejada = None
+
     def closeEvent(self, event):
         """Encerra as threads antes de sair, senão o processo aborta.
 
@@ -1219,6 +1235,15 @@ class MainWindow(QMainWindow):
         (os._exit), que é o único jeito de não abortar. Nesse ponto os dados já
         estão gravados: banco e config são escritos de forma síncrona.
         """
+        # Persiste o estado da interface (largura da sidebar e tela ativa).
+        try:
+            from maestro_local.config import load_config, save_config
+            cfg = load_config()
+            cfg.setdefault("settings", {})["sidebar_width"] = int(self.sidebar.width())
+            cfg.setdefault("settings", {})["last_screen"] = getattr(self, "_last_screen", "dashboard")
+            save_config(cfg)
+        except Exception:  # noqa: BLE001
+            pass
         if not getattr(self, "_force_quit", False):
             tray = getattr(self, "_tray", None)
             if tray is not None:
