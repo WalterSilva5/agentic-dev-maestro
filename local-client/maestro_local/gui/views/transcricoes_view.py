@@ -172,9 +172,6 @@ class TranscricoesView(QWidget):
         self._transcript_base = ""
         self._base_duration = 0.0
         self._continuing_meeting = False
-        # Contexto do workspace/projeto NÃO vai por padrão; None = ainda
-        # não perguntado nesta reunião (ver _perguntar_contexto_projeto).
-        self._share_project_context: bool | None = None
         # Trecho entregue à IA e ainda sem resposta — volta para a fila se falhar.
         self._live_inflight = ""
         # Verificação periódica dos itens: timer próprio, para a cadência não
@@ -661,50 +658,6 @@ class TranscricoesView(QWidget):
             self._session = None
         return self.agent.stop_all(msecs) and done_live
 
-    def _perguntar_contexto_projeto(self) -> None:
-        """Ao gravar, pergunta se os dados do workspace/projeto vão ao assistente.
-
-        Pergunta uma vez por reunião: continuar a mesma reunião mantém a escolha,
-        e "Nova reunião" volta a perguntar.
-        """
-        if self._share_project_context is not None:
-            return   # já decidido nesta reunião
-        project_id = self.proj_combo.currentData()
-        ws_name = ""
-        try:
-            from maestro_local.config import get_active_workspace_id, list_workspaces
-            wid = get_active_workspace_id()
-            ws = next((w for w in list_workspaces() if w.get("id") == wid), None)
-            ws_name = (ws or {}).get("name") or ""
-        except Exception:  # noqa: BLE001
-            pass
-        if not project_id and not ws_name:
-            self._share_project_context = False   # não há o que compartilhar
-            return
-
-        proj_name, n_tarefas = "", 0
-        if project_id:
-            s = get_session()
-            try:
-                p = s.get(Project, project_id)
-                if p:
-                    proj_name = p.name
-                    n_tarefas = (
-                        s.query(Task)
-                        .filter(
-                            Task.project_id == p.id,
-                            Task.deleted_at == None,  # noqa: E711
-                            Task.archived_at == None,  # noqa: E711
-                        )
-                        .count()
-                    )
-            finally:
-                s.close()
-
-        from maestro_local.gui.confirm_context import confirm_share_context
-        self._share_project_context = confirm_share_context(
-            self, workspace=ws_name, projeto=proj_name, n_tarefas=n_tarefas)
-
     def _refresh_ui_state(self) -> None:
         """Reavalia o que a tela mostra a partir do estado atual.
 
@@ -839,7 +792,6 @@ class TranscricoesView(QWidget):
                              "language": "", "audio_path": ""}
             self._reset_outputs()
             self.status_label.setText(t("Gravando..."))
-        self._perguntar_contexto_projeto()
         self._elapsed = 0
         self.timer_label.setText("00:00")
         self._tick.start()
@@ -1401,9 +1353,10 @@ class TranscricoesView(QWidget):
              t("Marque 'Assistente ao vivo' para transcrever e extrair ações, decisões, "
                "plano e perguntas em tempo real. Pode ligar/desligar a qualquer momento, "
                "inclusive no meio da reunião.")),
-            (t("Confirme o destino"),
-             t("Verifique o Workspace e o Projeto no rodapé antes de gravar — é para onde "
-               "a reunião e as tarefas geradas vão. Dá para trocar a qualquer momento.")),
+            (t("Projeto é opcional"),
+             t("A reunião é salva de forma independente do projeto — você pode estar "
+               "trabalhando em vários. O Projeto serve apenas para gerar tarefas das "
+               "ações ao final.")),
             (t("Pergunte durante a reunião"),
              t("Use o campo 'Perguntar à reunião' para tirar dúvidas com base na "
                "transcrição e no contexto anexado, sem interromper a captura.")),
@@ -1431,50 +1384,14 @@ class TranscricoesView(QWidget):
     def _meeting_context(self) -> str:
         """Contexto enviado ao copiloto.
 
-        Por padrão inclui SÓ o que é da própria reunião: preparação, anexos e a
-        tela observada. Dados do workspace/projeto (nome, descrição e tarefas em
-        aberto) são informação do seu trabalho e só entram com autorização
-        explícita — ver `_share_project_context`, decidido ao gravar.
+        Inclui SÓ o que é da própria reunião: preparação, anexos e a tela
+        observada. A reunião é independente do projeto — dados de
+        workspace/projeto não entram no contexto do assistente.
         """
         parts = []
         prep = self.prep_edit.toPlainText().strip()
         if prep:
             parts.append(t("## Preparação / informações prévias") + "\n" + prep[:3000])
-        if self._share_project_context:
-            try:
-                from maestro_local.config import get_active_workspace_id, list_workspaces
-                wid = get_active_workspace_id()
-                ws = next((w for w in list_workspaces() if w.get("id") == wid), None)
-                if ws and ws.get("name"):
-                    parts.append(t("Workspace: {name}").format(name=ws["name"]))
-            except Exception:  # noqa: BLE001
-                pass
-        project_id = self.proj_combo.currentData() if self._share_project_context else None
-        if project_id:
-            s = get_session()
-            try:
-                p = s.query(Project).get(project_id)
-                if p:
-                    parts.append(t("Projeto atual: {name}").format(name=p.name))
-                    if p.description:
-                        parts.append(t("Descrição: {desc}").format(desc=p.description[:400]))
-                    open_tasks = (
-                        s.query(Task)
-                        .filter(
-                            Task.project_id == p.id,
-                            Task.deleted_at == None,  # noqa: E711
-                            Task.archived_at == None,  # noqa: E711
-                        )
-                        .order_by(Task.created_at.desc())
-                        .limit(15)
-                        .all()
-                    )
-                    titles = [f"- {tk.code} {tk.title}" for tk in open_tasks
-                              if not (tk.column and tk.column.is_done)]
-                    if titles:
-                        parts.append(t("Tarefas em aberto:") + "\n" + "\n".join(titles[:12]))
-            finally:
-                s.close()
         if self._context_items:
             parts.append(t("## Contexto anexado à reunião"))
             for it in self._context_items:
@@ -2022,7 +1939,6 @@ class TranscricoesView(QWidget):
         self._current["rec_id"] = None
         self._transcript_base = ""
         self._base_duration = 0.0
-        self._share_project_context = None   # decide de novo na próxima gravação
         self._set_transcript_text("")
         self.transcript_label.setVisible(True)
         self.transcript_edit.setVisible(True)
