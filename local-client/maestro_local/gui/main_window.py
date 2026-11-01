@@ -1314,6 +1314,29 @@ class MainWindow(QMainWindow):
                     event.ignore()
                     self.hide()
                     return
+        # Avisa se há reunião gravando: fechar aqui perderia a gravação.
+        tv = getattr(self, "transcricoes_view", None)
+        if tv is not None and tv.is_recording():
+            from PySide6.QtWidgets import QMessageBox
+            box = QMessageBox(self)
+            box.setIcon(QMessageBox.Warning)
+            box.setWindowTitle(t("Reunião em andamento"))
+            box.setText(t("Há uma reunião gravando. Fechar agora perderá a gravação."))
+            salvar = box.addButton(t("Parar e salvar"), QMessageBox.AcceptRole)
+            sair = box.addButton(t("Sair mesmo assim"), QMessageBox.DestructiveRole)
+            box.addButton(t("Cancelar"), QMessageBox.RejectRole)
+            box.exec()
+            clicado = box.clickedButton()
+            if clicado is salvar:
+                try:
+                    tv._stop_record()   # salva o áudio e inicia a transcrição
+                except Exception:  # noqa: BLE001
+                    pass
+                event.ignore()          # fica aberto até a gravação ser salva
+                return
+            if clicado is not sair:
+                event.ignore()          # "Cancelar"
+                return
         all_stopped = True
         view = getattr(self, "transcricoes_view", None)
         if view is not None:
