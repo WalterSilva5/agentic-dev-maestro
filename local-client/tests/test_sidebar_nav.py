@@ -27,7 +27,7 @@ def test_dashboard_e_a_tela_inicial(qapp, temp_db):
 def test_sidebar_tem_grupos(qapp, temp_db):
     from maestro_local.gui.main_window import MainWindow
     w = MainWindow()
-    assert _headers(w) == ["PRINCIPAL", "TRABALHO", "FERRAMENTAS", "SISTEMA"]
+    assert _headers(w) == ["PRINCIPAL", "TRABALHO", "FERRAMENTAS", "RECURSOS", "SISTEMA"]
 
 
 def test_cabecalhos_nao_sao_clicaveis(qapp, temp_db):

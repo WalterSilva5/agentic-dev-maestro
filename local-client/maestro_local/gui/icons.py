@@ -145,6 +145,10 @@ _PATHS: dict[str, str] = {
         '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/>'
         '<circle cx="12" cy="12" r="3"/>'
     ),
+    # favorito/atalho (novidades de tecnologia)
+    "techlinks": (
+        '<path d="M6 4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16l-6-3.5L6 20z"/>'
+    ),
 }
 
 _CACHE: dict[tuple[str, str, int], QIcon] = {}

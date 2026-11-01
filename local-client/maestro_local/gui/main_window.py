@@ -193,6 +193,9 @@ class MainWindow(QMainWindow):
                 (t("Praticar Inglês"), "english"),
                 (t("Tradutor"), "translate"),
             ]),
+            (t("RECURSOS"), [
+                (t("Novidades tech"), "techlinks"),
+            ]),
             (t("SISTEMA"), [
                 (t("Instruções"), "guide"),
                 (t("Configurações"), "settings"),
@@ -207,6 +210,7 @@ class MainWindow(QMainWindow):
         self._labels = {k: rot for _, itens in nav_groups for rot, k in itens}
         self._descricoes = {f.chave: t(f.descricao) for f in features.FUNCIONALIDADES}
         self._descricoes["settings"] = t("Idioma, provedores de IA e transcrições")
+        self._descricoes["techlinks"] = t("Sites para acompanhar novidades de tecnologia")
         self._nav_keys: list[str] = []
         self.nav_list = QListWidget()
         self.nav_list.setObjectName("navList")
@@ -377,6 +381,7 @@ class MainWindow(QMainWindow):
             "translate": self._lazy_factory("gui.views.translate_view", "TranslateView"),
             "skills": self._lazy_factory("gui.views.skills_view", "SkillsView"),
             "guide": self._lazy_factory("gui.views.guide_view", "GuideView"),
+            "techlinks": self._lazy_factory("gui.views.tech_links_view", "TechLinksView"),
         }
 
         content_layout.addWidget(self.stack)
