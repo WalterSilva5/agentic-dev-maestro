@@ -7,6 +7,7 @@ do projeto cronista (que era exclusivo do Windows).
 from __future__ import annotations
 
 import logging
+import os
 import shutil
 import subprocess
 import threading
@@ -20,6 +21,21 @@ from .constants import CHANNELS, SAMPLE_RATE
 logger = logging.getLogger("maestro.transcricoes.audio")
 
 
+def _resolve(cmd: str) -> str | None:
+    """Caminho do binário, independente de o PATH da sessão estar completo."""
+    p = shutil.which(cmd)
+    if p:
+        return p
+    for cand in (f"/usr/bin/{cmd}", f"/usr/local/bin/{cmd}", f"/bin/{cmd}"):
+        if os.path.exists(cand):
+            return cand
+    return None
+
+
+_PACTL = _resolve("pactl")
+_PAREC = _resolve("parec")
+
+
 @dataclass
 class AudioSource:
     name: str          # nome técnico da fonte PulseAudio
@@ -28,16 +44,16 @@ class AudioSource:
 
 
 def parec_available() -> bool:
-    return shutil.which("parec") is not None and shutil.which("pactl") is not None
+    return _PACTL is not None and _PAREC is not None
 
 
 def list_sources() -> list[AudioSource]:
     """Lista fontes de áudio: microfones e monitores (áudio do sistema)."""
-    if not parec_available():
+    if _PACTL is None:
         return []
     try:
         short = subprocess.run(
-            ["pactl", "list", "short", "sources"],
+            [_PACTL, "list", "short", "sources"],
             capture_output=True, text=True, timeout=5,
         ).stdout
     except Exception as e:  # noqa: BLE001
@@ -48,7 +64,7 @@ def list_sources() -> list[AudioSource]:
     descriptions: dict[str, str] = {}
     try:
         full = subprocess.run(
-            ["pactl", "list", "sources"],
+            [_PACTL, "list", "sources"],
             capture_output=True, text=True, timeout=5,
         ).stdout
         cur = None
@@ -74,17 +90,45 @@ def list_sources() -> list[AudioSource]:
 
 
 def default_mic() -> AudioSource | None:
-    for s in list_sources():
+    """Microfone padrão do sistema; fallback para o primeiro disponível."""
+    sources = list_sources()
+    nome = _pactl_get_default("get-default-source")
+    if nome:
+        for s in sources:
+            if s.name == nome:
+                return s
+    for s in sources:
         if not s.is_monitor:
             return s
     return None
 
 
 def default_monitor() -> AudioSource | None:
-    for s in list_sources():
+    """Monitor (áudio do sistema) da saída padrão; fallback para o primeiro."""
+    sources = list_sources()
+    sink = _pactl_get_default("get-default-sink")
+    if sink:
+        monitor = sink + ".monitor"
+        for s in sources:
+            if s.name == monitor:
+                return s
+    for s in sources:
         if s.is_monitor:
             return s
     return None
+
+
+def _pactl_get_default(arg: str) -> str | None:
+    """Nome do dispositivo padrão informado pelo PulseAudio/PipeWire."""
+    if _PACTL is None:
+        return None
+    try:
+        out = subprocess.run(
+            [_PACTL, arg], capture_output=True, text=True, timeout=5,
+        ).stdout.strip()
+        return out or None
+    except Exception:  # noqa: BLE001
+        return None
 
 
 def _mix(mic_audio: np.ndarray, mon_audio: np.ndarray) -> np.ndarray:
@@ -116,11 +160,13 @@ class ParecRecorder:
     def start(self) -> None:
         if self._running:
             return
+        if _PAREC is None:
+            raise RuntimeError("parec não encontrado")
         self._chunks.clear()
         self._peak = 0.0
         self._proc = subprocess.Popen(
             [
-                "parec", "--device", self.source.name,
+                _PAREC, "--device", self.source.name,
                 "--format=s16le", f"--rate={SAMPLE_RATE}", f"--channels={CHANNELS}",
                 "--raw",
             ],

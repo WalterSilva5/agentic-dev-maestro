@@ -327,6 +327,8 @@ class TranscricoesView(QWidget):
         self.recording.live_toggled.connect(self._on_live_toggled)
         self.recording.screen_watch_toggled.connect(self._on_screen_watch_toggled)
         self.recording.audio_selection_changed.connect(self._update_audio_summary)
+        self.recording.reload_devices.connect(self._populate_devices)
+        self.recording.use_default.connect(self._usar_padrao)
         self.audio_toggle = self.recording.audio_toggle
         self.audio_summary = self.recording.audio_summary
         self.audio_box = self.recording.audio_box
@@ -572,26 +574,54 @@ class TranscricoesView(QWidget):
         self.mic_combo.clear()
         self.monitor_combo.clear()
         self.monitor_combo.addItem(t("Nenhum"), None)
-        sources = audio_backend.list_sources()
-        for s in sources:
+
+        default_mic = audio_backend.default_mic()
+        default_mon = audio_backend.default_monitor()
+
+        for s in audio_backend.list_sources():
+            desc = s.description
+            if (default_mic and s.name == default_mic.name) or \
+                    (default_mon and s.name == default_mon.name):
+                desc = f"{desc}  {t('(padrão)')}"
             if s.is_monitor:
-                self.monitor_combo.addItem(s.description, s.name)
+                self.monitor_combo.addItem(desc, s.name)
             else:
-                self.mic_combo.addItem(s.description, s.name)
+                self.mic_combo.addItem(desc, s.name)
+
         if self.mic_combo.count() == 0:
             self.mic_combo.addItem(t("Nenhum microfone"), None)
+
         # Seleciona o dispositivo de áudio do sistema padrão (monitor), em vez de
         # deixar "Nenhum", quando houver algum disponível.
-        default_mon = audio_backend.default_monitor()
         if default_mon is not None:
             idx = self.monitor_combo.findData(default_mon.name)
             if idx >= 0:
                 self.monitor_combo.setCurrentIndex(idx)
-        default_mic = audio_backend.default_mic()
         if default_mic is not None:
             idx = self.mic_combo.findData(default_mic.name)
             if idx >= 0:
                 self.mic_combo.setCurrentIndex(idx)
+
+    def _usar_padrao(self):
+        """Seleciona o mic e o monitor padrão do sistema (um clique)."""
+        mic = audio_backend.default_mic()
+        mon = audio_backend.default_monitor()
+        selecionou = False
+        if mic is not None:
+            idx = self.mic_combo.findData(mic.name)
+            if idx >= 0:
+                self.mic_combo.setCurrentIndex(idx)
+                selecionou = True
+        if mon is not None:
+            idx = self.monitor_combo.findData(mon.name)
+            if idx >= 0:
+                self.monitor_combo.setCurrentIndex(idx)
+                selecionou = True
+        if not selecionou:
+            # O padrão mudou para um dispositivo que ainda não está na lista.
+            self._populate_devices()
+        self.recording.update_audio_summary()
+        self.status_label.setText(t("Dispositivo padrão selecionado"))
 
     def _on_kind_changed(self):
         self.preparation.set_study_mode(self.preparation.kind() == "study")

@@ -336,6 +336,7 @@ CATALOG = {
   "Conversação por voz": "Voice conversation",
   "Tradução entre idiomas": "Translation between languages",
   "Novidades tech": "Tech news",
+  "(padrão)": "(default)",
   "Novidades de tecnologia": "Tech news",
   "Sites para acompanhar novidades de tecnologia": "Sites to keep up with tech news",
   "urgente": "urgent",

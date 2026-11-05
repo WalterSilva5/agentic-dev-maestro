@@ -28,6 +28,8 @@ class RecordingCard(SectionCard):
     live_toggled = Signal(bool)
     screen_watch_toggled = Signal(bool)
     audio_selection_changed = Signal()
+    reload_devices = Signal()
+    use_default = Signal()
 
     def __init__(self, parent=None):
         super().__init__(
@@ -50,6 +52,12 @@ class RecordingCard(SectionCard):
         self.audio_summary = QLabel("")
         self.audio_summary.setObjectName("subtitle")
         head.addWidget(self.audio_summary, 1)
+        self.reload_devices_btn = QToolButton()
+        self.reload_devices_btn.setText("🔄")
+        self.reload_devices_btn.setToolTip(t("Recarregar dispositivos de áudio"))
+        self.reload_devices_btn.setCursor(Qt.PointingHandCursor)
+        self.reload_devices_btn.clicked.connect(self.reload_devices.emit)
+        head.addWidget(self.reload_devices_btn)
         lay.addLayout(head)
 
         self.audio_box = QWidget()
@@ -95,6 +103,17 @@ class RecordingCard(SectionCard):
         self.screen_watch_status.setObjectName("subtitle")
         self.screen_watch_status.setVisible(False)
         box.addWidget(self.screen_watch_status)
+
+        padrao_row = QHBoxLayout()
+        padrao_row.addStretch()
+        self.use_default_btn = QPushButton(t("Usar padrão"))
+        self.use_default_btn.setProperty("class", "secondary")
+        self.use_default_btn.setCursor(Qt.PointingHandCursor)
+        self.use_default_btn.setToolTip(
+            t("Seleciona o microfone e o áudio do sistema padrão"))
+        self.use_default_btn.clicked.connect(self.use_default.emit)
+        padrao_row.addWidget(self.use_default_btn)
+        box.addLayout(padrao_row)
 
         self.audio_box.setVisible(False)
         lay.addWidget(self.audio_box)
