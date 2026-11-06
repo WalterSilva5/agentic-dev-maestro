@@ -181,6 +181,7 @@ class MainWindow(QMainWindow):
             (t("TRABALHO"), [
                 (t("Projetos"), "projects"),
                 (t("Board"), "board"),
+                (t("Goals"), "goals"),
                 (t("Skills"), "skills"),
             ]),
             (t("FERRAMENTAS"), [
@@ -211,6 +212,7 @@ class MainWindow(QMainWindow):
         self._descricoes = {f.chave: t(f.descricao) for f in features.FUNCIONALIDADES}
         self._descricoes["settings"] = t("Idioma, provedores de IA e transcrições")
         self._descricoes["techlinks"] = t("Sites para acompanhar novidades de tecnologia")
+        self._descricoes["goals"] = t("Objetivos com progresso e contagem regressiva")
         self._nav_keys: list[str] = []
         self.nav_list = QListWidget()
         self.nav_list.setObjectName("navList")
@@ -382,6 +384,7 @@ class MainWindow(QMainWindow):
             "skills": self._lazy_factory("gui.views.skills_view", "SkillsView"),
             "guide": self._lazy_factory("gui.views.guide_view", "GuideView"),
             "techlinks": self._lazy_factory("gui.views.tech_links_view", "TechLinksView"),
+            "goals": self._lazy_factory("gui.views.goals_view", "GoalsView"),
         }
 
         content_layout.addWidget(self.stack)
@@ -988,6 +991,7 @@ class MainWindow(QMainWindow):
         self.board_view.set_project(pid)
         if hasattr(self.transcricoes_view, "refresh"):
             self.transcricoes_view.refresh()
+        self._refresh_all()
         self._atualizar_status()
         self.show_toast(t("Projeto ativo alterado"))
 

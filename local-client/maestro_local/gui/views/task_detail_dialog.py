@@ -1,23 +1,24 @@
+"""Ficha simplificada do card.
+
+Um card é só: título, texto, responsável, data alvo, coluna, sprint, épicos,
+tags, vínculos com outros cards e comentários. Sem anexos, checklist,
+subtarefas ou estimativas.
+"""
 from datetime import datetime
 
 from PySide6.QtCore import QDate, Qt, QTimer, Signal
 from PySide6.QtWidgets import (
-    QCheckBox,
     QComboBox,
     QDateEdit,
     QDialog,
-    QDoubleSpinBox,
-    QFormLayout,
     QFrame,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QListWidget,
-    QListWidgetItem,
     QMessageBox,
     QPushButton,
     QScrollArea,
-    QTabWidget,
     QTextEdit,
     QVBoxLayout,
     QWidget,
@@ -27,24 +28,23 @@ from maestro_local.db.models import (
     ActivityLog,
     BoardColumn,
     Comment,
+    Epic,
     Label,
     Sprint,
     Task,
-    TaskChecklist,
     TaskDependency,
     get_session,
 )
-from maestro_local.gui.theme import TYPE_COLORS, TYPE_LABELS, current_theme
+from maestro_local.gui.theme import current_theme
 from maestro_local.i18n import t as _t
 
 
-def _h_divider(theme):
-    line = QFrame()
-    line.setFrameShape(QFrame.HLine)
-    line.setFrameShadow(QFrame.Plain)
-    line.setStyleSheet(f"color: {theme.border_light};")
-    line.setFixedHeight(1)
-    return line
+def _divisor(theme):
+    linha = QFrame()
+    linha.setFrameShape(QFrame.HLine)
+    linha.setFixedHeight(1)
+    linha.setStyleSheet(f"background: {theme.border_light}; border: none;")
+    return linha
 
 
 class TaskDetailDialog(QDialog):
@@ -53,532 +53,206 @@ class TaskDetailDialog(QDialog):
     def __init__(self, task_id: int, parent=None):
         super().__init__(parent)
         self.task_id = task_id
-        self.setWindowTitle(_t("Detalhes da Tarefa"))
-        self.resize(800, 700)
-        self.setMinimumSize(600, 500)
-
+        self.setWindowTitle(_t("Card"))
+        self.resize(680, 720)
+        self.setMinimumSize(520, 480)
         t = current_theme()
 
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(12)
+        self._desc_timer = QTimer(self)
+        self._desc_timer.setSingleShot(True)
+        self._desc_timer.setInterval(600)
+        self._desc_timer.timeout.connect(self._salvar_descricao)
+
+        raiz = QVBoxLayout(self)
+        raiz.setContentsMargins(20, 18, 20, 16)
+        raiz.setSpacing(10)
+
+        self._scroll = QScrollArea()
+        self._scroll.setWidgetResizable(True)
+        self._scroll.setFrameShape(QFrame.NoFrame)
+        corpo = QWidget()
+        lay = QVBoxLayout(corpo)
+        lay.setContentsMargins(2, 2, 8, 2)
+        lay.setSpacing(10)
 
         s = get_session()
         try:
-            task = s.query(Task).get(task_id)
-            if not task:
-                layout.addWidget(QLabel(_t("Tarefa nao encontrada")))
+            task = s.get(Task, task_id)
+            if task is None:
+                lay.addWidget(QLabel(_t("Card não encontrado")))
+                self._scroll.setWidget(corpo)
+                raiz.addWidget(self._scroll, 1)
                 return
+            projeto_id = task.project_id
+            codigo = task.code
 
-            # --- Header Row 1: Code, Type, Priority, Column ---
-            header1 = QHBoxLayout()
-            code_lbl = QLabel(task.code)
-            code_lbl.setStyleSheet(
-                f"font-family: monospace; font-size: 16px; color: {t.text_muted};"
-            )
-            header1.addWidget(code_lbl)
+            # Linha 1: código + título
+            cab = QHBoxLayout()
+            cod = QLabel(codigo)
+            cod.setStyleSheet(
+                f"font-family: 'Fira Code', monospace; font-size: 14px; color: {t.text_muted};")
+            cab.addWidget(cod)
+            self.title_edit = QLineEdit(task.title)
+            self.title_edit.setStyleSheet("font-size: 18px; font-weight: 700;")
+            self.title_edit.editingFinished.connect(
+                lambda: self._save_field("title", self.title_edit.text().strip()))
+            cab.addWidget(self.title_edit, 1)
+            lay.addLayout(cab)
 
-            self.type_combo = QComboBox()
-            for k, v in TYPE_LABELS.items():
-                self.type_combo.addItem(v, k)
-            idx = self.type_combo.findData(task.type or "FEATURE")
-            if idx >= 0:
-                self.type_combo.setCurrentIndex(idx)
-            self.type_combo.currentIndexChanged.connect(
-                lambda: self._save_field("type", self.type_combo.currentData())
-            )
-            header1.addWidget(self.type_combo)
-
-            self.priority_combo = QComboBox()
-            for p in ["LOW", "MEDIUM", "HIGH", "URGENT"]:
-                self.priority_combo.addItem(p, p)
-            idx = self.priority_combo.findData(task.priority or "MEDIUM")
-            if idx >= 0:
-                self.priority_combo.setCurrentIndex(idx)
-            self.priority_combo.currentIndexChanged.connect(
-                lambda: self._save_field("priority", self.priority_combo.currentData())
-            )
-            header1.addWidget(self.priority_combo)
-
-            header1.addStretch()
-
+            # Linha 2: coluna + sprint
+            lin = QHBoxLayout()
+            lin.setSpacing(10)
+            lin.addWidget(QLabel(_t("Coluna:")))
             self.col_combo = QComboBox()
-            columns = (
-                s.query(BoardColumn)
-                .filter(BoardColumn.project_id == task.project_id)
-                .order_by(BoardColumn.order)
-                .all()
-            )
-            for c in columns:
+            for c in (s.query(BoardColumn)
+                      .filter(BoardColumn.project_id == projeto_id)
+                      .order_by(BoardColumn.order).all()):
                 self.col_combo.addItem(c.name, c.id)
             idx = self.col_combo.findData(task.column_id)
             if idx >= 0:
                 self.col_combo.setCurrentIndex(idx)
             self.col_combo.currentIndexChanged.connect(
-                lambda: self._move(self.col_combo.currentData())
-            )
-            col_label = QLabel(_t("Coluna:"))
-            col_label.setStyleSheet(f"color: {t.text_secondary};")
-            header1.addWidget(col_label)
-            header1.addWidget(self.col_combo)
+                lambda: self._move(self.col_combo.currentData()))
+            lin.addWidget(self.col_combo, 1)
 
-            # Sprint da tarefa (backlog = None)
+            lin.addWidget(QLabel(_t("Sprint:")))
             self.sprint_combo = QComboBox()
             self.sprint_combo.addItem(_t("Backlog"), None)
-            sprints = (
-                s.query(Sprint)
-                .filter(Sprint.project_id == task.project_id)
-                .order_by(Sprint.sort_order, Sprint.id)
-                .all()
-            )
-            for sp in sprints:
+            for sp in (s.query(Sprint)
+                       .filter(Sprint.project_id == projeto_id)
+                       .order_by(Sprint.sort_order, Sprint.id).all()):
                 self.sprint_combo.addItem(sp.name, sp.id)
             sidx = self.sprint_combo.findData(task.sprint_id) if task.sprint_id is not None else 0
             self.sprint_combo.setCurrentIndex(sidx if sidx >= 0 else 0)
             self.sprint_combo.currentIndexChanged.connect(
-                lambda: self._save_field("sprint_id", self.sprint_combo.currentData())
-            )
-            sprint_label = QLabel(_t("Sprint:"))
-            sprint_label.setStyleSheet(f"color: {t.text_secondary};")
-            header1.addWidget(sprint_label)
-            header1.addWidget(self.sprint_combo)
+                lambda: self._save_field("sprint_id", self.sprint_combo.currentData()))
+            lin.addWidget(self.sprint_combo, 1)
+            lay.addLayout(lin)
 
-            layout.addLayout(header1)
+            # Linha 3: responsável + data alvo
+            lin2 = QHBoxLayout()
+            lin2.setSpacing(10)
+            lin2.addWidget(QLabel(_t("Responsável:")))
+            self.assignee_combo = QComboBox()
+            self.assignee_combo.setEditable(True)
+            self.assignee_combo.addItem("", None)
+            nomes = {
+                td.assignee for td in s.query(Task).filter(
+                    Task.project_id == projeto_id,
+                    Task.assignee.isnot(None),
+                    Task.deleted_at == None,  # noqa: E711
+                ).all() if td.assignee
+            }
+            for n in sorted(nomes):
+                self.assignee_combo.addItem(n, n)
+            if task.assignee:
+                ai = self.assignee_combo.findData(task.assignee)
+                self.assignee_combo.setCurrentIndex(ai if ai >= 0 else 0)
+                if ai < 0:
+                    self.assignee_combo.setEditText(task.assignee)
+            self.assignee_combo.currentTextChanged.connect(
+                lambda txt: self._save_field("assignee", txt.strip() or None))
+            lin2.addWidget(self.assignee_combo, 1)
 
-            # --- Header Row 2: Due date, Assignee, Labels ---
-            header2 = QHBoxLayout()
-            header2.setSpacing(12)
-
-            due_label = QLabel(_t("Prazo:"))
-            due_label.setStyleSheet(f"color: {t.text_secondary};")
-            header2.addWidget(due_label)
-
-            self.due_date_edit = QDateEdit()
-            self.due_date_edit.setCalendarPopup(True)
-            self.due_date_edit.setDisplayFormat("dd/MM/yyyy")
-            self.due_date_edit.setSpecialValueText(_t("Sem data"))
+            lin2.addWidget(QLabel(_t("Data alvo:")))
+            self.due_edit = QDateEdit()
+            self.due_edit.setCalendarPopup(True)
+            self.due_edit.setDisplayFormat("dd/MM/yyyy")
+            self.due_edit.setSpecialValueText(_t("Sem data"))
             if task.due_date:
-                self.due_date_edit.setDate(
-                    QDate(task.due_date.year, task.due_date.month, task.due_date.day)
-                )
+                self.due_edit.setDate(QDate(task.due_date.year, task.due_date.month, task.due_date.day))
             else:
-                self.due_date_edit.setDate(self.due_date_edit.minimumDate())
-            self.due_date_edit.dateChanged.connect(self._save_due_date)
-            header2.addWidget(self.due_date_edit)
+                self.due_edit.setDate(self.due_edit.minimumDate())
+            self.due_edit.dateChanged.connect(self._save_due_date)
+            lin2.addWidget(self.due_edit)
+            lay.addLayout(lin2)
 
-            assignee_label = QLabel(_t("Responsavel:"))
-            assignee_label.setStyleSheet(f"color: {t.text_secondary};")
-            header2.addWidget(assignee_label)
+            lay.addWidget(_divisor(t))
 
-            self.assignee_input = QLineEdit(task.assignee or "")
-            self.assignee_input.setPlaceholderText(_t("Responsavel..."))
-            self.assignee_input.setMaximumWidth(150)
-            self.assignee_input.editingFinished.connect(
-                lambda: self._save_field(
-                    "assignee", self.assignee_input.text().strip() or None
-                )
-            )
-            header2.addWidget(self.assignee_input)
+            # Épicos
+            self._epicos_box = QWidget()
+            self._epicos_layout = QVBoxLayout(self._epicos_box)
+            self._epicos_layout.setContentsMargins(0, 0, 0, 0)
+            lay.addWidget(self._epicos_box)
+            self._rebuild_epicos()
 
-            self.human_check = QCheckBox(_t("Requer desenvolvedor"))
-            self.human_check.setChecked(task.requires_human or False)
-            self.human_check.setToolTip(
-                _t(
-                    "Marque para tarefas que devem ser feitas por um desenvolvedor humano, "
-                    "nao por agentes de IA"
-                )
-            )
-            self.human_check.toggled.connect(
-                lambda val: self._save_field("requires_human", val)
-            )
-            header2.addWidget(self.human_check)
+            # Tags
+            self._tags_box = QWidget()
+            self._tags_layout = QVBoxLayout(self._tags_box)
+            self._tags_layout.setContentsMargins(0, 0, 0, 0)
+            lay.addWidget(self._tags_box)
+            self._rebuild_tags()
 
-            header2.addStretch()
-            layout.addLayout(header2)
+            lay.addWidget(_divisor(t))
 
-            layout.addWidget(_h_divider(t))
-
-            # --- Title ---
-            self.title_edit = QLineEdit(task.title)
-            self.title_edit.setStyleSheet("font-size: 16px; font-weight: 600;")
-            self.title_edit.editingFinished.connect(
-                lambda: self._save_field("title", self.title_edit.text())
-            )
-            layout.addWidget(self.title_edit)
-
-            # --- Labels row (rebuilt dynamically) ---
-            self._labels_container = QWidget()
-            self._labels_container_layout = QVBoxLayout(self._labels_container)
-            self._labels_container_layout.setContentsMargins(0, 0, 0, 0)
-            self._labels_container_layout.setSpacing(0)
-            layout.addWidget(self._labels_container)
-            self._rebuild_labels()
-
-            layout.addWidget(_h_divider(t))
-
-            # --- Tabs ---
-            tabs = QTabWidget()
-
-            # Info (scrollable)
-            info_scroll = QScrollArea()
-            info_scroll.setWidgetResizable(True)
-            info_scroll.setFrameShape(QFrame.NoFrame)
-
-            info_inner = QWidget()
-            info_layout = QVBoxLayout(info_inner)
-            info_layout.setSpacing(8)
-            info_layout.setContentsMargins(8, 8, 8, 8)
-
-            desc_label = QLabel(_t("Descricao:"))
-            desc_label.setStyleSheet(f"color: {t.text_secondary}; font-weight: 600; font-size: 12px;")
-            info_layout.addWidget(desc_label)
+            # Descrição
+            rotulo_desc = QLabel(_t("Texto:"))
+            rotulo_desc.setProperty("class", "sectionLabel")
+            lay.addWidget(rotulo_desc)
             self.desc_edit = QTextEdit(task.description or "")
-            self.desc_edit.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-            self.desc_edit.textChanged.connect(lambda: self._auto_resize(self.desc_edit))
-            info_layout.addWidget(self.desc_edit)
+            self.desc_edit.setMinimumHeight(120)
+            self.desc_edit.textChanged.connect(lambda: self._desc_timer.start())
+            lay.addWidget(self.desc_edit)
 
-            obj_label = QLabel(_t("Objetivo:"))
-            obj_label.setStyleSheet(f"color: {t.text_secondary}; font-weight: 600; font-size: 12px;")
-            info_layout.addWidget(obj_label)
-            self.obj_edit = QTextEdit(task.objective or "")
-            self.obj_edit.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-            self.obj_edit.textChanged.connect(lambda: self._auto_resize(self.obj_edit))
-            info_layout.addWidget(self.obj_edit)
+            lay.addWidget(_divisor(t))
 
-            acc_label = QLabel(_t("Aceite:"))
-            acc_label.setStyleSheet(f"color: {t.text_secondary}; font-weight: 600; font-size: 12px;")
-            info_layout.addWidget(acc_label)
-            self.acc_edit = QTextEdit(task.acceptance or "")
-            self.acc_edit.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-            self.acc_edit.textChanged.connect(lambda: self._auto_resize(self.acc_edit))
-            info_layout.addWidget(self.acc_edit)
+            # Vinculados
+            self._vinculos_box = QWidget()
+            self._vinculos_layout = QVBoxLayout(self._vinculos_box)
+            self._vinculos_layout.setContentsMargins(0, 0, 0, 0)
+            lay.addWidget(self._vinculos_box)
+            self._rebuild_vinculos()
 
-            est_row = QHBoxLayout()
-            est_label = QLabel(_t("Estimativa:"))
-            est_label.setStyleSheet(f"color: {t.text_secondary}; font-weight: 600; font-size: 12px;")
-            est_row.addWidget(est_label)
-            self.est_spin = QDoubleSpinBox()
-            self.est_spin.setRange(0, 999)
-            self.est_spin.setSingleStep(0.5)
-            self.est_spin.setSuffix(_t(" homem-dia"))
-            self.est_spin.setValue(task.estimate_md or 0)
-            est_row.addWidget(self.est_spin)
-            est_row.addStretch()
-            info_layout.addLayout(est_row)
+            lay.addWidget(_divisor(t))
 
-            save_info = QPushButton(_t("Salvar alteracoes"))
-            save_info.clicked.connect(self._save_info)
-            info_layout.addWidget(save_info)
+            # Comentários
+            self._comentarios_box = QWidget()
+            self._comentarios_layout = QVBoxLayout(self._comentarios_box)
+            self._comentarios_layout.setContentsMargins(0, 0, 0, 0)
+            lay.addWidget(self._comentarios_box)
+            self._rebuild_comentarios()
 
-            info_layout.addWidget(_h_divider(t))
-            created_lbl = QLabel(
-                _t("Criada em: {date}").format(
-                    date=task.created_at.strftime('%d/%m/%Y %H:%M') if task.created_at else '--'
-                )
-            )
-            created_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 11px;")
-            info_layout.addWidget(created_lbl)
-            updated_lbl = QLabel(
-                _t("Atualizada em: {date}").format(
-                    date=task.updated_at.strftime('%d/%m/%Y %H:%M') if task.updated_at else '--'
-                )
-            )
-            updated_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 11px;")
-            info_layout.addWidget(updated_lbl)
-
-            info_layout.addStretch()
-            info_scroll.setWidget(info_inner)
-            tabs.addTab(info_scroll, _t("Info"))
-
-            # Checklist
-            cl_tab = QWidget()
-            cl_layout = QVBoxLayout(cl_tab)
-            self.cl_list = QWidget()
-            self.cl_list_layout = QVBoxLayout(self.cl_list)
-            self.cl_list_layout.setContentsMargins(0, 0, 0, 0)
-            self.cl_list_layout.setSpacing(4)
-
-            for item in task.checklist:
-                self._add_cl_row(item.id, item.title, item.checked)
-
-            cl_layout.addWidget(self.cl_list)
-            cl_layout.addStretch()
-
-            add_cl = QHBoxLayout()
-            self.cl_input = QLineEdit()
-            self.cl_input.setPlaceholderText(_t("Novo item..."))
-            self.cl_input.returnPressed.connect(self._add_checklist)
-            cl_add_btn = QPushButton("+")
-            cl_add_btn.setFixedWidth(40)
-            cl_add_btn.clicked.connect(self._add_checklist)
-            add_cl.addWidget(self.cl_input)
-            add_cl.addWidget(cl_add_btn)
-            cl_layout.addLayout(add_cl)
-
-            tabs.addTab(cl_tab, _t("Checklist"))
-
-            # Comentarios
-            comments_tab = QWidget()
-            cm_layout = QVBoxLayout(comments_tab)
-            self.comments_list = QListWidget()
-            comments = (
-                s.query(Comment)
-                .filter(Comment.task_id == task_id)
-                .order_by(Comment.created_at)
-                .all()
-            )
-            for c in comments:
-                type_prefix = ""
-                if c.type and c.type != "COMMENT":
-                    type_prefix = f"[{c.type}] "
-                author = c.author or "local"
-                dt = c.created_at.strftime("%d/%m %H:%M") if c.created_at else ""
-                self.comments_list.addItem(
-                    _t("{dt} -- {author}: {prefix}{body}").format(
-                        dt=dt, author=author, prefix=type_prefix, body=c.body
-                    )
-                )
-            cm_layout.addWidget(self.comments_list)
-
-            cm_form = QHBoxLayout()
-            self.comment_input = QLineEdit()
-            self.comment_input.setPlaceholderText(_t("Comentario..."))
-            self.comment_input.returnPressed.connect(self._add_comment)
-            cm_btn = QPushButton(_t("Enviar"))
-            cm_btn.clicked.connect(self._add_comment)
-            cm_form.addWidget(self.comment_input)
-            cm_form.addWidget(cm_btn)
-            cm_layout.addLayout(cm_form)
-
-            tabs.addTab(comments_tab, _t("Comentarios ({count})").format(count=len(comments)))
-
-            # Atividade
-            act_tab = QWidget()
-            act_layout = QVBoxLayout(act_tab)
-            act_list = QListWidget()
-            activities = (
-                s.query(ActivityLog)
-                .filter(
-                    ActivityLog.entity_type == "task",
-                    ActivityLog.entity_id == task_id,
-                )
-                .order_by(ActivityLog.created_at.desc())
-                .limit(20)
-                .all()
-            )
-            for a in activities:
-                dt = a.created_at.strftime("%d/%m %H:%M") if a.created_at else ""
-                act_list.addItem(
-                    _t("{dt} -- {action}").format(dt=dt, action=a.action)
-                    + (_t(": {detail}").format(detail=a.detail) if a.detail else "")
-                )
-            if not activities:
-                act_list.addItem(_t("Nenhuma atividade registrada."))
-            act_layout.addWidget(act_list)
-            tabs.addTab(act_tab, _t("Atividade"))
-
-            # Dependencias
-            dep_tab = QWidget()
-            dep_layout = QVBoxLayout(dep_tab)
-
-            blocked_label = QLabel(_t("Bloqueada por:"))
-            blocked_label.setStyleSheet("font-weight: 600;")
-            dep_layout.addWidget(blocked_label)
-            self.blocked_by_list = QListWidget()
-            for d in task.blocked_by:
-                blocker = d.blocker
-                item_text = f"{blocker.code} -- {blocker.title}"
-                list_item = QListWidgetItem(item_text)
-                list_item.setData(Qt.UserRole, d.id)
-                self.blocked_by_list.addItem(list_item)
-            dep_layout.addWidget(self.blocked_by_list)
-
-            blocking_label = QLabel(_t("Bloqueia:"))
-            blocking_label.setStyleSheet("font-weight: 600;")
-            dep_layout.addWidget(blocking_label)
-            blocking_list = QListWidget()
-            for d in task.blocking:
-                blocked = d.blocked
-                blocking_list.addItem(f"{blocked.code} -- {blocked.title}")
-            dep_layout.addWidget(blocking_list)
-
-            add_dep = QHBoxLayout()
-            self.dep_input = QLineEdit()
-            self.dep_input.setPlaceholderText(_t("Codigo da tarefa bloqueadora (ex: DEMO-1)"))
-            dep_btn = QPushButton(_t("Adicionar"))
-            dep_btn.clicked.connect(self._add_dep)
-            add_dep.addWidget(self.dep_input)
-            add_dep.addWidget(dep_btn)
-            dep_layout.addLayout(add_dep)
-
-            rm_dep_btn = QPushButton(_t("Remover selecionada"))
-            rm_dep_btn.setProperty("flat", True)
-            rm_dep_btn.clicked.connect(self._remove_dep)
-            dep_layout.addWidget(rm_dep_btn)
-
-            tabs.addTab(dep_tab, _t("Dependencias"))
-
-            # Subtarefas
-            subtasks_tab = QWidget()
-            sub_layout = QVBoxLayout(subtasks_tab)
-
-            subtasks = (
-                s.query(Task)
-                .filter(
-                    Task.parent_id == task_id,
-                    Task.deleted_at == None,
-                )
-                .all()
-            )
-
-            for st in subtasks:
-                row = QHBoxLayout()
-                code_st = QLabel(st.code)
-                code_st.setStyleSheet(
-                    f"font-family: monospace; color: {t.text_muted};"
-                )
-                row.addWidget(code_st)
-                title_st = QLabel(st.title)
-                row.addWidget(title_st, 1)
-                status_st = QLabel(st.status or "")
-                status_st.setStyleSheet(f"color: {t.text_muted};")
-                row.addWidget(status_st)
-                sub_layout.addLayout(row)
-
-            if not subtasks:
-                empty = QLabel(_t("Nenhuma subtarefa"))
-                empty.setStyleSheet(f"color: {t.text_muted};")
-                sub_layout.addWidget(empty)
-
-            sub_layout.addStretch()
-            tabs.addTab(subtasks_tab, _t("Subtarefas ({count})").format(count=len(subtasks)))
-
-            layout.addWidget(tabs, 1)
-
-            # --- Bottom bar ---
-            bottom = QHBoxLayout()
-            bottom.addStretch()
-            del_btn = QPushButton(_t("Excluir tarefa"))
-            del_btn.setStyleSheet(f"background-color: {t.danger};")
-            del_btn.clicked.connect(self._delete)
-            bottom.addWidget(del_btn)
-            layout.addLayout(bottom)
+            lay.addStretch(1)
         finally:
             s.close()
 
-        QTimer.singleShot(0, self._init_auto_resize)
+        self._scroll.setWidget(corpo)
+        raiz.addWidget(self._scroll, 1)
 
-    # ------------------------------------------------------------------ #
-    # Labels management (rebuilt inline, no dialog close)
-    # ------------------------------------------------------------------ #
+        rodape = QHBoxLayout()
+        excluir = QPushButton(_t("Excluir card"))
+        excluir.setStyleSheet(f"background-color: {t.danger};")
+        excluir.clicked.connect(self._delete)
+        rodape.addWidget(excluir)
+        rodape.addStretch()
+        fechar = QPushButton(_t("Fechar"))
+        fechar.clicked.connect(self.accept)
+        rodape.addWidget(fechar)
+        raiz.addLayout(rodape)
 
-    def _rebuild_labels(self):
-        t = current_theme()
-        # Clear existing content
-        while self._labels_container_layout.count():
-            item = self._labels_container_layout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
-            elif item.layout():
-                _clear_layout(item.layout())
-
-        labels_row = QWidget()
-        row_layout = QHBoxLayout(labels_row)
-        row_layout.setContentsMargins(0, 0, 0, 0)
-
-        lbl_label = QLabel(_t("Labels:"))
-        lbl_label.setStyleSheet(f"color: {t.text_secondary};")
-        row_layout.addWidget(lbl_label)
-
+    # ------------------------------------------------------------------
+    # Persistência de campos
+    # ------------------------------------------------------------------
+    def _save_field(self, campo, valor):
         s = get_session()
         try:
-            task = s.query(Task).get(self.task_id)
-            if not task:
-                return
-
-            applied_ids = set()
-            for lbl in task.labels:
-                applied_ids.add(lbl.id)
-                chip = QLabel(f" {lbl.name} x")
-                color = lbl.color or "#868E96"
-                chip.setStyleSheet(
-                    f"background: {color}; color: white; padding: 2px 8px; "
-                    f"border-radius: 10px; font-size: 11px; cursor: pointer;"
-                )
-                lid = lbl.id
-                chip.mousePressEvent = lambda e, x=lid: self._remove_label(x)
-                row_layout.addWidget(chip)
-
-            self.label_combo = QComboBox()
-            self.label_combo.addItem(_t("+ Adicionar..."), None)
-            all_labels = s.query(Label).order_by(Label.name).all()
-            for l in all_labels:
-                if l.id not in applied_ids:
-                    self.label_combo.addItem(l.name, l.id)
-            self.label_combo.currentIndexChanged.connect(self._add_label_from_combo)
-            row_layout.addWidget(self.label_combo)
-            row_layout.addStretch()
-        finally:
-            s.close()
-
-        self._labels_container_layout.addWidget(labels_row)
-
-    # ------------------------------------------------------------------ #
-    # Auto-resize text edits
-    # ------------------------------------------------------------------ #
-
-    def _auto_resize(self, editor):
-        doc_height = int(editor.document().size().height()) + 10
-        editor.setFixedHeight(max(36, min(doc_height, 300)))
-
-    def _init_auto_resize(self):
-        for ed in (self.desc_edit, self.obj_edit, self.acc_edit):
-            self._auto_resize(ed)
-
-    # ------------------------------------------------------------------ #
-    # Checklist helpers
-    # ------------------------------------------------------------------ #
-
-    def _add_cl_row(self, item_id, title, checked):
-        t = current_theme()
-        row = QHBoxLayout()
-        cb = QCheckBox(title)
-        cb.setChecked(checked)
-        iid = item_id
-        cb.toggled.connect(lambda val, x=iid: self._toggle_cl(x))
-        row.addWidget(cb, 1)
-        rm = QPushButton("x")
-        rm.setFixedSize(24, 24)
-        rm.setStyleSheet(
-            f"background: transparent; color: {t.danger}; font-weight: bold;"
-        )
-        rm.clicked.connect(lambda checked, x=iid: self._remove_cl(x))
-        row.addWidget(rm)
-        w = QWidget()
-        w.setLayout(row)
-        self.cl_list_layout.addWidget(w)
-
-    # ------------------------------------------------------------------ #
-    # Field persistence
-    # ------------------------------------------------------------------ #
-
-    def _save_field(self, field, value):
-        s = get_session()
-        try:
-            task = s.query(Task).get(self.task_id)
-            if task:
-                setattr(task, field, value)
+            task = s.get(Task, self.task_id)
+            if task is not None:
+                setattr(task, campo, valor)
                 s.commit()
                 self.task_updated.emit()
         finally:
             s.close()
 
+    def _salvar_descricao(self):
+        self._save_field("description", self.desc_edit.toPlainText())
+
     def _save_due_date(self, qdate):
         s = get_session()
         try:
-            task = s.query(Task).get(self.task_id)
-            if task:
-                if qdate == self.due_date_edit.minimumDate():
+            task = s.get(Task, self.task_id)
+            if task is not None:
+                if qdate == self.due_edit.minimumDate():
                     task.due_date = None
                 else:
                     task.due_date = datetime(qdate.year(), qdate.month(), qdate.day())
@@ -592,287 +266,346 @@ class TaskDetailDialog(QDialog):
             return
         s = get_session()
         try:
-            task = s.query(Task).get(self.task_id)
-            if task and task.column_id != column_id:
-                old_col = task.column.name if task.column else "?"
+            task = s.get(Task, self.task_id)
+            if task is not None and task.column_id != column_id:
+                antiga = task.column.name if task.column else "?"
+                nova = s.get(BoardColumn, column_id)
                 task.column_id = column_id
-                new_col = s.query(BoardColumn).get(column_id)
-                s.add(
-                    ActivityLog(
-                        entity_type="task",
-                        entity_id=self.task_id,
-                        action="moved",
-                        detail=f"{old_col} -> {new_col.name if new_col else '?'}",
-                    )
-                )
+                s.add(ActivityLog(entity_type="task", entity_id=self.task_id,
+                                  action="moved",
+                                  detail=f"{antiga} -> {nova.name if nova else '?'}"))
                 s.commit()
                 self.task_updated.emit()
         finally:
             s.close()
 
-    def _save_info(self):
+    # ------------------------------------------------------------------
+    # Épicos
+    # ------------------------------------------------------------------
+    def _rebuild_epicos(self):
+        _limpar(self._epicos_layout)
+        t = current_theme()
+        linha = QWidget()
+        row = QHBoxLayout(linha)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(6)
+        rotulo = QLabel(_t("Épicos:"))
+        rotulo.setProperty("class", "sectionLabel")
+        row.addWidget(rotulo)
+
         s = get_session()
         try:
-            task = s.query(Task).get(self.task_id)
-            if task:
-                task.description = self.desc_edit.toPlainText()
-                task.objective = self.obj_edit.toPlainText()
-                task.acceptance = self.acc_edit.toPlainText()
-                task.estimate_md = self.est_spin.value() or None
-                s.add(
-                    ActivityLog(
-                        entity_type="task",
-                        entity_id=self.task_id,
-                        action="updated",
-                    )
-                )
-                s.commit()
-                self.task_updated.emit()
+            task = s.get(Task, self.task_id)
+            aplicados = set()
+            for ep in (task.epics if task else []):
+                aplicados.add(ep.id)
+                chip = QLabel(f" {ep.name} ✕ ")
+                cor = ep.color or t.accent
+                chip.setStyleSheet(
+                    f"background: {cor}; color: white; border-radius: 10px; "
+                    f"padding: 2px 8px; font-size: 11px;")
+                chip.setCursor(Qt.PointingHandCursor)
+                eid = ep.id
+                chip.mousePressEvent = lambda ev, x=eid: self._remover_epico(x)
+                row.addWidget(chip)
+
+            combo = QComboBox()
+            combo.addItem(_t("+ Épico..."), None)
+            for ep in (s.query(Epic)
+                       .filter(Epic.project_id == task.project_id)
+                       .order_by(Epic.name).all()):
+                if ep.id not in aplicados:
+                    combo.addItem(ep.name, ep.id)
+            combo.currentIndexChanged.connect(
+                lambda: self._adicionar_epico(combo.currentData(), combo))
+            row.addWidget(combo)
+            row.addStretch()
         finally:
             s.close()
+        self._epicos_layout.addWidget(linha)
 
-    # ------------------------------------------------------------------ #
-    # Checklist
-    # ------------------------------------------------------------------ #
-
-    def _add_checklist(self):
-        title = self.cl_input.text().strip()
-        if not title:
+    def _adicionar_epico(self, epic_id, combo):
+        if epic_id is None:
             return
         s = get_session()
         try:
-            from sqlalchemy import func
-
-            max_order = (
-                s.query(func.coalesce(func.max(TaskChecklist.sort_order), -1))
-                .filter(TaskChecklist.task_id == self.task_id)
-                .scalar()
-            )
-            item = TaskChecklist(
-                task_id=self.task_id, title=title, sort_order=max_order + 1
-            )
-            s.add(item)
-            s.commit()
-            self._add_cl_row(item.id, item.title, item.checked)
-            self.cl_input.clear()
-            self.task_updated.emit()
-        finally:
-            s.close()
-
-    def _toggle_cl(self, item_id):
-        s = get_session()
-        try:
-            item = s.query(TaskChecklist).get(item_id)
-            if item:
-                item.checked = not item.checked
+            task = s.get(Task, self.task_id)
+            ep = s.get(Epic, epic_id)
+            if task is not None and ep is not None and ep not in task.epics:
+                task.epics.append(ep)
                 s.commit()
                 self.task_updated.emit()
         finally:
             s.close()
+        self._rebuild_epicos()
 
-    def _remove_cl(self, item_id):
+    def _remover_epico(self, epic_id):
         s = get_session()
         try:
-            item = s.query(TaskChecklist).get(item_id)
-            if item:
-                s.delete(item)
+            task = s.get(Task, self.task_id)
+            ep = s.get(Epic, epic_id)
+            if task is not None and ep is not None and ep in task.epics:
+                task.epics.remove(ep)
                 s.commit()
-                for i in reversed(range(self.cl_list_layout.count())):
-                    w = self.cl_list_layout.itemAt(i).widget()
-                    if w:
-                        w.deleteLater()
-                remaining = (
-                    s.query(TaskChecklist)
-                    .filter(TaskChecklist.task_id == self.task_id)
-                    .order_by(TaskChecklist.sort_order)
-                    .all()
-                )
-                for it in remaining:
-                    self._add_cl_row(it.id, it.title, it.checked)
                 self.task_updated.emit()
         finally:
             s.close()
+        self._rebuild_epicos()
 
-    # ------------------------------------------------------------------ #
-    # Comments
-    # ------------------------------------------------------------------ #
+    # ------------------------------------------------------------------
+    # Tags
+    # ------------------------------------------------------------------
+    def _rebuild_tags(self):
+        _limpar(self._tags_layout)
+        t = current_theme()
+        linha = QWidget()
+        row = QHBoxLayout(linha)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(6)
+        rotulo = QLabel(_t("Tags:"))
+        rotulo.setProperty("class", "sectionLabel")
+        row.addWidget(rotulo)
 
-    def _add_comment(self):
-        body = self.comment_input.text().strip()
-        if not body:
-            return
         s = get_session()
         try:
-            c = Comment(task_id=self.task_id, body=body)
-            s.add(c)
-            s.add(
-                ActivityLog(
-                    entity_type="task",
-                    entity_id=self.task_id,
-                    action="commented",
-                )
-            )
-            s.commit()
-            dt = c.created_at.strftime("%d/%m %H:%M") if c.created_at else ""
-            self.comments_list.addItem(
-                _t("{dt} -- local: {body}").format(dt=dt, body=body)
-            )
-            self.comment_input.clear()
-            self.task_updated.emit()
+            task = s.get(Task, self.task_id)
+            aplicadas = set()
+            for lbl in (task.labels if task else []):
+                aplicadas.add(lbl.id)
+                chip = QLabel(f" {lbl.name} ✕ ")
+                cor = lbl.color or t.accent
+                chip.setStyleSheet(
+                    f"background: {cor}; color: white; border-radius: 10px; "
+                    f"padding: 2px 8px; font-size: 11px;")
+                chip.setCursor(Qt.PointingHandCursor)
+                lid = lbl.id
+                chip.mousePressEvent = lambda ev, x=lid: self._remover_tag(x)
+                row.addWidget(chip)
+
+            combo = QComboBox()
+            combo.addItem(_t("+ Tag..."), None)
+            for lbl in s.query(Label).order_by(Label.name).all():
+                if lbl.id not in aplicadas:
+                    combo.addItem(lbl.name, lbl.id)
+            combo.currentIndexChanged.connect(
+                lambda: self._adicionar_tag(combo.currentData()))
+            row.addWidget(combo)
+            row.addStretch()
         finally:
             s.close()
+        self._tags_layout.addWidget(linha)
 
-    # ------------------------------------------------------------------ #
-    # Labels (no dialog close on add/remove)
-    # ------------------------------------------------------------------ #
-
-    def _add_label_from_combo(self):
-        label_id = self.label_combo.currentData()
+    def _adicionar_tag(self, label_id):
         if label_id is None:
             return
         s = get_session()
         try:
-            task = s.query(Task).get(self.task_id)
-            label = s.query(Label).get(label_id)
-            if task and label:
-                task.labels.append(label)
+            task = s.get(Task, self.task_id)
+            lbl = s.get(Label, label_id)
+            if task is not None and lbl is not None and lbl not in task.labels:
+                task.labels.append(lbl)
                 s.commit()
                 self.task_updated.emit()
         finally:
             s.close()
-        self._rebuild_labels()
+        self._rebuild_tags()
 
-    def _remove_label(self, label_id):
+    def _remover_tag(self, label_id):
         s = get_session()
         try:
-            task = s.query(Task).get(self.task_id)
-            label = s.query(Label).get(label_id)
-            if task and label and label in task.labels:
-                task.labels.remove(label)
+            task = s.get(Task, self.task_id)
+            lbl = s.get(Label, label_id)
+            if task is not None and lbl is not None and lbl in task.labels:
+                task.labels.remove(lbl)
                 s.commit()
                 self.task_updated.emit()
         finally:
             s.close()
-        self._rebuild_labels()
+        self._rebuild_tags()
 
-    # ------------------------------------------------------------------ #
-    # Dependencies
-    # ------------------------------------------------------------------ #
+    # ------------------------------------------------------------------
+    # Vínculos com outros cards
+    # ------------------------------------------------------------------
+    def _rebuild_vinculos(self):
+        _limpar(self._vinculos_layout)
+        t = current_theme()
+        rotulo = QLabel(_t("Vinculados:"))
+        rotulo.setProperty("class", "sectionLabel")
+        self._vinculos_layout.addWidget(rotulo)
 
-    def _add_dep(self):
-        code = self.dep_input.text().strip().upper()
-        if not code:
+        s = get_session()
+        try:
+            task = s.get(Task, self.task_id)
+            if task is None:
+                return
+            for dep in task.blocked_by:
+                alvo = dep.blocker
+                linha = QWidget()
+                row = QHBoxLayout(linha)
+                row.setContentsMargins(0, 0, 0, 0)
+                row.setSpacing(6)
+                cod = QLabel(alvo.code)
+                cod.setStyleSheet(
+                    f"font-family: 'Fira Code', monospace; color: {t.text_muted};")
+                row.addWidget(cod)
+                row.addWidget(QLabel(alvo.title), 1)
+                remover = QPushButton("✕")
+                remover.setFixedSize(24, 24)
+                remover.setCursor(Qt.PointingHandCursor)
+                remover.setStyleSheet(
+                    f"background: transparent; color: {t.text_muted}; border: none;")
+                did = dep.id
+                remover.clicked.connect(lambda _=False, x=did: self._remover_vinculo(x))
+                row.addWidget(remover)
+                self._vinculos_layout.addWidget(linha)
+
+            add = QHBoxLayout()
+            self.dep_input = QLineEdit()
+            self.dep_input.setPlaceholderText(_t("Código do card (ex.: PROJ-12)"))
+            self.dep_input.returnPressed.connect(self._adicionar_vinculo)
+            add.addWidget(self.dep_input, 1)
+            btn = QPushButton(_t("Vincular"))
+            btn.setProperty("class", "secondary")
+            btn.clicked.connect(self._adicionar_vinculo)
+            add.addWidget(btn)
+            self._vinculos_layout.addLayout(add)
+        finally:
+            s.close()
+
+    def _adicionar_vinculo(self):
+        codigo = self.dep_input.text().strip().upper()
+        if "-" not in codigo:
             return
-        parts = code.split("-")
-        if len(parts) != 2:
+        prefixo, numero = codigo.rsplit("-", 1)
+        if not numero.isdigit():
             return
         s = get_session()
         try:
             from maestro_local.db.models import Project
-
-            project = s.query(Project).filter(Project.key == parts[0]).first()
-            if not project:
+            alvo = (s.query(Task)
+                    .join(Project, Task.project_id == Project.id)
+                    .filter(Project.key == prefixo, Task.number == int(numero),
+                            Task.deleted_at == None)  # noqa: E711
+                    .first())
+            if alvo is None or alvo.id == self.task_id:
                 return
-            blocker = (
-                s.query(Task)
-                .filter(
-                    Task.project_id == project.id,
-                    Task.number == int(parts[1]),
-                    Task.deleted_at == None,
-                )
-                .first()
-            )
-            if not blocker or blocker.id == self.task_id:
-                return
-            existing = (
-                s.query(TaskDependency)
-                .filter(
-                    TaskDependency.blocker_id == blocker.id,
-                    TaskDependency.blocked_id == self.task_id,
-                )
-                .first()
-            )
-            if existing:
-                return
-            dep = TaskDependency(blocker_id=blocker.id, blocked_id=self.task_id)
-            s.add(dep)
-            s.add(
-                ActivityLog(
-                    entity_type="task",
-                    entity_id=self.task_id,
-                    action="dependency_added",
-                    detail=code,
-                )
-            )
-            s.commit()
-            self.blocked_by_list.addItem(f"{blocker.code} -- {blocker.title}")
-            self.dep_input.clear()
-            self.task_updated.emit()
-        finally:
-            s.close()
-
-    def _remove_dep(self):
-        item = self.blocked_by_list.currentItem()
-        if not item:
-            return
-        dep_id = item.data(Qt.UserRole)
-        if not dep_id:
-            return
-        s = get_session()
-        try:
-            dep = s.query(TaskDependency).get(dep_id)
-            if dep:
-                s.delete(dep)
-                s.add(
-                    ActivityLog(
-                        entity_type="task",
-                        entity_id=self.task_id,
-                        action="dependency_removed",
-                    )
-                )
+            existe = (s.query(TaskDependency)
+                      .filter(TaskDependency.blocker_id == alvo.id,
+                              TaskDependency.blocked_id == self.task_id)
+                      .first())
+            if existe is None:
+                s.add(TaskDependency(blocker_id=alvo.id, blocked_id=self.task_id))
+                s.add(ActivityLog(entity_type="task", entity_id=self.task_id,
+                                  action="linked", detail=codigo))
                 s.commit()
-                self.blocked_by_list.takeItem(self.blocked_by_list.row(item))
                 self.task_updated.emit()
         finally:
             s.close()
+        self.dep_input.clear()
+        self._rebuild_vinculos()
 
-    # ------------------------------------------------------------------ #
-    # Delete (with confirmation)
-    # ------------------------------------------------------------------ #
+    def _remover_vinculo(self, dep_id):
+        s = get_session()
+        try:
+            dep = s.get(TaskDependency, dep_id)
+            if dep is not None:
+                s.delete(dep)
+                s.commit()
+                self.task_updated.emit()
+        finally:
+            s.close()
+        self._rebuild_vinculos()
 
-    def _delete(self):
-        reply = QMessageBox.question(
-            self,
-            _t("Confirmar exclusao"),
-            _t("Tem certeza que deseja excluir esta tarefa?"),
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
-        )
-        if reply != QMessageBox.Yes:
+    # ------------------------------------------------------------------
+    # Comentários
+    # ------------------------------------------------------------------
+    def _rebuild_comentarios(self):
+        _limpar(self._comentarios_layout)
+        t = current_theme()
+        rotulo = QLabel(_t("Comentários:"))
+        rotulo.setProperty("class", "sectionLabel")
+        self._comentarios_layout.addWidget(rotulo)
+
+        self.comments_list = QListWidget()
+        s = get_session()
+        try:
+            for c in (s.query(Comment)
+                      .filter(Comment.task_id == self.task_id)
+                      .order_by(Comment.created_at).all()):
+                dt = c.created_at.strftime("%d/%m %H:%M") if c.created_at else ""
+                self.comments_list.addItem(f"{dt} — {c.author or 'local'}: {c.body}")
+        finally:
+            s.close()
+        self.comments_list.setMinimumHeight(90)
+        self._comentarios_layout.addWidget(self.comments_list)
+
+        linha = QHBoxLayout()
+        self.comment_input = QLineEdit()
+        self.comment_input.setPlaceholderText(_t("Escreva um comentário..."))
+        self.comment_input.returnPressed.connect(self._adicionar_comentario)
+        linha.addWidget(self.comment_input, 1)
+        enviar = QPushButton(_t("Enviar"))
+        enviar.clicked.connect(self._adicionar_comentario)
+        linha.addWidget(enviar)
+        self._comentarios_layout.addLayout(linha)
+
+    def _adicionar_comentario(self):
+        corpo = self.comment_input.text().strip()
+        if not corpo:
             return
         s = get_session()
         try:
-            task = s.query(Task).get(self.task_id)
-            if task:
+            s.add(Comment(task_id=self.task_id, body=corpo))
+            s.add(ActivityLog(entity_type="task", entity_id=self.task_id,
+                              action="commented"))
+            s.commit()
+            self.task_updated.emit()
+        finally:
+            s.close()
+        self.comment_input.clear()
+        self._rebuild_comentarios()
+
+    # ------------------------------------------------------------------
+    # Exclusão
+    # ------------------------------------------------------------------
+    def _delete(self):
+        resposta = QMessageBox.question(
+            self, _t("Excluir card"),
+            _t("Tem certeza que deseja excluir este card?"),
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if resposta != QMessageBox.Yes:
+            return
+        s = get_session()
+        try:
+            task = s.get(Task, self.task_id)
+            if task is not None:
                 task.deleted_at = datetime.utcnow()
-                s.add(
-                    ActivityLog(
-                        entity_type="task",
-                        entity_id=self.task_id,
-                        action="deleted",
-                    )
-                )
+                s.add(ActivityLog(entity_type="task", entity_id=self.task_id,
+                                  action="deleted"))
                 s.commit()
                 self.task_updated.emit()
                 self.accept()
         finally:
             s.close()
 
+    def accept(self):
+        if self._desc_timer.isActive():
+            self._desc_timer.stop()
+            self._salvar_descricao()
+        super().accept()
 
-def _clear_layout(layout):
+    def reject(self):
+        if self._desc_timer.isActive():
+            self._desc_timer.stop()
+            self._salvar_descricao()
+        super().reject()
+
+
+def _limpar(layout):
     while layout.count():
         item = layout.takeAt(0)
-        if item.widget():
-            item.widget().deleteLater()
-        elif item.layout():
-            _clear_layout(item.layout())
+        w = item.widget()
+        if w is not None:
+            w.deleteLater()
+        elif item.layout() is not None:
+            _limpar(item.layout())

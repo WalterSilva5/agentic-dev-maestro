@@ -33,6 +33,13 @@ task_labels = Table(
     Column("label_id", Integer, ForeignKey("labels.id", ondelete="CASCADE"), primary_key=True),
 )
 
+task_epics = Table(
+    "task_epics",
+    Base.metadata,
+    Column("task_id", Integer, ForeignKey("tasks.id", ondelete="CASCADE"), primary_key=True),
+    Column("epic_id", Integer, ForeignKey("epics.id", ondelete="CASCADE"), primary_key=True),
+)
+
 
 class Project(Base):
     __tablename__ = "projects"
@@ -48,6 +55,8 @@ class Project(Base):
     columns = relationship("BoardColumn", back_populates="project", cascade="all,delete-orphan", order_by="BoardColumn.order")
     tasks = relationship("Task", back_populates="project", cascade="all,delete-orphan")
     sprints = relationship("Sprint", back_populates="project", cascade="all,delete-orphan", order_by="Sprint.sort_order")
+    epics = relationship("Epic", back_populates="project", cascade="all,delete-orphan", order_by="Epic.name")
+    goals = relationship("Goal", back_populates="project", cascade="all,delete-orphan", order_by="Goal.due_date")
 
 
 class BoardColumn(Base):
@@ -84,6 +93,42 @@ class Sprint(Base):
     tasks = relationship("Task", back_populates="sprint")
 
 
+class Epic(Base):
+    """Agrupador temático de cards (ex.: módulo/onda). Um card pode ter vários."""
+
+    __tablename__ = "epics"
+
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(120), nullable=False)
+    color = Column(String(20))
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    project = relationship("Project", back_populates="epics")
+    tasks = relationship("Task", secondary=task_epics, back_populates="epics")
+
+
+class Goal(Base):
+    """Objetivo de fluxo: entregar as tarefas que casam com os filtros até a data."""
+
+    __tablename__ = "goals"
+
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(200), nullable=False)
+    description = Column(Text)
+    due_date = Column(DateTime)
+    tag = Column(String(60))          # filtra por label/tag
+    epic_id = Column(Integer, ForeignKey("epics.id", ondelete="SET NULL"))
+    sprint_id = Column(Integer, ForeignKey("sprints.id", ondelete="SET NULL"))
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    project = relationship("Project", back_populates="goals")
+    epic = relationship("Epic")
+    sprint = relationship("Sprint")
+
+
 class Task(Base):
     __tablename__ = "tasks"
 
@@ -115,6 +160,7 @@ class Task(Base):
     column = relationship("BoardColumn", back_populates="tasks")
     parent = relationship("Task", remote_side="Task.id", backref="subtasks")
     labels = relationship("Label", secondary=task_labels, back_populates="tasks")
+    epics = relationship("Epic", secondary=task_epics, back_populates="tasks")
     checklist = relationship("TaskChecklist", back_populates="task", cascade="all,delete-orphan", order_by="TaskChecklist.sort_order")
     comments = relationship("Comment", back_populates="task", cascade="all,delete-orphan", order_by="Comment.created_at")
     documents = relationship("Document", back_populates="task", cascade="all,delete-orphan")

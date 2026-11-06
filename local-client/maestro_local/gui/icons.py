@@ -149,6 +149,10 @@ _PATHS: dict[str, str] = {
     "techlinks": (
         '<path d="M6 4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16l-6-3.5L6 20z"/>'
     ),
+    # alvo (goals)
+    "goals": (
+        '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/>'
+    ),
 }
 
 _CACHE: dict[tuple[str, str, int], QIcon] = {}
