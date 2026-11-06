@@ -101,6 +101,46 @@ LOW, MEDIUM, HIGH, URGENT
 
 ## Tipos de comentario
 COMMENT, CODE_REVIEW, COMMIT_REF, DEPLOY_LOG
+
+## Modelo simplificado do card
+
+Um card tem: titulo, texto (description), responsavel (assignee, texto livre),
+data alvo (dueDate ISO), sprint (sprintId), coluna (columnId), tags, epicos,
+cards vinculados e comentarios. Sem anexos, checklist ou subtarefas na UI
+(a API ainda aceita objective/acceptance/estimateMd/type/parentId por
+compatibilidade, mas novos fluxos nao devem usa-los).
+
+## Epicos
+
+```bash
+# Listar/criar
+curl http://127.0.0.1:9777/api/projects/1/epics
+curl -X POST http://127.0.0.1:9777/api/projects/1/epics -H 'Content-Type: application/json' -d '{"name":"Cashier"}'
+# Vincular/desvincular card
+curl -X POST http://127.0.0.1:9777/api/epics/1/tasks/2
+curl -X DELETE http://127.0.0.1:9777/api/epics/1/tasks/2
+```
+
+## Goals (objetivos com progresso)
+
+```bash
+# Criar: entregar cards com tag/épico/sprint ate a data
+curl -X POST http://127.0.0.1:9777/api/projects/1/goals -H 'Content-Type: application/json' \\
+  -d '{"name":"Entregar onda-1","dueDate":"2026-12-31","tag":"onda-1"}'
+# Progresso (total/done/pct/daysLeft) vem embutido no GET e no POST
+curl http://127.0.0.1:9777/api/goals/1
+curl -X PATCH http://127.0.0.1:9777/api/goals/1 -H 'Content-Type: application/json' -d '{"tag":"onda-2"}'
+```
+
+## Responsaveis (membros do projeto)
+
+```bash
+# Listar (com metricas: total/done/pct/overdue) e adicionar
+curl http://127.0.0.1:9777/api/projects/1/members
+curl -X POST http://127.0.0.1:9777/api/projects/1/members -H 'Content-Type: application/json' -d '{"name":"Walter"}'
+# Atribuir card pelo nome (cria o membro se nao existir)
+curl -X PATCH http://127.0.0.1:9777/api/tasks/KEY-1 -H 'Content-Type: application/json' -d '{"assignee":"Walter"}'
+```
 """,
     },
     {
@@ -274,7 +314,7 @@ Apos mover para Revisao e criar a tarefa de revisao, o agente deve informar:
         "id": "maestro-project-setup",
         "name": "Project Setup",
         "category": "setup",
-        "description": "Criar e configurar um novo projeto com labels, tarefas iniciais e checklist",
+        "description": "Criar e configurar um novo projeto com labels, epicos, responsaveis e goals",
         "tags": ["setup", "project", "bootstrap"],
         "filename": "maestro-project-setup",
         "content": """---
@@ -293,9 +333,9 @@ curl -X POST http://127.0.0.1:9777/api/projects \\
   -d '{"name":"Nome do Projeto","key":"KEY","description":"Descricao do projeto"}'
 ```
 
-Colunas criadas automaticamente: Backlog, A fazer, Fazendo, Revisao, Concluido.
+Colunas criadas automaticamente: A fazer, Fazendo, Feito.
 
-## 2. Criar labels
+## 2. Criar labels (tags)
 
 ```bash
 for label in '{"name":"frontend","color":"#4C6EF5"}' '{"name":"backend","color":"#2F9E44"}' '{"name":"infra","color":"#E8590C"}' '{"name":"docs","color":"#868E96"}'; do
@@ -304,28 +344,44 @@ for label in '{"name":"frontend","color":"#4C6EF5"}' '{"name":"backend","color":
 done
 ```
 
-## 3. Criar tarefas iniciais
+## 3. Criar epicos (agrupadores tematicos)
+
+```bash
+curl -X POST http://127.0.0.1:9777/api/projects/1/epics \\
+  -H 'Content-Type: application/json' -d '{"name":"Cashier"}'
+```
+
+## 4. Cadastrar responsaveis
+
+```bash
+curl -X POST http://127.0.0.1:9777/api/projects/1/members \\
+  -H 'Content-Type: application/json' -d '{"name":"Walter"}'
+```
+
+## 5. Criar tarefas iniciais (modelo simplificado)
 
 ```bash
 curl -X POST http://127.0.0.1:9777/api/tasks \\
   -H 'Content-Type: application/json' \\
-  -d '{"projectId":1,"title":"Setup do repositorio","type":"CHORE","priority":"HIGH"}'
+  -d '{"projectId":1,"title":"Setup do repositorio","priority":"HIGH","assignee":"Walter"}'
 ```
 
-## 4. Adicionar checklist (Definition of Done)
+Vincular epico/tag depois de criar a tarefa:
 
 ```bash
-curl -X POST http://127.0.0.1:9777/api/tasks/KEY-1/checklist \\
-  -H 'Content-Type: application/json' -d '{"title":"Testes passando"}'
-
-curl -X POST http://127.0.0.1:9777/api/tasks/KEY-1/checklist \\
-  -H 'Content-Type: application/json' -d '{"title":"Code review aprovado"}'
-
-curl -X POST http://127.0.0.1:9777/api/tasks/KEY-1/checklist \\
-  -H 'Content-Type: application/json' -d '{"title":"Documentacao atualizada"}'
+curl -X POST http://127.0.0.1:9777/api/epics/1/tasks/1
+curl -X POST http://127.0.0.1:9777/api/labels/1/tasks/1
 ```
 
-## 5. Adicionar dependencias
+## 6. Criar o primeiro goal
+
+```bash
+curl -X POST http://127.0.0.1:9777/api/projects/1/goals \\
+  -H 'Content-Type: application/json' \\
+  -d '{"name":"Entregar MVP","dueDate":"2026-12-31","tag":"mvp"}'
+```
+
+## 7. Adicionar dependencias entre cards
 
 ```bash
 # KEY-2 so pode comecar depois de KEY-1
@@ -1208,6 +1264,7 @@ API offline → so `maestro-run`. Pare.
 | `memorizar` | "lembra", preferencia, licao |
 | `diario` | standup, fim do dia, relatorio |
 | `setup` | projeto novo, labels, primeiro uso |
+| `lideranca` | goals, metricas por pessoa, acompanhamento |
 | `incidente` | bug urgente, hotfix, prod |
 | `estudo` | aprender, plano de estudo |
 
@@ -1223,6 +1280,8 @@ Leia tambem o historico **desta conversa**.
 | `maestro-api-agent` | qualquer fluxo REST |
 | `maestro-task-workflow` | executar |
 | `maestro-project-setup` | setup |
+| `maestro-goals` | lideranca, planejar |
+| `maestro-members` | lideranca, executar |
 | `maestro-sprint-planning` | planejar |
 | `maestro-code-review-log` | revisar |
 | `maestro-bug-triage` | incidente |
@@ -1274,6 +1333,8 @@ Maximo **3 skills**. Prefira acao a catalogo.
 - "fechei o dia" → daily-report
 - "bug em prod" → bug-triage
 - "projeto novo" → project-setup
+- "goal" ou "progresso" → maestro-goals
+- "quem faz" ou "responsavel" → maestro-members
 
 ## Regras
 
@@ -1513,6 +1574,124 @@ curl -s -X POST http://127.0.0.1:9777/api/memory/reembed \\
 - Escopo = workspace ativo; ao trocar workspace a memoria muda
 - Prefira poucas memórias densas a muitas fragmentadas
 - Nunca armazene segredos
+""",
+    },
+    {
+        "id": "maestro-goals",
+        "name": "Goals",
+        "category": "management",
+        "description": "Acompanhar objetivos com progresso e contagem regressiva (tag/epico/sprint)",
+        "tags": ["goals", "progress", "leadership", "sprint", "epic", "metrics"],
+        "filename": "maestro-goals",
+        "content": """---
+description: Track goals with progress and countdown (tag/epic/sprint filters)
+---
+
+# Goals — Objetivos com progresso
+
+Um goal e "entregar os cards que casam com os filtros ate a data".
+Filtros (tag, epico, sprint) sao opcionais e combinaveis. O progresso
+conta cards em coluna de conclusao sobre o total do filtro.
+
+Base: `http://127.0.0.1:9777/api`
+
+## 1. Listar goals do projeto (com progresso embutido)
+
+```bash
+curl -s http://127.0.0.1:9777/api/projects/1/goals | jq '.[] | {id, name, dueDate, tag, epic, sprint, progress}'
+```
+
+`progress` = `{total, done, pct, daysLeft}` (dias restantes; negativo = atrasado).
+
+## 2. Criar goal
+
+```bash
+# Ex.: entregar os cards com a tag onda-1 ate o fim do mes
+curl -X POST http://127.0.0.1:9777/api/projects/1/goals \\
+  -H 'Content-Type: application/json' \\
+  -d '{"name":"Entregar onda-1","dueDate":"2026-12-31","tag":"onda-1"}'
+```
+
+Combinacoes uteis:
+- por epico: `{"name":"...","epicId":3}`
+- por sprint: `{"name":"...","sprintId":2}`
+- combinados: tag + epicId + sprintId
+
+## 3. Detalhe e atualizacao
+
+```bash
+curl http://127.0.0.1:9777/api/goals/5
+curl -X PATCH http://127.0.0.1:9777/api/goals/5 \\
+  -H 'Content-Type: application/json' -d '{"tag":"onda-2"}'
+curl -X DELETE http://127.0.0.1:9777/api/goals/5
+```
+
+## 4. Ler o progresso como lider
+
+- `pct` < 100 com `daysLeft` <= 7 → risco, verificar bloqueios no board
+- `daysLeft` negativo → atrasado; renegociar escopo ou data
+- Comparar `done/total` entre goals para priorizar a sprint
+
+## OpenCode tools (se disponiveis)
+
+- `maestro_listGoals` — listar com progresso
+- `maestro_createGoal` — criar
+- `maestro_goalProgress` — detalhe + progresso
+""",
+    },
+    {
+        "id": "maestro-members",
+        "name": "Team Members",
+        "category": "management",
+        "description": "Gerenciar responsaveis do projeto, atribuir cards e ver metricas por pessoa",
+        "tags": ["members", "assignee", "team", "metrics", "leadership"],
+        "filename": "maestro-members",
+        "content": """---
+description: Manage project assignees, assign cards and view per-person metrics
+---
+
+# Team Members — Responsaveis do projeto
+
+Lista de quem pode receber cards. Alimenta a atribuicao no card, o filtro
+do board ("Responsavel") e as metricas por pessoa.
+
+Base: `http://127.0.0.1:9777/api`
+
+## 1. Listar (com metricas: total/done/pct/overdue)
+
+```bash
+curl -s http://127.0.0.1:9777/api/projects/1/members | jq '.'
+```
+
+## 2. Adicionar / remover
+
+```bash
+curl -X POST http://127.0.0.1:9777/api/projects/1/members \\
+  -H 'Content-Type: application/json' -d '{"name":"Walter"}'
+curl -X DELETE http://127.0.0.1:9777/api/members/3
+```
+
+Nomes duplicados (ignorando caixa) retornam o membro existente.
+Remover nao apaga os cards — eles mantem o nome em `assignee`.
+
+## 3. Atribuir card (cria o membro se nao existir)
+
+```bash
+curl -X PATCH http://127.0.0.1:9777/api/tasks/KEY-1 \\
+  -H 'Content-Type: application/json' -d '{"assignee":"Walter"}'
+```
+
+## 4. Metricas como lider
+
+- `pct` baixo com `total` alto → sobrecarga; redistribuir
+- `overdue` > 0 → cards vencidos em aberto; cobrar desbloqueio
+- Comparar `done` entre membros no fechamento da sprint
+
+## OpenCode tools (se disponiveis)
+
+- `maestro_listMembers` — listar com metricas
+- `maestro_addMember` — adicionar
+- `maestro_assignTask` — atribuir card
 """,
     },
 ]

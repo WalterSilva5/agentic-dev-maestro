@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QLayout,
     QLineEdit,
     QMessageBox,
+    QProgressBar,
     QPushButton,
     QScrollArea,
     QSizePolicy,
@@ -29,12 +30,16 @@ from maestro_local.db.models import (
     ActivityLog,
     BoardColumn,
     Comment,
+    Member,
     Project,
     Sprint,
     Task,
+    get_or_create_member,
     get_session,
+    member_stats,
+    project_members,
 )
-from maestro_local.gui.theme import PRIORITY_COLORS, TYPE_COLORS, TYPE_LABELS, current_theme
+from maestro_local.gui.theme import PRIORITY_COLORS, current_theme
 from maestro_local.i18n import t as _t
 
 MIME_TYPE = "application/x-maestro-task"
@@ -116,11 +121,6 @@ PRIORITY_FILTER_MAP = {
 
 TYPE_FILTER_MAP = {
     "Todos": None,
-    "Feature": "FEATURE",
-    "Bug": "BUG",
-    "Tech Debt": "TECH_DEBT",
-    "Melhoria": "IMPROVEMENT",
-    "Tarefa": "CHORE",
 }
 
 
@@ -143,11 +143,10 @@ class TaskCard(QFrame):
 
         t = current_theme()
 
-        # Priority-based left border (or red if blocked)
+        # Borda esquerda pela prioridade (escala visual do líder).
         priority = task_data.get("priority", "MEDIUM")
         pc = PRIORITY_COLORS.get(priority, "#4C6EF5")
-        blocked = bool(task_data.get("blocked_by"))
-        left_color = t.danger if blocked else pc
+        left_color = pc
 
         self.setStyleSheet(f"""
             TaskCard {{
@@ -166,24 +165,7 @@ class TaskCard(QFrame):
         layout.setContentsMargins(12, 10, 12, 10)
         layout.setSpacing(6)
 
-        # -- Blocked indicator (prominent) --
-        if blocked:
-            blocked_bar = QFrame()
-            blocked_bar.setFixedHeight(20)
-            blocked_bar.setStyleSheet(
-                f"background: {t.danger}; border-radius: 5px;"
-            )
-            blocked_label = QLabel(_t("BLOQUEADA"))
-            blocked_label.setAlignment(Qt.AlignCenter)
-            blocked_label.setStyleSheet(
-                "color: white; font-size: 10px; font-weight: 700; letter-spacing: 1px;"
-            )
-            bar_layout = QHBoxLayout(blocked_bar)
-            bar_layout.setContentsMargins(6, 0, 6, 0)
-            bar_layout.addWidget(blocked_label)
-            layout.addWidget(blocked_bar)
-
-        # -- Top row: code + type badge + priority badge --
+        # -- Top row: code + assignee --
         top = QHBoxLayout()
         top.setSpacing(6)
         code = QLabel(task_data.get("code", ""))
@@ -191,23 +173,27 @@ class TaskCard(QFrame):
             f"font-family: monospace; font-size: 11px; color: {t.text_muted}; border: none;"
         )
         top.addWidget(code)
-
-        task_type = task_data.get("type", "FEATURE")
-        type_badge = QLabel(TYPE_LABELS.get(task_type, task_type))
-        tc = TYPE_COLORS.get(task_type, "#868E96")
-        type_badge.setStyleSheet(
-            f"background: {tc}; color: white; padding: 1px 6px; "
-            f"border-radius: 5px; font-size: 10px; font-weight: 600; border: none;"
-        )
-        top.addWidget(type_badge)
-
-        pri_badge = QLabel(priority[:3])
-        pri_badge.setStyleSheet(
-            f"color: {pc}; font-size: 10px; font-weight: 600; border: none;"
-        )
-        top.addWidget(pri_badge)
-
         top.addStretch()
+
+        assignee = task_data.get("assignee")
+        if assignee:
+            nome = QLabel(assignee)
+            nome.setStyleSheet(
+                f"color: {t.text_secondary}; font-size: 11px; font-weight: 600; border: none;"
+            )
+            top.addWidget(nome)
+            initials = "".join(
+                part[0].upper() for part in assignee.split()[:2] if part
+            ) or "?"
+            avatar = QLabel(initials)
+            avatar.setFixedSize(20, 20)
+            avatar.setAlignment(Qt.AlignCenter)
+            avatar.setStyleSheet(
+                f"background: {t.accent}; color: {t.text_on_accent}; "
+                f"border-radius: 10px; font-size: 9px; font-weight: 700; border: none;"
+            )
+            avatar.setToolTip(assignee)
+            top.addWidget(avatar)
         layout.addLayout(top)
 
         # -- Title --
@@ -217,6 +203,22 @@ class TaskCard(QFrame):
             f"font-size: 13px; color: {t.text_primary}; border: none; padding: 2px 0;"
         )
         layout.addWidget(title)
+
+        # -- Epics --
+        epics = task_data.get("epics", [])
+        if epics:
+            ep_row = QHBoxLayout()
+            ep_row.setSpacing(4)
+            for ep in epics[:2]:
+                chip = QLabel(ep["name"])
+                cor = ep.get("color", "#6741D9")
+                chip.setStyleSheet(
+                    f"background: transparent; color: {cor}; border: 1px solid {cor}; "
+                    f"padding: 1px 6px; border-radius: 8px; font-size: 10px; font-weight: 600;"
+                )
+                ep_row.addWidget(chip)
+            ep_row.addStretch()
+            layout.addLayout(ep_row)
 
         # -- Labels --
         labels = task_data.get("labels", [])
@@ -234,16 +236,7 @@ class TaskCard(QFrame):
             lbl_row.addStretch()
             layout.addLayout(lbl_row)
 
-        # -- Checklist progress --
-        checklist = task_data.get("checklist", [])
-        if checklist:
-            done = sum(1 for c in checklist if c.get("checked"))
-            total = len(checklist)
-            cl_lbl = QLabel(_t("[ok] {done}/{total}").format(done=done, total=total))
-            cl_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 11px; border: none;")
-            layout.addWidget(cl_lbl)
-
-        # -- Bottom row: due_date + assignee + comments --
+        # -- Bottom row: due_date + linked + comments --
         bottom = QHBoxLayout()
         bottom.setSpacing(8)
         has_bottom = False
@@ -264,31 +257,13 @@ class TaskCard(QFrame):
             except (ValueError, TypeError):
                 pass
 
-        # Assignee initials
-        assignee = task_data.get("assignee")
-        if assignee:
-            initials = "".join(
-                part[0].upper() for part in assignee.split()[:2] if part
-            ) or "?"
-            avatar = QLabel(initials)
-            avatar.setFixedSize(20, 20)
-            avatar.setAlignment(Qt.AlignCenter)
-            avatar.setStyleSheet(
-                f"background: {t.accent}; color: {t.text_on_accent}; "
-                f"border-radius: 10px; font-size: 9px; font-weight: 700; border: none;"
-            )
-            bottom.addWidget(avatar)
-            has_bottom = True
-
-        # Requires human badge
-        if task_data.get("requires_human"):
-            human_badge = QLabel(_t("DEV"))
-            human_badge.setStyleSheet(
-                f"background: {t.warning}; color: white; padding: 1px 6px; "
-                f"border-radius: 5px; font-size: 9px; font-weight: 700; border: none;"
-            )
-            human_badge.setToolTip(_t("Requer desenvolvedor"))
-            bottom.addWidget(human_badge)
+        # Linked cards
+        linked = task_data.get("linked_count", 0)
+        if linked:
+            lnk = QLabel(f"🔗 {linked}")
+            lnk.setToolTip(_t("{n} card(s) vinculado(s)").format(n=linked))
+            lnk.setStyleSheet(f"color: {t.text_muted}; font-size: 11px; border: none;")
+            bottom.addWidget(lnk)
             has_bottom = True
 
         # Comment count
@@ -706,11 +681,13 @@ class FilterBar(QWidget):
         # Type filter
         type_label = QLabel(_t("Tipo:"))
         type_label.setProperty("class", "sectionLabel")
+        type_label.setVisible(False)
         layout.addWidget(type_label)
         self.type_combo = QComboBox()
         for _key in TYPE_FILTER_MAP.keys():
             self.type_combo.addItem(_t(_key), _key)
         self.type_combo.setMinimumWidth(96)
+        self.type_combo.setVisible(False)
         self.type_combo.currentIndexChanged.connect(self._emit_changed)
         layout.addWidget(self.type_combo)
 
@@ -724,6 +701,26 @@ class FilterBar(QWidget):
         self.priority_combo.setMinimumWidth(92)
         self.priority_combo.currentIndexChanged.connect(self._emit_changed)
         layout.addWidget(self.priority_combo)
+
+        # Epic filter
+        epic_label = QLabel(_t("Épico:"))
+        epic_label.setProperty("class", "sectionLabel")
+        layout.addWidget(epic_label)
+        self.epic_combo = QComboBox()
+        self.epic_combo.addItem(_t("Todos"), None)
+        self.epic_combo.setMinimumWidth(110)
+        self.epic_combo.currentIndexChanged.connect(self._emit_changed)
+        layout.addWidget(self.epic_combo)
+
+        # Tag filter
+        tag_label = QLabel(_t("Tag:"))
+        tag_label.setProperty("class", "sectionLabel")
+        layout.addWidget(tag_label)
+        self.tag_combo = QComboBox()
+        self.tag_combo.addItem(_t("Todas"), None)
+        self.tag_combo.setMinimumWidth(110)
+        self.tag_combo.currentIndexChanged.connect(self._emit_changed)
+        layout.addWidget(self.tag_combo)
 
         # Assignee filter
         assignee_label = QLabel(_t("Responsável:"))
@@ -751,7 +748,15 @@ class FilterBar(QWidget):
         return self.search_input.text().strip().lower()
 
     def get_type_filter(self):
-        return TYPE_FILTER_MAP.get(self.type_combo.currentData())
+        return None
+
+    def get_epic_filter(self):
+        data = self.epic_combo.currentData()
+        return data if data is not None else None
+
+    def get_tag_filter(self):
+        data = self.tag_combo.currentData()
+        return data if data is not None else None
 
     def get_priority_filter(self):
         return PRIORITY_FILTER_MAP.get(self.priority_combo.currentData())
@@ -776,6 +781,23 @@ class FilterBar(QWidget):
         if idx >= 0:
             self.assignee_combo.setCurrentIndex(idx)
         self.assignee_combo.blockSignals(False)
+
+    def load_epics_tags(self, epics: list[dict], tags: list[str]):
+        for combo, atual, todos, itens in (
+            (self.epic_combo, self.epic_combo.currentData(), _t("Todos"),
+             [(e["name"], e["id"]) for e in epics]),
+            (self.tag_combo, self.tag_combo.currentData(), _t("Todas"),
+             [(n, n) for n in tags]),
+        ):
+            combo.blockSignals(True)
+            combo.clear()
+            combo.addItem(todos, None)
+            for nome, valor in itens:
+                combo.addItem(nome, valor)
+            idx = combo.findData(atual)
+            if idx >= 0:
+                combo.setCurrentIndex(idx)
+            combo.blockSignals(False)
 
     def set_count(self, visible: int, total: int):
         if visible == total:
@@ -1105,6 +1127,146 @@ class SprintManagerDialog(QDialog):
 
 
 # ────────────────────────────────────────────────────────────
+# MembersDialog
+# ────────────────────────────────────────────────────────────
+
+class MembersDialog(QDialog):
+    """Lista de responsáveis do projeto: adicionar, remover e métricas.
+
+    Os nomes daqui alimentam a atribuição dos cards, o filtro do board e as
+    métricas por responsável (total, concluídos, % e vencidos em aberto).
+    """
+
+    def __init__(self, project_id, parent=None):
+        super().__init__(parent)
+        self.project_id = project_id
+        self.setWindowTitle(_t("Responsáveis do projeto"))
+        self.resize(520, 480)
+        root = QVBoxLayout(self)
+        root.setSpacing(8)
+
+        hint = QLabel(_t(
+            "Quem aparece aqui pode ser atribuído aos cards e filtrado no board."))
+        hint.setWordWrap(True)
+        hint.setProperty("class", "hint")
+        root.addWidget(hint)
+
+        form = QHBoxLayout()
+        self.name_input = QLineEdit()
+        self.name_input.setPlaceholderText(_t("Nome do responsável..."))
+        self.name_input.returnPressed.connect(self._add)
+        form.addWidget(self.name_input, 1)
+        add_btn = QPushButton(_t("Adicionar"))
+        add_btn.setCursor(Qt.PointingHandCursor)
+        add_btn.clicked.connect(self._add)
+        form.addWidget(add_btn)
+        root.addLayout(form)
+
+        self.scroll = QScrollArea()
+        self.scroll.setWidgetResizable(True)
+        self.scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+        self.list_container = QWidget()
+        self.list_layout = QVBoxLayout(self.list_container)
+        self.list_layout.setContentsMargins(0, 0, 0, 0)
+        self.list_layout.setSpacing(8)
+        self.scroll.setWidget(self.list_container)
+        root.addWidget(self.scroll, 1)
+
+        self._load()
+
+    def _add(self):
+        nome = self.name_input.text().strip()
+        if not nome:
+            return
+        s = get_session()
+        try:
+            get_or_create_member(s, self.project_id, nome)
+            s.commit()
+        except Exception:
+            s.rollback()
+        finally:
+            s.close()
+        self.name_input.clear()
+        self._load()
+
+    def _remove(self, member_id):
+        s = get_session()
+        try:
+            m = s.get(Member, member_id)
+            if m:
+                s.delete(m)   # os cards mantêm o nome em Task.assignee
+                s.commit()
+        finally:
+            s.close()
+        self._load()
+
+    def _load(self):
+        while self.list_layout.count():
+            item = self.list_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        t = current_theme()
+        s = get_session()
+        try:
+            dados = member_stats(s, self.project_id)
+            if not dados:
+                empty = QLabel(_t("Nenhum responsável ainda. Adicione acima."))
+                empty.setStyleSheet(f"color: {t.text_muted}; padding: 16px;")
+                empty.setAlignment(Qt.AlignCenter)
+                self.list_layout.addWidget(empty)
+            for st in dados:
+                self.list_layout.addWidget(self._row(st, t))
+            self.list_layout.addStretch()
+        finally:
+            s.close()
+
+    def _row(self, st, t):
+        m = st["member"]
+        row = QFrame()
+        row.setStyleSheet(
+            f"QFrame {{ background: {t.bg_card}; border: 1px solid {t.border_light}; border-radius: 8px; }}"
+        )
+        v = QVBoxLayout(row)
+        v.setContentsMargins(10, 8, 10, 8)
+        v.setSpacing(4)
+
+        top = QHBoxLayout()
+        cor = m.color or t.accent
+        dot = QLabel()
+        dot.setFixedSize(16, 16)
+        dot.setStyleSheet(f"background: {cor}; border-radius: 8px; border: none;")
+        top.addWidget(dot)
+        nome = QLabel(m.name)
+        nome.setStyleSheet(f"font-weight: 700; font-size: 14px; color: {t.text_primary}; border: none;")
+        top.addWidget(nome, 1)
+        rm = QPushButton(_t("Excluir"))
+        rm.setCursor(Qt.PointingHandCursor)
+        rm.setStyleSheet(f"QPushButton {{ color: {t.danger}; }}")
+        mid = m.id
+        rm.clicked.connect(lambda _=False, x=mid: self._remove(x))
+        top.addWidget(rm)
+        v.addLayout(top)
+
+        barra = QProgressBar()
+        barra.setValue(st["pct"])
+        barra.setTextVisible(True)
+        barra.setFormat(f"{st['pct']}%  ({st['done']}/{st['total']})")
+        barra.setFixedHeight(16)
+        v.addWidget(barra)
+
+        detalhe = QLabel(
+            _t("{total} tarefa(s) · {done} concluída(s)").format(
+                total=st["total"], done=st["done"]))
+        if st["overdue"]:
+            detalhe.setText(detalhe.text() + "  ·  " + _t("{n} vencida(s)").format(n=st["overdue"]))
+            detalhe.setStyleSheet(f"color: {t.danger}; font-size: 11px; border: none;")
+        else:
+            detalhe.setStyleSheet(f"color: {t.text_muted}; font-size: 11px; border: none;")
+        v.addWidget(detalhe)
+        return row
+
+
+# ────────────────────────────────────────────────────────────
 # ArchivedDialog
 # ────────────────────────────────────────────────────────────
 
@@ -1272,6 +1434,13 @@ class BoardView(QWidget):
         self.manage_sprints_btn.clicked.connect(self._open_sprint_manager)
         header_row.addWidget(self.manage_sprints_btn)
 
+        self.members_btn = QPushButton(_t("Responsáveis"))
+        self.members_btn.setProperty("flat", True)
+        self.members_btn.setFixedHeight(28)
+        self.members_btn.setCursor(Qt.PointingHandCursor)
+        self.members_btn.clicked.connect(self._open_members)
+        header_row.addWidget(self.members_btn)
+
         self.archived_btn = QPushButton(_t("Arquivados"))
         self.archived_btn.setProperty("flat", True)
         self.archived_btn.setFixedHeight(28)
@@ -1423,6 +1592,14 @@ class BoardView(QWidget):
         dlg.exec()
         self.refresh()
 
+    def _open_members(self):
+        if not self.project_id:
+            return
+        dlg = MembersDialog(self.project_id, self)
+        dlg.exec()
+        self.refresh()
+        self.task_changed.emit()
+
     def _auto_archive(self, s):
         """Arquiva tarefas concluídas há mais de 3 dias (backfill do done_at)."""
         from datetime import timedelta
@@ -1531,18 +1708,19 @@ class BoardView(QWidget):
                         "id": t.id,
                         "code": t.code,
                         "title": t.title,
-                        "type": t.type or "FEATURE",
                         "priority": t.priority or "MEDIUM",
                         "labels": [
                             {"id": l.id, "name": l.name, "color": l.color}
                             for l in t.labels
                         ],
-                        "checklist": [{"checked": c.checked} for c in t.checklist],
-                        "blocked_by": [1 for d in t.blocked_by],
+                        "epics": [
+                            {"id": e.id, "name": e.name, "color": e.color}
+                            for e in t.epics
+                        ],
+                        "linked_count": len(t.blocked_by),
                         "due_date": t.due_date.isoformat() if t.due_date else None,
                         "assignee": t.assignee,
                         "comments_count": len(t.comments),
-                        "requires_human": t.requires_human or False,
                         "can_archive": col.is_done,
                     }
                     col_data["tasks"].append(td)
@@ -1551,25 +1729,37 @@ class BoardView(QWidget):
                 cw.task_changed.connect(self._on_change)
                 self.columns_layout.addWidget(cw)
                 self._columns.append(cw)
+
+                membros = [m.name for m in project_members(s, self.project_id)]
         finally:
             s.close()
 
-        assignees = set()
+        assignees = set(membros)
+        epics: dict[int, str] = {}
+        tags: set[str] = set()
         for cw in self._columns:
             for card in cw.get_cards():
-                a = card.task_data.get("assignee")
+                d = card.task_data
+                a = d.get("assignee")
                 if a:
                     assignees.add(a)
+                for e in d.get("epics", []):
+                    epics[e["id"]] = e["name"]
+                for lbl in d.get("labels", []):
+                    tags.add(lbl["name"])
         self.filter_bar.load_assignees(list(assignees))
+        self.filter_bar.load_epics_tags(
+            [{"id": i, "name": n} for i, n in epics.items()], sorted(tags))
 
         self._last_task_hash = self._compute_hash()
         self._apply_filters()
 
     def _apply_filters(self):
         search = self.filter_bar.get_search_text()
-        type_filter = self.filter_bar.get_type_filter()
         priority_filter = self.filter_bar.get_priority_filter()
         assignee_filter = self.filter_bar.get_assignee_filter()
+        epic_filter = self.filter_bar.get_epic_filter()
+        tag_filter = self.filter_bar.get_tag_filter()
 
         total = 0
         visible = 0
@@ -1586,12 +1776,16 @@ class BoardView(QWidget):
                     if not title_match and not code_match:
                         show = False
 
-                if show and type_filter:
-                    if data.get("type") != type_filter:
-                        show = False
-
                 if show and priority_filter:
                     if data.get("priority") != priority_filter:
+                        show = False
+
+                if show and epic_filter is not None:
+                    if all(e.get("id") != epic_filter for e in data.get("epics", [])):
+                        show = False
+
+                if show and tag_filter is not None:
+                    if all(l.get("name") != tag_filter for l in data.get("labels", [])):
                         show = False
 
                 if show and assignee_filter:

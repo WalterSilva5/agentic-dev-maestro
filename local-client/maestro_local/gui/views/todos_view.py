@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
 )
 
 from maestro_local.db.models import Project, Todo, get_session
+from maestro_local.gui.flow_layout import FlowLayout
 from maestro_local.gui.theme import PRIORITY_COLORS, current_theme
 from maestro_local.gui.widgets.empty_state import EmptyState
 from maestro_local.i18n import t as _t
@@ -178,12 +179,12 @@ class TodosView(QWidget):
         filter_row.addStretch()
         layout.addLayout(filter_row)
 
-        add_row = QHBoxLayout()
-        add_row.setSpacing(8)
+        add_row = FlowLayout(h_spacing=8, v_spacing=6)
         self.input = QLineEdit()
         self.input.setPlaceholderText(_t("Adicionar um TODO..."))
+        self.input.setMinimumWidth(200)
         self.input.returnPressed.connect(self._add)
-        add_row.addWidget(self.input, 1)
+        add_row.addWidget(self.input)
 
         self.prio_combo = QComboBox()
         for val, label in TODO_PRIORITIES:

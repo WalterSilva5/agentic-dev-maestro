@@ -22,6 +22,7 @@ from maestro_local.db.models import (
     Task,
     get_session,
 )
+from maestro_local.gui.flow_layout import FlowLayout
 from maestro_local.gui.theme import current_theme
 from maestro_local.gui.views.labels_view import LabelsView
 from maestro_local.i18n import t as _t
@@ -66,8 +67,7 @@ class DashboardView(QWidget):
         pomo_row.addStretch()
         self._layout.addLayout(pomo_row)
 
-        self._cards_row = QHBoxLayout()
-        self._cards_row.setSpacing(14)
+        self._cards_row = FlowLayout(h_spacing=14, v_spacing=14)
         self._layout.addLayout(self._cards_row)
 
         self._summary_cards = {}
@@ -172,6 +172,7 @@ class DashboardView(QWidget):
         frame = QFrame()
         frame.setProperty("class", "card")
         frame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        frame.setMinimumWidth(170)
         layout = QVBoxLayout(frame)
         layout.setContentsMargins(16, 14, 16, 14)
         layout.setSpacing(4)

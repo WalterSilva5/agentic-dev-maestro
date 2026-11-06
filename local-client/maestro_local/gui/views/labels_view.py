@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
 )
 
 from maestro_local.db.models import Label, Task, get_session
+from maestro_local.gui.flow_layout import FlowLayout
 from maestro_local.gui.theme import current_theme
 from maestro_local.i18n import t as _t
 
@@ -96,7 +97,7 @@ class LabelsView(QWidget):
         name_row.addWidget(self.name_input, 1)
         form_layout.addLayout(name_row)
 
-        colors_row = QHBoxLayout()
+        colors_row = FlowLayout(h_spacing=8, v_spacing=8)
         colors_lbl = QLabel(_t("Cor:"))
         colors_lbl.setProperty("class", "sectionLabel")
         colors_row.addWidget(colors_lbl)
@@ -113,8 +114,6 @@ class LabelsView(QWidget):
             btn.clicked.connect(lambda checked, color=c: self._select_color(color))
             self.color_btns.append((btn, c))
             colors_row.addWidget(btn)
-
-        colors_row.addStretch()
 
         add_btn = QPushButton(_t("Criar label"))
         add_btn.setFixedHeight(32)

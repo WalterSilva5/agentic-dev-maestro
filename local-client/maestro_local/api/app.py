@@ -20,9 +20,12 @@ from maestro_local.db.models import (
     Comment,
     DailyNote,
     Document,
+    Epic,
+    Goal,
     Label,
     ApiCall,
     ApiRequest,
+    Member,
     MemoryEntry,
     Project,
     Runbook,
@@ -36,7 +39,10 @@ from maestro_local.db.models import (
     TaskChecklist,
     TaskDependency,
     Todo,
+    get_or_create_member,
     get_session,
+    member_stats,
+    project_members,
     task_labels,
     DEFAULT_COLUMNS,
 )
@@ -148,6 +154,39 @@ class DependencyBody(BaseModel):
 
 
 class LabelCreate(BaseModel):
+    name: str
+    color: Optional[str] = None
+
+
+class EpicCreate(BaseModel):
+    name: str
+    color: Optional[str] = None
+
+
+class EpicUpdate(BaseModel):
+    name: Optional[str] = None
+    color: Optional[str] = None
+
+
+class GoalCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    dueDate: Optional[str] = None
+    tag: Optional[str] = None
+    epicId: Optional[int] = None
+    sprintId: Optional[int] = None
+
+
+class GoalUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    dueDate: str | None = None
+    tag: Optional[str] = None
+    epicId: Optional[int] = None
+    sprintId: Optional[int] = None
+
+
+class MemberCreate(BaseModel):
     name: str
     color: Optional[str] = None
 
@@ -292,6 +331,66 @@ def _label_dict(l: Label) -> dict:
     return {"id": l.id, "name": l.name, "color": l.color}
 
 
+def _epic_dict(e) -> dict:
+    return {"id": e.id, "projectId": e.project_id, "name": e.name, "color": e.color}
+
+
+def _member_dict(m, stats: dict | None = None) -> dict:
+    d = {"id": m.id, "projectId": m.project_id, "name": m.name, "color": m.color}
+    if stats is not None:
+        d.update({k: v for k, v in stats.items() if k != "member"})
+    return d
+
+
+def _goal_filter_query(s: Session, goal) -> Any:
+    """Tarefas do goal (não arquivadas/excluídas) com filtros combinados."""
+    from maestro_local.db.models import Epic
+    q = s.query(Task).filter(
+        Task.project_id == goal.project_id,
+        Task.deleted_at == None,  # noqa: E711
+        Task.archived_at == None,  # noqa: E711
+    )
+    if goal.tag:
+        q = q.filter(Task.labels.any(Label.name == goal.tag))
+    if goal.epic_id:
+        q = q.filter(Task.epics.any(Epic.id == goal.epic_id))
+    if goal.sprint_id:
+        q = q.filter(Task.sprint_id == goal.sprint_id)
+    return q
+
+
+def _goal_progress(s: Session, goal) -> dict:
+    from datetime import date
+    tasks = _goal_filter_query(s, goal).all()
+    done = [t for t in tasks if t.column and t.column.is_done]
+    pct = round(len(done) / len(tasks) * 100) if tasks else 0
+    days_left = None
+    if goal.due_date:
+        try:
+            days_left = (goal.due_date.date() - date.today()).days
+        except Exception:  # noqa: BLE001
+            days_left = None
+    return {"total": len(tasks), "done": len(done), "pct": pct, "daysLeft": days_left}
+
+
+def _goal_dict(g, s: Session | None = None) -> dict:
+    d = {
+        "id": g.id,
+        "projectId": g.project_id,
+        "name": g.name,
+        "description": g.description,
+        "dueDate": g.due_date.isoformat() if g.due_date else None,
+        "tag": g.tag,
+        "epicId": g.epic_id,
+        "epic": g.epic.name if g.epic else None,
+        "sprintId": g.sprint_id,
+        "sprint": g.sprint.name if g.sprint else None,
+    }
+    if s is not None:
+        d["progress"] = _goal_progress(s, g)
+    return d
+
+
 def _checklist_dict(c: TaskChecklist) -> dict:
     return {
         "id": c.id,
@@ -334,6 +433,7 @@ def _task_brief(t: Task) -> dict:
         "createdAt": t.created_at.isoformat() if t.created_at else None,
         "updatedAt": t.updated_at.isoformat() if t.updated_at else None,
         "labels": [_label_dict(lb) for lb in t.labels],
+        "epics": [{"id": e.id, "name": e.name, "color": e.color} for e in t.epics],
     }
 
 
@@ -1579,6 +1679,217 @@ def detach_label(label_id: int, task_id: int, s: Session = Depends(db)):
     if lb in task.labels:
         task.labels.remove(lb)
         s.commit()
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# Epics
+# ---------------------------------------------------------------------------
+
+
+@app.get("/api/projects/{project_id}/epics")
+def list_epics(project_id: int, s: Session = Depends(db)):
+    if not s.query(Project).filter(Project.id == project_id).first():
+        raise HTTPException(404, "Project not found")
+    return [_epic_dict(e) for e in
+            s.query(Epic).filter(Epic.project_id == project_id).order_by(Epic.name).all()]
+
+
+@app.post("/api/projects/{project_id}/epics")
+def create_epic(project_id: int, body: EpicCreate, s: Session = Depends(db)):
+    if not s.query(Project).filter(Project.id == project_id).first():
+        raise HTTPException(404, "Project not found")
+    if not (body.name or "").strip():
+        raise HTTPException(400, "Name is required")
+    ep = Epic(project_id=project_id, name=body.name.strip()[:120], color=body.color)
+    s.add(ep)
+    s.commit()
+    s.refresh(ep)
+    return _epic_dict(ep)
+
+
+@app.patch("/api/epics/{epic_id}")
+def update_epic(epic_id: int, body: EpicUpdate, s: Session = Depends(db)):
+    ep = s.query(Epic).filter(Epic.id == epic_id).first()
+    if not ep:
+        raise HTTPException(404, "Epic not found")
+    data = body.model_dump(exclude_unset=True)
+    if "name" in data and (data["name"] or "").strip():
+        ep.name = data["name"].strip()[:120]
+    if "color" in data:
+        ep.color = data["color"]
+    s.commit()
+    s.refresh(ep)
+    return _epic_dict(ep)
+
+
+@app.delete("/api/epics/{epic_id}")
+def delete_epic(epic_id: int, s: Session = Depends(db)):
+    ep = s.query(Epic).filter(Epic.id == epic_id).first()
+    if not ep:
+        raise HTTPException(404, "Epic not found")
+    s.delete(ep)
+    s.commit()
+    return {"ok": True}
+
+
+@app.post("/api/epics/{epic_id}/tasks/{task_id}")
+def attach_epic(epic_id: int, task_id: int, s: Session = Depends(db)):
+    ep = s.query(Epic).filter(Epic.id == epic_id).first()
+    if not ep:
+        raise HTTPException(404, "Epic not found")
+    task = s.query(Task).filter(Task.id == task_id, Task.deleted_at.is_(None)).first()
+    if not task:
+        raise HTTPException(404, "Task not found")
+    if ep not in task.epics:
+        task.epics.append(ep)
+        s.commit()
+    return {"ok": True}
+
+
+@app.delete("/api/epics/{epic_id}/tasks/{task_id}")
+def detach_epic(epic_id: int, task_id: int, s: Session = Depends(db)):
+    ep = s.query(Epic).filter(Epic.id == epic_id).first()
+    if not ep:
+        raise HTTPException(404, "Epic not found")
+    task = s.query(Task).filter(Task.id == task_id, Task.deleted_at.is_(None)).first()
+    if not task:
+        raise HTTPException(404, "Task not found")
+    if ep in task.epics:
+        task.epics.remove(ep)
+        s.commit()
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# Goals
+# ---------------------------------------------------------------------------
+
+
+def _parse_goal_dt(value):
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(str(value))
+    except ValueError:
+        raise HTTPException(400, "Invalid dueDate (use ISO format)")
+
+
+@app.get("/api/projects/{project_id}/goals")
+def list_goals(project_id: int, s: Session = Depends(db)):
+    if not s.query(Project).filter(Project.id == project_id).first():
+        raise HTTPException(404, "Project not found")
+    goals = (s.query(Goal).filter(Goal.project_id == project_id)
+             .order_by(Goal.due_date.is_(None), Goal.due_date).all())
+    return [_goal_dict(g, s) for g in goals]
+
+
+@app.post("/api/projects/{project_id}/goals")
+def create_goal(project_id: int, body: GoalCreate, s: Session = Depends(db)):
+    if not s.query(Project).filter(Project.id == project_id).first():
+        raise HTTPException(404, "Project not found")
+    if not (body.name or "").strip():
+        raise HTTPException(400, "Name is required")
+    if body.epicId is not None and not s.query(Epic).filter(
+            Epic.id == body.epicId, Epic.project_id == project_id).first():
+        raise HTTPException(400, "Epic not found in this project")
+    if body.sprintId is not None and not s.query(Sprint).filter(
+            Sprint.id == body.sprintId, Sprint.project_id == project_id).first():
+        raise HTTPException(400, "Sprint not found in this project")
+    g = Goal(project_id=project_id, name=body.name.strip()[:200],
+             description=(body.description or "").strip() or None,
+             due_date=_parse_goal_dt(body.dueDate),
+             tag=(body.tag or "").strip() or None,
+             epic_id=body.epicId, sprint_id=body.sprintId)
+    s.add(g)
+    s.commit()
+    s.refresh(g)
+    return _goal_dict(g, s)
+
+
+@app.get("/api/goals/{goal_id}")
+def get_goal(goal_id: int, s: Session = Depends(db)):
+    g = s.query(Goal).filter(Goal.id == goal_id).first()
+    if not g:
+        raise HTTPException(404, "Goal not found")
+    return _goal_dict(g, s)
+
+
+@app.patch("/api/goals/{goal_id}")
+def update_goal(goal_id: int, body: GoalUpdate, s: Session = Depends(db)):
+    g = s.query(Goal).filter(Goal.id == goal_id).first()
+    if not g:
+        raise HTTPException(404, "Goal not found")
+    data = body.model_dump(exclude_unset=True)
+    if "name" in data and (data["name"] or "").strip():
+        g.name = data["name"].strip()[:200]
+    if "description" in data:
+        g.description = (data["description"] or "").strip() or None
+    if "dueDate" in data:
+        g.due_date = _parse_goal_dt(data["dueDate"])
+    if "tag" in data:
+        g.tag = (data["tag"] or "").strip() or None
+    if "epicId" in data:
+        if data["epicId"] is not None and not s.query(Epic).filter(
+                Epic.id == data["epicId"], Epic.project_id == g.project_id).first():
+            raise HTTPException(400, "Epic not found in this project")
+        g.epic_id = data["epicId"]
+    if "sprintId" in data:
+        if data["sprintId"] is not None and not s.query(Sprint).filter(
+                Sprint.id == data["sprintId"], Sprint.project_id == g.project_id).first():
+            raise HTTPException(400, "Sprint not found in this project")
+        g.sprint_id = data["sprintId"]
+    s.commit()
+    s.refresh(g)
+    return _goal_dict(g, s)
+
+
+@app.delete("/api/goals/{goal_id}")
+def delete_goal(goal_id: int, s: Session = Depends(db)):
+    g = s.query(Goal).filter(Goal.id == goal_id).first()
+    if not g:
+        raise HTTPException(404, "Goal not found")
+    s.delete(g)
+    s.commit()
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# Members (responsáveis)
+# ---------------------------------------------------------------------------
+
+
+@app.get("/api/projects/{project_id}/members")
+def list_members(project_id: int, s: Session = Depends(db)):
+    if not s.query(Project).filter(Project.id == project_id).first():
+        raise HTTPException(404, "Project not found")
+    stats = member_stats(s, project_id)
+    return [_member_dict(st["member"], st) for st in stats]
+
+
+@app.post("/api/projects/{project_id}/members")
+def create_member(project_id: int, body: MemberCreate, s: Session = Depends(db)):
+    if not s.query(Project).filter(Project.id == project_id).first():
+        raise HTTPException(404, "Project not found")
+    m = get_or_create_member(s, project_id, body.name)
+    if m is None:
+        raise HTTPException(400, "Name is required")
+    if body.color:
+        m.color = body.color
+        s.commit()
+    else:
+        s.commit()
+    s.refresh(m)
+    return _member_dict(m)
+
+
+@app.delete("/api/members/{member_id}")
+def delete_member(member_id: int, s: Session = Depends(db)):
+    m = s.query(Member).filter(Member.id == member_id).first()
+    if not m:
+        raise HTTPException(404, "Member not found")
+    s.delete(m)   # os cards mantêm o nome em Task.assignee
+    s.commit()
     return {"ok": True}
 
 

@@ -235,6 +235,126 @@ server.registerTool(
   }
 );
 
+// --- Epics ------------------------------------------------------------------
+server.registerTool(
+  "maestro_list_epics",
+  {
+    description: "List epics of a project.",
+    inputSchema: {
+      projectId: z.number().int().describe("Project id."),
+    },
+  },
+  async ({ projectId }) => ok(await api("GET", `/projects/${projectId}/epics`))
+);
+
+server.registerTool(
+  "maestro_create_epic",
+  {
+    description: "Create an epic (thematic card group) in a project.",
+    inputSchema: {
+      projectId: z.number().int().describe("Project id."),
+      name: z.string().describe("Epic name."),
+      color: z.string().optional().describe("Hex color, e.g. '#6741D9'."),
+    },
+  },
+  async ({ projectId, name, color }) =>
+    ok(await api("POST", `/projects/${projectId}/epics`, { name, color }))
+);
+
+server.registerTool(
+  "maestro_link_epic",
+  {
+    description: "Attach a task to an epic, or detach it with unlink=true.",
+    inputSchema: {
+      epicId: z.number().int().describe("Epic id."),
+      taskId: z.number().int().describe("Task id."),
+      unlink: z.boolean().optional().describe("Detach instead of attach."),
+    },
+  },
+  async ({ epicId, taskId, unlink }) =>
+    ok(await api(unlink ? "DELETE" : "POST", `/epics/${epicId}/tasks/${taskId}`))
+);
+
+// --- Goals ------------------------------------------------------------------
+server.registerTool(
+  "maestro_list_goals",
+  {
+    description: "List goals of a project, each with progress (total/done/pct/daysLeft).",
+    inputSchema: {
+      projectId: z.number().int().describe("Project id."),
+    },
+  },
+  async ({ projectId }) => ok(await api("GET", `/projects/${projectId}/goals`))
+);
+
+server.registerTool(
+  "maestro_create_goal",
+  {
+    description: "Create a goal: deliver cards matching tag/epic/sprint filters by a due date.",
+    inputSchema: {
+      projectId: z.number().int().describe("Project id."),
+      name: z.string().describe("Goal name."),
+      dueDate: z.string().optional().describe("ISO date, e.g. '2026-12-31'."),
+      tag: z.string().optional().describe("Only cards with this tag."),
+      epicId: z.number().int().optional().describe("Only cards in this epic."),
+      sprintId: z.number().int().optional().describe("Only cards in this sprint."),
+    },
+  },
+  async (args) => {
+    const { projectId, ...body } = args as { projectId: number } & Record<string, unknown>;
+    return ok(await api("POST", `/projects/${projectId}/goals`, body));
+  }
+);
+
+server.registerTool(
+  "maestro_goal_progress",
+  {
+    description: "Get a goal with its current progress (total/done/pct/daysLeft).",
+    inputSchema: {
+      goalId: z.number().int().describe("Goal id."),
+    },
+  },
+  async ({ goalId }) => ok(await api("GET", `/goals/${goalId}`))
+);
+
+// --- Members ----------------------------------------------------------------
+server.registerTool(
+  "maestro_list_members",
+  {
+    description: "List project assignees with per-person metrics (total/done/pct/overdue).",
+    inputSchema: {
+      projectId: z.number().int().describe("Project id."),
+    },
+  },
+  async ({ projectId }) => ok(await api("GET", `/projects/${projectId}/members`))
+);
+
+server.registerTool(
+  "maestro_add_member",
+  {
+    description: "Add an assignee to a project (idempotent by name).",
+    inputSchema: {
+      projectId: z.number().int().describe("Project id."),
+      name: z.string().describe("Assignee name."),
+    },
+  },
+  async ({ projectId, name }) =>
+    ok(await api("POST", `/projects/${projectId}/members`, { name }))
+);
+
+server.registerTool(
+  "maestro_assign_task",
+  {
+    description: "Assign a task to an assignee (creates the member if missing).",
+    inputSchema: {
+      code: z.string().describe("Task code, e.g. 'GAV-12'."),
+      assignee: z.string().describe("Assignee name."),
+    },
+  },
+  async ({ code, assignee }) =>
+    ok(await api("PATCH", `/tasks/${encodeURIComponent(code)}`, { assignee }))
+);
+
 // --- Documents --------------------------------------------------------------
 server.registerTool(
   "maestro_write_doc",

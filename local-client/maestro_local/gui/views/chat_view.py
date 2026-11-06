@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
 )
 
 from maestro_local.config import get_active_ai_provider
+from maestro_local.gui.flow_layout import FlowLayout
 from maestro_local.gui.theme import current_theme
 from maestro_local.i18n import t
 
@@ -107,9 +108,8 @@ class ChatView(QWidget):
         self._scroll = scroll
         layout.addWidget(scroll, 1)
 
-        # Sugestões
-        self.sug_row = QHBoxLayout()
-        self.sug_row.setSpacing(6)
+        # Sugestões (quebram de linha em telas estreitas)
+        self.sug_row = FlowLayout(h_spacing=6, v_spacing=6)
         for sug in SUGGESTIONS[:2]:
             self.sug_row.addWidget(self._make_suggestion(t(sug)))
         layout.addLayout(self.sug_row)

@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QDialog,
     QFrame,
     QHBoxLayout,
+    QInputDialog,
     QLabel,
     QLineEdit,
     QListWidget,
@@ -33,7 +34,9 @@ from maestro_local.db.models import (
     Sprint,
     Task,
     TaskDependency,
+    get_or_create_member,
     get_session,
+    project_members,
 )
 from maestro_local.gui.theme import current_theme
 from maestro_local.i18n import t as _t
@@ -118,14 +121,14 @@ class TaskDetailDialog(QDialog):
             lin.addWidget(QLabel(_t("Sprint:")))
             self.sprint_combo = QComboBox()
             self.sprint_combo.addItem(_t("Backlog"), None)
+            self.sprint_combo.addItem(_t("+ Nova sprint..."), "__nova__")
             for sp in (s.query(Sprint)
                        .filter(Sprint.project_id == projeto_id)
                        .order_by(Sprint.sort_order, Sprint.id).all()):
                 self.sprint_combo.addItem(sp.name, sp.id)
             sidx = self.sprint_combo.findData(task.sprint_id) if task.sprint_id is not None else 0
             self.sprint_combo.setCurrentIndex(sidx if sidx >= 0 else 0)
-            self.sprint_combo.currentIndexChanged.connect(
-                lambda: self._save_field("sprint_id", self.sprint_combo.currentData()))
+            self.sprint_combo.currentIndexChanged.connect(self._trocar_sprint)
             lin.addWidget(self.sprint_combo, 1)
             lay.addLayout(lin)
 
@@ -143,15 +146,16 @@ class TaskDetailDialog(QDialog):
                     Task.deleted_at == None,  # noqa: E711
                 ).all() if td.assignee
             }
-            for n in sorted(nomes):
+            # A lista de responsáveis do projeto vem primeiro (fonte oficial);
+            # nomes legados digitados à mão completam sem se perder.
+            for n in sorted({m.name for m in project_members(s, projeto_id)} | nomes):
                 self.assignee_combo.addItem(n, n)
             if task.assignee:
                 ai = self.assignee_combo.findData(task.assignee)
                 self.assignee_combo.setCurrentIndex(ai if ai >= 0 else 0)
                 if ai < 0:
                     self.assignee_combo.setEditText(task.assignee)
-            self.assignee_combo.currentTextChanged.connect(
-                lambda txt: self._save_field("assignee", txt.strip() or None))
+            self.assignee_combo.currentTextChanged.connect(self._trocar_responsavel)
             lin2.addWidget(self.assignee_combo, 1)
 
             lin2.addWidget(QLabel(_t("Data alvo:")))
@@ -261,6 +265,48 @@ class TaskDetailDialog(QDialog):
         finally:
             s.close()
 
+    def _trocar_responsavel(self, texto):
+        """Atribui o responsável; nome novo entra na lista do projeto."""
+        nome = (texto or "").strip() or None
+        s = get_session()
+        try:
+            task = s.get(Task, self.task_id)
+            if task is None:
+                return
+            if nome and task.project_id:
+                get_or_create_member(s, task.project_id, nome)
+            task.assignee = nome
+            s.commit()
+            self.task_updated.emit()
+        finally:
+            s.close()
+
+    def _trocar_sprint(self):
+        if self.sprint_combo.currentData() == "__nova__":
+            nome, ok = QInputDialog.getText(self, _t("Nova sprint"), _t("Nome da sprint:"))
+            nome = (nome or "").strip()
+            if not ok or not nome:
+                self.sprint_combo.setCurrentIndex(0)
+                return
+            s = get_session()
+            try:
+                task = s.get(Task, self.task_id)
+                if task is None:
+                    return
+                ordem = (s.query(Sprint).filter(
+                    Sprint.project_id == task.project_id).count())
+                sp = Sprint(project_id=task.project_id, name=nome[:120],
+                            sort_order=ordem)
+                s.add(sp)
+                s.commit()
+                self.sprint_combo.addItem(sp.name, sp.id)
+                self.sprint_combo.setCurrentIndex(
+                    self.sprint_combo.findData(sp.id))
+            finally:
+                s.close()
+            return
+        self._save_field("sprint_id", self.sprint_combo.currentData())
+
     def _move(self, column_id):
         if column_id is None:
             return
@@ -311,6 +357,7 @@ class TaskDetailDialog(QDialog):
 
             combo = QComboBox()
             combo.addItem(_t("+ Épico..."), None)
+            combo.addItem(_t("+ Novo épico..."), "__novo__")
             for ep in (s.query(Epic)
                        .filter(Epic.project_id == task.project_id)
                        .order_by(Epic.name).all()):
@@ -325,6 +372,24 @@ class TaskDetailDialog(QDialog):
         self._epicos_layout.addWidget(linha)
 
     def _adicionar_epico(self, epic_id, combo):
+        if epic_id == "__novo__":
+            nome, ok = QInputDialog.getText(self, _t("Novo épico"), _t("Nome do épico:"))
+            nome = (nome or "").strip()
+            if not ok or not nome:
+                combo.setCurrentIndex(0)
+                return
+            s = get_session()
+            try:
+                task = s.get(Task, self.task_id)
+                ep = Epic(project_id=task.project_id if task else None, name=nome[:120])
+                s.add(ep)
+                s.commit()
+                epic_id = ep.id
+                self.task_updated.emit()
+            finally:
+                s.close()
+            self._rebuild_epicos()
+            return
         if epic_id is None:
             return
         s = get_session()
@@ -383,19 +448,35 @@ class TaskDetailDialog(QDialog):
                 row.addWidget(chip)
 
             combo = QComboBox()
+            combo.setEditable(True)
             combo.addItem(_t("+ Tag..."), None)
             for lbl in s.query(Label).order_by(Label.name).all():
                 if lbl.id not in aplicadas:
                     combo.addItem(lbl.name, lbl.id)
             combo.currentIndexChanged.connect(
-                lambda: self._adicionar_tag(combo.currentData()))
+                lambda: self._adicionar_tag(combo.currentData(), combo))
             row.addWidget(combo)
             row.addStretch()
         finally:
             s.close()
         self._tags_layout.addWidget(linha)
 
-    def _adicionar_tag(self, label_id):
+    def _adicionar_tag(self, label_id, combo=None):
+        if label_id is None and combo is not None:
+            # Tag digitada que ainda não existe: cria e vincula.
+            nome = (combo.currentText() or "").strip()
+            if not nome or nome.startswith("+"):
+                return
+            s = get_session()
+            try:
+                existente = s.query(Label).filter(Label.name == nome).first()
+                if existente is None:
+                    existente = Label(name=nome[:60])
+                    s.add(existente)
+                    s.commit()
+                label_id = existente.id
+            finally:
+                s.close()
         if label_id is None:
             return
         s = get_session()

@@ -52,6 +52,63 @@ from maestro_local.todos import todos_abertos
 logger = logging.getLogger("maestro.gui.main_window")
 
 
+class ResponsiveStack(QStackedWidget):
+    """QStackedWidget cujo mínimo acompanha a página atual.
+
+    O padrão usa o MÁXIMO dos mínimos de todas as páginas, então uma tela
+    larga (ex.: Estudos) travava a largura mínima da janela inteira e o
+    splitter nunca liberava espaço para aumentar o menu.
+    """
+
+    def minimumSizeHint(self):  # noqa: N802
+        w = self.currentWidget()
+        if w is not None:
+            return w.minimumSizeHint()
+        return super().minimumSizeHint()
+
+
+def suggest_project_key(name: str) -> str:
+    """Sugere KEY a partir do nome (igual ao formulário de Projetos)."""
+    import re
+    clean = re.sub(r"[^a-zA-Z0-9]", "", name or "").upper()
+    return clean[:4] if len(clean) >= 4 else clean[:3]
+
+
+def create_project_with_defaults(name: str, key: str | None = None) -> int | None:
+    """Cria projeto com as colunas padrão. Devolve o id ou None se inválido.
+
+    Chave duplicada ganha sufixo (-2, -3...) em vez de falhar.
+    """
+    from maestro_local.db.models import DEFAULT_COLUMNS, BoardColumn, Project
+    name = (name or "").strip()
+    key = ((key or "").strip() or suggest_project_key(name)).upper()
+    if not name or not key:
+        return None
+    s = get_session()
+    try:
+        base, n = key, 2
+        while s.query(Project).filter(Project.key == key).first() is not None:
+            key = f"{base}-{n}"
+            n += 1
+        p = Project(name=name, key=key)
+        s.add(p)
+        s.flush()
+        for col_def in DEFAULT_COLUMNS:
+            s.add(BoardColumn(
+                project_id=p.id,
+                name=col_def["name"],
+                order=col_def["order"],
+                is_done=col_def.get("is_done", False),
+            ))
+        s.commit()
+        return p.id
+    except Exception:
+        s.rollback()
+        return None
+    finally:
+        s.close()
+
+
 class ToastWidget(QLabel):
     def __init__(self, parent):
         super().__init__(parent)
@@ -123,7 +180,7 @@ class MainWindow(QMainWindow):
         self.api_port = api_port
         self.setWindowTitle("Agentic Dev Maestro")
         self.resize(1120, 720)
-        self.setMinimumSize(840, 540)
+        self.setMinimumSize(720, 480)
 
         central = QWidget()
         self.setCentralWidget(central)
@@ -134,8 +191,8 @@ class MainWindow(QMainWindow):
         # --- Painel lateral ---
         self.sidebar = QWidget()
         self.sidebar.setObjectName("sidebar")
-        self.sidebar.setMinimumWidth(184)
-        self.sidebar.setMaximumWidth(380)
+        self.sidebar.setMinimumWidth(160)
+        self.sidebar.setMaximumWidth(420)
         sb = QVBoxLayout(self.sidebar)
         sb.setContentsMargins(10, 14, 10, 12)
         sb.setSpacing(8)
@@ -167,20 +224,34 @@ class MainWindow(QMainWindow):
         self.project_selector.setObjectName("sidebarCombo")
         self.project_selector.setToolTip(t("Projeto ativo"))
         self.project_selector.currentIndexChanged.connect(self._on_project_selected)
-        sb.addWidget(self.project_selector)
+        proj_row = QHBoxLayout()
+        proj_row.setContentsMargins(0, 0, 0, 0)
+        proj_row.setSpacing(6)
+        proj_row.addWidget(self.project_selector, 1)
+        self.new_project_btn = QToolButton()
+        self.new_project_btn.setObjectName("newProjectBtn")
+        self.new_project_btn.setText("+")
+        self.new_project_btn.setToolTip(t("Novo Projeto"))
+        self.new_project_btn.setCursor(Qt.PointingHandCursor)
+        self.new_project_btn.setFixedSize(30, 30)
+        self.new_project_btn.clicked.connect(self._new_project)
+        proj_row.addWidget(self.new_project_btn)
+        proj_wrap = QWidget()
+        proj_wrap.setLayout(proj_row)
+        sb.addWidget(proj_wrap)
 
         # Navegação agrupada. O Dashboard é a tela inicial (visão geral com
         # abas); o resto segue a mesma separação de antes, agora no painel.
         nav_groups = [
             (t("PRINCIPAL"), [
                 (t("Dashboard"), "dashboard"),
+                (t("Board"), "board"),
                 (t("Reuniões"), "transcricoes"),
                 (t("Meu Dia"), "daily"),
                 (t("Assistente"), "chat"),
             ]),
             (t("TRABALHO"), [
                 (t("Projetos"), "projects"),
-                (t("Board"), "board"),
                 (t("Goals"), "goals"),
                 (t("Skills"), "skills"),
             ]),
@@ -246,7 +317,7 @@ class MainWindow(QMainWindow):
 
         self._splitter = QSplitter(Qt.Horizontal)
         self._splitter.setChildrenCollapsible(False)
-        self._splitter.setHandleWidth(8)
+        self._splitter.setHandleWidth(10)
         self._splitter.addWidget(self.sidebar)
         self._splitter.setStretchFactor(0, 0)
         self._splitter.setStretchFactor(1, 1)
@@ -265,6 +336,16 @@ class MainWindow(QMainWindow):
         top = QHBoxLayout(self.topbar)
         top.setContentsMargins(22, 8, 18, 8)
         top.setSpacing(10)
+
+        # Ocultar/mostrar o menu lateral (útil em tela cheia/secundária).
+        self.menu_toggle_btn = QToolButton()
+        self.menu_toggle_btn.setObjectName("menuToggle")
+        self.menu_toggle_btn.setText("☰")
+        self.menu_toggle_btn.setCursor(Qt.PointingHandCursor)
+        self.menu_toggle_btn.setToolTip(t("Ocultar menu (F9)"))
+        self.menu_toggle_btn.setFixedSize(34, 34)
+        self.menu_toggle_btn.clicked.connect(lambda: self._toggle_sidebar())
+        top.addWidget(self.menu_toggle_btn)
 
         titulos = QVBoxLayout()
         titulos.setSpacing(0)
@@ -333,7 +414,7 @@ class MainWindow(QMainWindow):
         self.search_results.setVisible(False)
 
         # Stacked widget with views
-        self.stack = QStackedWidget()
+        self.stack = ResponsiveStack()
 
         self.dashboard_view = DashboardView()
         self.daily_view = DailyView()
@@ -392,8 +473,15 @@ class MainWindow(QMainWindow):
         from maestro_local.config import load_config
         _persistido = load_config().get("settings", {})
         _largura = int(_persistido.get("sidebar_width", 224) or 224)
-        self._largura_sidebar_desejada = max(184, min(380, _largura))
+        self._largura_sidebar_desejada = max(160, min(420, _largura))
         self._splitter.setSizes([self._largura_sidebar_desejada, 1200])
+        # Menu lateral começa oculto se estava assim ao sair (útil em tela menor).
+        self._sidebar_width = self._largura_sidebar_desejada
+        if _persistido.get("sidebar_visible", True) is False:
+            self.sidebar.hide()
+            self.menu_toggle_btn.setToolTip(t("Mostrar menu (F9)"))
+        else:
+            self.menu_toggle_btn.setToolTip(t("Ocultar menu (F9)"))
         _tab = int(_persistido.get("dashboard_tab", 0) or 0)
         if hasattr(self.dashboard_view, "_tabs") and 0 <= _tab < self.dashboard_view._tabs.count():
             self.dashboard_view._tabs.setCurrentIndex(_tab)
@@ -432,6 +520,12 @@ class MainWindow(QMainWindow):
 
         help_shortcut = QShortcut(QKeySequence("Ctrl+/"), self)
         help_shortcut.activated.connect(self._mostrar_atalhos)
+
+        board_shortcut = QShortcut(QKeySequence("Ctrl+B"), self)
+        board_shortcut.activated.connect(lambda: self._open_key("board"))
+
+        sidebar_shortcut = QShortcut(QKeySequence("F9"), self)
+        sidebar_shortcut.activated.connect(lambda: self._toggle_sidebar())
 
         # Alt+N abre a N-ésima TELA (os cabeçalhos de grupo não contam).
         for i, key in enumerate(self._nav_keys[:9]):
@@ -892,11 +986,42 @@ class MainWindow(QMainWindow):
             cor = th.sidebar_active_text if i == atual else th.sidebar_muted
             item.setIcon(nav_icon(key, cor))
 
+    def _toggle_sidebar(self, visivel=None):
+        """Mostra/oculta o menu lateral. Estado persistido entre sessões."""
+        if visivel is None:
+            visivel = not self.sidebar.isVisible()
+        if visivel:
+            self.sidebar.show()
+            largura = getattr(self, "_sidebar_width", None) or 224
+            largura = max(160, min(420, int(largura)))
+            total = max(600, self._splitter.width())
+            self._splitter.setSizes([largura, max(300, total - largura)])
+            self.menu_toggle_btn.setToolTip(t("Ocultar menu (F9)"))
+        else:
+            self._sidebar_width = self.sidebar.width()
+            self.sidebar.hide()
+            self.menu_toggle_btn.setToolTip(t("Mostrar menu (F9)"))
+        try:
+            from maestro_local.config import load_config, save_config
+            cfg = load_config()
+            cfg.setdefault("settings", {})["sidebar_visible"] = bool(visivel)
+            if visivel:
+                cfg["settings"]["sidebar_width"] = int(self.sidebar.width())
+            save_config(cfg)
+        except Exception:  # noqa: BLE001
+            pass
+
     def _open_key(self, key):
         """Troca a tela pela chave e sincroniza a sidebar e o título."""
         w = self._ensure_view(key)
         if w is None:
             return
+        if key == "board" and not getattr(w, "project_id", None):
+            # Vai direto ao kanban: usa o projeto ativo sem passar por Projetos.
+            from maestro_local.config import get_active_project_id
+            pid = get_active_project_id()
+            if pid and hasattr(w, "set_project"):
+                w.set_project(pid)
         self._last_screen = key
         self.stack.setCurrentWidget(w)
         if hasattr(w, "refresh"):
@@ -912,7 +1037,11 @@ class MainWindow(QMainWindow):
         self._refresh_nav_icons()
 
     def _open_board(self, project_id):
+        from maestro_local.config import set_active_project_id
+        set_active_project_id(project_id)
+        self._populate_project_selector()
         self.board_view.set_project(project_id)
+        self._atualizar_status()
         self._open_key("board")
 
     def _open_task_from_dashboard(self, task_id):
@@ -978,6 +1107,43 @@ class MainWindow(QMainWindow):
         except Exception:  # noqa: BLE001
             pass
         self.status.showMessage("   ·   ".join(partes))
+
+    def _new_project(self):
+        """Diálogo de novo projeto (nome + chave auto) a partir do seletor."""
+        from PySide6.QtWidgets import QDialog, QDialogButtonBox, QFormLayout, QLineEdit, QVBoxLayout
+        dlg = QDialog(self)
+        dlg.setWindowTitle(t("Novo Projeto"))
+        lay = QVBoxLayout(dlg)
+        form = QFormLayout()
+        form.setSpacing(8)
+        nome = QLineEdit()
+        nome.setPlaceholderText(t("Nome do projeto"))
+        form.addRow(t("Nome:"), nome)
+        chave = QLineEdit()
+        chave.setPlaceholderText("KEY")
+        chave.setMaximumWidth(120)
+        form.addRow(t("Chave:"), chave)
+        nome.textChanged.connect(
+            lambda txt: chave.setText(suggest_project_key(txt)) if not chave.hasFocus() else None)
+        lay.addLayout(form)
+        botoes = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        botoes.accepted.connect(dlg.accept)
+        botoes.rejected.connect(dlg.reject)
+        lay.addWidget(botoes)
+        if dlg.exec() != QDialog.Accepted:
+            return
+        pid = create_project_with_defaults(nome.text(), chave.text())
+        if pid is None:
+            return
+        from maestro_local.config import set_active_project_id
+        set_active_project_id(pid)
+        self._populate_project_selector()
+        self.board_view.set_project(pid)
+        if hasattr(self.transcricoes_view, "refresh"):
+            self.transcricoes_view.refresh()
+        self._refresh_all()
+        self._atualizar_status()
+        self.show_toast(t("Projeto ativo alterado"))
 
     def _on_project_selected(self):
         if getattr(self, "_loading_projects", False):
@@ -1056,6 +1222,8 @@ class MainWindow(QMainWindow):
                 "Ctrl+K   " + t("Busca global (tarefas, TODOs, projetos e reuniões)"),
                 "Ctrl+N   " + t("Nova reunião"),
                 "Ctrl+T   " + t("Novo TODO"),
+                "Ctrl+B   " + t("Abrir o board"),
+                "F9       " + t("Mostrar/ocultar menu"),
                 "Ctrl+/   " + t("Esta ajuda"),
                 "Alt+1…9  " + t("Abrir a N-ésima tela do menu"),
                 "Esc      " + t("Fecha a busca"),
@@ -1286,8 +1454,9 @@ class MainWindow(QMainWindow):
         # Restaura a largura exata da sidebar (o setSizes do __init__ é
         # proporcional; aqui a janela já tem largura real).
         if getattr(self, "_largura_sidebar_desejada", None) is not None:
-            w = self._largura_sidebar_desejada
-            self._splitter.setSizes([w, max(300, self._splitter.width() - w)])
+            if self.sidebar.isVisible():
+                w = self._largura_sidebar_desejada
+                self._splitter.setSizes([w, max(300, self._splitter.width() - w)])
             self._largura_sidebar_desejada = None
 
     def closeEvent(self, event):
@@ -1303,11 +1472,14 @@ class MainWindow(QMainWindow):
         (os._exit), que é o único jeito de não abortar. Nesse ponto os dados já
         estão gravados: banco e config são escritos de forma síncrona.
         """
-        # Persiste o estado da interface (largura da sidebar e tela ativa).
+        # Persiste o estado da interface (largura e visibilidade da sidebar,
+        # tela ativa).
         try:
             from maestro_local.config import load_config, save_config
             cfg = load_config()
-            cfg.setdefault("settings", {})["sidebar_width"] = int(self.sidebar.width())
+            cfg.setdefault("settings", {})["sidebar_width"] = int(
+                getattr(self, "_sidebar_width", None) or self.sidebar.width())
+            cfg["settings"]["sidebar_visible"] = bool(self.sidebar.isVisible())
             cfg.setdefault("settings", {})["last_screen"] = getattr(self, "_last_screen", "dashboard")
             tabs = getattr(self.dashboard_view, "_tabs", None)
             if tabs is not None:

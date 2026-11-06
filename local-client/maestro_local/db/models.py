@@ -54,6 +54,7 @@ class Project(Base):
 
     columns = relationship("BoardColumn", back_populates="project", cascade="all,delete-orphan", order_by="BoardColumn.order")
     tasks = relationship("Task", back_populates="project", cascade="all,delete-orphan")
+    members = relationship("Member", back_populates="project", cascade="all,delete-orphan", order_by="Member.name")
     sprints = relationship("Sprint", back_populates="project", cascade="all,delete-orphan", order_by="Sprint.sort_order")
     epics = relationship("Epic", back_populates="project", cascade="all,delete-orphan", order_by="Epic.name")
     goals = relationship("Goal", back_populates="project", cascade="all,delete-orphan", order_by="Goal.due_date")
@@ -185,6 +186,76 @@ class Label(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     tasks = relationship("Task", secondary=task_labels, back_populates="labels")
+
+
+class Member(Base):
+    """Responsável do projeto: lista atribuível aos cards (filtro + métricas)."""
+
+    __tablename__ = "members"
+
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(100), nullable=False)
+    color = Column(String(20))
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    project = relationship("Project", back_populates="members")
+
+
+MEMBER_COLORS = [
+    "#4C6EF5", "#E8590C", "#2F9E44", "#6741D9", "#C2255C", "#0C8599",
+    "#F08C00", "#0CA678", "#E03131", "#66A80F", "#868E96", "#1971C2",
+]
+
+
+def project_members(session, project_id: int) -> list:
+    """Responsáveis do projeto, em ordem alfabética."""
+    return (session.query(Member)
+            .filter(Member.project_id == project_id)
+            .order_by(Member.name).all())
+
+
+def get_or_create_member(session, project_id: int, name: str):
+    """Busca o responsável pelo nome (case-insensitive) ou cria com cor livre."""
+    name = (name or "").strip()
+    if not name:
+        return None
+    existing = (session.query(Member)
+                .filter(Member.project_id == project_id,
+                        Member.name.ilike(name)).first())
+    if existing is not None:
+        return existing
+    usadas = {m.color for m in project_members(session, project_id) if m.color}
+    cor = next((c for c in MEMBER_COLORS if c not in usadas), MEMBER_COLORS[0])
+    m = Member(project_id=project_id, name=name[:100], color=cor)
+    session.add(m)
+    session.flush()
+    return m
+
+
+def member_stats(session, project_id: int) -> list[dict]:
+    """Métricas por responsável: total, concluídos, % e vencidos em aberto."""
+    from datetime import datetime
+    stats = []
+    for m in project_members(session, project_id):
+        base = session.query(Task).filter(
+            Task.project_id == project_id,
+            Task.assignee == m.name,
+            Task.deleted_at == None,  # noqa: E711
+            Task.archived_at == None,  # noqa: E711
+        )
+        total = base.count()
+        done_ids = {t.id for t in base.join(
+            BoardColumn, Task.column_id == BoardColumn.id).filter(
+            BoardColumn.is_done == True).all()}  # noqa: E712
+        done = len(done_ids)
+        overdue = sum(1 for t in base.filter(
+            Task.due_date != None,  # noqa: E711
+            Task.due_date < datetime.now()).all() if t.id not in done_ids)
+        stats.append({"member": m, "total": total, "done": done,
+                      "pct": round(done / total * 100) if total else 0,
+                      "overdue": overdue})
+    return stats
 
 
 class TaskChecklist(Base):
@@ -450,11 +521,9 @@ def switch_db(db_path: str):
 
 
 DEFAULT_COLUMNS = [
-    {"name": "Backlog", "order": 0},
-    {"name": "A fazer", "order": 1},
-    {"name": "Fazendo", "order": 2},
-    {"name": "Revisão", "order": 3},
-    {"name": "Concluído", "order": 4, "is_done": True},
+    {"name": "A fazer", "order": 0},
+    {"name": "Fazendo", "order": 1},
+    {"name": "Feito", "order": 2, "is_done": True},
 ]
 
 
