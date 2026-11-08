@@ -1731,7 +1731,29 @@ gerado de `docs-migração/diagrams/acompanhamento/10-progresso-entrega.svg`
 Modulo planejado sem card aparece zerado (ex.: `tef 0/5 ep`), e as sub-entregas
 usam o nome do plano (`cfg-e1` -> "E1 · loja", `onda-2` -> "O2 · movimentar").
 
-## 5. Exportar as metricas do projeto em PDF
+## 5. Quem chegou em cada estagio (cumulativo)
+
+"Esta em" != "chegou em". Um card em Dev Review ja passou por Dev Box. Para
+saber quantos chegaram a um estagio (ex.: Dev Box = dev concluido, aguardando
+teste):
+
+```bash
+curl -s "http://127.0.0.1:9777/api/projects/1/metrics/stages?stage=dev-box" | jq '{
+  total,
+  estagios: [.stages[] | {name, reached, pct, current}],
+  dev_box: .selected
+}'
+```
+
+- `stages[]` — `reached` (chegou), `current` (esta agora), `pct` (% do board)
+- `breakdown[estagio][]` — corte por modulo, **soma 100%** (um grupo por card;
+  cards sem modulo viram `sem-modulo`)
+- `stage=` devolve `selected` com `groups` do estagio
+
+Semantica: "chegou" = ordem das colunas (fluxo linear) + `activity_log`
+(`moved`, detalhe `Origem -> Destino`, as duas pontas contam).
+
+## 6. Exportar as metricas do projeto em PDF
 
 ```bash
 # mesmo conteudo da aba Metricas do board (progresso, colunas, pessoas,
@@ -1741,7 +1763,7 @@ curl -s -o metricas.pdf \
 # Content-Disposition: attachment; filename="metricas-<KEY>-<data>.pdf"
 ```
 
-## 6. Ler o progresso como lider
+## 7. Ler o progresso como lider
 
 - `pct` < 100 com `daysLeft` <= 7 → risco, verificar bloqueios no board
 - `daysLeft` negativo → atrasado; renegociar escopo ou data

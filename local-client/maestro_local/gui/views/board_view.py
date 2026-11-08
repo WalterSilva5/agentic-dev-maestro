@@ -1723,6 +1723,93 @@ class BoardMetricsAccordion(QFrame):
             w_prog.setLayout(prog_row)
             self.content_layout.addWidget(w_prog)
 
+            # — Chegaram em cada estágio (cumulativo) + corte por módulo —
+            from maestro_local.stages import compute_stages
+
+            historico_mov = (
+                s.query(ActivityLog.entity_id, ActivityLog.detail)
+                .filter(ActivityLog.entity_type == "task", ActivityLog.action == "moved")
+                .all()
+            )
+            estagios = compute_stages(tasks_all, cols, historico_mov)
+            if estagios["stages"]:
+                est_box = self._section_box("📈 " + _t("Chegaram em cada estágio"), t)
+                nota = QLabel(_t("Chegou = está no estágio ou já passou por ele (ordem das colunas + movimentações)."))
+                nota.setWordWrap(True)
+                nota.setStyleSheet(f"color: {t.text_muted}; font-size: 10px; border: none;")
+                est_box["layout"].addWidget(nota)
+
+                combo = QComboBox()
+                for x in estagios["stages"]:
+                    combo.addItem(f"{x['name']} · {x['reached']} " + _t("chegaram"), x["stage"])
+                por_estagio = {x["stage"]: x for x in estagios["stages"]}
+                padrao = "dev-box" if "dev-box" in por_estagio else estagios["stages"][0]["stage"]
+                combo.setCurrentIndex([x["stage"] for x in estagios["stages"]].index(padrao))
+
+                max_alcancado = max(x["reached"] for x in estagios["stages"]) or 1
+                funil = QVBoxLayout(); funil.setSpacing(2)
+                for x in estagios["stages"]:
+                    linha = QHBoxLayout(); linha.setSpacing(6)
+                    nome = QLabel(x["name"])
+                    nome.setStyleSheet(f"color: {t.text_primary}; font-size: 11px; border: none;")
+                    nome.setFixedWidth(120)
+                    linha.addWidget(nome)
+                    barra_alc = QProgressBar()
+                    barra_alc.setValue(int(x["reached"] / max_alcancado * 100))
+                    barra_alc.setFormat(f"{x['reached']} ({x['pct']}%)")
+                    barra_alc.setFixedHeight(12)
+                    linha.addWidget(barra_alc, 1)
+                    agora = QLabel(f"{_t('agora')}: {x['current']}")
+                    agora.setStyleSheet(f"color: {t.text_muted}; font-size: 10px; border: none;")
+                    agora.setFixedWidth(80)
+                    linha.addWidget(agora)
+                    w_linha = QWidget(); w_linha.setLayout(linha)
+                    funil.addWidget(w_linha)
+                est_box["layout"].addLayout(funil)
+
+                split_titulo = QLabel()
+                split_titulo.setStyleSheet(f"color: {t.text_primary}; font-size: 11px; font-weight: 600; border: none;")
+                est_box["layout"].addWidget(split_titulo)
+                split_box = QVBoxLayout(); split_box.setSpacing(3)
+                est_box["layout"].addLayout(split_box)
+
+                def _preencher_split(chave_estagio):
+                    while split_box.count():
+                        item = split_box.takeAt(0)
+                        if item.widget():
+                            item.widget().deleteLater()
+                    est = por_estagio.get(chave_estagio)
+                    if not est:
+                        return
+                    split_titulo.setText(
+                        f"{est['name']} · {_t('corte por módulo')} ({est['reached']} {_t('cards')})"
+                    )
+                    grupos = estagios["breakdown"].get(chave_estagio, [])
+                    if not grupos:
+                        split_box.addWidget(self._hint(_t("Nenhum card chegou neste estágio."), t))
+                        return
+                    for g in grupos:
+                        r = QHBoxLayout(); r.setSpacing(6)
+                        lb = QLabel(_t("Sem módulo") if g["group"] == "sem-modulo" else g["label"])
+                        lb.setStyleSheet(f"color: {t.text_primary}; font-size: 11px; border: none;")
+                        lb.setFixedWidth(120)
+                        r.addWidget(lb)
+                        b = QProgressBar(); b.setValue(g["pct"]); b.setFormat(f"{g['total']} · {g['pct']}%")
+                        b.setFixedHeight(12)
+                        r.addWidget(b, 1)
+                        wg = QWidget(); wg.setLayout(r)
+                        split_box.addWidget(wg)
+                    dica = QLabel(_t("Cada card entra em um grupo só — a soma fecha em 100% do estágio."))
+                    dica.setStyleSheet(f"color: {t.text_muted}; font-size: 10px; border: none;")
+                    split_box.addWidget(dica)
+
+                combo.currentIndexChanged.connect(
+                    lambda idx: _preencher_split(combo.itemData(idx))
+                )
+                est_box["layout"].insertWidget(1, combo)
+                _preencher_split(padrao)
+                self.content_layout.addWidget(est_box["box"])
+
             # — 3 colunas: Alertas | Prazos | Objetivos —
             cols_row = QHBoxLayout()
             cols_row.setSpacing(16)

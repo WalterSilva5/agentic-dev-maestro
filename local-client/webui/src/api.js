@@ -95,6 +95,8 @@ export const getMetrics = () => api.get('/projects/metrics').then((r) => r.data)
 export const metricsPdfUrl = (projectId) => `/api/projects/${projectId}/metrics/export.pdf`
 export const getMetricsDimensions = (projectId) =>
   api.get(`/projects/${projectId}/metrics/dimensions`).then((r) => r.data)
+export const getMetricsStages = (projectId) =>
+  api.get(`/projects/${projectId}/metrics/stages`).then((r) => r.data)
 export const getActivity = (limit = 15) => api.get('/activity', { params: { limit } }).then((r) => r.data)
 
 // Assistente

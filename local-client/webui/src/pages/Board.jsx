@@ -17,6 +17,7 @@ import {
   updateProject,
   metricsPdfUrl,
   getMetricsDimensions,
+  getMetricsStages,
   getLinks,
   createLink,
   updateLink,
@@ -82,6 +83,8 @@ export default function Board() {
   const [goals, setGoals] = useState([])
   const [metricsOpen, setMetricsOpen] = useState(true)
   const [dimensions, setDimensions] = useState(null)
+  const [stages, setStages] = useState(null)
+  const [selectedStage, setSelectedStage] = useState(null)
   const [members, setMembers] = useState([])
   const [showMembers, setShowMembers] = useState(false)
   const [newMemberName, setNewMemberName] = useState('')
@@ -152,6 +155,14 @@ export default function Board() {
     loadMembers()
     loadLinks()
     getMetricsDimensions(projectId).then(setDimensions).catch(() => setDimensions(null))
+    getMetricsStages(projectId)
+      .then((d) => {
+        setStages(d)
+        // por padrão abre no "Dev Box" (dev concluído, aguardando teste)
+        const devBox = d.stages.find((x) => x.stage === 'dev-box')
+        setSelectedStage((atual) => atual || (devBox ? devBox.stage : d.stages[0]?.stage) || null)
+      })
+      .catch(() => setStages(null))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, sprintFilter])
 
@@ -561,6 +572,95 @@ export default function Board() {
               <div style={{ height: 14, background: 'var(--border-light)', borderRadius: 7, overflow: 'hidden', display: 'flex' }}><div style={{ width: `${pct}%`, background: pct===100?'#16a34a':'#f59e0b' }} /></div>
               <div className="muted" style={{ fontSize: 10, marginTop: 4 }}>{doneTasks}/{totalTasks} · {pct}%</div>
             </div>
+            {/* Chegaram em cada estágio (cumulativo) + corte por módulo */}
+            {stages && stages.stages.length > 0 && (() => {
+              const lista = stages.stages
+              const sel = lista.find((x) => x.stage === selectedStage) || lista[0]
+              const grupos = (stages.breakdown && stages.breakdown[sel.stage]) || []
+              const maxReached = Math.max(...lista.map((x) => x.reached), 1)
+              return (
+                <div style={{ background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '10px', marginTop: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <span className="muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, textTransform: 'uppercase' }}>📈 {t('Chegaram em cada estágio')}</span>
+                    <span className="muted" style={{ fontSize: 10 }}>
+                      {t('Chegou = está no estágio ou já passou por ele (ordem das colunas + movimentações).')}
+                    </span>
+                    <select
+                      value={sel.stage}
+                      onChange={(e) => setSelectedStage(e.target.value)}
+                      style={{ marginLeft: 'auto' }}
+                      title={t('Escolha o estágio para ver o corte por módulo')}
+                    >
+                      {lista.map((x) => (
+                        <option key={x.stage} value={x.stage}>
+                          {x.name} · {x.reached} {t('chegaram')}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12, marginTop: 8 }}>
+                    {/* funil cumulativo */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                      {lista.map((x) => {
+                        const ativo = x.stage === sel.stage
+                        const largura = Math.max(8, Math.round((x.reached / maxReached) * 100))
+                        return (
+                          <button
+                            key={x.stage}
+                            onClick={() => setSelectedStage(x.stage)}
+                            style={{
+                              display: 'block', width: '100%', textAlign: 'left', cursor: 'pointer',
+                              background: ativo ? 'var(--card)' : 'transparent',
+                              border: `1px solid ${ativo ? 'var(--accent)' : 'transparent'}`,
+                              borderRadius: 6, padding: '3px 6px',
+                            }}
+                            title={`${x.reached} ${t('cards chegaram')} · ${x.current} ${t('estão agora')}`}
+                          >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, gap: 6 }}>
+                              <span style={{ fontWeight: ativo ? 700 : 500, color: 'var(--text)' }}>{x.name}</span>
+                              <span style={{ color: 'var(--text-muted, #6b7280)', fontSize: 10 }}>{x.reached} <span style={{ opacity: .65 }}>({x.pct}%)</span></span>
+                            </div>
+                            <div style={{ height: 7, background: 'var(--border-light)', borderRadius: 4, overflow: 'hidden', marginTop: 2 }}>
+                              <div style={{ width: `${largura}%`, height: '100%', background: x.isDone ? '#16a34a' : ativo ? 'var(--accent)' : '#93c5fd' }} />
+                            </div>
+                            <div className="muted" style={{ fontSize: 9 }}>{t('agora')}: {x.current}</div>
+                          </button>
+                        )
+                      })}
+                    </div>
+
+                    {/* corte por módulo do estágio selecionado */}
+                    <div>
+                      <div className="muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, textTransform: 'uppercase', marginBottom: 6 }}>
+                        {sel.name} · {t('corte por módulo')} ({sel.reached} {t('cards')})
+                      </div>
+                      {grupos.length === 0 ? (
+                        <div className="muted" style={{ fontSize: 11 }}>{t('Nenhum card chegou neste estágio.')}</div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                          {grupos.map((g, i) => (
+                            <div key={g.group}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
+                                <span>{g.label === 'sem-modulo' ? t('Sem módulo') : g.label}</span>
+                                <span className="muted">{g.total} · <b style={{ color: 'var(--text)' }}>{g.pct}%</b></span>
+                              </div>
+                              <div style={{ height: 8, background: 'var(--border-light)', borderRadius: 4, overflow: 'hidden' }}>
+                                <div style={{ width: `${g.pct}%`, height: '100%', background: g.group === 'sem-modulo' ? '#9CA3AF' : PIE_COLORS[i % PIE_COLORS.length] }} />
+                              </div>
+                            </div>
+                          ))}
+                          <div className="muted" style={{ fontSize: 10, marginTop: 2 }}>
+                            {t('Cada card entra em um grupo só — a soma fecha em 100% do estágio.')}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
+
             {/* Módulos e submódulos — classificação explícita (módulo != sprint != tag) */}
             <div style={{ background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '10px', marginTop: 8 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>

@@ -2767,6 +2767,47 @@ def project_metrics_dimensions(project_id: int, s: Session = Depends(db)):
     return {"projectId": project_id, **dados}
 
 
+@app.get("/api/projects/{project_id}/metrics/stages")
+def project_metrics_stages(project_id: int, stage: str | None = None, s: Session = Depends(db)):
+    """Quem **chegou** em cada estágio (cumulativo) e o corte por grupo (soma 100%).
+
+    "Chegou" = está na coluna ou já passou por ela (ordem das colunas + histórico
+    de movimentação). `stage` (ex.: `dev-box`) devolve o recorte daquele estágio.
+    """
+    from maestro_local.stages import compute_stages
+
+    project = s.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(404, "Project not found")
+
+    columns = s.query(BoardColumn).filter(BoardColumn.project_id == project_id).all()
+    tasks = (
+        s.query(Task)
+        .filter(
+            Task.project_id == project_id,
+            Task.deleted_at == None,  # noqa: E711
+            Task.archived_at == None,  # noqa: E711
+        )
+        .all()
+    )
+    historico = (
+        s.query(ActivityLog.entity_id, ActivityLog.detail)
+        .filter(ActivityLog.entity_type == "task", ActivityLog.action == "moved")
+        .all()
+    )
+    dados = compute_stages(tasks, columns, historico)
+    resposta = {"projectId": project_id, **dados}
+    if stage:
+        alvo = next((x for x in dados["stages"] if x["stage"] == stage), None)
+        if not alvo:
+            raise HTTPException(404, f"Stage not found: {stage}")
+        resposta["selected"] = {
+            **alvo,
+            "groups": dados["breakdown"].get(stage, []),
+        }
+    return resposta
+
+
 @app.get("/api/projects/{project_id}/metrics/export.pdf")
 def export_project_metrics_pdf(project_id: int, s: Session = Depends(db)):
     """Relatório de métricas do projeto em PDF (mesmo conteúdo da aba Métricas)."""

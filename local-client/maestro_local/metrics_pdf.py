@@ -156,6 +156,16 @@ def collect_metrics(session, project) -> dict:
     from maestro_local.dimensions import aggregate_dimensions
     dimensoes = aggregate_dimensions(tasks, done_ids)
 
+    # quem chegou em cada estágio (cumulativo) e o corte por módulo
+    from maestro_local.db.models import ActivityLog
+    from maestro_local.stages import compute_stages
+    historico = (
+        session.query(ActivityLog.entity_id, ActivityLog.detail)
+        .filter(ActivityLog.entity_type == "task", ActivityLog.action == "moved")
+        .all()
+    )
+    estagios = compute_stages(tasks, cols, historico)
+
     # daily do projeto
     daily = (
         session.query(ProjectDailyEntry)
@@ -184,6 +194,7 @@ def collect_metrics(session, project) -> dict:
         "por_epico": por_epico,
         "por_modulo": por_modulo,
         "dimensoes": dimensoes,
+        "estagios": estagios,
         "daily": {
             "total": len(daily),
             "dias": len(daily_dias),
@@ -615,6 +626,90 @@ def build_metrics_pdf(session, project) -> bytes:
             ("TOPPADDING", (0, 0), (-1, -1), 0),
         ]))
         flow.append(grid)
+
+    # ---------- quem chegou em cada estágio (cumulativo) ----------
+    est = m.get("estagios") or {}
+    if est.get("stages"):
+        _titulo(flow, "Chegaram em cada estágio", st)
+        flow.append(Paragraph(
+            "Chegou = está no estágio ou já passou por ele (ordem das colunas + "
+            "movimentações registradas). Um card pode contar em vários estágios; "
+            "a coluna 'agora' mostra quantos estão ali neste momento.",
+            st["small"],
+        ))
+        flow.append(Spacer(1, 2 * mm))
+        maximo_est = max(x["reached"] for x in est["stages"]) or 1
+        linhas_est = [[
+            Paragraph("<b>Estágio</b>", st["small"]),
+            Paragraph("<b>Proporção</b>", st["small"]),
+            Paragraph("<b>Chegaram · % do board</b>", st["small"]),
+            Paragraph("<b>Agora</b>", st["small"]),
+        ]]
+        for x in est["stages"]:
+            largura = max(10, 96 * x["reached"] / maximo_est)
+            cor = GREEN if x["isDone"] else ACCENT
+            linhas_est.append([
+                Paragraph(x["name"], st["body"]),
+                _bar(x["pct"], width=largura, cor=cor),
+                Paragraph(f"<b>{x['reached']}</b> · {x['pct']}%", st["small"]),
+                Paragraph(str(x["current"]), st["small"]),
+            ])
+        t_est = Table(linhas_est, colWidths=[52 * mm, 62 * mm, 32 * mm, 22 * mm], repeatRows=1)
+        t_est.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("TOPPADDING", (0, 0), (-1, -1), 2),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ("LINEBELOW", (0, 0), (-1, -1), 0.3, BORDER),
+            ("LINEBELOW", (0, 0), (-1, 0), 0.8, colors.HexColor("#9CA3AF")),
+        ]))
+        flow.append(t_est)
+
+        # corte por módulo dos estágios-chave
+        destaques = [c for c in ("dev-box", "in-test", "done")
+                     if any(x["stage"] == c and x["reached"] for x in est["stages"])]
+        if destaques:
+            flow.append(Spacer(1, 3 * mm))
+            flow.append(Paragraph(
+                "<b>Em Dev Box o desenvolvimento está concluído e o card aguarda teste.</b>",
+                st["small"],
+            ))
+            flow.append(Spacer(1, 1.5 * mm))
+            blocos = []
+            for chave in destaques:
+                info = next(x for x in est["stages"] if x["stage"] == chave)
+                grupos = est["breakdown"].get(chave, [])
+                dados = [[
+                    Paragraph(f"<b>{info['name']}</b> <font color='#9CA3AF'>({info['reached']} cards)</font>",
+                              st["small"]),
+                    Paragraph("", st["small"]),
+                ]]
+                for g in grupos:
+                    rotulo = "Sem módulo" if g["group"] == "sem-modulo" else g["label"]
+                    dados.append([
+                        Paragraph(rotulo, st["body"]),
+                        Paragraph(f"{g['total']} · <b>{g['pct']}%</b>", st["small"]),
+                    ])
+                tb = Table(dados, colWidths=[34 * mm, 22 * mm])
+                tb.setStyle(TableStyle([
+                    ("TOPPADDING", (0, 0), (-1, -1), 2),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                    ("LINEBELOW", (0, 0), (-1, -2), 0.3, BORDER),
+                ]))
+                blocos.append(tb)
+            grid_est = Table([blocos], colWidths=[58 * mm] * len(blocos))
+            grid_est.setStyle(TableStyle([
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+                ("TOPPADDING", (0, 0), (-1, -1), 0),
+            ]))
+            flow.append(grid_est)
+            flow.append(Paragraph(
+                "Cada card entra em um grupo só — o corte de cada estágio soma 100%.",
+                st["small"],
+            ))
 
     # ---------- por coluna (tabela) ----------
     _titulo(flow, "Cards por coluna", st)
