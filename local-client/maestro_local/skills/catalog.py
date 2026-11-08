@@ -13,7 +13,7 @@ description: Run the Maestro Local desktop app (GUI + API)
 # Run Maestro Local
 
 ```bash
-cd {project_dir}
+cd /home/wsi/repositorios/github/agentic-dev-maestro
 source .venv/bin/activate
 python -m maestro_local
 ```
@@ -141,6 +141,77 @@ curl -X POST http://127.0.0.1:9777/api/projects/1/members -H 'Content-Type: appl
 # Atribuir card pelo nome (cria o membro se nao existir)
 curl -X PATCH http://127.0.0.1:9777/api/tasks/KEY-1 -H 'Content-Type: application/json' -d '{"assignee":"Walter"}'
 ```
+
+## Metricas por dimensao (modulo != sprint != tag)
+
+Nem toda label e modulo: na mesma lista convivem modulo (`cashier`), submodulo
+(`cfg-e1`), sprint (`sprint-2`), plataforma (`vm`) e natureza (`fundacao`).
+
+```bash
+curl -s http://127.0.0.1:9777/api/projects/1/metrics/dimensions | jq '{
+  cards, local, with_module, unlabeled,
+  modulos: [.modules[] | {label, done, total, pct, submodules}],
+  sprints: .sprints, plataformas: .platforms, natureza: .process
+}'
+```
+
+- `modules[]` — modulo de entrega com `submodules[]` (nome do plano: "E1 · loja")
+- `sprints[]` / `platforms[]` / `process[]` — dimensoes separadas (nao entram no % por modulo)
+- `plan` — `{modules: 17, endpoints: 156}` (plano oficial do SVG de acompanhamento)
+- `local` — tarefas locais excluidas do calculo
+
+## Quem chegou em cada estagio (cumulativo)
+
+"Esta em" != "chegou em": um card em Dev Review ja passou por Dev Box
+(dev concluido, aguardando teste).
+
+```bash
+curl -s "http://127.0.0.1:9777/api/projects/1/metrics/stages?stage=dev-box" | jq '{
+  total, local,
+  estagios: [.stages[] | {name, reached, pct, current}],
+  dev_box: .selected
+}'
+```
+
+- `reached` = chegou (cumulativo), `current` = esta agora, `pct` = % do board
+- `breakdown[estagio][]` = corte por modulo, **soma 100%** (um card por grupo;
+  card sem modulo vira `sem-modulo`)
+- `stage=` devolve `selected` com `groups` do estagio
+- "chegou" = ordem das colunas + `activity_log` (`moved`, "Origem -> Destino")
+
+## Tarefas locais (nao sincronizam com o board externo)
+
+```bash
+curl -s -X POST http://127.0.0.1:9777/api/tasks -H 'Content-Type: application/json' \\
+  -d '{"projectId":1,"columnId":5,"title":"revisar o que o dev fez hoje","type":"CHORE","isLocal":true}' \\
+  | jq '{code, title, isLocal}'
+```
+
+- `isLocal: true` -> o card existe so no Maestro; o sync do board externo nao
+  cria, nao atualiza, nao apaga e nao sobrescreve numero igual
+- `isLocal: false` (padrao) -> card espelhado do board externo
+- `PATCH /api/tasks/{code}` com `{"isLocal": true|false}` converte
+- **Nao entra no progresso** (% concluido, WIP, por coluna/responsavel/epico/
+  modulo/estagio, goals); as respostas trazem `local: N`
+- **Gera alerta de prazo**: vencidas, paradas 14d+ e "vence em 7 dias"
+
+## Reunioes (gravacoes do desktop)
+
+Mesmas gravacoes do app desktop, disponiveis tambem na web (`/reunioes`).
+
+```bash
+curl -s "http://127.0.0.1:9777/api/recordings?archived=all&q=migracao" | jq '.[] | {id,title,createdAt,hasSummary}'
+curl -s "http://127.0.0.1:9777/api/recordings/1" | jq '{title, sections, transcript}'
+curl -s -X PATCH "http://127.0.0.1:9777/api/recordings/1" -H 'Content-Type: application/json' \\
+  -d '{"title":"Daily 08/11","tags":["daily"]}'
+curl -s -X POST "http://127.0.0.1:9777/api/recordings/1/archive" -H 'Content-Type: application/json' -d '{"archived":true}'
+curl -s -o reuniao.md "http://127.0.0.1:9777/api/recordings/1/export?format=md"   # md | txt | json
+```
+
+- `sections` = plano, dicas, acoes, decisoes e perguntas do assistente ao vivo
+- export `md`: usa o resumo salvo ou monta a partir das secoes + transcricao
+- `DELETE /api/recordings/{id}` remove; `GET /api/recordings/{id}/audio` serve o audio
+
 """,
     },
     {
@@ -288,6 +359,14 @@ curl -X POST http://127.0.0.1:9777/api/tasks \\
     "requiresHuman": true
   }'
 ```
+
+### Tarefa local x tarefa do board externo
+
+- **Revisao para o dev** = card normal (`isLocal` ausente/false): precisa
+  aparecer no board de todo mundo.
+- **Lembrete pessoal** ("revisar o que o dev fez hoje") = `isLocal: true`:
+  nao sobe para o board externo e nao entra no progresso/modulo. Ver
+  `maestro-api-agent` (secao "Tarefas locais").
 
 ### Regras da tarefa de revisao
 
@@ -607,7 +686,20 @@ curl -s 'http://127.0.0.1:9777/api/activity?limit=20' | \\
   jq '.[] | {action, detail, createdAt}'
 ```
 
-## 5. Metricas do dia
+## 5. Quem chegou em cada estagio (fluxo, nao foto)
+
+```bash
+curl -s "http://127.0.0.1:9777/api/projects/1/metrics/stages?stage=dev-box" | jq '{
+  total,
+  estagios: [.stages[] | {name, reached, pct, current}],
+  dev_box_por_modulo: .selected.groups
+}'
+```
+
+`reached` = chegou (cumulativo: quem esta em Dev Review ja passou por Dev Box);
+`current` = esta ali agora. O corte por modulo soma 100%.
+
+## 6. Metricas do dia
 
 ```bash
 curl -s http://127.0.0.1:9777/api/projects/metrics | \\
@@ -1153,23 +1245,16 @@ iniciar a sessao para recuperar contexto de qualquer ponto do projeto.
 curl -s http://127.0.0.1:9777/api/memory/stats | jq .
 
 # Busca semantica (troque a query pelo foco da sessao)
-curl -s -X POST http://127.0.0.1:9777/api/memory/search \
-  -H 'Content-Type: application/json' \
-  -d '{"query":"decisoes de arquitetura e preferencias do projeto","topK":8}' \
-  | jq '{count, agentContext, results: [.results[] | {id, kind, title, score}]}'
+curl -s -X POST http://127.0.0.1:9777/api/memory/search   -H 'Content-Type: application/json'   -d '{"query":"decisoes de arquitetura e preferencias do projeto","topK":8}'   | jq '{count, agentContext, results: [.results[] | {id, kind, title, score}]}'
 
 # Listar decisoes recentes
 curl -s 'http://127.0.0.1:9777/api/memory?kind=decision&limit=20' | jq .
 
 # Gravar memoria nova (quando aprender algo importante)
-curl -s -X POST http://127.0.0.1:9777/api/memory \
-  -H 'Content-Type: application/json' \
-  -d '{"title":"...","content":"...","kind":"decision","importance":0.8,"sourceType":"agent"}' | jq .
+curl -s -X POST http://127.0.0.1:9777/api/memory   -H 'Content-Type: application/json'   -d '{"title":"...","content":"...","kind":"decision","importance":0.8,"sourceType":"agent"}' | jq .
 
 # Ingerir entidade existente (task|comment|document|daily|recording|sprint|kb)
-curl -s -X POST http://127.0.0.1:9777/api/memory/ingest \
-  -H 'Content-Type: application/json' \
-  -d '{"sourceType":"task","sourceId":123}' | jq .
+curl -s -X POST http://127.0.0.1:9777/api/memory/ingest   -H 'Content-Type: application/json'   -d '{"sourceType":"task","sourceId":123}' | jq .
 ```
 
 ### Kinds disponiveis
@@ -1584,73 +1669,184 @@ curl -s -X POST http://127.0.0.1:9777/api/memory/reembed \\
         "tags": ["daily", "standup", "log", "project", "history", "report"],
         "filename": "maestro-project-daily",
         "content": """---
-description: Read, filter, create and edit the project daily log (one entry per day)
+description: Lê, filtra, cria e edita o Daily do projeto no Maestro Local (registro diário de trabalho por dia, no board do projeto). Use quando o usuário pedir "o que foi feito no projeto ontem", "daily do projeto", "registra no daily", "resume a semana do projeto", "histórico de trabalho do projeto", "o que o time fez no dia X", ou quando um agente precisar reconstruir andamento do projeto por data.
 ---
 
-# Daily do projeto — registro de trabalho por dia
+# Maestro — Daily do projeto (registro de trabalho por dia)
 
-Cada registro e um comentario do projeto com **dia**, **tipo**, **texto**,
-autor e (opcional) minutos e card. Serve de doc de daily e de fonte para
-agentes reconstruirem o andamento por data.
+O **Daily do projeto** é um diário de trabalho: cada registro é um comentário
+com **dia**, **tipo**, **texto**, autor e (opcional) minutos e card. Serve de
+documento de daily e de fonte para agentes reconstruírem o andamento.
 
-Diferente de `Comment` (comentario de um card) e de `DailyNote`
-(`/api/daily/{date}`, nota global do Meu Dia).
+Diferente de:
+- **`Comment`** → comentário de um card específico.
+- **`DailyNote`** (`/api/daily/{date}`) → nota global do dia (Meu Dia), não por projeto.
 
-Base: `http://127.0.0.1:9777/api`
+## Onde aparece
 
-## 1. Listar / filtrar
+- **Desktop**: Board do projeto → aba **📝 Daily**.
+- **Web**: Board do projeto → aba **📝 Daily** (`/board/{id}`).
+- **API**: `/api/projects/{id}/daily` (ver abaixo).
+
+## API (base `http://127.0.0.1:9777`)
+
+### Listar / filtrar
+```bash
+GET /api/projects/{projectId}/daily
+    ?date=YYYY-MM-DD          # dia exato
+    &dateFrom=YYYY-MM-DD      # intervalo (início)
+    &dateTo=YYYY-MM-DD        # intervalo (fim)
+    &kind=WORK|BLOCKER|DECISION|NOTE
+    &author=nome              # busca parcial, case-insensitive
+    &q=texto                  # busca no corpo
+    &limit=200
+```
+Retorna lista ordenada do **mais recente** para o mais antigo.
 
 ```bash
-# dia exato
-curl -s "http://127.0.0.1:9777/api/projects/2/daily?date=2026-11-08" | jq
+# o que foi feito ontem
+curl -s "http://127.0.0.1:9777/api/projects/2/daily?date=$(date -d yesterday +%F)" | jq
 
-# intervalo + tipo
-curl -s "http://127.0.0.1:9777/api/projects/2/daily?dateFrom=2026-11-01&dateTo=2026-11-07&kind=BLOCKER" | jq
+# semana atual, só bloqueios
+curl -s "http://127.0.0.1:9777/api/projects/2/daily?dateFrom=$(date -d 'monday -7 days' +%F)&kind=BLOCKER" | jq
 
-# autor e busca livre
-curl -s "http://127.0.0.1:9777/api/projects/2/daily?author=walter&q=cashier" | jq
+# busca livre
+curl -s "http://127.0.0.1:9777/api/projects/2/daily?q=cashier" | jq '.[].body'
 ```
 
-Filtros: `date`, `dateFrom`, `dateTo`, `kind`, `author`, `q`, `limit`.
-Retorna do mais recente para o mais antigo.
-
-## 2. Criar
-
+### Criar
 ```bash
-curl -X POST http://127.0.0.1:9777/api/projects/2/daily \
-  -H 'Content-Type: application/json' \
-  -d '{"body":"Implementei abertura de caixa","kind":"WORK","author":"walter","minutes":90,"taskCode":"MIG-13973"}'
+curl -s -X POST "http://127.0.0.1:9777/api/projects/2/daily" \\
+  -H 'Content-Type: application/json' \\
+  -d '{
+    "body": "Implementei a abertura de caixa e validei em loja 208",
+    "date": "2026-11-08",
+    "kind": "WORK",
+    "author": "walter",
+    "minutes": 90,
+    "taskCode": "MIG-13973"
+  }' | jq
 ```
+- `date` ausente → **hoje**.
+- `kind` ausente → `WORK`. Tipo inválido → `400`.
+- `body` vazio/só espaços → `400`.
 
-`date` ausente = hoje. `kind` ausente = WORK (WORK|BLOCKER|DECISION|NOTE).
-
-## 3. Editar / excluir
-
+### Editar
 ```bash
-curl -X PATCH http://127.0.0.1:9777/api/project-daily/12 \
-  -H 'Content-Type: application/json' -d '{"body":"texto revisado","kind":"DECISION"}'
-curl -X DELETE http://127.0.0.1:9777/api/project-daily/12
+curl -s -X PATCH "http://127.0.0.1:9777/api/project-daily/12" \\
+  -H 'Content-Type: application/json' \\
+  -d '{"body": "texto revisado", "kind": "DECISION", "minutes": 45}' | jq
+```
+Aceita `body`, `date`, `kind`, `author`, `minutes`, `taskCode` (todos opcionais).
+
+### Excluir
+```bash
+curl -s -X DELETE "http://127.0.0.1:9777/api/project-daily/12"
 ```
 
-## 4. Resumo (para relatorio/painel)
-
+### Resumo (para painéis e relatórios)
 ```bash
 curl -s "http://127.0.0.1:9777/api/projects/2/daily/summary?dateFrom=2026-11-01&dateTo=2026-11-30" | jq
-# { total, totalMinutes, byKind, byAuthor, days:[{date, entries, minutes, authors}] }
+# { total, totalMinutes, byKind: {WORK, BLOCKER, DECISION, NOTE}, byAuthor: {...},
+#   days: [{date, entries, minutes, authors}, ...] }
 ```
 
-## Regras ao escrever
+## Formato do doc de daily (vault)
 
-- Mostrar **registro + campo + valor** e pedir confirmacao antes de gravar
-  (vale a regra de escrita do Maestro).
-- Datas sempre `YYYY-MM-DD` (invalida = 400).
-- `PATCH`/`DELETE` usam `/api/project-daily/{id}` — nao `/api/daily/{id}`.
-- Nunca escrever em plataforma externa: o daily e local.
+O time mantém um arquivo por dia em
+`vault-docs-projetos/tarefas/VERZEL/GAV/daily/YYYY-MM/DD-MM-YYYY - Daily - <tema>.md`:
 
-## Onde aparece na UI
+```markdown
+# Daily - 04/11/2026 — tema do dia
 
-- Desktop: Board do projeto -> aba `Daily`
-- Web: `/board/{id}` -> aba `Daily`
+<contexto do dia>
+
+## Itens trabalhados
+
+### `13972` — modo de conexão do banco
+- o que foi feito
+- testes / commit / estado do card
+
+## Estado da sprint
+
+<números do board e progresso>
+
+## Pendências
+
+- item aberto
+```
+
+O Maestro guarda o mesmo conteúdo em registros por **seção**:
+`INTRO` · `ITEMS` (um por `###`) · `SPRINT` · `PENDING` (um por bullet) · `OTHER`.
+
+### Exportar o dia no formato do vault
+```bash
+curl -s "http://127.0.0.1:9777/api/projects/2/daily/export?date=2026-11-04" \\
+  | jq -r '.markdown' > "/tmp/04-11-2026 - Daily - tema.md"
+# também devolve .filename e .monthDir prontos para salvar no vault
+```
+
+Na UI: aba **Daily** → **⬇ Exportar .md** (web baixa o arquivo; desktop abre o
+salvar como).
+
+### Importar um doc existente
+```bash
+# por conteúdo
+curl -s -X POST "http://127.0.0.1:9777/api/projects/2/daily/import" \\
+  -H 'Content-Type: application/json' \\
+  -d "{\\"content\\": $(jq -Rs . < doc.md), \\"replace\\": true}" | jq
+
+# por caminho (servidor local)
+curl -s -X POST "http://127.0.0.1:9777/api/projects/2/daily/import" \\
+  -H 'Content-Type: application/json' \\
+  -d '{"path":"/home/wsi/.../04-11-2026 - Daily - tema.md","replace":true}' | jq
+```
+
+`replace=true` (padrão) substitui os registros daquele dia — o import é idempotente.
+
+### Importar o histórico inteiro do vault
+```bash
+python3 local-client/scripts/import_daily_vault.py \\
+  --dir /home/wsi/repositorios/github/vault-docs-projetos/tarefas/VERZEL/GAV/daily \\
+  --project-key MIG --dry-run     # confere
+# depois sem --dry-run (ou --month 2026-11 para um mês)
+```
+
+## Fluxo recomendado para o agente
+
+1. Descobrir o projeto: `GET /api/projects` (ou usar o projeto ativo do workspace).
+2. Ler o período pedido com `dateFrom`/`dateTo` (ou `date` para um dia só).
+3. Se for **escrever** (criar/editar/excluir): mostrar antes o que será gravado
+   (**registro + campo + valor**) e pedir confirmação — a regra de escrita do
+   Maestro vale também para o daily.
+4. Usar `kind` com critério: `WORK` (feito), `BLOCKER` (impedimento),
+   `DECISION` (decisão tomada), `NOTE` (observação).
+5. Amarrar ao card quando fizer sentido: `taskCode` = `MIG-13973` etc.
+
+## Escrevendo um resumo do período
+
+Para relatório, combine o daily com os cards:
+
+```bash
+# 1) registros do período
+curl -s "http://127.0.0.1:9777/api/projects/2/daily?dateFrom=2026-11-01&dateTo=2026-11-07" > /tmp/daily.json
+# 2) estado atual do board (progresso, por pessoa, por coluna)
+curl -s "http://127.0.0.1:9777/api/projects/2/board" > /tmp/board.json
+# 3) resumo agregado
+curl -s "http://127.0.0.1:9777/api/projects/2/daily/summary?dateFrom=2026-11-01&dateTo=2026-11-07"
+```
+
+Monte o texto por dia, separando `WORK` (entregue) de `BLOCKER` (atenção) e
+`DECISION` (mudanças de rumo).
+
+## Limites / cuidados
+
+- **Não** confundir com o Azure DevOps nem escrever em plataforma externa: o
+  daily é **local**.
+- `PATCH`/`DELETE` usam `/api/project-daily/{id}` (não `/api/daily/{id}`, que é
+  a nota global do Meu Dia).
+- Datas sempre `YYYY-MM-DD`; formato inválido → `400`.
+- Sem `project_id` válido → `404`.
 """,
     },
     {
@@ -1669,6 +1865,8 @@ description: Track goals with progress and countdown (tag/epic/sprint filters)
 Um goal e "entregar os cards que casam com os filtros ate a data".
 Filtros (tag, epico, sprint) sao opcionais e combinaveis. O progresso
 conta cards em coluna de conclusao sobre o total do filtro.
+
+Tarefas locais (`isLocal: true`) **nao** contam no progresso do goal.
 
 Base: `http://127.0.0.1:9777/api`
 
@@ -1703,108 +1901,17 @@ curl -X PATCH http://127.0.0.1:9777/api/goals/5 \\
 curl -X DELETE http://127.0.0.1:9777/api/goals/5
 ```
 
-## 4. Metricas por dimensao (modulo != sprint != tag)
-
-Nem toda label e modulo. Use o endpoint de dimensoes para nao misturar:
-
-```bash
-curl -s http://127.0.0.1:9777/api/projects/1/metrics/dimensions | jq '{
-  cards, with_module, unlabeled,
-  modulos: [.modules[] | {label, done, total, pct, submodules}],
-  sprints: .sprints,
-  plataformas: .platforms,
-  natureza: .process
-}'
-```
-
-- `modules[]` — modulo de entrega (`cashier`, `config`) com `submodules[]`
-  (`E1`, `Onda 1`) aninhados
-- `sprints[]` — ciclo (`Sprint 1`) — **nao** entra no progresso por modulo
-- `platforms[]` — onde roda (`vm`, `var3-app`)
-- `process[]` — natureza (`Fundacao`, `Infra`, `Bug`, `Despriorizado`)
-- `unlabeled` — cards sem label de modulo (nao inflar % de modulo com eles)
-
-Classificacao: `maestro_local/dimensions.py` (`classify_label`).
-Plano oficial (modulos, sub-entregas, endpoints): `maestro_local/module_plan.py`,
-gerado de `docs-migração/diagrams/acompanhamento/10-progresso-entrega.svg`
-(17 modulos, 156 endpoints; `nfce` e `carteira-digital` fora de escopo).
-Modulo planejado sem card aparece zerado (ex.: `tef 0/5 ep`), e as sub-entregas
-usam o nome do plano (`cfg-e1` -> "E1 · loja", `onda-2` -> "O2 · movimentar").
-
-## 4b. Tarefas locais (nao sincronizam com o board externo)
-
-Lembretes do dia a dia ("revisar o que o dev fez hoje") nao devem virar card do
-Azure. Crie com `isLocal`:
-
-```bash
-curl -s -X POST http://127.0.0.1:9777/api/tasks -H 'Content-Type: application/json' \
-  -d '{"projectId":1,"columnId":5,"title":"revisar o que o dev fez hoje","type":"CHORE","isLocal":true}' | jq '{code, title, isLocal}'
-```
-
-- `isLocal: true` -> o card existe so no Maestro; o sync ignora (nao cria, nao
-  atualiza, nao apaga, e nao sobrescreve numero igual)
-- `isLocal: false` (padrao) -> card espelhado do board externo
-- `PATCH /api/tasks/{code}` com `{"isLocal": true|false}` converte
-- No board: filtro "Origem" (Todas / Do board / Locais) e checkbox
-  "Criar como local" no formulario de criacao
-- **Nao entra no progresso**: por coluna, responsavel, epico, modulo,
-  estagio, WIP, objetivo e o % concluido ignoram tarefas locais. As metricas
-  reportam `local: N` so para dar transparencia da diferenca
-- **Mas gera alerta**: vencidas, paradas 14d+ e "vence em 7 dias" contam
-  tarefa local (lembrete de prazo). No PDF/UI o alerta vem marcado como local
-  (no PDF: `alertasLocal`)
-
-## 4c. Reunioes (gravacoes do desktop)
-
-Mesmas gravacoes do app desktop, disponiveis tambem na web (`/reunioes`).
-
-```bash
-curl -s "http://127.0.0.1:9777/api/recordings?archived=all&q=migracao" | jq '.[] | {id,title,createdAt,hasSummary}'
-curl -s "http://127.0.0.1:9777/api/recordings/1" | jq '{title, sections, transcript}'
-curl -s -X PATCH "http://127.0.0.1:9777/api/recordings/1" -H 'Content-Type: application/json' \
-  -d '{"title":"Daily 08/11","tags":["daily"]}'
-curl -s -X POST "http://127.0.0.1:9777/api/recordings/1/archive" -H 'Content-Type: application/json' -d '{"archived":true}'
-curl -s -o reuniao.md "http://127.0.0.1:9777/api/recordings/1/export?format=md"   # md | txt | json
-```
-
-- `sections` = plano, dicas, acoes, decisoes e perguntas do assistente ao vivo
-- export `md` usa o resumo salvo e, se nao houver, monta a partir das secoes +
-  transcricao (mesmo formato do vault)
-- `GET /api/recordings/{id}/audio` serve o audio original quando existe
-
-## 5. Quem chegou em cada estagio (cumulativo)
-
-"Esta em" != "chegou em". Um card em Dev Review ja passou por Dev Box. Para
-saber quantos chegaram a um estagio (ex.: Dev Box = dev concluido, aguardando
-teste):
-
-```bash
-curl -s "http://127.0.0.1:9777/api/projects/1/metrics/stages?stage=dev-box" | jq '{
-  total,
-  estagios: [.stages[] | {name, reached, pct, current}],
-  dev_box: .selected
-}'
-```
-
-- `stages[]` — `reached` (chegou), `current` (esta agora), `pct` (% do board)
-- `breakdown[estagio][]` — corte por modulo, **soma 100%** (um grupo por card;
-  cards sem modulo viram `sem-modulo`)
-- `stage=` devolve `selected` com `groups` do estagio
-
-Semantica: "chegou" = ordem das colunas (fluxo linear) + `activity_log`
-(`moved`, detalhe `Origem -> Destino`, as duas pontas contam).
-
-## 6. Exportar as metricas do projeto em PDF
+## 4. Exportar as metricas do projeto em PDF
 
 ```bash
 # mesmo conteudo da aba Metricas do board (progresso, colunas, pessoas,
 # modulos, prioridades e daily), pronto para enviar a lideranca
-curl -s -o metricas.pdf \
+curl -s -o metricas.pdf \\
   "http://127.0.0.1:9777/api/projects/1/metrics/export.pdf"
 # Content-Disposition: attachment; filename="metricas-<KEY>-<data>.pdf"
 ```
 
-## 7. Ler o progresso como lider
+## 5. Ler o progresso como lider
 
 - `pct` < 100 com `daysLeft` <= 7 → risco, verificar bloqueios no board
 - `daysLeft` negativo → atrasado; renegociar escopo ou data
