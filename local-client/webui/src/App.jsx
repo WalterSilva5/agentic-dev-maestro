@@ -21,46 +21,11 @@ import WorkspaceSelector from './components/WorkspaceSelector.jsx'
 import ProjectSelector from './components/ProjectSelector.jsx'
 import PendingTodosReminder from './components/PendingTodosReminder.jsx'
 import CoachTip from './components/CoachTip.jsx'
-import Swal from 'sweetalert2'
-import { getPendingTodos, createBackup, backupDownloadUrl } from './api'
-import { getTheme, toggleTheme } from './theme'
+import { getPendingTodos } from './api'
 import { t } from './i18n'
 
 function Sidebar({ onNavigate, onCollapse }) {
-  const [theme, setTheme] = useState(getTheme())
   const [pendingCount, setPendingCount] = useState(0)
-  const [backupando, setBackupando] = useState(false)
-
-  const fazerBackup = async () => {
-    setBackupando(true)
-    try {
-      const d = await createBackup()
-      const b = (d.backups || [])[0]
-      const mb = b ? (b.bytes / 1024 / 1024).toFixed(2) : '0'
-      const r = await Swal.fire({
-        icon: 'success',
-        title: t('Backup concluído'),
-        html: `<div style="font-size:12px;text-align:left;line-height:1.6">
-          <div><b>${t('Arquivo')}:</b> ${b?.file || '-'}</div>
-          <div><b>${t('Pasta')}:</b> ${d.dir}</div>
-          <div><b>${t('Tamanho')}:</b> ${mb} MB</div>
-        </div>`,
-        showDenyButton: true,
-        confirmButtonText: t('Fechar'),
-        denyButtonText: t('Baixar'),
-      })
-      if (r.isDenied && b) window.open(backupDownloadUrl(b.file), '_blank')
-    } catch (e) {
-      const detalhe = e?.response?.data?.detail
-      Swal.fire({
-        icon: 'error',
-        title: t('Falha no backup'),
-        text: typeof detalhe === 'string' ? detalhe : (e?.message || ''),
-      })
-    } finally {
-      setBackupando(false)
-    }
-  }
 
   useEffect(() => {
     const poll = () =>
@@ -140,17 +105,6 @@ function Sidebar({ onNavigate, onCollapse }) {
           </a>
         ))}
       </nav>
-      <button
-        className="theme-toggle"
-        onClick={fazerBackup}
-        disabled={backupando}
-        title={t('Copia o banco do workspace ativo para a pasta de backup do servidor')}
-      >
-        {backupando ? `⏳ ${t('Fazendo backup...')}` : `💾 ${t('Backup rápido')}`}
-      </button>
-      <button className="theme-toggle" onClick={() => setTheme(toggleTheme())}>
-        {theme === 'dark' ? `☀  ${t('Tema claro')}` : `☾  ${t('Tema escuro')}`}
-      </button>
     </aside>
   )
 }

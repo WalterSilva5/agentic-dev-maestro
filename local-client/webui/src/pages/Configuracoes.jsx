@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react'
-import { getCoachConfig, getSettings, putCoachConfig, updateSettings } from '../api'
+import {
+  getCoachConfig, getSettings, putCoachConfig, updateSettings,
+  createBackup, listBackups, backupDownloadUrl,
+} from '../api'
+import { getTheme, toggleTheme } from '../theme'
 import { t } from '../i18n'
 
 export default function Configuracoes() {
@@ -8,6 +12,13 @@ export default function Configuracoes() {
   const [saved, setSaved] = useState('')
   const [selectedProviderId, setSelectedProviderId] = useState('')
   const [coach, setCoach] = useState(null)
+  // aparência
+  const [tema, setTema] = useState(getTheme())
+  // backup do banco (quem copia é a API; a tela só dispara e mostra)
+  const [backupando, setBackupando] = useState(false)
+  const [backups, setBackups] = useState([])
+  const [backupDir, setBackupDir] = useState('')
+  const [ultimoBackup, setUltimoBackup] = useState(null)
 
   useEffect(() => {
     getSettings()
@@ -19,7 +30,41 @@ export default function Configuracoes() {
     getCoachConfig()
       .then(setCoach)
       .catch(() => setCoach({ enabled: true, interval_min: 90 }))
+    carregarBackups()
   }, [])
+
+  const carregarBackups = async () => {
+    try {
+      const d = await listBackups()
+      setBackups(d.backups || [])
+      setBackupDir(d.dir || '')
+    } catch {
+      /* sem backup ainda é normal */
+    }
+  }
+
+  const trocarTema = () => setTema(toggleTheme())
+
+  const fazerBackup = async () => {
+    setBackupando(true)
+    setError('')
+    try {
+      const d = await createBackup()
+      setUltimoBackup(d.backups?.[0] || null)
+      await carregarBackups()
+      flash(t('Backup concluído'))
+    } catch (e) {
+      const detalhe = e?.response?.data?.detail
+      setError(typeof detalhe === 'string' ? detalhe : (e?.message || t('Falha no backup')))
+    } finally {
+      setBackupando(false)
+    }
+  }
+
+  const tamanho = (bytes) => {
+    const kb = (bytes || 0) / 1024
+    return kb > 1024 ? `${(kb / 1024).toFixed(2)} MB` : `${Math.round(kb)} KB`
+  }
 
   const saveCoach = async (patch) => {
     try {
@@ -74,6 +119,55 @@ export default function Configuracoes() {
 
       {error && <div className="banner">{error}</div>}
       {saved && <p className="muted">{saved}</p>}
+
+      <div className="card">
+        <h4 style={{ color: 'var(--muted)' }}>🎨 {t('Aparência')}</h4>
+        <div className="row" style={{ gap: 8, alignItems: 'center' }}>
+          <span className="muted">{t('Tema atual:')} <b>{tema === 'dark' ? t('Escuro') : t('Claro')}</b></span>
+          <button className="ghost" onClick={trocarTema}>
+            {tema === 'dark' ? `☀ ${t('Usar tema claro')}` : `☾ ${t('Usar tema escuro')}`}
+          </button>
+        </div>
+      </div>
+
+      <div className="card">
+        <h4 style={{ color: 'var(--muted)' }}>💾 {t('Backup do banco')}</h4>
+        <p className="muted" style={{ marginTop: 0 }}>
+          {t('A API copia o banco do workspace ativo para a pasta de backup do servidor. Nada é gravado pelo navegador.')}
+        </p>
+        <div className="row" style={{ gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button onClick={fazerBackup} disabled={backupando}>
+            {backupando ? `⏳ ${t('Fazendo backup...')}` : `💾 ${t('Fazer backup agora')}`}
+          </button>
+          {backupDir && <span className="muted" style={{ fontSize: 11 }}>{t('Destino:')} <code>{backupDir}</code></span>}
+        </div>
+
+        {ultimoBackup && (
+          <p className="muted" style={{ fontSize: 12, marginBottom: 0 }}>
+            {t('Último backup:')} <b>{ultimoBackup.file}</b> · {tamanho(ultimoBackup.bytes)}
+          </p>
+        )}
+
+        {backups.length > 0 && (
+          <div style={{ marginTop: 10 }}>
+            <div className="muted" style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: .5, marginBottom: 4 }}>
+              {t('Últimos backups')}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {backups.slice(0, 5).map((b) => (
+                <div key={b.file} className="row" style={{ gap: 8, alignItems: 'center', fontSize: 12 }}>
+                  <span>{(b.createdAt || '').replace('T', ' ')}</span>
+                  <span className="muted">{tamanho(b.bytes)}</span>
+                  <code style={{ fontSize: 11 }}>{b.file}</code>
+                  <span style={{ flex: 1 }} />
+                  <a href={backupDownloadUrl(b.file)} download>{t('Baixar')}</a>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {backups.length === 0 && <p className="muted" style={{ fontSize: 12 }}>{t('Nenhum backup ainda.')}</p>}
+      </div>
 
       <div className="card">
         <h4 style={{ color: 'var(--muted)' }}>{t('Idioma')}</h4>
