@@ -362,10 +362,13 @@ export default function Board() {
       </div>
       <p className="subtitle">{tf('Board kanban via API ({count} colunas).', { count: cols.length })}</p>
 
-      {/* Abas: board de fluxo | planejamento de sprints */}
+      {/* Abas: board de fluxo | planejamento de sprints | métricas */}
       <div className="row" style={{ gap: 6, marginBottom: 10 }}>
         <button className={view === 'board' ? '' : 'ghost'} onClick={() => setView('board')}>
           {t('Board')}
+        </button>
+        <button className={view === 'metrics' ? '' : 'ghost'} onClick={() => setView('metrics')}>
+          {t('Métricas')}
         </button>
         <button className={view === 'planning' ? '' : 'ghost'} onClick={() => setView('planning')}>
           {t('Planejamento de Sprints')}
@@ -380,47 +383,14 @@ export default function Board() {
             loadSprints()
           }}
         />
-      ) : (
-        <>
-      {/* Barra de sprints */}
-      <div className="row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
-        <span className="muted">{t('Sprint:')}</span>
-        <select value={sprintFilter} onChange={(e) => setSprintFilter(e.target.value)}>
-          <option value="all">{t('Todas')}</option>
-          <option value="backlog">{t('Backlog')}</option>
-          {sprints.map((sp) => (
-            <option key={sp.id} value={sp.id}>
-              {sp.name} · {t(SPRINT_STATUS_LABELS[sp.status] || sp.status)} ({sp.doneCount}/{sp.taskCount})
-            </option>
-          ))}
-        </select>
-        {activeSprint && sprintFilter === 'all' && (
-          <button className="ghost" onClick={() => setSprintFilter(String(activeSprint.id))}>
-            {tf('Ver sprint ativa: {name}', { name: activeSprint.name })}
-          </button>
-        )}
-        <button className="ghost" onClick={() => setShowArchived((v) => !v)}>
-          {showArchived ? t('← Voltar ao board') : tf('Arquivados ({count})', { count: archived.length })}
-        </button>
-        <button className="ghost" onClick={() => setShowMembers(true)}>{t('Responsáveis')} ({members.length})</button>
-      </div>
-
-      {/* Métricas do projeto — acordeão (web) */}
-      <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 12 }}>
-        <div
-          role="button"
-          onClick={() => setMetricsOpen((v) => !v)}
-          style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', cursor: 'pointer', userSelect: 'none' }}
-        >
-          <button className="ghost" style={{ padding: '2px 8px', minWidth: 0 }} onClick={(e) => { e.stopPropagation(); setMetricsOpen((v) => !v) }}>
-            {metricsOpen ? '▾' : '▸'}
-          </button>
-          <strong>{t('Métricas do projeto')}</strong>
-          <span className="muted" style={{ fontSize: 11 }}>{metricSummary.length ? metricSummary.join('  ·  ') : t('Tudo em dia')}</span>
-        </div>
-        {metricsOpen && (
-          <div style={{ padding: '0 14px 14px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {/* Progresso geral */}
+      ) : view === 'metrics' ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {/* Métricas — conteúdo completo sem acordeão */}
+          <div className="card" style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <strong>{t('Métricas do projeto')}</strong>
+              <span className="muted" style={{ fontSize: 11 }}>{metricSummary.length ? metricSummary.join('  ·  ') : t('Tudo em dia')}</span>
+            </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span className="muted" style={{ fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>{t('Progresso geral')}</span>
               <div style={{ flex: 1, height: 14, background: 'var(--border-light)', borderRadius: 6, overflow: 'hidden', display: 'flex' }}>
@@ -437,7 +407,6 @@ export default function Board() {
                 )
               })()}
             </div>
-            {/* 3 colunas: Alertas | Prazos | Objetivos */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
               <div style={{ background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '8px 10px' }}>
                 <div className="muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, textTransform: 'uppercase', marginBottom: 4 }}>{t('Alertas')}</div>
@@ -471,7 +440,6 @@ export default function Board() {
                   )})}
               </div>
             </div>
-            {/* Progresso por módulo / responsável / distribuição — com pizza */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 10 }}>
               <div style={{ background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '8px 10px' }}>
                 <div className="muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, textTransform: 'uppercase', marginBottom: 6 }}>{t('Por módulo (épico)')}</div>
@@ -542,7 +510,6 @@ export default function Board() {
                 })}
               </div>
             </div>
-            {/* Por prioridade e métricas extras — pizza */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
               <div style={{ background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '8px 10px' }}>
                 <div className="muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, textTransform: 'uppercase', marginBottom: 6 }}>{t('Por prioridade')}</div>
@@ -572,128 +539,104 @@ export default function Board() {
                 <div className="muted" style={{ fontSize: 10, marginTop: 4 }}>{t('Use Buscar, Prioridade, Épico, Tag, Responsável acima')}</div>
               </div>
             </div>
-            {activeFilterCount > 0 && (
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', padding: '6px 8px', background: 'var(--accent-soft)', borderRadius: 8, fontSize: 11 }}>
-                <span style={{ fontWeight: 700, color: 'var(--accent)' }}>{tf('{count} filtro(s) ativo(s)', { count: activeFilterCount })}:</span>
-                {searchText.trim() && <span className="badge-type">{'🔍'} {searchText.trim()}</span>}
-                {priorityFilter !== 'all' && <span className="badge-prio">{priorityFilter}</span>}
-                {epicFilter !== 'all' && <span style={{ border: '1px solid var(--accent)', color: 'var(--accent)', borderRadius: 10, padding: '1px 6px', fontSize: 11 }}>{epicFilter}</span>}
-                {tagFilter !== 'all' && <span style={{ background: 'var(--accent)', color: '#fff', borderRadius: 10, padding: '1px 6px', fontSize: 11 }}>#{tagFilter}</span>}
-                {assigneeFilter !== 'all' && <span className="muted">{assigneeFilter === '__none__' ? t('Sem responsável') : assigneeFilter}</span>}
-                <span className="muted">· {visibleCount}/{totalTasks} {t('visíveis')}</span>
-              </div>
-            )}
+            {/* Hierárquico por módulos — barra proporcional */}
+            <div style={{ background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '10px', marginTop: 4 }}>
+              <div className="muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, textTransform: 'uppercase', marginBottom: 6 }}>📊 {t('Progresso por módulos e submódulos')}</div>
+              <div style={{ height: 14, background: 'var(--border-light)', borderRadius: 7, overflow: 'hidden', display: 'flex' }}><div style={{ width: `${pct}%`, background: pct===100?'#16a34a':'#f59e0b' }} /></div>
+              <div className="muted" style={{ fontSize: 10, marginTop: 4 }}>{doneTasks}/{totalTasks} · {pct}%</div>
+            </div>
+            {/* Hierárquico detalhado por módulos/submódulos (como SVG) */}
+            <div style={{ background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '10px', marginTop: 8 }}>
+              <div className="muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, textTransform: 'uppercase', marginBottom: 6 }}>📊 {t('Detalhamento por módulo')}</div>
+              {(() => {
+                const moduleTags = ['auth','cashier','config','financeiro','troca','venda','voucher','tef','acordo','monitor','estatisticas','batch','abend','crm','tudoav','cobransaas','cliente']
+                const modSet = new Set(moduleTags.map((m)=>m.toLowerCase()))
+                const byModule = {}
+                for (const tk of tasksAll) {
+                  const mods = (tk.labels||[]).map((l)=>l.name.toLowerCase()).filter((n)=>modSet.has(n))
+                  for (const m of mods) { if (!byModule[m]) byModule[m]=[]; byModule[m].push(tk) }
+                }
+                const moduleKeys = Object.keys(byModule).sort((a,b)=>byModule[b].length - byModule[a].length)
+                if (moduleKeys.length===0) return <div className="muted" style={{ fontSize: 11 }}>{t('Nenhum módulo com tarefas etiquetadas.')}</div>
+                const maxBar = Math.max(...moduleKeys.map((k)=>byModule[k].length),1)
+                const groups = { concluido: [], andamento: [], naoIniciado: [] }
+                for (const mod of moduleKeys) {
+                  const tot=byModule[mod].length; const done=byModule[mod].filter((tk)=>doneColIds.has(tk.columnId)).length; const p=tot?done/tot:0
+                  if (p===1) groups.concluido.push(mod); else if (p===0) groups.naoIniciado.push(mod); else groups.andamento.push(mod)
+                }
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {['concluido','andamento','naoIniciado'].map((grp)=>{
+                      const mods=groups[grp]; if(mods.length===0) return null
+                      const titles={concluido:'CONCLUÍDOS',andamento:'EM ANDAMENTO',naoIniciado:'NÃO INICIADOS'}
+                      return (
+                        <div key={grp}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                            <span style={{ width: 4, height: 16, borderRadius: 2, background: grp==='concluido'?'#16a34a':grp==='andamento'?'#f59e0b':'#cbd5e1' }} />
+                            <span style={{ fontWeight: 800, fontSize: 10, letterSpacing: .5 }}>{t(titles[grp])}</span>
+                            <span className="muted" style={{ fontSize: 11 }}>{mods.length} {t('módulo(s)')} · {mods.reduce((a,m)=>a+byModule[m].length,0)} {t('tarefas')}</span>
+                          </div>
+                          {mods.map((mod)=>{
+                            const tasksMod=byModule[mod]; const tot=tasksMod.length; const done=tasksMod.filter((tk)=>doneColIds.has(tk.columnId)).length; const p=tot?Math.round(done/tot*100):0; const barW=Math.max(14, Math.round((tot/maxBar)*460))
+                            const subTags={}; for(const tk of tasksMod){ for(const lb of tk.labels||[]){ const n=lb.name; if(n.includes('-') && n.toLowerCase()!==mod && !['sprint-1','sprint-2','sprint-3','sprint-4','sprint-5','vm','var-mobile','var3-app','fundacao','infra','despriorizado'].includes(n.toLowerCase())){ const pre=mod.slice(0,3).toLowerCase(); if(n.toLowerCase().startsWith(pre) || (n.toLowerCase().startsWith('onda-')&&mod==='cashier')||(n.toLowerCase().startsWith('tro-')&&mod==='troca')||(n.toLowerCase().startsWith('ven-')&&mod==='venda')||(n.toLowerCase().startsWith('fin-')&&mod==='financeiro')){ if(!subTags[n]) subTags[n]=[]; subTags[n].push(tk) } } } }
+                            const subKeys=Object.keys(subTags).sort()
+                            return (
+                              <div key={mod} style={{ marginBottom: 8, border: '1px solid var(--border-light)', borderRadius: 8, padding: '8px 10px', background: 'var(--card)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                                  <span style={{ fontWeight: 700, fontSize: 12, textTransform: 'capitalize' }}>{mod} <span className="muted" style={{ fontWeight: 400, fontSize: 11 }}>· {tot} {t('tarefas')}</span></span>
+                                  <span style={{ fontSize: 11, fontWeight: 700 }}>{done}/{tot} — {p}%</span>
+                                </div>
+                                <div style={{ height: 10, background: 'var(--border-light)', borderRadius: 5, overflow: 'hidden', marginTop: 4, maxWidth: barW }}><div style={{ width: `${p}%`, height: '100%', background: p===100?'#16a34a':p>0?'#f59e0b':'var(--border-light)' }} /></div>
+                                {subKeys.length>0 && (
+                                  <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 3, paddingLeft: 10, borderLeft: '2px solid var(--border-light)' }}>
+                                    {subKeys.map((sub)=>{
+                                      const q=subTags[sub]; const totS=q.length; const doneS=q.filter((tk)=>doneColIds.has(tk.columnId)).length; const pS=totS?Math.round(doneS/totS*100):0; const barSW=Math.max(10, Math.round((totS/maxBar)*460*0.6))
+                                      return (
+                                        <div key={sub} style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10 }}><span className="muted">{sub}</span><span style={{ fontWeight: 600 }}>{doneS}/{totS} — {pS}%</span></div>
+                                          <div style={{ height: 6, background: 'var(--border-light)', borderRadius: 3, overflow: 'hidden', maxWidth: barSW }}><div style={{ width: `${pS}%`, height: '100%', background: pS===100?'#16a34a':pS>0?'#f59e0b':'var(--border-light)' }} /></div>
+                                        </div>
+                                      )
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )
+              })()}
+            </div>
           </div>
         )}
       </div>
-
-      {/* Progresso por módulos e submódulos — similar a 10-progresso-entrega.svg */}
-      {(() => {
-        const moduleTags = ['auth','cashier','config','financeiro','troca','venda','voucher','tef','acordo','monitor','estatisticas','batch','abend','crm','tudoav','cobransaas','cliente']
-        const modSet = new Set(moduleTags.map((m)=>m.toLowerCase()))
-        const byModule = {}
-        for (const tk of tasksAll) {
-          const mods = (tk.labels||[]).map((l)=>l.name.toLowerCase()).filter((n)=>modSet.has(n))
-          for (const m of mods) {
-            if (!byModule[m]) byModule[m] = []
-            byModule[m].push(tk)
-          }
-        }
-        const moduleKeys = Object.keys(byModule).sort((a,b)=>byModule[b].length - byModule[a].length)
-        if (moduleKeys.length === 0) return null
-        const maxBar = Math.max(...moduleKeys.map((k)=>byModule[k].length), 1)
-        // Agrupa por status como o SVG
-        const groups = { concluido: [], andamento: [], naoIniciado: [] }
-        for (const mod of moduleKeys) {
-          const tot = byModule[mod].length
-          const done = byModule[mod].filter((tk)=>doneColIds.has(tk.columnId)).length
-          const p = tot ? done/tot : 0
-          if (p === 1) groups.concluido.push(mod)
-          else if (p === 0) groups.naoIniciado.push(mod)
-          else groups.andamento.push(mod)
-        }
-        return (
-          <div className="card" style={{ padding: '10px 14px', marginBottom: 12 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <strong>📊 {t('Progresso por módulos e submódulos')}</strong>
-              <span className="muted" style={{ fontSize: 11 }}>{t('Similar a 10-progresso-entrega.svg — barra proporcional ao tamanho')}</span>
-            </div>
-            <div style={{ height: 18, background: 'var(--border-light)', borderRadius: 9, overflow: 'hidden', display: 'flex', marginBottom: 6 }}>
-              <div style={{ width: `${pct}%`, background: pct===100?'#16a34a':'#f59e0b', transition: 'width .3s' }} />
-            </div>
-            <div className="muted" style={{ fontSize: 11, marginBottom: 10 }}>{doneTasks}/{totalTasks} {t('concluídas')} · {pct}% · <span style={{ color: '#16a34a' }}>■ {t('Concluído')}</span> <span style={{ color: '#f59e0b' }}>■ {t('Em andamento')}</span> <span style={{ color: 'var(--border-light)', border: '1px solid var(--border)' }}>■</span> {t('Não iniciado')}</div>
-            {['concluido','andamento','naoIniciado'].map((grp) => {
-              const mods = groups[grp]
-              if (mods.length === 0) return null
-              const titles = { concluido: 'CONCLUÍDOS', andamento: 'EM ANDAMENTO', naoIniciado: 'NÃO INICIADOS' }
-              const counts = { concluido: `${mods.length} ${t('módulo(s)')} · ${mods.reduce((a,m)=>a+byModule[m].length,0)} ${t('tarefas')}`, andamento: `${mods.length} ${t('módulo(s)')} · ${mods.reduce((a,m)=>a+byModule[m].length,0)} ${t('tarefas')}`, naoIniciado: `${mods.length} ${t('módulo(s)')} · ${mods.reduce((a,m)=>a+byModule[m].length,0)} ${t('tarefas')}` }
-              return (
-                <div key={grp} style={{ marginBottom: 12 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                    <span style={{ width: 4, height: 18, borderRadius: 2, background: grp==='concluido'?'#16a34a':grp==='andamento'?'#f59e0b':'#cbd5e1' }} />
-                    <span style={{ fontWeight: 800, fontSize: 11, letterSpacing: .5 }}>{t(titles[grp])}</span>
-                    <span className="muted" style={{ fontSize: 11 }}>{counts[grp]}</span>
-                  </div>
-                  {mods.map((mod) => {
-                    const tasksMod = byModule[mod]
-                    const tot = tasksMod.length
-                    const done = tasksMod.filter((tk)=>doneColIds.has(tk.columnId)).length
-                    const p = tot ? Math.round(done/tot*100) : 0
-                    const barW = Math.max(14, Math.round((tot / maxBar) * 460))
-                    const subTags = {}
-                    for (const tk of tasksMod) {
-                      for (const lb of tk.labels||[]) {
-                        const n = lb.name
-                        if (n.includes('-') && n.toLowerCase() !== mod && !['sprint-1','sprint-2','sprint-3','sprint-4','sprint-5','vm','var-mobile','var3-app','fundacao','infra','despriorizado'].includes(n.toLowerCase())) {
-                          const prefix = mod.slice(0,3).toLowerCase()
-                          if (n.toLowerCase().startsWith(prefix) || (n.toLowerCase().startsWith('onda-') && mod==='cashier') || (n.toLowerCase().startsWith('tro-') && mod==='troca') || (n.toLowerCase().startsWith('ven-') && mod==='venda') || (n.toLowerCase().startsWith('fin-') && mod==='financeiro')) {
-                            if (!subTags[n]) subTags[n] = []
-                            subTags[n].push(tk)
-                          }
-                        }
-                      }
-                    }
-                    const subKeys = Object.keys(subTags).sort()
-                    return (
-                      <div key={mod} style={{ marginBottom: 8, border: '1px solid var(--border-light)', borderRadius: 8, padding: '8px 10px', background: 'var(--bg)' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                          <span style={{ fontWeight: 700, fontSize: 13, textTransform: 'capitalize' }}>{mod} <span className="muted" style={{ fontWeight: 400, fontSize: 11 }}>· {tot} {t('tarefas')}</span></span>
-                          <span style={{ fontSize: 12, fontWeight: 700 }}>{done}/{tot} — {p}%</span>
-                        </div>
-                        <div style={{ height: 14, background: 'var(--border-light)', borderRadius: 7, overflow: 'hidden', marginTop: 4, maxWidth: barW }}>
-                          <div style={{ width: `${p}%`, height: '100%', background: p===100?'#16a34a':p>0?'#f59e0b':'var(--border-light)' }} />
-                        </div>
-                        {subKeys.length > 0 && (
-                          <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4, paddingLeft: 12, borderLeft: '2px solid var(--border-light)' }}>
-                            {subKeys.map((sub) => {
-                              const q = subTags[sub]
-                              const totS = q.length
-                              const doneS = q.filter((tk)=>doneColIds.has(tk.columnId)).length
-                              const pS = totS ? Math.round(doneS/totS*100) : 0
-                              const barSW = Math.max(10, Math.round((totS / maxBar) * 460 * 0.7))
-                              return (
-                                <div key={sub} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11 }}>
-                                    <span className="muted" style={{ flex: 1 }}>{sub}</span>
-                                    <span style={{ fontWeight: 600 }}>{doneS}/{totS} — {pS}%</span>
-                                  </div>
-                                  <div style={{ height: 8, background: 'var(--border-light)', borderRadius: 4, overflow: 'hidden', maxWidth: barSW }}>
-                                    <div style={{ width: `${pS}%`, height: '100%', background: pS===100?'#16a34a':pS>0?'#f59e0b':'var(--border-light)' }} />
-                                  </div>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              )
-            })}
-          </div>
-        )
-      })()}
+      ) : (
+        <>
+      {/* Barra de sprints */}
+      <div className="row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10 }}>
+        <span className="muted">{t('Sprint:')}</span>
+        <select value={sprintFilter} onChange={(e) => setSprintFilter(e.target.value)}>
+          <option value="all">{t('Todas')}</option>
+          <option value="backlog">{t('Backlog')}</option>
+          {sprints.map((sp) => (
+            <option key={sp.id} value={sp.id}>
+              {sp.name} · {t(SPRINT_STATUS_LABELS[sp.status] || sp.status)} ({sp.doneCount}/{sp.taskCount})
+            </option>
+          ))}
+        </select>
+        {activeSprint && sprintFilter === 'all' && (
+          <button className="ghost" onClick={() => setSprintFilter(String(activeSprint.id))}>
+            {tf('Ver sprint ativa: {name}', { name: activeSprint.name })}
+          </button>
+        )}
+        <button className="ghost" onClick={() => setShowArchived((v) => !v)}>
+          {showArchived ? t('← Voltar ao board') : tf('Arquivados ({count})', { count: archived.length })}
+        </button>
+        <button className="ghost" onClick={() => setShowMembers(true)}>{t('Responsáveis')} ({members.length})</button>
+      </div>
 
       {/* Atalhos do projeto — links com título (PRs, docs, Azure, etc) */}
       <div className="card" style={{ padding: '10px 14px', marginBottom: 12 }}>

@@ -2521,10 +2521,6 @@ class BoardView(QWidget):
         self.filter_bar.filters_changed.connect(self._apply_filters)
         board_tab_layout.addWidget(self.filter_bar)
 
-        # Metrics accordion (alertas, prazos, objetivos)
-        self.metrics_accordion = BoardMetricsAccordion()
-        board_tab_layout.addWidget(self.metrics_accordion)
-
         # Atalhos do projeto
         self.links_widget = ProjectLinksWidget()
         board_tab_layout.addWidget(self.links_widget)
@@ -2542,9 +2538,28 @@ class BoardView(QWidget):
         self.columns_layout.setSpacing(10)
         self.scroll.setWidget(self.columns_widget)
 
-        # --- Aba "Board" (fluxo de trabalho) ---
+        # --- Aba "Métricas" (ao lado do kanban) ---
+        self.metrics_tab = QWidget()
+        metrics_layout = QVBoxLayout(self.metrics_tab)
+        metrics_layout.setContentsMargins(0, 0, 0, 0)
+        metrics_layout.setSpacing(12)
+        self.metrics_accordion = BoardMetricsAccordion()
+        # Métricas em aba tem scroll próprio
+        metrics_scroll = QScrollArea()
+        metrics_scroll.setWidgetResizable(True)
+        metrics_scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+        metrics_container = QWidget()
+        metrics_container_layout = QVBoxLayout(metrics_container)
+        metrics_container_layout.setContentsMargins(0, 0, 0, 0)
+        metrics_container_layout.setSpacing(12)
+        metrics_container_layout.addWidget(self.metrics_accordion)
+        metrics_scroll.setWidget(metrics_container)
+        metrics_layout.addWidget(metrics_scroll)
+
+        # --- Abas ---
         self.tabs = QTabWidget()
         self.tabs.addTab(self.board_tab, _t("Board"))
+        self.tabs.addTab(self.metrics_tab, _t("Métricas"))
         self.board_layout.addWidget(self.tabs)
 
         self.main_layout.addWidget(self.board_widget)
