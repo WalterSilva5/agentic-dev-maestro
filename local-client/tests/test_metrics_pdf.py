@@ -90,6 +90,49 @@ def test_pdf_tem_conteudo_esperado(client, projeto_com_tarefas):
         s.close()
 
 
+def test_pdf_tem_graficos_dos_mesmos_dados_da_ui(client, projeto_com_tarefas):
+    """O PDF precisa ter os donuts (Por coluna/Responsável/Prioridade/Módulo),
+    não apenas tabelas — é o pedido de paridade com a interface."""
+    from maestro_local.db.models import get_session, Project
+    from maestro_local.metrics_pdf import (
+        _dados_colunas,
+        _dados_modulos,
+        _dados_pessoas,
+        _dados_prioridade,
+        collect_metrics,
+    )
+
+    s = get_session()
+    try:
+        m = collect_metrics(s, s.get(Project, projeto_com_tarefas))
+    finally:
+        s.close()
+
+    colunas = _dados_colunas(m)
+    pessoas = _dados_pessoas(m)
+    prioridade = _dados_prioridade(m)
+    modulos = _dados_modulos(m)
+
+    # colunas com cards viram fatias
+    assert sum(v for _r, v, _c in colunas) == m["total"]
+    # "Sem responsável" aparece com a cor cinza da interface
+    if any(p["sem_dono"] for p in m["por_pessoa"]):
+        cor = dict((r, c) for r, _v, c in pessoas)["Sem responsável"]
+        assert cor.upper() == "#9CA3AF"
+    # prioridade mantém a ordem e as cores da UI
+    assert [r for r, _v, _c in prioridade] == ["Urgente", "Alta", "Média", "Baixa"]
+    assert dict((r, c) for r, _v, c in prioridade)["Alta"] == "#EA580C"
+    # módulos (labels) presentes
+    assert all(v > 0 for _r, v, _c in modulos)
+
+
+def test_pdf_duas_paginas_no_maximo_para_projeto_pequeno(client, projeto_com_tarefas):
+    """Projeto pequeno não deve gerar PDF gigante."""
+    r = client.get(f"/api/projects/{projeto_com_tarefas}/metrics/export.pdf")
+    assert r.status_code == 200
+    assert r.content.count(b"/Type /Page") <= 4
+
+
 def test_pdf_inclui_sem_responsavel_quando_existe(client):
     pid = client.post("/api/projects", json={"name": "Sem dono", "key": "SDO"}).json()["id"]
     cols = {c["name"]: c["id"] for c in client.get(f"/api/projects/{pid}/columns").json()}

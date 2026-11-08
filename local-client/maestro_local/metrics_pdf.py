@@ -19,6 +19,8 @@ from reportlab.lib.enums import TA_LEFT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
+from reportlab.graphics.charts.piecharts import Pie
+from reportlab.graphics.shapes import Drawing, String
 from reportlab.platypus import (
     KeepTogether,
     Paragraph,
@@ -233,6 +235,106 @@ def _bar(pct: float, width: float = 90, height: float = 7, cor=ACCENT) -> Table:
     return t
 
 
+def _donut(dados: list[tuple[str, int, str]], size: float = 46 * mm,
+           titulo: str = "", st: dict | None = None) -> Drawing:
+    """Donut com buraco central e total, igual ao `PieChart` da interface."""
+    dados = [(rot, val, cor) for rot, val, cor in dados if val]
+    total = sum(v for _r, v, _c in dados)
+    d = Drawing(size, size)
+    if not total:
+        if titulo:
+            d.add(String(size / 2, size / 2, "Sem dados", textAnchor="middle",
+                         fontName="Helvetica", fontSize=7.5, fillColor=MUTED))
+        return d
+
+    pc = Pie()
+    pc.x = size * 0.04
+    pc.y = size * 0.04
+    pc.width = size * 0.92
+    pc.height = size * 0.92
+    pc.data = [v for _r, v, _c in dados]
+    pc.labels = None
+    pc.startAngle = 90
+    pc.direction = "clockwise"
+    pc.slices.strokeColor = colors.white
+    pc.slices.strokeWidth = 1.2
+    for i, (_r, _v, cor) in enumerate(dados):
+        pc.slices[i].fillColor = colors.HexColor(cor)
+    try:
+        pc.innerRadiusFraction = 0.52
+    except Exception:  # versões antigas: cai no modo pizza
+        pass
+    d.add(pc)
+    d.add(String(size / 2, size / 2 - 2.2, str(total), textAnchor="middle",
+                 fontName="Helvetica-Bold", fontSize=8.5, fillColor=TEXT))
+    if titulo:
+        d.add(String(size / 2, size - 1, titulo, textAnchor="middle",
+                     fontName="Helvetica-Bold", fontSize=7, fillColor=TEXT))
+    return d
+
+
+def _legenda(dados: list[tuple[str, int, str]], st: dict, largura: float = 44 * mm,
+             max_itens: int = 5) -> Table:
+    """Legenda do donut: bolinha + rótulo + valor (igual ao quadro da UI)."""
+    dados = [(r, v, c) for r, v, c in dados if v]
+    linhas = []
+    for rot, val, cor in dados[:max_itens]:
+        rot = rot if len(rot) <= 26 else rot[:25] + "…"
+        linhas.append([
+            _bar_legenda(cor),
+            Paragraph(f"{rot} <font color='#6B7280'>({val})</font>", st["small"]),
+        ])
+    if len(dados) > max_itens:
+        linhas.append(["", Paragraph(f"+{len(dados) - max_itens} outros", st["small"])])
+    if not linhas:
+        return Table([[Paragraph("—", st["small"])]], colWidths=[largura])
+    t = Table(linhas, colWidths=[4 * mm, largura - 4 * mm])
+    t.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING", (0, 0), (-1, -1), 1),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    return t
+
+
+def _bar_legenda(cor: str) -> Drawing:
+    d = Drawing(3.2 * mm, 3.2 * mm)
+    d.add(String(0, 0.4 * mm, "■", fontName="Helvetica", fontSize=8,
+                 fillColor=colors.HexColor(cor)))
+    return d
+
+
+def _cartao_grafico(titulo: str, dados: list[tuple[str, int, str]], st: dict,
+                    largura: float = 84 * mm, size: float = 42 * mm,
+                    max_legenda: int = 5) -> Table:
+    """Donut + legenda + título, no mesmo formato dos cards da aba Métricas."""
+    largura_legenda = largura - size - 6
+    corpo = Table([[_donut(dados, size=size, st=st),
+                    _legenda(dados, st, largura=largura_legenda, max_itens=max_legenda)]],
+                  colWidths=[size, largura_legenda])
+    corpo.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    caixa = Table([
+        [Paragraph(titulo.upper(), st["kpi_lbl"])],
+        [corpo],
+    ], colWidths=[largura])
+    caixa.setStyle(TableStyle([
+        ("BOX", (0, 0), (-1, -1), 0.5, BORDER),
+        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FAFAFD")),
+        ("LEFTPADDING", (0, 0), (-1, -1), 5),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+    ]))
+    return caixa
+
+
 def _kpi_row(m: dict, st: dict) -> Table:
     def celula(valor, rotulo):
         return [Paragraph(str(valor), st["kpi_val"]), Paragraph(rotulo, st["kpi_lbl"])]
@@ -281,8 +383,50 @@ def _tabela_barra(linhas: list[tuple[str, int, int, int]], st: dict, cor_fn=None
     return t
 
 
+def _dados_colunas(m: dict) -> list[tuple[str, int, str]]:
+    return [
+        (nome, n, PIE_COLORS[i % len(PIE_COLORS)])
+        for i, (nome, n, _wip, _done) in enumerate(m["por_coluna"])
+        if n
+    ]
+
+
+def _dados_pessoas(m: dict) -> list[tuple[str, int, str]]:
+    return [
+        (p["nome"], p["total"], "#9CA3AF" if p["sem_dono"] else PIE_COLORS[i % len(PIE_COLORS)])
+        for i, p in enumerate(m["por_pessoa"])
+        if p["total"]
+    ]
+
+
+def _dados_prioridade(m: dict) -> list[tuple[str, int, str]]:
+    rotulos = {"URGENT": "Urgente", "HIGH": "Alta", "MEDIUM": "Média", "LOW": "Baixa"}
+    cores = {"URGENT": "#DC2626", "HIGH": "#EA580C", "MEDIUM": "#4F46E5", "LOW": "#71717A"}
+    ordem = ["URGENT", "HIGH", "MEDIUM", "LOW"]
+    return [
+        (rotulos[k], m["por_prioridade"][k], cores[k])
+        for k in ordem
+        if m["por_prioridade"].get(k)
+    ]
+
+
+def _dados_modulos(m: dict) -> list[tuple[str, int, str]]:
+    return [
+        (x["nome"], x["total"], PIE_COLORS[i % len(PIE_COLORS)])
+        for i, x in enumerate(m["por_modulo"])
+    ]
+
+
+def _dados_epicos(m: dict) -> list[tuple[str, int, str]]:
+    return [(x["nome"], x["total"], x["color"]) for x in m["por_epico"]]
+
+
+def _titulo(flow, texto: str, st):
+    flow.append(Paragraph(texto, st["h2"]))
+
+
 def build_metrics_pdf(session, project) -> bytes:
-    """Monta o PDF e devolve os bytes."""
+    """Monta o PDF com os mesmos gráficos da aba Métricas."""
     m = collect_metrics(session, project)
     st = _styles()
     buf = io.BytesIO()
@@ -298,7 +442,10 @@ def build_metrics_pdf(session, project) -> bytes:
         author="Agentic Dev Maestro",
     )
 
+    LARG = 85 * mm  # 2 cartões por linha (174mm)
     flow = []
+
+    # ---------- cabeçalho ----------
     flow.append(Paragraph(f"Métricas do projeto — {project.key} · {project.name}", st["h1"]))
     flow.append(Paragraph(
         f"Gerado em {m['gerado_em'].strftime('%d/%m/%Y %H:%M')} · "
@@ -310,7 +457,28 @@ def build_metrics_pdf(session, project) -> bytes:
     flow.append(_bar(m["pct"], width=174 * mm, height=9,
                      cor=GREEN if m["pct"] == 100 else ACCENT))
 
-    # Alertas
+    # ---------- gráficos: coluna | responsável | prioridade ----------
+    _titulo(flow, "Visão por coluna, responsável e prioridade", st)
+    graficos1 = Table([
+        [
+            _cartao_grafico("Distribuição por coluna", _dados_colunas(m), st, largura=LARG),
+            _cartao_grafico("Por prioridade", _dados_prioridade(m), st, largura=LARG, max_legenda=4),
+        ],
+        [
+            _cartao_grafico("Por responsável", _dados_pessoas(m), st, largura=LARG),
+            _cartao_grafico("Por módulo (labels)", _dados_modulos(m), st, largura=LARG, max_legenda=5),
+        ],
+    ], colWidths=[LARG + 2 * mm] * 2)
+    graficos1.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+        ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    flow.append(graficos1)
+
+    # ---------- alertas ----------
     alertas = []
     for nome, n, lim in m["wip"]:
         alertas.append(f"<b>WIP acima do limite</b> — {nome}: {n}/{lim}")
@@ -325,16 +493,54 @@ def build_metrics_pdf(session, project) -> bytes:
             f"({round(sem_dono['total'] / max(1, m['total']) * 100)}% do board)"
         )
     if alertas:
-        flow.append(Paragraph("Alertas", st["h2"]))
+        _titulo(flow, "Alertas", st)
         for a in alertas:
             flow.append(Paragraph("• " + a, st["body"]))
 
-    # Progresso por coluna
-    flow.append(Paragraph("Por coluna", st["h2"]))
-    linhas_col = [
-        (f"{nome}{' (conclusão)' if is_done else ''}", 0, n, 0)
-        for nome, n, _wip, is_done in m["por_coluna"]
-    ]
+    # ---------- por épico (donut) ----------
+    if m["por_epico"]:
+        _titulo(flow, "Por épico", st)
+        flow.append(_cartao_grafico("Distribuição por épico", _dados_epicos(m), st,
+                                    largura=174 * mm, size=46 * mm, max_legenda=8))
+
+    # ---------- progresso por módulos (barras proporcionais) ----------
+    hier = m.get("por_modulo", [])
+    if hier:
+        _titulo(flow, "Progresso por módulo (barra proporcional ao tamanho)", st)
+        flow.append(Paragraph(
+            "Mesma leitura do diagrama de acompanhamento: a largura acompanha o "
+            "número de cards e a cor indica o estágio (verde 100%, amarelo em andamento, cinza parado).",
+            st["small"],
+        ))
+        flow.append(Spacer(1, 2 * mm))
+        maximo = max(x["total"] for x in hier) or 1
+        linhas = [[
+            Paragraph("<b>Módulo</b>", st["small"]),
+            Paragraph("<b>Progresso</b>", st["small"]),
+            Paragraph("<b>Cards</b>", st["small"]),
+        ]]
+        for x in sorted(hier, key=lambda y: -y["total"])[:22]:
+            largura = max(10, 150 * x["total"] / maximo)
+            pct = x["pct"]
+            cor = GREEN if pct == 100 else (AMBER if pct > 0 else colors.HexColor("#CBD5E1"))
+            linhas.append([
+                Paragraph(x["nome"], st["body"]),
+                _bar(pct, width=largura, cor=cor),
+                Paragraph(f"{x['done']}/{x['total']} — {pct}%", st["small"]),
+            ])
+        t = Table(linhas, colWidths=[46 * mm, 82 * mm, 46 * mm], repeatRows=1)
+        t.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("TOPPADDING", (0, 0), (-1, -1), 2),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ("LINEBELOW", (0, 0), (-1, -1), 0.3, BORDER),
+            ("LINEBELOW", (0, 0), (-1, 0), 0.8, colors.HexColor("#9CA3AF")),
+        ]))
+        flow.append(t)
+
+    # ---------- por coluna (tabela) ----------
+    _titulo(flow, "Cards por coluna", st)
     dados_col = [[
         Paragraph("<b>Coluna</b>", st["small"]),
         Paragraph("<b>Cards</b>", st["small"]),
@@ -357,59 +563,18 @@ def build_metrics_pdf(session, project) -> bytes:
     ]))
     flow.append(t)
 
-    # Por pessoa
-    flow.append(Paragraph("Por responsável", st["h2"]))
-    linhas_pessoa = [(p["nome"], p["done"], p["total"], p["pct"]) for p in m["por_pessoa"][:12]]
+    # ---------- por responsável (barras) ----------
+    _titulo(flow, "Por responsável", st)
     flow.append(_tabela_barra(
-        linhas_pessoa,
+        [(p["nome"], p["done"], p["total"], p["pct"]) for p in m["por_pessoa"][:12]],
         st,
         cor_fn=lambda nome: colors.HexColor("#9CA3AF") if nome == "Sem responsável" else ACCENT,
     ))
 
-    # Por módulo / épico
-    if m["por_modulo"] or m["por_epico"]:
-        if m["por_modulo"]:
-            flow.append(Paragraph("Por módulo (labels)", st["h2"]))
-            limite_mod = 24
-            flow.append(_tabela_barra(
-                [(x["nome"], x["done"], x["total"], x["pct"]) for x in m["por_modulo"][:limite_mod]],
-                st,
-                cor_fn=lambda _n: ACCENT,
-            ))
-            if len(m["por_modulo"]) > limite_mod:
-                flow.append(Paragraph(
-                    f"+ {len(m['por_modulo']) - limite_mod} módulo(s) não exibidos", st["small"]
-                ))
-        if m["por_epico"]:
-            flow.append(Paragraph("Por épico", st["h2"]))
-            cores = {e["nome"]: colors.HexColor(e["color"]) for e in m["por_epico"]}
-            flow.append(_tabela_barra(
-                [(x["nome"], x["done"], x["total"], x["pct"]) for x in m["por_epico"][:16]],
-                st,
-                cor_fn=lambda n: cores.get(n, ACCENT),
-            ))
-
-    # Prioridade
-    if m["por_prioridade"]:
-        flow.append(Paragraph("Por prioridade", st["h2"]))
-        rotulos = {"URGENT": "Urgente", "HIGH": "Alta", "MEDIUM": "Média", "LOW": "Baixa"}
-        dados = [[
-            Paragraph(rotulos.get(k, k), st["body"]),
-            Paragraph(f"<b>{v}</b>", st["small"]),
-        ] for k, v in sorted(m["por_prioridade"].items(), key=lambda x: -x[1])]
-        t = Table(dados, colWidths=[96 * mm, 72 * mm])
-        t.setStyle(TableStyle([
-            ("TOPPADDING", (0, 0), (-1, -1), 2),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-            ("LEFTPADDING", (0, 0), (-1, -1), 0),
-            ("LINEBELOW", (0, 0), (-1, -2), 0.3, BORDER),
-        ]))
-        flow.append(t)
-
-    # Daily
+    # ---------- daily ----------
     d = m["daily"]
     if d["total"]:
-        flow.append(Paragraph("Daily do projeto", st["h2"]))
+        _titulo(flow, "Daily do projeto", st)
         tipos = ", ".join(f"{k}: {v}" for k, v in sorted(d["por_tipo"].items()))
         horas = round(d["minutos"] / 60, 1)
         flow.append(Paragraph(
@@ -419,7 +584,7 @@ def build_metrics_pdf(session, project) -> bytes:
         if d["ultimos"]:
             flow.append(Paragraph("Últimos dias: " + ", ".join(d["ultimos"]), st["small"]))
 
-    flow.append(Spacer(1, 6 * mm))
+    flow.append(Spacer(1, 5 * mm))
     flow.append(Paragraph(
         "Fonte: Agentic Dev Maestro · dados locais do workspace ativo. "
         "Não inclui alterações de plataformas externas.",
