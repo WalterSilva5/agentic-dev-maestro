@@ -407,5 +407,9 @@ class EyecareBreak(QWidget):
         self.hide()
         self.deleteLater()
 
+    def encerrar(self) -> None:
+        """Fecha a pausa sem emitir nada (ex.: começou uma reunião)."""
+        self._encerrar()
+
     def segundos_restantes(self) -> int:
         return self._restante

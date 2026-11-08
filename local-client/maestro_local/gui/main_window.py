@@ -583,6 +583,13 @@ class MainWindow(QMainWindow):
         self._todo_timer.start()
         QTimer.singleShot(4000, self._check_todo_reminders)
 
+        # Reunião em curso: segura a pausa para os olhos e avisa o sistema
+        # operacional a cada 15 minutos (aviso do SO, não toast da interface).
+        self._reuniao_em_curso = False
+        self._meeting_notice_timer = QTimer(self)
+        self._meeting_notice_timer.setInterval(15 * 60 * 1000)
+        self._meeting_notice_timer.timeout.connect(self._notificar_reuniao_em_curso)
+
         # Pausa para os olhos: verifica de minuto em minuto (a precisão de um
         # lembrete de 20 min não precisa ser melhor que isso).
         self._eyecare_overlay = None
@@ -795,10 +802,26 @@ class MainWindow(QMainWindow):
         self.transcricoes_view.toggle_record_external()
 
     def _on_recording_state(self, gravando: bool, segundos: int = 0):
-        """Espelha no botão do topo o estado da gravação rápida."""
+        """Espelha no botão do topo o estado da gravação rápida.
+
+        Também controla o que depende de estar em reunião: a pausa para os
+        olhos fica suspensa e o aviso de 15 em 15 minutos (no SO) liga/desliga.
+        """
         self._gravando = bool(gravando)
         self._gravando_seg = int(segundos or 0)
         self._atualizar_icone_gravacao()
+
+        self._reuniao_em_curso = bool(gravando)
+        timer = getattr(self, "_meeting_notice_timer", None)
+        if timer is not None:
+            if gravando:
+                if not timer.isActive():
+                    timer.start()
+            else:
+                timer.stop()
+        if gravando and self._eyecare_overlay is not None:
+            # começou a reunião: a pausa sai da frente na hora
+            self._suspender_pausa()
 
     def _atualizar_icone_gravacao(self):
         if not hasattr(self, "quick_record_btn"):
@@ -925,11 +948,67 @@ class MainWindow(QMainWindow):
 
     def _em_reuniao(self) -> bool:
         """Gravando ou transcrevendo — hora de não interromper."""
+        if getattr(self, "_reuniao_em_curso", False):
+            return True
         v = getattr(self, "transcricoes_view", None)
         try:
             return bool(v is not None and v.is_busy())
         except Exception:  # noqa: BLE001
             return False
+
+    def _notificar_reuniao_em_curso(self):
+        """Aviso do SO a cada 15 min enquanto a reunião estiver rodando."""
+        if not self._em_reuniao():
+            self._meeting_notice_timer.stop()
+            return
+        # "Reunião em progresso" é só para reunião; sessão de estudo não avisa
+        view = getattr(self, "transcricoes_view", None)
+        combo = getattr(view, "kind_combo", None)
+        try:
+            if combo is not None and combo.currentData() == "study":
+                return
+        except Exception:  # noqa: BLE001
+            pass
+        minutos = max(1, int(getattr(self, "_gravando_seg", 0) or 0) // 60)
+        self._notificar_sistema(
+            t("Reunião em progresso"),
+            t("Em andamento há {n} min").format(n=minutos),
+        )
+
+    def _notificar_sistema(self, titulo: str, mensagem: str):
+        """Notificação do sistema operacional — nunca o toast da interface."""
+        try:
+            from PySide6.QtWidgets import QSystemTrayIcon
+
+            bandeja = getattr(self, "_tray", None) or getattr(self, "_tray_icon", None)
+            if bandeja is not None and bandeja.supportsMessages():
+                bandeja.showMessage(titulo, mensagem, QSystemTrayIcon.Information, 6000)
+                return
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            import subprocess
+
+            subprocess.Popen(
+                ["notify-send", "-a", "Maestro", "-t", "6000", titulo, mensagem],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+        except Exception:  # noqa: BLE001
+            pass
+
+    def _suspender_pausa(self):
+        """Fecha a pausa aberta sem marcá-la como feita (a reunião começou)."""
+        overlay = self._eyecare_overlay
+        self._eyecare_overlay = None
+        if overlay is None:
+            return
+        try:
+            overlay.encerrar()
+        except Exception:  # noqa: BLE001
+            try:
+                overlay.close()
+            except Exception:  # noqa: BLE001
+                pass
 
     def _maybe_show_eyecare(self):
         """Mostra a pausa se for devida e nada estiver segurando."""
