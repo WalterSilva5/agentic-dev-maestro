@@ -1764,6 +1764,89 @@ class BoardMetricsAccordion(QFrame):
             w_cols.setLayout(cols_row)
             self.content_layout.addWidget(w_cols)
 
+            # — Progresso por módulo / responsável / distribuição —
+            mod_row = QHBoxLayout()
+            mod_row.setSpacing(12)
+            mod_row.setAlignment(Qt.AlignTop)
+
+            # Por módulo (épico)
+            mod_box = self._section_box(_t("Por módulo (épico)"), t)
+            epics_all = s.query(Epic).filter(Epic.project_id == self.project_id).order_by(Epic.name).all()
+            epic_data = []
+            for ep in epics_all:
+                q = s.query(Task).filter(Task.project_id == self.project_id, Task.deleted_at == None, Task.archived_at == None, Task.epics.any(Epic.id == ep.id))
+                tot = q.count()
+                if tot == 0:
+                    continue
+                done_e = q.join(BoardColumn, Task.column_id == BoardColumn.id).filter(BoardColumn.is_done == True).count()
+                pct_e = int(done_e / tot * 100) if tot else 0
+                epic_data.append((ep, done_e, tot, pct_e))
+            epic_data.sort(key=lambda x: x[3])
+            if not epic_data:
+                mod_box["layout"].addWidget(self._hint(_t("Nenhum épico vinculado."), t))
+            else:
+                for ep, done_e, tot, pct_e in epic_data[:6]:
+                    row = QHBoxLayout(); row.setSpacing(6)
+                    nome = QLabel(ep.name)
+                    nome.setStyleSheet(f"color: {ep.color or t.text_primary}; font-size: 12px; font-weight: 600; border: none; border-left: 3px solid {ep.color or t.accent}; padding-left: 6px;")
+                    nome.setWordWrap(True)
+                    row.addWidget(nome, 1)
+                    pct_lbl = QLabel(f"{pct_e}% ({done_e}/{tot})")
+                    pct_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 11px; border: none;")
+                    row.addWidget(pct_lbl)
+                    w = QWidget(); w.setLayout(row)
+                    mod_box["layout"].addWidget(w)
+                    barra = QProgressBar(); barra.setValue(pct_e); barra.setFormat(f"{pct_e}%"); barra.setFixedHeight(8)
+                    barra.setStyleSheet(f"QProgressBar {{ background: {t.bg_badge}; }} QProgressBar::chunk {{ background: {ep.color or t.accent}; }}")
+                    mod_box["layout"].addWidget(barra)
+                if len(epic_data) > 6:
+                    mod_box["layout"].addWidget(self._hint(_t("+ {n} épico(s)").format(n=len(epic_data)-6), t))
+            mod_row.addWidget(mod_box["box"], 1)
+
+            # Por responsável
+            resp_box = self._section_box(_t("Por responsável"), t)
+            from collections import Counter
+            assignees = [tk.assignee for tk in tasks_all if tk.assignee]
+            cnt = Counter(assignees)
+            resp_data = []
+            for name, tot in cnt.most_common(6):
+                q = [tk for tk in tasks_all if tk.assignee == name]
+                done_r = sum(1 for tk in q if tk.column_id in done_col_ids)
+                pct_r = int(done_r / tot * 100) if tot else 0
+                resp_data.append((name, done_r, tot, pct_r))
+            if not resp_data:
+                resp_box["layout"].addWidget(self._hint(_t("Nenhum responsável atribuído."), t))
+            else:
+                for name, done_r, tot, pct_r in resp_data:
+                    row = QHBoxLayout(); row.setSpacing(6)
+                    nome = QLabel(name)
+                    nome.setStyleSheet(f"color: {t.text_primary}; font-size: 12px; font-weight: 600; border: none;")
+                    nome.setWordWrap(True)
+                    row.addWidget(nome, 1)
+                    pct_lbl = QLabel(f"{pct_r}% ({done_r}/{tot})")
+                    pct_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 11px; border: none;")
+                    row.addWidget(pct_lbl)
+                    w = QWidget(); w.setLayout(row)
+                    resp_box["layout"].addWidget(w)
+                    barra = QProgressBar(); barra.setValue(pct_r); barra.setFixedHeight(8)
+                    resp_box["layout"].addWidget(barra)
+            mod_row.addWidget(resp_box["box"], 1)
+
+            # Distribuição por coluna
+            dist_box = self._section_box(_t("Distribuição por coluna"), t)
+            for col in cols:
+                cnt_col = sum(1 for tk in tasks_all if tk.column_id == col.id)
+                over = col.wip_limit and cnt_col > col.wip_limit
+                txt = f"{col.name}: {cnt_col}{f'/{col.wip_limit}' if col.wip_limit else ''}"
+                col_lbl = QLabel(f"• {txt}")
+                col_lbl.setStyleSheet(f"color: {t.danger if over else t.text_primary}; font-size: 11px; font-weight: {'700' if over else '400'}; border: none;")
+                dist_box["layout"].addWidget(col_lbl)
+            mod_row.addWidget(dist_box["box"], 1)
+
+            w_mod = QWidget()
+            w_mod.setLayout(mod_row)
+            self.content_layout.addWidget(w_mod)
+
         finally:
             s.close()
 

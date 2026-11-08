@@ -774,5 +774,11 @@ CATALOG = {
   "Nenhum goal — crie em Goals.": "No goals — create one in Goals.",
   "Sprint {name}: {d} dias": "Sprint {name}: {d} days",
   "Sprint {name}: atrasada {d}d": "Sprint {name}: overdue {d}d",
+  "Por módulo (épico)": "By module (epic)",
+  "Nenhum épico vinculado.": "No epic linked.",
+  "Por responsável": "By assignee",
+  "Nenhum responsável atribuído.": "No assignee.",
+  "Distribuição por coluna": "Distribution by column",
+  "+ {n} épico(s)": "+ {n} epic(s)",
 },
 }

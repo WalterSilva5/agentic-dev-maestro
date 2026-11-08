@@ -223,6 +223,17 @@ export default function Board() {
   }))
   const visibleCount = filteredCols.reduce((a, c) => a + c.tasks.length, 0)
   const PRIORITY_COLORS = { LOW: '#71717A', MEDIUM: '#4f46e5', HIGH: '#EA580C', URGENT: '#DC2626' }
+  const epicProgressList = [...new Map(tasksAll.flatMap((tk) => tk.epics || []).map((ep) => [ep.id, ep])).values()].map((ep) => {
+    const q = tasksAll.filter((tk) => tk.epics.some((e) => e.id === ep.id))
+    const tot = q.length; const done = q.filter((tk) => doneColIds.has(tk.columnId)).length
+    return { ep, done, tot, pct: tot ? Math.round((done / tot) * 100) : 0 }
+  }).sort((a, b) => b.tot - a.tot).slice(0, 8)
+  const assigneeProgressList = assigneeOptions.map((name) => {
+    const q = tasksAll.filter((tk) => tk.assignee === name)
+    const tot = q.length; const done = q.filter((tk) => doneColIds.has(tk.columnId)).length
+    return { name, done, tot, pct: tot ? Math.round((done / tot) * 100) : 0 }
+  }).sort((a, b) => b.tot - a.tot).slice(0, 6)
+  const activeFilterCount = (searchText.trim() ? 1 : 0) + (priorityFilter !== 'all' ? 1 : 0) + (epicFilter !== 'all' ? 1 : 0) + (tagFilter !== 'all' ? 1 : 0) + (assigneeFilter !== 'all' ? 1 : 0)
 
   return (
     <div>
@@ -342,6 +353,62 @@ export default function Board() {
                   )})}
               </div>
             </div>
+            {/* Progresso por módulo / responsável / distribuição */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
+              <div style={{ background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '8px 10px' }}>
+                <div className="muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, textTransform: 'uppercase', marginBottom: 6 }}>{t('Por módulo (épico)')}</div>
+                {epicProgressList.length === 0
+                  ? <div className="muted" style={{ fontSize: 12 }}>{t('Nenhum épico vinculado.')}</div>
+                  : epicProgressList.map(({ ep, done, tot, pct: p }) => (
+                    <div key={ep.id} style={{ marginBottom: 6 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6, fontSize: 12, fontWeight: 600 }}>
+                        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: ep.color || 'var(--text)', borderLeft: `3px solid ${ep.color || '#7c85ff'}`, paddingLeft: 6 }}>{ep.name}</span>
+                        <span className="muted" style={{ fontSize: 11 }}>{p}% ({done}/{tot})</span>
+                      </div>
+                      <div style={{ height: 6, background: 'var(--border-light)', borderRadius: 4, overflow: 'hidden', marginTop: 2 }}><div style={{ width: `${p}%`, height: '100%', background: ep.color || 'var(--accent)' }} /></div>
+                    </div>
+                  ))}
+              </div>
+              <div style={{ background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '8px 10px' }}>
+                <div className="muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, textTransform: 'uppercase', marginBottom: 6 }}>{t('Por responsável')}</div>
+                {assigneeProgressList.length === 0
+                  ? <div className="muted" style={{ fontSize: 12 }}>{t('Nenhum responsável atribuído.')}</div>
+                  : assigneeProgressList.map(({ name, done, tot, pct: p }) => (
+                    <div key={name} style={{ marginBottom: 6 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6, fontSize: 12, fontWeight: 600 }}>
+                        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
+                        <span className="muted" style={{ fontSize: 11 }}>{p}% ({done}/{tot})</span>
+                      </div>
+                      <div style={{ height: 6, background: 'var(--border-light)', borderRadius: 4, overflow: 'hidden', marginTop: 2 }}><div style={{ width: `${p}%`, height: '100%', background: 'var(--accent)' }} /></div>
+                    </div>
+                  ))}
+              </div>
+              <div style={{ background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '8px 10px' }}>
+                <div className="muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, textTransform: 'uppercase', marginBottom: 6 }}>{t('Distribuição por coluna')}</div>
+                {cols.map((c) => {
+                  const pctCol = c.tasks.length ? Math.round((c.tasks.filter((tk) => doneColIds.has(tk.columnId)).length / c.tasks.length) * 100) : 0
+                  const over = c.wipLimit && c.tasks.length > c.wipLimit
+                  return (
+                    <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, padding: '2px 0', color: over ? 'var(--danger)' : 'var(--text)' }}>
+                      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.name}</span>
+                      <span style={{ fontWeight: 700, marginLeft: 8 }}>{c.tasks.length}{c.wipLimit ? `/${c.wipLimit}` : ''}</span>
+                      <span className="muted" style={{ fontSize: 10, marginLeft: 6 }}>{c.isDone ? '✓' : `${pctCol}%`}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+            {activeFilterCount > 0 && (
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', padding: '6px 8px', background: 'var(--accent-soft)', borderRadius: 8, fontSize: 11 }}>
+                <span style={{ fontWeight: 700, color: 'var(--accent)' }}>{tf('{count} filtro(s) ativo(s)', { count: activeFilterCount })}:</span>
+                {searchText.trim() && <span className="badge-type">{'🔍'} {searchText.trim()}</span>}
+                {priorityFilter !== 'all' && <span className="badge-prio">{priorityFilter}</span>}
+                {epicFilter !== 'all' && <span style={{ border: '1px solid var(--accent)', color: 'var(--accent)', borderRadius: 10, padding: '1px 6px', fontSize: 11 }}>{epicFilter}</span>}
+                {tagFilter !== 'all' && <span style={{ background: 'var(--accent)', color: '#fff', borderRadius: 10, padding: '1px 6px', fontSize: 11 }}>#{tagFilter}</span>}
+                {assigneeFilter !== 'all' && <span className="muted">{assigneeFilter === '__none__' ? t('Sem responsável') : assigneeFilter}</span>}
+                <span className="muted">· {visibleCount}/{totalTasks} {t('visíveis')}</span>
+              </div>
+            )}
           </div>
         )}
       </div>
