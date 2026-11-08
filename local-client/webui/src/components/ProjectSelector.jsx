@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import { getProjects, createProject, getWorkspaces } from '../api';
+import MenuSelect from './MenuSelect.jsx';
 import { t } from '../i18n';
 
 const STORAGE_KEY = 'maestro.activeProjectByWs';
@@ -51,8 +52,7 @@ export default function ProjectSelector() {
     }
   }, [location.pathname, activeWs]);
 
-  const handleChange = (e) => {
-    const pid = e.target.value;
+  const handleChange = (pid) => {
     setActiveProject(pid);
     if (activeWs) setActiveProjectId(activeWs, pid);
     if (pid) nav(`/board/${pid}`);
@@ -93,32 +93,28 @@ export default function ProjectSelector() {
     }
   };
 
-  // Filtra projetos do workspace atual (todos os projetos pertencem ao workspace ativo no web, que é o DB do workspace)
-  // Como o web só vê o workspace ativo, todos os projetos listados são do workspace atual
+  // O web só vê o workspace ativo, então todos os projetos listados são dele.
   return (
-    <div style={{ padding: '8px 16px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-        <label style={{ fontSize: '11px', color: 'var(--muted)' }}>{t('PROJETO ATUAL')}</label>
-        <button
-          onClick={handleCreate}
-          title={t('Novo projeto')}
-          style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', borderRadius: 6, padding: '2px 6px', fontSize: 12, cursor: 'pointer' }}
-        >
-          +
-        </button>
-      </div>
-      <select style={{ width: '100%' }} value={activeProject} onChange={handleChange}>
-        <option value="">{t('Selecione um projeto')}</option>
-        {projects.map((p) => (
-          <option key={p.id} value={p.id}>
-            {p.key} · {p.name}
-          </option>
-        ))}
-      </select>
+    <>
+      <MenuSelect
+        label={t('PROJETO ATUAL')}
+        value={activeProject}
+        placeholder={t('Selecione um projeto')}
+        options={projects.map((p) => ({
+          value: String(p.id),
+          label: p.name,
+          badge: p.key,
+          hint: (p.description || '').trim(),
+        }))}
+        onChange={handleChange}
+        onCreate={handleCreate}
+        createTitle={t('Novo projeto')}
+        emptyHint={t('Nenhum projeto neste workspace')}
+      />
       {projects.length > 0 && !activeProject && (
-        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>{t('Escolha um projeto para abrir o board em 1 clique.')}</div>
+        <div className="msel-dica">{t('Escolha um projeto para abrir o board em 1 clique.')}</div>
       )}
-    </div>
+    </>
   );
 }
 export { getActiveProjectId, setActiveProjectId };

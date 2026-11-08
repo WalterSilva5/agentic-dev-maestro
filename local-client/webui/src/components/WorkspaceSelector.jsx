@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import Swal from 'sweetalert2';
 import { getWorkspaces, setActiveWorkspace, createWorkspace } from '../api';
+import MenuSelect from './MenuSelect.jsx';
 import { t } from '../i18n';
 
 export default function WorkspaceSelector() {
@@ -24,8 +25,7 @@ export default function WorkspaceSelector() {
     };
   }, []);
 
-  const handleChange = async (e) => {
-    const id = e.target.value;
+  const handleChange = async (id) => {
     setActive(id);
     try {
       await setActiveWorkspace(id);
@@ -66,24 +66,20 @@ export default function WorkspaceSelector() {
   };
 
   return (
-    <div style={{ padding: '8px 16px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-        <label style={{ fontSize: '11px', color: 'var(--muted)' }}>{t('WORKSPACE')}</label>
-        <button
-          onClick={handleCreate}
-          title={t('Novo workspace')}
-          style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', borderRadius: 6, padding: '2px 6px', fontSize: 12, cursor: 'pointer' }}
-        >
-          +
-        </button>
-      </div>
-      <select style={{ width: '100%' }} value={active} onChange={handleChange}>
-        {workspaces.map((ws) => (
-          <option key={ws.id} value={ws.id}>
-            {ws.icon ? `${ws.icon} ${ws.name}` : ws.name}
-          </option>
-        ))}
-      </select>
-    </div>
+    <MenuSelect
+      label={t('WORKSPACE')}
+      value={active}
+      placeholder={t('Selecione um workspace')}
+      options={workspaces.map((ws) => ({
+        value: ws.id,
+        label: ws.name,
+        icon: ws.icon || '📁',
+        hint: ws.description || '',
+      }))}
+      onChange={handleChange}
+      onCreate={handleCreate}
+      createTitle={t('Novo workspace')}
+      emptyHint={t('Nenhum workspace')}
+    />
   );
 }

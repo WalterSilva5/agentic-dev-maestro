@@ -572,4 +572,9 @@ export const CATALOG = {
   "Nenhum backup ainda.": "No backup yet.",
   "Senhas": "Passwords",
 
+  "Selecione um workspace": "Select a workspace",
+  "Nenhum workspace": "No workspace",
+  "Nenhum projeto neste workspace": "No project in this workspace",
+  "Nada encontrado": "Nothing found",
+  "abrir o board": "open the board",
 }
