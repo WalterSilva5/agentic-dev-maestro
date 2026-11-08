@@ -1703,7 +1703,30 @@ curl -X PATCH http://127.0.0.1:9777/api/goals/5 \\
 curl -X DELETE http://127.0.0.1:9777/api/goals/5
 ```
 
-## 4. Exportar as metricas do projeto em PDF
+## 4. Metricas por dimensao (modulo != sprint != tag)
+
+Nem toda label e modulo. Use o endpoint de dimensoes para nao misturar:
+
+```bash
+curl -s http://127.0.0.1:9777/api/projects/1/metrics/dimensions | jq '{
+  cards, with_module, unlabeled,
+  modulos: [.modules[] | {label, done, total, pct, submodules}],
+  sprints: .sprints,
+  plataformas: .platforms,
+  natureza: .process
+}'
+```
+
+- `modules[]` — modulo de entrega (`cashier`, `config`) com `submodules[]`
+  (`E1`, `Onda 1`) aninhados
+- `sprints[]` — ciclo (`Sprint 1`) — **nao** entra no progresso por modulo
+- `platforms[]` — onde roda (`vm`, `var3-app`)
+- `process[]` — natureza (`Fundacao`, `Infra`, `Bug`, `Despriorizado`)
+- `unlabeled` — cards sem label de modulo (nao inflar % de modulo com eles)
+
+Classificacao: `maestro_local/dimensions.py` (`classify_label`).
+
+## 5. Exportar as metricas do projeto em PDF
 
 ```bash
 # mesmo conteudo da aba Metricas do board (progresso, colunas, pessoas,
@@ -1713,7 +1736,7 @@ curl -s -o metricas.pdf \
 # Content-Disposition: attachment; filename="metricas-<KEY>-<data>.pdf"
 ```
 
-## 5. Ler o progresso como lider
+## 6. Ler o progresso como lider
 
 - `pct` < 100 com `daysLeft` <= 7 → risco, verificar bloqueios no board
 - `daysLeft` negativo → atrasado; renegociar escopo ou data

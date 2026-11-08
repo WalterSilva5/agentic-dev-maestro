@@ -16,6 +16,7 @@ import {
   deleteMember,
   updateProject,
   metricsPdfUrl,
+  getMetricsDimensions,
   getLinks,
   createLink,
   updateLink,
@@ -80,6 +81,7 @@ export default function Board() {
   // Métricas do projeto (acordeão)
   const [goals, setGoals] = useState([])
   const [metricsOpen, setMetricsOpen] = useState(true)
+  const [dimensions, setDimensions] = useState(null)
   const [members, setMembers] = useState([])
   const [showMembers, setShowMembers] = useState(false)
   const [newMemberName, setNewMemberName] = useState('')
@@ -149,6 +151,7 @@ export default function Board() {
     loadGoals()
     loadMembers()
     loadLinks()
+    getMetricsDimensions(projectId).then(setDimensions).catch(() => setDimensions(null))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, sprintFilter])
 
@@ -455,7 +458,7 @@ export default function Board() {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 10 }}>
               <div style={{ background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '8px 10px' }}>
-                <div className="muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, textTransform: 'uppercase', marginBottom: 6 }}>{t('Por módulo (épico)')}</div>
+                <div className="muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, textTransform: 'uppercase', marginBottom: 6 }}>{t('Por épico')}</div>
                 {epicPieData.length > 0 && (
                   <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 8 }}>
                     <PieChart data={epicPieData} size={90} />
@@ -558,71 +561,115 @@ export default function Board() {
               <div style={{ height: 14, background: 'var(--border-light)', borderRadius: 7, overflow: 'hidden', display: 'flex' }}><div style={{ width: `${pct}%`, background: pct===100?'#16a34a':'#f59e0b' }} /></div>
               <div className="muted" style={{ fontSize: 10, marginTop: 4 }}>{doneTasks}/{totalTasks} · {pct}%</div>
             </div>
-            {/* Hierárquico detalhado por módulos/submódulos (como SVG) */}
+            {/* Módulos e submódulos — classificação explícita (módulo != sprint != tag) */}
             <div style={{ background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '10px', marginTop: 8 }}>
-              <div className="muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, textTransform: 'uppercase', marginBottom: 6 }}>📊 {t('Detalhamento por módulo')}</div>
-              {(() => {
-                const moduleTags = ['auth','cashier','config','financeiro','troca','venda','voucher','tef','acordo','monitor','estatisticas','batch','abend','crm','tudoav','cobransaas','cliente']
-                const modSet = new Set(moduleTags.map((m)=>m.toLowerCase()))
-                const byModule = {}
-                for (const tk of tasksAll) {
-                  const mods = (tk.labels||[]).map((l)=>l.name.toLowerCase()).filter((n)=>modSet.has(n))
-                  for (const m of mods) { if (!byModule[m]) byModule[m]=[]; byModule[m].push(tk) }
-                }
-                const moduleKeys = Object.keys(byModule).sort((a,b)=>byModule[b].length - byModule[a].length)
-                if (moduleKeys.length===0) return <div className="muted" style={{ fontSize: 11 }}>{t('Nenhum módulo com tarefas etiquetadas.')}</div>
-                const maxBar = Math.max(...moduleKeys.map((k)=>byModule[k].length),1)
-                const groups = { concluido: [], andamento: [], naoIniciado: [] }
-                for (const mod of moduleKeys) {
-                  const tot=byModule[mod].length; const done=byModule[mod].filter((tk)=>doneColIds.has(tk.columnId)).length; const p=tot?done/tot:0
-                  if (p===1) groups.concluido.push(mod); else if (p===0) groups.naoIniciado.push(mod); else groups.andamento.push(mod)
-                }
-                return (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    {['concluido','andamento','naoIniciado'].map((grp)=>{
-                      const mods=groups[grp]; if(mods.length===0) return null
-                      const titles={concluido:'CONCLUÍDOS',andamento:'EM ANDAMENTO',naoIniciado:'NÃO INICIADOS'}
-                      return (
-                        <div key={grp}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                            <span style={{ width: 4, height: 16, borderRadius: 2, background: grp==='concluido'?'#16a34a':grp==='andamento'?'#f59e0b':'#cbd5e1' }} />
-                            <span style={{ fontWeight: 800, fontSize: 10, letterSpacing: .5 }}>{t(titles[grp])}</span>
-                            <span className="muted" style={{ fontSize: 11 }}>{mods.length} {t('módulo(s)')} · {mods.reduce((a,m)=>a+byModule[m].length,0)} {t('tarefas')}</span>
-                          </div>
-                          {mods.map((mod)=>{
-                            const tasksMod=byModule[mod]; const tot=tasksMod.length; const done=tasksMod.filter((tk)=>doneColIds.has(tk.columnId)).length; const p=tot?Math.round(done/tot*100):0; const barW=Math.max(14, Math.round((tot/maxBar)*460))
-                            const subTags={}; for(const tk of tasksMod){ for(const lb of tk.labels||[]){ const n=lb.name; if(n.includes('-') && n.toLowerCase()!==mod && !['sprint-1','sprint-2','sprint-3','sprint-4','sprint-5','vm','var-mobile','var3-app','fundacao','infra','despriorizado'].includes(n.toLowerCase())){ const pre=mod.slice(0,3).toLowerCase(); if(n.toLowerCase().startsWith(pre) || (n.toLowerCase().startsWith('onda-')&&mod==='cashier')||(n.toLowerCase().startsWith('tro-')&&mod==='troca')||(n.toLowerCase().startsWith('ven-')&&mod==='venda')||(n.toLowerCase().startsWith('fin-')&&mod==='financeiro')){ if(!subTags[n]) subTags[n]=[]; subTags[n].push(tk) } } } }
-                            const subKeys=Object.keys(subTags).sort()
-                            return (
-                              <div key={mod} style={{ marginBottom: 8, border: '1px solid var(--border-light)', borderRadius: 8, padding: '8px 10px', background: 'var(--card)' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                                  <span style={{ fontWeight: 700, fontSize: 12, textTransform: 'capitalize' }}>{mod} <span className="muted" style={{ fontWeight: 400, fontSize: 11 }}>· {tot} {t('tarefas')}</span></span>
-                                  <span style={{ fontSize: 11, fontWeight: 700 }}>{done}/{tot} — {p}%</span>
-                                </div>
-                                <div style={{ height: 10, background: 'var(--border-light)', borderRadius: 5, overflow: 'hidden', marginTop: 4, maxWidth: barW }}><div style={{ width: `${p}%`, height: '100%', background: p===100?'#16a34a':p>0?'#f59e0b':'var(--border-light)' }} /></div>
-                                {subKeys.length>0 && (
-                                  <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 3, paddingLeft: 10, borderLeft: '2px solid var(--border-light)' }}>
-                                    {subKeys.map((sub)=>{
-                                      const q=subTags[sub]; const totS=q.length; const doneS=q.filter((tk)=>doneColIds.has(tk.columnId)).length; const pS=totS?Math.round(doneS/totS*100):0; const barSW=Math.max(10, Math.round((totS/maxBar)*460*0.6))
-                                      return (
-                                        <div key={sub} style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10 }}><span className="muted">{sub}</span><span style={{ fontWeight: 600 }}>{doneS}/{totS} — {pS}%</span></div>
-                                          <div style={{ height: 6, background: 'var(--border-light)', borderRadius: 3, overflow: 'hidden', maxWidth: barSW }}><div style={{ width: `${pS}%`, height: '100%', background: pS===100?'#16a34a':pS>0?'#f59e0b':'var(--border-light)' }} /></div>
-                                        </div>
-                                      )
-                                    })}
-                                  </div>
-                                )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                <span className="muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, textTransform: 'uppercase' }}>📊 {t('Módulos e submódulos')}</span>
+                {dimensions && (
+                  <span className="muted" style={{ fontSize: 10 }}>
+                    {dimensions.with_module}/{dimensions.cards} {t('cards com módulo')}
+                    {dimensions.unlabeled?.total > 0 && ` · ${dimensions.unlabeled.total} ${t('sem módulo')}`}
+                  </span>
+                )}
+                <span style={{ marginLeft: 'auto', display: 'flex', gap: 10, fontSize: 10 }} className="muted">
+                  <span><span style={{ color: '#16a34a' }}>■</span> {t('Concluído')}</span>
+                  <span><span style={{ color: '#f59e0b' }}>■</span> {t('Em andamento')}</span>
+                  <span><span style={{ color: '#cbd5e1' }}>■</span> {t('Não iniciado')}</span>
+                </span>
+              </div>
+
+              {!dimensions || dimensions.modules.length === 0 ? (
+                <div className="muted" style={{ fontSize: 11 }}>{t('Nenhum módulo identificado nas labels.')}</div>
+              ) : (
+                (() => {
+                  const mods = dimensions.modules
+                  const maxBar = Math.max(...mods.map((x) => x.total), 1)
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {mods.map((mod) => {
+                        const cor = mod.pct === 100 ? '#16a34a' : mod.pct > 0 ? '#f59e0b' : '#cbd5e1'
+                        const barW = Math.max(16, Math.round((mod.total / maxBar) * 440))
+                        return (
+                          <div key={mod.name} style={{ border: '1px solid var(--border-light)', borderRadius: 8, padding: '7px 9px', background: 'var(--card)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                              <span style={{ fontWeight: 700, fontSize: 12 }}>{mod.label} <span className="muted" style={{ fontWeight: 400, fontSize: 11 }}>· {mod.total} {t('cards')}</span></span>
+                              <span style={{ fontSize: 11, fontWeight: 700 }}>{mod.done}/{mod.total} — {mod.pct}%</span>
+                            </div>
+                            <div style={{ height: 10, background: 'var(--border-light)', borderRadius: 5, overflow: 'hidden', marginTop: 4, maxWidth: barW }}>
+                              <div style={{ width: `${mod.pct}%`, height: '100%', background: cor }} />
+                            </div>
+                            {mod.submodules?.length > 0 && (
+                              <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 3, paddingLeft: 10, borderLeft: '2px solid var(--border-light)' }}>
+                                {mod.submodules.map((sub) => {
+                                  const corS = sub.pct === 100 ? '#16a34a' : sub.pct > 0 ? '#f59e0b' : '#cbd5e1'
+                                  const barSW = Math.max(10, Math.round((sub.total / maxBar) * 440 * 0.6))
+                                  return (
+                                    <div key={sub.name} style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10 }}>
+                                        <span className="muted">{sub.label} <span style={{ opacity: .7 }}>({sub.name})</span></span>
+                                        <span style={{ fontWeight: 600 }}>{sub.done}/{sub.total} — {sub.pct}%</span>
+                                      </div>
+                                      <div style={{ height: 6, background: 'var(--border-light)', borderRadius: 3, overflow: 'hidden', maxWidth: barSW }}>
+                                        <div style={{ width: `${sub.pct}%`, height: '100%', background: corS }} />
+                                      </div>
+                                    </div>
+                                  )
+                                })}
                               </div>
-                            )
-                          })}
-                        </div>
-                      )
-                    })}
-                  </div>
-                )
-              })()}
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )
+                })()
+              )}
             </div>
+
+            {/* Sprints, plataformas e natureza — dimensões separadas do módulo */}
+            {dimensions && (dimensions.sprints.length > 0 || dimensions.platforms.length > 0 || dimensions.process.length > 0) && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
+                {dimensions.sprints.length > 0 && (
+                  <div style={{ background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '8px 10px' }}>
+                    <div className="muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, textTransform: 'uppercase', marginBottom: 6 }}>{t('Por sprint')}</div>
+                    {dimensions.sprints.map((sp) => (
+                      <div key={sp.name} style={{ marginBottom: 5 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
+                          <span>{sp.label}</span>
+                          <span className="muted">{sp.done}/{sp.total} — {sp.pct}%</span>
+                        </div>
+                        <div style={{ height: 6, background: 'var(--border-light)', borderRadius: 3, overflow: 'hidden', marginTop: 1 }}>
+                          <div style={{ width: `${sp.pct}%`, height: '100%', background: sp.pct === 100 ? '#16a34a' : '#4f46e5' }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {dimensions.platforms.length > 0 && (
+                  <div style={{ background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '8px 10px' }}>
+                    <div className="muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, textTransform: 'uppercase', marginBottom: 6 }}>{t('Por plataforma')}</div>
+                    {dimensions.platforms.map((pl) => (
+                      <div key={pl.name} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, padding: '1px 0' }}>
+                        <span>{pl.label}</span>
+                        <span className="muted">{pl.done}/{pl.total}</span>
+                      </div>
+                    ))}
+                    <div className="muted" style={{ fontSize: 10, marginTop: 4 }}>{t('Não entra no progresso por módulo.')}</div>
+                  </div>
+                )}
+                {dimensions.process.length > 0 && (
+                  <div style={{ background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '8px 10px' }}>
+                    <div className="muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, textTransform: 'uppercase', marginBottom: 6 }}>{t('Por natureza')}</div>
+                    {dimensions.process.map((pr) => (
+                      <div key={pr.name} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, padding: '1px 0' }}>
+                        <span>{pr.label}</span>
+                        <span className="muted">{pr.done}/{pr.total} — {pr.pct}%</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>

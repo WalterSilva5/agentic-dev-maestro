@@ -2739,6 +2739,34 @@ def project_daily_summary(
     }
 
 
+@app.get("/api/projects/{project_id}/metrics/dimensions")
+def project_metrics_dimensions(project_id: int, s: Session = Depends(db)):
+    """Métricas separadas por dimensão: módulo (com submódulos), sprint,
+    plataforma e natureza. Evita misturar label de módulo com sprint/tag."""
+    from maestro_local.dimensions import aggregate_dimensions
+
+    project = s.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(404, "Project not found")
+
+    done_ids = {
+        c.id for c in s.query(BoardColumn)
+        .filter(BoardColumn.project_id == project_id, BoardColumn.is_done == True)  # noqa: E712
+        .all()
+    }
+    tasks = (
+        s.query(Task)
+        .filter(
+            Task.project_id == project_id,
+            Task.deleted_at == None,  # noqa: E711
+            Task.archived_at == None,  # noqa: E711
+        )
+        .all()
+    )
+    dados = aggregate_dimensions(tasks, done_ids)
+    return {"projectId": project_id, **dados}
+
+
 @app.get("/api/projects/{project_id}/metrics/export.pdf")
 def export_project_metrics_pdf(project_id: int, s: Session = Depends(db)):
     """Relatório de métricas do projeto em PDF (mesmo conteúdo da aba Métricas)."""

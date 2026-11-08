@@ -152,6 +152,10 @@ def collect_metrics(session, project) -> dict:
         })
     por_modulo.sort(key=lambda x: x["nome"])
 
+    # dimensões classificadas (módulo != sprint != plataforma != natureza)
+    from maestro_local.dimensions import aggregate_dimensions
+    dimensoes = aggregate_dimensions(tasks, done_ids)
+
     # daily do projeto
     daily = (
         session.query(ProjectDailyEntry)
@@ -179,6 +183,7 @@ def collect_metrics(session, project) -> dict:
         "por_prioridade": por_prioridade,
         "por_epico": por_epico,
         "por_modulo": por_modulo,
+        "dimensoes": dimensoes,
         "daily": {
             "total": len(daily),
             "dias": len(daily_dias),
@@ -411,9 +416,11 @@ def _dados_prioridade(m: dict) -> list[tuple[str, int, str]]:
 
 
 def _dados_modulos(m: dict) -> list[tuple[str, int, str]]:
+    """Só módulos (sem sprint/plataforma/tag) — usa a classificação."""
+    mods = m.get("dimensoes", {}).get("modules", [])
     return [
-        (x["nome"], x["total"], PIE_COLORS[i % len(PIE_COLORS)])
-        for i, x in enumerate(m["por_modulo"])
+        (x["label"], x["total"], PIE_COLORS[i % len(PIE_COLORS)])
+        for i, x in enumerate(mods)
     ]
 
 
@@ -503,32 +510,43 @@ def build_metrics_pdf(session, project) -> bytes:
         flow.append(_cartao_grafico("Distribuição por épico", _dados_epicos(m), st,
                                     largura=174 * mm, size=46 * mm, max_legenda=8))
 
-    # ---------- progresso por módulos (barras proporcionais) ----------
-    hier = m.get("por_modulo", [])
-    if hier:
-        _titulo(flow, "Progresso por módulo (barra proporcional ao tamanho)", st)
+    # ---------- módulos e submódulos (classificação explícita) ----------
+    dims = m.get("dimensoes", {})
+    mods = dims.get("modules", [])
+    if mods:
+        _titulo(flow, "Módulos e submódulos", st)
+        sem = dims.get("unlabeled", {}).get("total", 0)
         flow.append(Paragraph(
-            "Mesma leitura do diagrama de acompanhamento: a largura acompanha o "
-            "número de cards e a cor indica o estágio (verde 100%, amarelo em andamento, cinza parado).",
+            f"{dims.get('with_module', 0)}/{dims.get('cards', 0)} cards com módulo"
+            + (f" · {sem} sem módulo (não entram no progresso por módulo)" if sem else "")
+            + " · um card pode ter mais de um módulo · largura da barra proporcional ao tamanho",
             st["small"],
         ))
         flow.append(Spacer(1, 2 * mm))
-        maximo = max(x["total"] for x in hier) or 1
+        maximo = max(x["total"] for x in mods) or 1
         linhas = [[
-            Paragraph("<b>Módulo</b>", st["small"]),
+            Paragraph("<b>Módulo / submódulo</b>", st["small"]),
             Paragraph("<b>Progresso</b>", st["small"]),
             Paragraph("<b>Cards</b>", st["small"]),
         ]]
-        for x in sorted(hier, key=lambda y: -y["total"])[:22]:
+        for x in mods[:24]:
             largura = max(10, 150 * x["total"] / maximo)
-            pct = x["pct"]
-            cor = GREEN if pct == 100 else (AMBER if pct > 0 else colors.HexColor("#CBD5E1"))
+            cor = GREEN if x["pct"] == 100 else (AMBER if x["pct"] > 0 else colors.HexColor("#CBD5E1"))
             linhas.append([
-                Paragraph(x["nome"], st["body"]),
-                _bar(pct, width=largura, cor=cor),
-                Paragraph(f"{x['done']}/{x['total']} — {pct}%", st["small"]),
+                Paragraph(f"<b>{x['label']}</b>", st["body"]),
+                _bar(x["pct"], width=largura, cor=cor),
+                Paragraph(f"{x['done']}/{x['total']} — {x['pct']}%", st["small"]),
             ])
-        t = Table(linhas, colWidths=[46 * mm, 82 * mm, 46 * mm], repeatRows=1)
+            for sub in x.get("submodules", [])[:6]:
+                largura_s = max(8, 110 * sub["total"] / maximo)
+                cor_s = GREEN if sub["pct"] == 100 else (AMBER if sub["pct"] > 0 else colors.HexColor("#CBD5E1"))
+                linhas.append([
+                    Paragraph(f"&nbsp;&nbsp;&nbsp;{sub['label']} <font color='#9CA3AF'>({sub['name']})</font>",
+                              st["small"]),
+                    _bar(sub["pct"], width=largura_s, height=5, cor=cor_s),
+                    Paragraph(f"{sub['done']}/{sub['total']} — {sub['pct']}%", st["small"]),
+                ])
+        t = Table(linhas, colWidths=[52 * mm, 78 * mm, 44 * mm], repeatRows=1)
         t.setStyle(TableStyle([
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
             ("TOPPADDING", (0, 0), (-1, -1), 2),
@@ -538,6 +556,52 @@ def build_metrics_pdf(session, project) -> bytes:
             ("LINEBELOW", (0, 0), (-1, 0), 0.8, colors.HexColor("#9CA3AF")),
         ]))
         flow.append(t)
+        if len(mods) > 24:
+            flow.append(Paragraph(f"+ {len(mods) - 24} módulo(s) não exibidos", st["small"]))
+
+    # ---------- sprints / plataformas / natureza (dimensões separadas) ----------
+    sprints = dims.get("sprints", [])
+    plataformas = dims.get("platforms", [])
+    natureza = dims.get("process", [])
+    if sprints or plataformas or natureza:
+        _titulo(flow, "Sprints, plataformas e natureza", st)
+        flow.append(Paragraph(
+            "Estas dimensões não são módulos: sprint é o ciclo, plataforma é onde roda "
+            "e natureza é o tipo de trabalho. Ficam fora do progresso por módulo.",
+            st["small"],
+        ))
+        flow.append(Spacer(1, 1.5 * mm))
+
+        def _bloco(titulo: str, itens: list[dict], mostrar_pct: bool = True):
+            dados = [[Paragraph(f"<b>{titulo}</b>", st["small"]), Paragraph("", st["small"])]]
+            for it in itens[:10]:
+                valor = (f"{it['done']}/{it['total']} — {it['pct']}%" if mostrar_pct
+                         else f"{it['done']}/{it['total']}")
+                dados.append([Paragraph(it["label"], st["body"]), Paragraph(valor, st["small"])])
+            t = Table(dados, colWidths=[40 * mm, 42 * mm])
+            t.setStyle(TableStyle([
+                ("TOPPADDING", (0, 0), (-1, -1), 2),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("LINEBELOW", (0, 0), (-1, -2), 0.3, BORDER),
+            ]))
+            return t
+
+        colunas = []
+        if sprints:
+            colunas.append(_bloco("Por sprint", sprints))
+        if plataformas:
+            colunas.append(_bloco("Por plataforma", plataformas, mostrar_pct=False))
+        if natureza:
+            colunas.append(_bloco("Por natureza", natureza))
+        grid = Table([colunas], colWidths=[56 * mm] * len(colunas))
+        grid.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+            ("TOPPADDING", (0, 0), (-1, -1), 0),
+        ]))
+        flow.append(grid)
 
     # ---------- por coluna (tabela) ----------
     _titulo(flow, "Cards por coluna", st)
