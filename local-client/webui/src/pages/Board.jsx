@@ -21,6 +21,7 @@ import {
   deleteLink,
 } from '../api'
 import TaskDetail from '../components/TaskDetail.jsx'
+import ProjectDaily from '../components/ProjectDaily.jsx'
 import SprintPlanning from './SprintPlanning.jsx'
 import { t, tf } from '../i18n'
 
@@ -371,12 +372,17 @@ export default function Board() {
         <button className={view === 'metrics' ? '' : 'ghost'} onClick={() => setView('metrics')}>
           {t('Métricas')}
         </button>
+        <button className={view === 'daily' ? '' : 'ghost'} onClick={() => setView('daily')}>
+          📝 {t('Daily')}
+        </button>
         <button className={view === 'planning' ? '' : 'ghost'} onClick={() => setView('planning')}>
           {t('Planejamento de Sprints')}
         </button>
       </div>
 
-      {view === 'planning' ? (
+      {view === 'daily' ? (
+        <ProjectDaily projectId={projectId} author={members[0]?.name || ''} />
+      ) : view === 'planning' ? (
         <SprintPlanning
           projectId={projectId}
           onChanged={() => {

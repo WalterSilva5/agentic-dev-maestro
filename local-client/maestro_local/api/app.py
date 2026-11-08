@@ -31,6 +31,7 @@ from maestro_local.db.models import (
     MemoryEntry,
     ParityResult,
     Project,
+    ProjectDailyEntry,
     ProjectLink,
     Runbook,
     Snippet,
@@ -231,6 +232,58 @@ class ProjectLinkReorder(BaseModel):
 
 def _link_dict(l: ProjectLink) -> dict:
     return {"id": l.id, "projectId": l.project_id, "title": l.title, "url": l.url, "sortOrder": l.sort_order, "createdAt": l.created_at.isoformat() if l.created_at else None}
+
+
+DAILY_KINDS = ("WORK", "BLOCKER", "DECISION", "NOTE")
+
+
+class ProjectDailyCreate(BaseModel):
+    body: str
+    date: Optional[str] = None          # YYYY-MM-DD (default: hoje)
+    kind: Optional[str] = "WORK"
+    author: Optional[str] = None
+    minutes: Optional[int] = None
+    taskCode: Optional[str] = None
+
+
+class ProjectDailyUpdate(BaseModel):
+    body: Optional[str] = None
+    date: Optional[str] = None
+    kind: Optional[str] = None
+    author: Optional[str] = None
+    minutes: Optional[int] = None
+    taskCode: Optional[str] = None
+
+
+def _daily_dict(e: ProjectDailyEntry) -> dict:
+    return {
+        "id": e.id,
+        "projectId": e.project_id,
+        "date": e.date,
+        "kind": e.kind or "WORK",
+        "body": e.body or "",
+        "author": e.author,
+        "minutes": e.minutes,
+        "taskCode": e.task_code or "",
+        "createdAt": e.created_at.isoformat() if e.created_at else None,
+        "updatedAt": e.updated_at.isoformat() if e.updated_at else None,
+    }
+
+
+def _daily_validate_date(value: str | None) -> str:
+    if not value:
+        return datetime.now().strftime("%Y-%m-%d")
+    try:
+        return datetime.strptime(value, "%Y-%m-%d").strftime("%Y-%m-%d")
+    except ValueError:
+        raise HTTPException(400, "date must be YYYY-MM-DD")
+
+
+def _daily_validate_kind(value: str | None) -> str:
+    kind = (value or "WORK").strip().upper()
+    if kind not in DAILY_KINDS:
+        raise HTTPException(400, f"kind must be one of {', '.join(DAILY_KINDS)}")
+    return kind
 
 
 class EvidenceCreate(BaseModel):
@@ -2482,6 +2535,166 @@ def task_quality(code: str, s: Session = Depends(db)):
         "evidence_count": len(evs),
         "parity": counts,
         "gate_ok": counts["divergencia"] == 0,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Daily do projeto (registro de trabalho por dia)
+# ---------------------------------------------------------------------------
+
+
+@app.get("/api/projects/{project_id}/daily")
+def list_project_daily(
+    project_id: int,
+    date: Optional[str] = None,
+    dateFrom: Optional[str] = None,
+    dateTo: Optional[str] = None,
+    author: Optional[str] = None,
+    kind: Optional[str] = None,
+    q: Optional[str] = None,
+    limit: int = 200,
+    s: Session = Depends(db),
+):
+    """Lista os registros diários do projeto.
+
+    Filtros: `date` (dia exato), `dateFrom`/`dateTo` (intervalo),
+    `author`, `kind` (WORK|BLOCKER|DECISION|NOTE) e `q` (busca no texto).
+    """
+    if not s.query(Project).filter(Project.id == project_id).first():
+        raise HTTPException(404, "Project not found")
+
+    query = s.query(ProjectDailyEntry).filter(ProjectDailyEntry.project_id == project_id)
+    if date:
+        query = query.filter(ProjectDailyEntry.date == _daily_validate_date(date))
+    else:
+        if dateFrom:
+            query = query.filter(ProjectDailyEntry.date >= _daily_validate_date(dateFrom))
+        if dateTo:
+            query = query.filter(ProjectDailyEntry.date <= _daily_validate_date(dateTo))
+    if author:
+        query = query.filter(ProjectDailyEntry.author.ilike(f"%{author.strip()}%"))
+    if kind:
+        query = query.filter(ProjectDailyEntry.kind == _daily_validate_kind(kind))
+    if q:
+        query = query.filter(ProjectDailyEntry.body.ilike(f"%{q.strip()}%"))
+
+    limit = max(1, min(int(limit or 200), 1000))
+    entries = query.order_by(ProjectDailyEntry.date.desc(), ProjectDailyEntry.created_at.desc()).limit(limit).all()
+    return [_daily_dict(e) for e in entries]
+
+
+@app.post("/api/projects/{project_id}/daily")
+def create_project_daily(project_id: int, body: ProjectDailyCreate, s: Session = Depends(db)):
+    """Cria um registro diário (comentário de trabalho do dia)."""
+    if not s.query(Project).filter(Project.id == project_id).first():
+        raise HTTPException(404, "Project not found")
+    text = (body.body or "").strip()
+    if not text:
+        raise HTTPException(400, "body is required")
+
+    entry = ProjectDailyEntry(
+        project_id=project_id,
+        date=_daily_validate_date(body.date),
+        kind=_daily_validate_kind(body.kind),
+        body=text,
+        author=(body.author or "").strip()[:100] or None,
+        minutes=body.minutes,
+        task_code=(body.taskCode or "").strip()[:40],
+    )
+    s.add(entry)
+    s.flush()
+    _log(s, "project", project_id, "daily_added", f"{entry.date} {entry.kind}")
+    s.commit()
+    s.refresh(entry)
+    return _daily_dict(entry)
+
+
+@app.get("/api/project-daily/{entry_id}")
+def get_project_daily(entry_id: int, s: Session = Depends(db)):
+    entry = s.query(ProjectDailyEntry).filter(ProjectDailyEntry.id == entry_id).first()
+    if not entry:
+        raise HTTPException(404, "Daily entry not found")
+    return _daily_dict(entry)
+
+
+@app.patch("/api/project-daily/{entry_id}")
+def update_project_daily(entry_id: int, body: ProjectDailyUpdate, s: Session = Depends(db)):
+    entry = s.query(ProjectDailyEntry).filter(ProjectDailyEntry.id == entry_id).first()
+    if not entry:
+        raise HTTPException(404, "Daily entry not found")
+
+    data = body.model_dump(exclude_unset=True)
+    if "body" in data and data["body"] is not None:
+        text = data["body"].strip()
+        if not text:
+            raise HTTPException(400, "body cannot be empty")
+        entry.body = text
+    if "date" in data and data["date"] is not None:
+        entry.date = _daily_validate_date(data["date"])
+    if "kind" in data and data["kind"] is not None:
+        entry.kind = _daily_validate_kind(data["kind"])
+    if "author" in data:
+        entry.author = (data["author"] or "").strip()[:100] or None
+    if "minutes" in data:
+        entry.minutes = data["minutes"]
+    if "taskCode" in data:
+        entry.task_code = (data["taskCode"] or "").strip()[:40]
+    entry.updated_at = datetime.utcnow()
+    s.commit()
+    s.refresh(entry)
+    return _daily_dict(entry)
+
+
+@app.delete("/api/project-daily/{entry_id}")
+def delete_project_daily(entry_id: int, s: Session = Depends(db)):
+    entry = s.query(ProjectDailyEntry).filter(ProjectDailyEntry.id == entry_id).first()
+    if not entry:
+        raise HTTPException(404, "Daily entry not found")
+    s.delete(entry)
+    s.commit()
+    return {"ok": True}
+
+
+@app.get("/api/projects/{project_id}/daily/summary")
+def project_daily_summary(
+    project_id: int,
+    dateFrom: Optional[str] = None,
+    dateTo: Optional[str] = None,
+    s: Session = Depends(db),
+):
+    """Resumo por dia e por tipo — alimenta o painel do daily no board."""
+    if not s.query(Project).filter(Project.id == project_id).first():
+        raise HTTPException(404, "Project not found")
+
+    query = s.query(ProjectDailyEntry).filter(ProjectDailyEntry.project_id == project_id)
+    if dateFrom:
+        query = query.filter(ProjectDailyEntry.date >= _daily_validate_date(dateFrom))
+    if dateTo:
+        query = query.filter(ProjectDailyEntry.date <= _daily_validate_date(dateTo))
+    entries = query.order_by(ProjectDailyEntry.date).all()
+
+    by_day: dict[str, dict] = {}
+    by_kind: dict[str, int] = {k: 0 for k in DAILY_KINDS}
+    authors: dict[str, int] = {}
+    total_minutes = 0
+    for e in entries:
+        day = by_day.setdefault(e.date, {"date": e.date, "entries": 0, "minutes": 0, "authors": []})
+        day["entries"] += 1
+        day["minutes"] += e.minutes or 0
+        if e.author and e.author not in day["authors"]:
+            day["authors"].append(e.author)
+        by_kind[e.kind or "WORK"] = by_kind.get(e.kind or "WORK", 0) + 1
+        if e.author:
+            authors[e.author] = authors.get(e.author, 0) + 1
+        total_minutes += e.minutes or 0
+
+    return {
+        "projectId": project_id,
+        "total": len(entries),
+        "totalMinutes": total_minutes,
+        "byKind": by_kind,
+        "byAuthor": authors,
+        "days": sorted(by_day.values(), key=lambda d: d["date"], reverse=True),
     }
 
 

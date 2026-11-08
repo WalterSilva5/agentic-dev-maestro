@@ -186,4 +186,15 @@ export const updateLink = (id, body) => api.patch(`/links/${id}`, body).then((r)
 export const deleteLink = (id) => api.delete(`/links/${id}`).then((r) => r.data)
 export const reorderLinks = (projectId, orderedIds) => api.post(`/projects/${projectId}/links/reorder`, { orderedIds }).then((r) => r.data)
 
+// Daily do projeto (registro de trabalho por dia)
+export const getProjectDaily = (projectId, params = {}) =>
+  api.get(`/projects/${projectId}/daily`, { params }).then((r) => r.data)
+export const createProjectDaily = (projectId, body) =>
+  api.post(`/projects/${projectId}/daily`, body).then((r) => r.data)
+export const getProjectDailyEntry = (id) => api.get(`/project-daily/${id}`).then((r) => r.data)
+export const updateProjectDaily = (id, body) => api.patch(`/project-daily/${id}`, body).then((r) => r.data)
+export const deleteProjectDaily = (id) => api.delete(`/project-daily/${id}`).then((r) => r.data)
+export const getProjectDailySummary = (projectId, params = {}) =>
+  api.get(`/projects/${projectId}/daily/summary`, { params }).then((r) => r.data)
+
 export const getHealth = () => api.get('/health').then((r) => r.data)

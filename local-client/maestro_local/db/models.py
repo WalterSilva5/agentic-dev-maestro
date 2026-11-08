@@ -61,6 +61,10 @@ class Project(Base):
     goals = relationship("Goal", back_populates="project", cascade="all,delete-orphan", order_by="Goal.due_date")
     links = relationship("ProjectLink", back_populates="project", cascade="all,delete-orphan", order_by="ProjectLink.sort_order")
     gate_rules = relationship("GateRule", back_populates="project", cascade="all,delete-orphan")
+    daily_entries = relationship(
+        "ProjectDailyEntry", back_populates="project", cascade="all,delete-orphan",
+        order_by="ProjectDailyEntry.date, ProjectDailyEntry.created_at",
+    )
 
     @property
     def board_url(self) -> str:
@@ -409,6 +413,30 @@ class DailyNote(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class ProjectDailyEntry(Base):
+    """Registro diário do projeto: o que foi feito naquele dia.
+
+    Funciona como um diário/comentário do projeto (não da tarefa), usado para
+    daily e para agentes reconstruírem o andamento. Várias entradas por dia são
+    permitidas — cada uma é um comentário com autor, tipo e horário.
+    """
+
+    __tablename__ = "project_daily"
+
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    date = Column(String(10), nullable=False, index=True)   # YYYY-MM-DD (dia do trabalho)
+    kind = Column(String(20), default="WORK")               # WORK|BLOCKER|DECISION|NOTE
+    body = Column(Text, nullable=False, default="")
+    author = Column(String(100))
+    minutes = Column(Integer)                               # tempo dedicado (opcional)
+    task_code = Column(String(40), default="")              # card relacionado (opcional)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    project = relationship("Project", back_populates="daily_entries")
+
+
 class ActivityLog(Base):
     __tablename__ = "activity_log"
 
@@ -497,6 +525,8 @@ class Recording(Base):
     archived_at = Column(DateTime)           # arquivamento (None = ativa)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+
+Index("ix_project_daily_project_date", ProjectDailyEntry.project_id, ProjectDailyEntry.date)
 
 Index("ix_tasks_project_column", Task.project_id, Task.column_id)
 Index("ix_tasks_deleted_at", Task.deleted_at)

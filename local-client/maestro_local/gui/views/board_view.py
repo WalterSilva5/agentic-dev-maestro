@@ -2,12 +2,13 @@ import json
 import time
 from datetime import date, datetime
 
-from PySide6.QtCore import QMimeData, QPoint, QPropertyAnimation, QRect, QSize, QTimer, Qt, Signal
+from PySide6.QtCore import QDate, QMimeData, QPoint, QPropertyAnimation, QRect, QSize, QTimer, Qt, Signal
 from PySide6.QtGui import QColor, QDrag, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
     QComboBox,
+    QDateEdit,
     QDialog,
     QDoubleSpinBox,
     QFormLayout,
@@ -24,6 +25,7 @@ from PySide6.QtWidgets import (
     QScrollArea,
     QSizePolicy,
     QTabWidget,
+    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
@@ -37,6 +39,7 @@ from maestro_local.db.models import (
     Label,
     Member,
     Project,
+    ProjectDailyEntry,
     Sprint,
     Task,
     get_or_create_member,
@@ -2109,6 +2112,394 @@ class BoardMetricsAccordion(QFrame):
 
 
 # ────────────────────────────────────────────────────────────
+# ProjectDailyTab — diário/comentário diário do projeto
+# ────────────────────────────────────────────────────────────
+
+DAILY_KINDS = [
+    ("WORK", "Trabalho", "#16a34a"),
+    ("BLOCKER", "Bloqueio", "#dc2626"),
+    ("DECISION", "Decisão", "#4f46e5"),
+    ("NOTE", "Nota", "#6b7280"),
+]
+
+
+class ProjectDailyTab(QWidget):
+    """Registro diário do projeto: cada linha é um comentário do dia.
+
+    Serve de doc de daily: filtra por período, tipo, autor e texto; permite
+    criar, editar e excluir. Os mesmos dados ficam expostos em
+    `/api/projects/{id}/daily` para os agentes.
+    """
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.project_id = None
+        t = current_theme()
+        root = QVBoxLayout(self)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(10)
+
+        # --- resumo ---
+        self.summary_lbl = QLabel("")
+        self.summary_lbl.setProperty("class", "hint")
+        root.addWidget(self.summary_lbl)
+
+        # --- formulário ---
+        form = QFrame()
+        form.setStyleSheet(f"QFrame {{ background: {t.bg_card}; border: 1px solid {t.border_light}; border-radius: 10px; }}")
+        fl = QVBoxLayout(form)
+        fl.setContentsMargins(12, 10, 12, 10)
+        fl.setSpacing(6)
+
+        title = QLabel(_t("Novo registro do dia"))
+        title.setStyleSheet(f"font-weight: 700; font-size: 13px; color: {t.text_primary}; border: none;")
+        fl.addWidget(title)
+
+        self.body_input = QTextEdit()
+        self.body_input.setPlaceholderText(_t("O que você fez hoje neste projeto..."))
+        self.body_input.setMinimumHeight(70)
+        fl.addWidget(self.body_input)
+
+        row = QHBoxLayout()
+        row.setSpacing(6)
+        self.date_input = QDateEdit()
+        self.date_input.setCalendarPopup(True)
+        self.date_input.setDisplayFormat("yyyy-MM-dd")
+        self.date_input.setDate(QDate.currentDate())
+        row.addWidget(QLabel(_t("Dia:")))
+        row.addWidget(self.date_input)
+
+        row.addWidget(QLabel(_t("Tipo:")))
+        self.kind_combo = QComboBox()
+        for key, label, _color in DAILY_KINDS:
+            self.kind_combo.addItem(_t(label), key)
+        row.addWidget(self.kind_combo)
+
+        self.minutes_input = QLineEdit()
+        self.minutes_input.setPlaceholderText(_t("min"))
+        self.minutes_input.setFixedWidth(70)
+        row.addWidget(self.minutes_input)
+
+        self.task_input = QLineEdit()
+        self.task_input.setPlaceholderText(_t("Card (opcional)"))
+        self.task_input.setFixedWidth(140)
+        row.addWidget(self.task_input)
+
+        self.add_btn = QPushButton(_t("Registrar"))
+        self.add_btn.setCursor(Qt.PointingHandCursor)
+        self.add_btn.clicked.connect(self._add)
+        row.addWidget(self.add_btn)
+        row.addStretch()
+        fl.addLayout(row)
+        root.addWidget(form)
+
+        # --- filtros ---
+        filters = QHBoxLayout()
+        filters.setSpacing(6)
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText(_t("Buscar no texto..."))
+        self.search_input.textChanged.connect(self.refresh)
+        filters.addWidget(self.search_input, 1)
+
+        self.from_date = QDateEdit()
+        self.from_date.setCalendarPopup(True)
+        self.from_date.setDisplayFormat("yyyy-MM-dd")
+        self.from_date.setSpecialValueText(_t("De"))
+        self.from_date.setDate(self.from_date.minimumDate())
+        self.from_date.dateChanged.connect(self.refresh)
+        filters.addWidget(self.from_date)
+
+        self.to_date = QDateEdit()
+        self.to_date.setCalendarPopup(True)
+        self.to_date.setDisplayFormat("yyyy-MM-dd")
+        self.to_date.setSpecialValueText(_t("Até"))
+        self.to_date.setDate(self.to_date.minimumDate())
+        self.to_date.dateChanged.connect(self.refresh)
+        filters.addWidget(self.to_date)
+
+        self.kind_filter = QComboBox()
+        self.kind_filter.addItem(_t("Todos os tipos"), None)
+        for key, label, _color in DAILY_KINDS:
+            self.kind_filter.addItem(_t(label), key)
+        self.kind_filter.currentIndexChanged.connect(self.refresh)
+        filters.addWidget(self.kind_filter)
+
+        self.author_filter = QLineEdit()
+        self.author_filter.setPlaceholderText(_t("Autor"))
+        self.author_filter.setFixedWidth(120)
+        self.author_filter.textChanged.connect(self.refresh)
+        filters.addWidget(self.author_filter)
+
+        clear_btn = QPushButton(_t("Limpar"))
+        clear_btn.setProperty("flat", True)
+        clear_btn.clicked.connect(self._clear_filters)
+        filters.addWidget(clear_btn)
+        root.addLayout(filters)
+
+        # --- lista ---
+        self.scroll = QScrollArea()
+        self.scroll.setWidgetResizable(True)
+        self.scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+        self.container = QWidget()
+        self.list_layout = QVBoxLayout(self.container)
+        self.list_layout.setContentsMargins(0, 0, 0, 0)
+        self.list_layout.setSpacing(8)
+        self.scroll.setWidget(self.container)
+        root.addWidget(self.scroll, 1)
+
+    # ------------------------------------------------------------------
+    def set_project(self, project_id):
+        self.project_id = project_id
+        self.refresh()
+
+    def _clear_filters(self):
+        for w in (self.search_input, self.author_filter):
+            w.blockSignals(True)
+            w.clear()
+            w.blockSignals(False)
+        for w in (self.from_date, self.to_date):
+            w.blockSignals(True)
+            w.setDate(w.minimumDate())
+            w.blockSignals(False)
+        self.kind_filter.blockSignals(True)
+        self.kind_filter.setCurrentIndex(0)
+        self.kind_filter.blockSignals(False)
+        self.refresh()
+
+    def _clear_layout(self):
+        while self.list_layout.count():
+            item = self.list_layout.takeAt(0)
+            w = item.widget()
+            if w is not None:
+                w.hide()
+                w.setParent(None)
+                w.deleteLater()
+            elif item.layout() is not None:
+                while item.layout().count():
+                    c = item.layout().takeAt(0)
+                    if c.widget():
+                        c.widget().hide()
+                        c.widget().setParent(None)
+                        c.widget().deleteLater()
+
+    def _filters(self) -> dict:
+        q = self.search_input.text().strip()
+        author = self.author_filter.text().strip()
+        kind = self.kind_filter.currentData()
+        date_from = self.from_date.date()
+        date_to = self.to_date.date()
+        return {
+            "q": q or None,
+            "author": author or None,
+            "kind": kind,
+            "date_from": None if date_from == self.from_date.minimumDate() else date_from.toString("yyyy-MM-dd"),
+            "date_to": None if date_to == self.to_date.minimumDate() else date_to.toString("yyyy-MM-dd"),
+        }
+
+    def refresh(self):
+        self._clear_layout()
+        t = current_theme()
+        if not self.project_id:
+            self.summary_lbl.setText("")
+            return
+
+        f = self._filters()
+        s = get_session()
+        try:
+            query = s.query(ProjectDailyEntry).filter(ProjectDailyEntry.project_id == self.project_id)
+            if f["date_from"]:
+                query = query.filter(ProjectDailyEntry.date >= f["date_from"])
+            if f["date_to"]:
+                query = query.filter(ProjectDailyEntry.date <= f["date_to"])
+            if f["kind"]:
+                query = query.filter(ProjectDailyEntry.kind == f["kind"])
+            if f["author"]:
+                query = query.filter(ProjectDailyEntry.author.ilike(f"%{f['author']}%"))
+            if f["q"]:
+                query = query.filter(ProjectDailyEntry.body.ilike(f"%{f['q']}%"))
+            entries = query.order_by(ProjectDailyEntry.date.desc(), ProjectDailyEntry.created_at.desc()).limit(500).all()
+
+            total_min = sum(e.minutes or 0 for e in entries)
+            dias = len({e.date for e in entries})
+            self.summary_lbl.setText(
+                _t("{n} registro(s) em {d} dia(s)").format(n=len(entries), d=dias)
+                + (f"  ·  {round(total_min / 60, 1)}h " + _t("registradas") if total_min else "")
+            )
+
+            if not entries:
+                vazio = QLabel(_t("Nenhum registro ainda. Escreva o primeiro acima."))
+                vazio.setProperty("class", "hint")
+                self.list_layout.addWidget(vazio)
+                self.list_layout.addStretch()
+                return
+
+            dia_atual = None
+            for e in entries:
+                if e.date != dia_atual:
+                    dia_atual = e.date
+                    header = QLabel(dia_atual)
+                    header.setStyleSheet(
+                        f"font-family: monospace; font-size: 12px; font-weight: 700; "
+                        f"color: {t.text_muted}; border: none; padding-top: 6px;"
+                    )
+                    self.list_layout.addWidget(header)
+                self.list_layout.addWidget(self._entry_row(e, t))
+            self.list_layout.addStretch()
+        finally:
+            s.close()
+
+    def _entry_row(self, entry, t):
+        cor = next((c for k, _l, c in DAILY_KINDS if k == (entry.kind or "WORK")), "#6b7280")
+        label = next((l for k, l, _c in DAILY_KINDS if k == (entry.kind or "WORK")), entry.kind)
+
+        row = QFrame()
+        row.setStyleSheet(
+            f"QFrame {{ background: {t.bg_card}; border: 1px solid {t.border_light}; "
+            f"border-left: 3px solid {cor}; border-radius: 8px; }}"
+        )
+        v = QVBoxLayout(row)
+        v.setContentsMargins(10, 8, 10, 8)
+        v.setSpacing(4)
+
+        top = QHBoxLayout()
+        top.setSpacing(8)
+        kind_lbl = QLabel(_t(label).upper())
+        kind_lbl.setStyleSheet(f"color: {cor}; font-size: 10px; font-weight: 800; border: none; letter-spacing: .5px;")
+        top.addWidget(kind_lbl)
+        metas = [x for x in [entry.author, (f"{entry.minutes} min" if entry.minutes else None), entry.task_code] if x]
+        if metas:
+            meta_lbl = QLabel("  ·  ".join(metas))
+            meta_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 11px; border: none;")
+            top.addWidget(meta_lbl)
+        top.addStretch()
+
+        hora = entry.created_at.strftime("%H:%M") if entry.created_at else ""
+        hora_lbl = QLabel(hora)
+        hora_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 10px; border: none;")
+        top.addWidget(hora_lbl)
+
+        editar = QPushButton(_t("Editar"))
+        editar.setProperty("flat", True)
+        editar.setFixedHeight(24)
+        editar.setCursor(Qt.PointingHandCursor)
+        editar.clicked.connect(lambda _=False, eid=entry.id: self._edit(eid))
+        top.addWidget(editar)
+
+        excluir = QPushButton("✕")
+        excluir.setFixedSize(24, 24)
+        excluir.setCursor(Qt.PointingHandCursor)
+        excluir.setStyleSheet(f"background: transparent; color: {t.danger}; border: none;")
+        excluir.clicked.connect(lambda _=False, eid=entry.id: self._delete(eid))
+        top.addWidget(excluir)
+        v.addLayout(top)
+
+        corpo = QLabel(entry.body or "")
+        corpo.setWordWrap(True)
+        corpo.setStyleSheet(f"color: {t.text_primary}; font-size: 12px; border: none;")
+        v.addWidget(corpo)
+        return row
+
+    # ------------------------------------------------------------------
+    def _add(self):
+        texto = self.body_input.toPlainText().strip()
+        if not texto or not self.project_id:
+            return
+        minutos = self.minutes_input.text().strip()
+        s = get_session()
+        try:
+            s.add(ProjectDailyEntry(
+                project_id=self.project_id,
+                date=self.date_input.date().toString("yyyy-MM-dd"),
+                kind=self.kind_combo.currentData() or "WORK",
+                body=texto,
+                author=None,
+                minutes=int(minutos) if minutos.isdigit() else None,
+                task_code=self.task_input.text().strip()[:40],
+            ))
+            s.commit()
+        except Exception:
+            s.rollback()
+        finally:
+            s.close()
+        self.body_input.clear()
+        self.minutes_input.clear()
+        self.task_input.clear()
+        self.refresh()
+
+    def _edit(self, entry_id):
+        s = get_session()
+        try:
+            entry = s.get(ProjectDailyEntry, entry_id)
+            if not entry:
+                return
+            atual = {"body": entry.body, "date": entry.date, "kind": entry.kind,
+                     "minutes": entry.minutes, "task_code": entry.task_code}
+        finally:
+            s.close()
+
+        from PySide6.QtWidgets import QInputDialog
+        texto, ok = QInputDialog.getMultiLineText(self, _t("Editar registro"), _t("Texto:"), atual["body"] or "")
+        if not ok:
+            return
+        if not texto.strip():
+            QMessageBox.warning(self, _t("Daily"), _t("O texto não pode ficar vazio."))
+            return
+
+        labels = [l for _k, l, _c in DAILY_KINDS]
+        atual_label = next((l for k, l, _c in DAILY_KINDS if k == atual["kind"]), labels[0])
+        lab, ok2 = QInputDialog.getItem(self, _t("Editar registro"), _t("Tipo:"), labels, labels.index(atual_label), False)
+        if not ok2:
+            return
+        novo_kind = next((k for k, l, _c in DAILY_KINDS if l == lab), atual["kind"])
+
+        dia, ok3 = QInputDialog.getText(self, _t("Editar registro"), _t("Dia (AAAA-MM-DD):"), text=atual["date"])
+        if not ok3:
+            return
+        try:
+            datetime.strptime(dia.strip(), "%Y-%m-%d")
+        except ValueError:
+            QMessageBox.warning(self, _t("Daily"), _t("Dia inválido. Use AAAA-MM-DD."))
+            return
+
+        minutos_txt, ok4 = QInputDialog.getText(
+            self, _t("Editar registro"), _t("Minutos (vazio = sem registro):"),
+            text=str(atual["minutes"]) if atual["minutes"] else "",
+        )
+        if not ok4:
+            return
+
+        s = get_session()
+        try:
+            entry = s.get(ProjectDailyEntry, entry_id)
+            if entry:
+                entry.body = texto.strip()
+                entry.date = dia.strip()
+                entry.kind = novo_kind
+                entry.minutes = int(minutos_txt) if minutos_txt.strip().isdigit() else None
+                s.commit()
+        finally:
+            s.close()
+        self.refresh()
+
+    def _delete(self, entry_id):
+        resposta = QMessageBox.question(
+            self, _t("Daily"), _t("Excluir este registro?"),
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
+        )
+        if resposta != QMessageBox.Yes:
+            return
+        s = get_session()
+        try:
+            entry = s.get(ProjectDailyEntry, entry_id)
+            if entry:
+                s.delete(entry)
+                s.commit()
+        finally:
+            s.close()
+        self.refresh()
+
+
+# ────────────────────────────────────────────────────────────
 # ArchivedDialog
 # ────────────────────────────────────────────────────────────
 
@@ -2556,10 +2947,19 @@ class BoardView(QWidget):
         metrics_scroll.setWidget(metrics_container)
         metrics_layout.addWidget(metrics_scroll)
 
+        # --- Aba "Daily" (registro diário do projeto) ---
+        self.daily_tab = QWidget()
+        daily_layout = QVBoxLayout(self.daily_tab)
+        daily_layout.setContentsMargins(0, 0, 0, 0)
+        daily_layout.setSpacing(10)
+        self.daily_view = ProjectDailyTab()
+        daily_layout.addWidget(self.daily_view)
+
         # --- Abas ---
         self.tabs = QTabWidget()
         self.tabs.addTab(self.board_tab, _t("Board"))
         self.tabs.addTab(self.metrics_tab, _t("Métricas"))
+        self.tabs.addTab(self.daily_tab, "📝 " + _t("Daily"))
         self.board_layout.addWidget(self.tabs)
 
         self.main_layout.addWidget(self.board_widget)
@@ -2578,6 +2978,8 @@ class BoardView(QWidget):
             self.metrics_accordion.set_project(project_id)
         if hasattr(self, "links_widget"):
             self.links_widget.set_project(project_id)
+        if hasattr(self, "daily_view"):
+            self.daily_view.set_project(project_id)
         # Novo projeto: re-aplica o default (sprint ativa) e volta o filtro.
         self._sprint_filter_initialized = False
         self._sprint_filter = None

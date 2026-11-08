@@ -1577,6 +1577,83 @@ curl -s -X POST http://127.0.0.1:9777/api/memory/reembed \\
 """,
     },
     {
+        "id": "maestro-project-daily",
+        "name": "Daily do projeto",
+        "category": "management",
+        "description": "Ler, filtrar, criar e editar o registro diário de trabalho do projeto (aba Daily do board)",
+        "tags": ["daily", "standup", "log", "project", "history", "report"],
+        "filename": "maestro-project-daily",
+        "content": """---
+description: Read, filter, create and edit the project daily log (one entry per day)
+---
+
+# Daily do projeto — registro de trabalho por dia
+
+Cada registro e um comentario do projeto com **dia**, **tipo**, **texto**,
+autor e (opcional) minutos e card. Serve de doc de daily e de fonte para
+agentes reconstruirem o andamento por data.
+
+Diferente de `Comment` (comentario de um card) e de `DailyNote`
+(`/api/daily/{date}`, nota global do Meu Dia).
+
+Base: `http://127.0.0.1:9777/api`
+
+## 1. Listar / filtrar
+
+```bash
+# dia exato
+curl -s "http://127.0.0.1:9777/api/projects/2/daily?date=2026-11-08" | jq
+
+# intervalo + tipo
+curl -s "http://127.0.0.1:9777/api/projects/2/daily?dateFrom=2026-11-01&dateTo=2026-11-07&kind=BLOCKER" | jq
+
+# autor e busca livre
+curl -s "http://127.0.0.1:9777/api/projects/2/daily?author=walter&q=cashier" | jq
+```
+
+Filtros: `date`, `dateFrom`, `dateTo`, `kind`, `author`, `q`, `limit`.
+Retorna do mais recente para o mais antigo.
+
+## 2. Criar
+
+```bash
+curl -X POST http://127.0.0.1:9777/api/projects/2/daily \
+  -H 'Content-Type: application/json' \
+  -d '{"body":"Implementei abertura de caixa","kind":"WORK","author":"walter","minutes":90,"taskCode":"MIG-13973"}'
+```
+
+`date` ausente = hoje. `kind` ausente = WORK (WORK|BLOCKER|DECISION|NOTE).
+
+## 3. Editar / excluir
+
+```bash
+curl -X PATCH http://127.0.0.1:9777/api/project-daily/12 \
+  -H 'Content-Type: application/json' -d '{"body":"texto revisado","kind":"DECISION"}'
+curl -X DELETE http://127.0.0.1:9777/api/project-daily/12
+```
+
+## 4. Resumo (para relatorio/painel)
+
+```bash
+curl -s "http://127.0.0.1:9777/api/projects/2/daily/summary?dateFrom=2026-11-01&dateTo=2026-11-30" | jq
+# { total, totalMinutes, byKind, byAuthor, days:[{date, entries, minutes, authors}] }
+```
+
+## Regras ao escrever
+
+- Mostrar **registro + campo + valor** e pedir confirmacao antes de gravar
+  (vale a regra de escrita do Maestro).
+- Datas sempre `YYYY-MM-DD` (invalida = 400).
+- `PATCH`/`DELETE` usam `/api/project-daily/{id}` — nao `/api/daily/{id}`.
+- Nunca escrever em plataforma externa: o daily e local.
+
+## Onde aparece na UI
+
+- Desktop: Board do projeto -> aba `Daily`
+- Web: `/board/{id}` -> aba `Daily`
+""",
+    },
+    {
         "id": "maestro-goals",
         "name": "Goals",
         "category": "management",
