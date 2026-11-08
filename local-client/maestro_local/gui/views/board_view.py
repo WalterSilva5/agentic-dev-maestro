@@ -47,7 +47,13 @@ from maestro_local.db.models import (
     member_stats,
     project_members,
 )
-from maestro_local.gui.theme import PRIORITY_COLORS, current_theme
+from maestro_local.gui.theme import (
+    PRIORITY_COLORS,
+    TYPE_COLORS,
+    TYPE_LABELS,
+    color_for_column,
+    current_theme,
+)
 from maestro_local.i18n import t as _t
 
 MIME_TYPE = "application/x-maestro-task"
@@ -151,10 +157,11 @@ class TaskCard(QFrame):
 
         t = current_theme()
 
-        # Borda esquerda pela prioridade (escala visual do líder).
+        # Borda esquerda pela cor do TIPO (a prioridade vira um ponto no topo).
+        tipo = task_data.get("type", "FEATURE")
+        left_color = TYPE_COLORS.get(tipo, "#868E96")
         priority = task_data.get("priority", "MEDIUM")
         pc = PRIORITY_COLORS.get(priority, "#4C6EF5")
-        left_color = pc
 
         self.setStyleSheet(f"""
             TaskCard {{
@@ -181,6 +188,19 @@ class TaskCard(QFrame):
             f"font-family: monospace; font-size: 11px; color: {t.text_muted}; border: none;"
         )
         top.addWidget(code)
+        if task_data.get("is_local"):
+            local_chip = QLabel(_t("LOCAL"))
+            local_chip.setToolTip(_t("Tarefa local: não sincroniza com o board externo"))
+            local_chip.setStyleSheet(
+                "border: 1px dashed #94A3B8; color: #64748B; border-radius: 4px;"
+                " padding: 0 4px; font-size: 9px; font-weight: 700;"
+            )
+            top.addWidget(local_chip)
+        # prioridade como ponto colorido (a cor da borda agora é o tipo)
+        prio_dot = QLabel("●")
+        prio_dot.setStyleSheet(f"color: {pc}; font-size: 11px; border: none;")
+        prio_dot.setToolTip(f"{_t('Prioridade')}: {priority}")
+        top.addWidget(prio_dot)
         top.addStretch()
 
         assignee = task_data.get("assignee")
@@ -227,6 +247,18 @@ class TaskCard(QFrame):
                 ep_row.addWidget(chip)
             ep_row.addStretch()
             layout.addLayout(ep_row)
+
+        # -- Tipo (cor igual à borda do card) --
+        tipo_row = QHBoxLayout()
+        tipo_row.setSpacing(4)
+        tipo_chip = QLabel(TYPE_LABELS.get(tipo, tipo))
+        tipo_chip.setStyleSheet(
+            f"background: {left_color}; color: white; padding: 1px 6px;"
+            f" border-radius: 8px; font-size: 10px; font-weight: 700; border: none;"
+        )
+        tipo_row.addWidget(tipo_chip)
+        tipo_row.addStretch()
+        layout.addLayout(tipo_row)
 
         # -- Labels --
         labels = task_data.get("labels", [])
@@ -385,9 +417,11 @@ class DropZone(QWidget):
 class ColumnWidget(QWidget):
     task_changed = Signal()
 
-    def __init__(self, column_data: dict, project_id: int):
+    def __init__(self, column_data: dict, project_id: int, local_flag=None):
         super().__init__()
         self.column_id = column_data["id"]
+        # callable que diz se o próximo card deve ser criado como local
+        self._local_flag = local_flag
         self.column_name = column_data["name"]
         self.project_id = project_id
         self.wip_limit = column_data.get("wip_limit")
@@ -406,9 +440,10 @@ class ColumnWidget(QWidget):
         # -- Column header container --
         header_frame = QFrame()
         done_accent = t.success if self.is_done else t.bg_badge
+        cor_baia = color_for_column(column_data.get("order", 0), column_data.get("id"))
         header_frame.setStyleSheet(
             f"QFrame {{ background: {done_accent}; border-radius: 10px 10px 0 0; "
-            f"padding: 10px 12px; }}"
+            f"border-top: 3px solid {cor_baia}; padding: 10px 12px; }}"
         )
         header_layout = QHBoxLayout(header_frame)
         header_layout.setContentsMargins(12, 8, 12, 8)
@@ -418,7 +453,7 @@ class ColumnWidget(QWidget):
         name_color = t.text_on_accent if self.is_done else t.text_primary
         name.setStyleSheet(
             f"font-weight: 700; font-size: 13px; color: {name_color}; border: none; "
-            f"letter-spacing: 0.3px;"
+            f"letter-spacing: 0.3px; border-left: 8px solid {cor_baia}; padding-left: 6px;"
         )
         header_layout.addWidget(name)
 
@@ -604,11 +639,14 @@ class ColumnWidget(QWidget):
             if not project:
                 return
             project.task_seq += 1
+            criar_local = bool(self._local_flag and self._local_flag())
             task = Task(
                 project_id=self.project_id,
                 column_id=self.column_id,
                 number=project.task_seq,
                 title=title,
+                type="CHORE" if criar_local else "FEATURE",
+                is_local=criar_local,
                 rank=f"{int(time.time() * 1000):x}",
             )
             s.add(task)
@@ -730,6 +768,26 @@ class FilterBar(QWidget):
         self.tag_combo.currentIndexChanged.connect(self._emit_changed)
         layout.addWidget(self.tag_combo)
 
+        # Origem: do board externo x tarefa local
+        origin_label = QLabel(_t("Origem:"))
+        origin_label.setProperty("class", "sectionLabel")
+        layout.addWidget(origin_label)
+        self.origin_combo = QComboBox()
+        self.origin_combo.addItem(_t("Todas"), "all")
+        self.origin_combo.addItem(_t("Do board"), "remote")
+        self.origin_combo.addItem(_t("Locais"), "local")
+        self.origin_combo.setMinimumWidth(100)
+        self.origin_combo.setToolTip(_t("Tarefas locais não sincronizam com o board externo"))
+        self.origin_combo.currentIndexChanged.connect(self._emit_changed)
+        layout.addWidget(self.origin_combo)
+
+        # Criar como local (vale para os campos "Nova tarefa..." das colunas)
+        self.local_new = QCheckBox(_t("Criar como local"))
+        self.local_new.setToolTip(
+            _t("Novos cards criados abaixo vão existir só aqui e o sync não os toca")
+        )
+        layout.addWidget(self.local_new)
+
         # Assignee filter
         assignee_label = QLabel(_t("Responsável:"))
         assignee_label.setProperty("class", "sectionLabel")
@@ -757,6 +815,12 @@ class FilterBar(QWidget):
 
     def get_type_filter(self):
         return None
+
+    def get_origin_filter(self) -> str:
+        return self.origin_combo.currentData() or "all"
+
+    def criar_local(self) -> bool:
+        return bool(self.local_new.isChecked())
 
     def get_epic_filter(self):
         data = self.epic_combo.currentData()
@@ -3529,6 +3593,7 @@ class BoardView(QWidget):
                 col_data = {
                     "id": col.id,
                     "name": col.name,
+                    "order": col.order,
                     "wip_limit": col.wip_limit,
                     "is_done": col.is_done,
                     "tasks": [],
@@ -3543,7 +3608,9 @@ class BoardView(QWidget):
                         "id": t.id,
                         "code": t.code,
                         "title": t.title,
+                        "type": t.type or "FEATURE",
                         "priority": t.priority or "MEDIUM",
+                        "is_local": bool(t.is_local),
                         "labels": [
                             {"id": l.id, "name": l.name, "color": l.color}
                             for l in t.labels
@@ -3560,7 +3627,7 @@ class BoardView(QWidget):
                     }
                     col_data["tasks"].append(td)
 
-                cw = ColumnWidget(col_data, self.project_id)
+                cw = ColumnWidget(col_data, self.project_id, local_flag=self.filter_bar.criar_local)
                 cw.task_changed.connect(self._on_change)
                 self.columns_layout.addWidget(cw)
                 self._columns.append(cw)
@@ -3600,6 +3667,7 @@ class BoardView(QWidget):
         assignee_filter = self.filter_bar.get_assignee_filter()
         epic_filter = self.filter_bar.get_epic_filter()
         tag_filter = self.filter_bar.get_tag_filter()
+        origin_filter = self.filter_bar.get_origin_filter()
 
         total = 0
         visible = 0
@@ -3626,6 +3694,12 @@ class BoardView(QWidget):
 
                 if show and tag_filter is not None:
                     if all(l.get("name") != tag_filter for l in data.get("labels", [])):
+                        show = False
+
+                if show:
+                    if origin_filter == "local" and not data.get("is_local"):
+                        show = False
+                    elif origin_filter == "remote" and data.get("is_local"):
                         show = False
 
                 if show and assignee_filter:

@@ -1731,6 +1731,23 @@ gerado de `docs-migração/diagrams/acompanhamento/10-progresso-entrega.svg`
 Modulo planejado sem card aparece zerado (ex.: `tef 0/5 ep`), e as sub-entregas
 usam o nome do plano (`cfg-e1` -> "E1 · loja", `onda-2` -> "O2 · movimentar").
 
+## 4b. Tarefas locais (nao sincronizam com o board externo)
+
+Lembretes do dia a dia ("revisar o que o dev fez hoje") nao devem virar card do
+Azure. Crie com `isLocal`:
+
+```bash
+curl -s -X POST http://127.0.0.1:9777/api/tasks -H 'Content-Type: application/json' \
+  -d '{"projectId":1,"columnId":5,"title":"revisar o que o dev fez hoje","type":"CHORE","isLocal":true}' | jq '{code, title, isLocal}'
+```
+
+- `isLocal: true` -> o card existe so no Maestro; o sync ignora (nao cria, nao
+  atualiza, nao apaga, e nao sobrescreve numero igual)
+- `isLocal: false` (padrao) -> card espelhado do board externo
+- `PATCH /api/tasks/{code}` com `{"isLocal": true|false}` converte
+- No board: filtro "Origem" (Todas / Do board / Locais) e checkbox
+  "Criar como local" no formulario de criacao
+
 ## 5. Quem chegou em cada estagio (cumulativo)
 
 "Esta em" != "chegou em". Um card em Dev Review ja passou por Dev Box. Para

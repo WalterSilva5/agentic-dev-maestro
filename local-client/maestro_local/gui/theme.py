@@ -852,6 +852,19 @@ TYPE_LABELS = {
     "CHORE": "Tarefa",
 }
 
+# Cor estável por coluna ("baia"): mesma ordem, mesma cor (espelha webui/src/colors.js).
+COLUMN_COLORS = [
+    "#4F46E5", "#0891B2", "#F59E0B", "#DB2777", "#16A34A", "#7C3AED",
+    "#0EA5E9", "#DC2626", "#CA8A04", "#059669", "#9333EA", "#64748B",
+]
+
+
+def color_for_column(order: int, column_id: int | None = None) -> str:
+    base = order if isinstance(order, int) else 0
+    extra = column_id if isinstance(column_id, int) else 0
+    return COLUMN_COLORS[(base + extra) % len(COLUMN_COLORS)]
+
+
 PRIORITY_COLORS = {
     "LOW": "#71717A",
     "MEDIUM": "#2563EB",

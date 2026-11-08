@@ -59,7 +59,7 @@ def main():
                 col.order = order_index[col.name.lower()]
         s.flush()
         s.commit()
-        created = updated = 0
+        created = updated = ignorados = 0
         for it in data:
             wid = it["id"]; f = it["fields"]
             title = f.get("System.Title","").strip()[:250] or f"GAVAR-{wid}"
@@ -73,7 +73,17 @@ def main():
             # normaliza: remove duplicatas mantendo ordem, limita a 60 chars
             seen = set()
             tag_names = [t[:60] for t in tag_names if not (t in seen or seen.add(t))]
-            task = s.query(Task).filter(Task.project_id==proj.id, Task.number==code_num).first()
+            # tarefas locais nunca entram no sync (nem são sobrescritas por número)
+            local_com_mesmo_numero = s.query(Task).filter(
+                Task.project_id==proj.id, Task.number==code_num, Task.is_local == True  # noqa: E712
+            ).first()
+            if local_com_mesmo_numero:
+                ignorados += 1
+                print(f"  ignorado #{wid}: número {code_num} pertence a uma tarefa local ({local_com_mesmo_numero.title[:40]})")
+                continue
+            task = s.query(Task).filter(
+                Task.project_id==proj.id, Task.number==code_num, Task.is_local == False  # noqa: E712
+            ).first()
             if task:
                 changed = False
                 if task.title != title: task.title = title; changed=True
@@ -110,12 +120,16 @@ def main():
                         s.add(lb); s.flush()
                     task.labels.append(lb)
                 created+=1
+        locais = s.query(Task).filter(
+            Task.project_id==proj.id, Task.is_local == True, Task.deleted_at == None  # noqa: E712, E711
+        ).count()
         if args.dry_run:
             s.rollback()
-            print(f"DRY-RUN: {created} criados, {updated} atualizados (não gravado)")
+            print(f"DRY-RUN: {created} criados, {updated} atualizados, {ignorados} ignorados (número de tarefa local) — não gravado")
         else:
             s.commit()
             print(f"OK: {created} criados, {updated} atualizados em {proj.key} ({proj.name})")
+        print(f"Tarefas locais preservadas (não sincronizam): {locais}")
     finally:
         s.close()
 

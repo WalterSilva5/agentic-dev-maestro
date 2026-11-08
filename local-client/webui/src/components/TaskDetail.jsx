@@ -103,6 +103,13 @@ export default function TaskDetail({ code, onClose, onChanged }) {
           </select>
         </div>
 
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, fontSize: 12, cursor: 'pointer' }}
+          title={t('Card que existe só aqui: o sync do board externo não cria, não atualiza e não apaga.')}>
+          <input type="checkbox" style={{ width: 'auto' }} checked={!!task.isLocal}
+            onChange={(e) => patch({ isLocal: e.target.checked })} />
+          {t('Tarefa local (não sincroniza)')}
+        </label>
+
         <div className="section">
           <h4>{t('Responsável')}</h4>
           <div className="row" style={{ gap: 8, alignItems: 'center' }}>

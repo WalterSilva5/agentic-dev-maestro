@@ -191,6 +191,8 @@ class Task(Base):
     requires_human = Column(Boolean, default=False)
     done_at = Column(DateTime)      # quando entrou numa coluna "concluído"
     archived_at = Column(DateTime)  # arquivada: some do board, vai para o board de arquivados
+    # tarefa que existe só aqui: não vem nem volta do board externo (sync ignora)
+    is_local = Column(Boolean, default=False)
 
     project = relationship("Project", back_populates="tasks")
     sprint = relationship("Sprint", back_populates="tasks")
@@ -573,6 +575,8 @@ def _run_light_migrations(engine):
             adds.append("ALTER TABLE tasks ADD COLUMN done_at DATETIME")
         if "archived_at" not in cols:
             adds.append("ALTER TABLE tasks ADD COLUMN archived_at DATETIME")
+        if "is_local" not in cols:
+            adds.append("ALTER TABLE tasks ADD COLUMN is_local BOOLEAN DEFAULT 0")
         if adds:
             with engine.begin() as conn:
                 for stmt in adds:

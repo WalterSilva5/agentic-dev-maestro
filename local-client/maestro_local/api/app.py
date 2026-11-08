@@ -107,6 +107,8 @@ class TaskCreate(BaseModel):
     dueDate: str | None = None
     assignee: str | None = None
     requiresHuman: bool | None = None
+    # tarefa local: não sincroniza com o board externo
+    isLocal: bool | None = False
 
 
 class TaskUpdate(BaseModel):
@@ -124,6 +126,7 @@ class TaskUpdate(BaseModel):
     dueDate: str | None = None
     assignee: str | None = None
     requiresHuman: bool | None = None
+    isLocal: bool | None = None
 
 
 class MoveBody(BaseModel):
@@ -628,6 +631,7 @@ def _task_brief(t: Task) -> dict:
         "dueDate": t.due_date.isoformat() if t.due_date else None,
         "assignee": t.assignee,
         "requiresHuman": t.requires_human or False,
+        "isLocal": bool(t.is_local),
         "parentId": t.parent_id,
         "sprintId": t.sprint_id,
         "doneAt": t.done_at.isoformat() if t.done_at else None,
@@ -1166,6 +1170,7 @@ def create_task(body: TaskCreate, s: Session = Depends(db)):
         task.requires_human = body.requiresHuman
     if body.sprintId is not None:
         task.sprint_id = body.sprintId
+    task.is_local = bool(body.isLocal)
     s.add(task)
     s.flush()
     _log(s, "task", task.id, "created", f"Task {project.key}-{number} created")
@@ -1231,6 +1236,7 @@ def update_task(code: str, body: TaskUpdate, s: Session = Depends(db)):
         "parentId": "parent_id",
         "sprintId": "sprint_id",
         "rank": "rank",
+        "isLocal": "is_local",
     }
     for api_field, model_field in field_map.items():
         if api_field in data:

@@ -27,6 +27,10 @@ import TaskDetail from '../components/TaskDetail.jsx'
 import ProjectDaily from '../components/ProjectDaily.jsx'
 import SprintPlanning from './SprintPlanning.jsx'
 import { t, tf } from '../i18n'
+import {
+  colorForColumn, colorForType, colorForPriority, typeLabel,
+  PRIORITY_LABELS, TYPE_COLORS,
+} from '../colors.js'
 
 const SPRINT_STATUS_LABELS = {
   PLANEJADA: 'Planejada',
@@ -84,6 +88,8 @@ export default function Board() {
   const [metricsOpen, setMetricsOpen] = useState(true)
   const [dimensions, setDimensions] = useState(null)
   const [stages, setStages] = useState(null)
+  const [originFilter, setOriginFilter] = useState('all')   // all | local | remote
+  const [criarLocal, setCriarLocal] = useState(false)       // quick-add cria tarefa local
   const [selectedStage, setSelectedStage] = useState(null)
   const [members, setMembers] = useState([])
   const [showMembers, setShowMembers] = useState(false)
@@ -169,7 +175,11 @@ export default function Board() {
   const addTask = async (columnId) => {
     const title = (newTitles[columnId] || '').trim()
     if (!title) return
-    const body = { projectId: Number(projectId), columnId, title, type: 'FEATURE', priority: 'MEDIUM' }
+    const body = {
+      projectId: Number(projectId), columnId, title,
+      type: criarLocal ? 'CHORE' : 'FEATURE', priority: 'MEDIUM',
+      isLocal: criarLocal,
+    }
     // Cria já dentro da sprint selecionada (se for uma sprint específica)
     if (sprintFilter !== 'all' && sprintFilter !== 'backlog') body.sprintId = Number(sprintFilter)
     try {
@@ -325,6 +335,8 @@ export default function Board() {
         if (assigneeFilter === '__none__') { if (tk.assignee) return false }
         else if (tk.assignee !== assigneeFilter) return false
       }
+      if (originFilter === 'local' && !tk.isLocal) return false
+      if (originFilter === 'remote' && tk.isLocal) return false
       return true
     }),
   }))
@@ -854,10 +866,21 @@ export default function Board() {
           <select value={epicFilter} onChange={(e) => setEpicFilter(e.target.value)} style={{ minWidth: 110 }}><option value="all">{t('Todos')}</option>{epicOptions.map((ep) => (<option key={ep} value={ep}>{ep}</option>))}</select>
           <span className="muted" style={{ fontSize: 11, fontWeight: 700 }}>{t('Tag:')}</span>
           <select value={tagFilter} onChange={(e) => setTagFilter(e.target.value)} style={{ minWidth: 110 }}><option value="all">{t('Todas')}</option>{tagOptions.map((tg) => (<option key={tg} value={tg}>{tg}</option>))}</select>
+          <span className="muted" style={{ fontSize: 11, fontWeight: 700 }}>{t('Origem:')}</span>
+          <select value={originFilter} onChange={(e) => setOriginFilter(e.target.value)} style={{ minWidth: 110 }} title={t('Tarefas locais não sincronizam com o board externo')}>
+            <option value="all">{t('Todas')}</option>
+            <option value="remote">{t('Do board')}</option>
+            <option value="local">{t('Locais')}</option>
+          </select>
           <span className="muted" style={{ fontSize: 11, fontWeight: 700 }}>{t('Responsável:')}</span>
           <select value={assigneeFilter} onChange={(e) => setAssigneeFilter(e.target.value)} style={{ minWidth: 120 }}><option value="all">{t('Todos')}</option><option value="__none__">{t('Sem responsável')}</option>{assigneeOptions.map((a) => (<option key={a} value={a}>{a}</option>))}</select>
           <span className="muted" style={{ fontSize: 11, marginLeft: 'auto' }}>{visibleCount === totalTasks ? tf('{total} tarefas', { total: totalTasks }) : tf('{visible}/{total} tarefas', { visible: visibleCount, total: totalTasks })}</span>
-          <button className="ghost" onClick={() => { setSearchText(''); setPriorityFilter('all'); setEpicFilter('all'); setTagFilter('all'); setAssigneeFilter('all') }}>{t('Limpar')}</button>
+          <label className="muted" style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
+            title={t('Novos cards criados abaixo vão existir só aqui e o sync não os toca')}>
+            <input type="checkbox" checked={criarLocal} onChange={(e) => setCriarLocal(e.target.checked)} style={{ width: 'auto' }} />
+            {t('Criar como local')}
+          </label>
+          <button className="ghost" onClick={() => { setSearchText(''); setPriorityFilter('all'); setEpicFilter('all'); setTagFilter('all'); setAssigneeFilter('all'); setOriginFilter('all') }}>{t('Limpar')}</button>
         </div>
       )}
 
@@ -891,15 +914,35 @@ export default function Board() {
           const countText = orig?.wipLimit ? `${col.tasks.length}/${orig.wipLimit}` : String(col.tasks.length)
           return (
           <div key={col.id} className="column">
+            <div style={{ height: 3, borderRadius: 3, marginBottom: 8, background: colorForColumn(col.order, col.id) }} />
             <h3>
-              <span>{col.name}</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ width: 8, height: 8, borderRadius: 4, background: colorForColumn(col.order, col.id) }} />
+                {col.name}
+              </span>
               <span className="count" style={wipOver ? { color: 'var(--danger)', fontWeight: 700 } : {}} title={wipOver ? t('Acima do WIP') : ''}>{countText}</span>
             </h3>
             {col.tasks.length === 0 && <div className="muted" style={{ fontSize: 11, textAlign: 'center', padding: 8 }}>{t('Vazio')}</div>}
             {col.tasks.map((task) => (
-              <div key={task.id} className="task" onClick={() => setOpenCode(task.code)} style={{ borderLeft: `4px solid ${PRIORITY_COLORS[task.priority] || '#71717A'}` }}>
+              <div
+                key={task.id}
+                className="task"
+                onClick={() => setOpenCode(task.code)}
+                style={{ borderLeft: `4px solid ${colorForType(task.type)}` }}
+                title={`${typeLabel(task.type)} · ${t('Prioridade')}: ${PRIORITY_LABELS[task.priority] || task.priority}${task.isLocal ? ' · ' + t('tarefa local') : ''}`}
+              >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6 }}>
-                  <span className="code" style={{ fontFamily: 'monospace', fontSize: 10 }}>{task.code}</span>
+                  <span className="code" style={{ fontFamily: 'monospace', fontSize: 10 }}>
+                    {task.code}
+                    {task.isLocal && (
+                      <span style={{ marginLeft: 4, padding: '0 4px', borderRadius: 4, border: '1px dashed #94a3b8', color: '#64748b', fontWeight: 700 }}
+                        title={t('Tarefa local: não sincroniza com o board externo')}>{t('LOCAL')}</span>
+                    )}
+                  </span>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: 4, background: colorForPriority(task.priority) }}
+                      title={`${t('Prioridade')}: ${PRIORITY_LABELS[task.priority] || task.priority}`} />
+                  </span>
                   {task.assignee && (
                     <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                       <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)' }}>{task.assignee}</span>
@@ -908,8 +951,12 @@ export default function Board() {
                   )}
                 </div>
                 <div className="ttitle" style={{ fontSize: 13, margin: '4px 0 6px' }}>{task.title}</div>
-                {(task.epics?.length > 0 || task.labels?.length > 0) && (
+                {(
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 4 }}>
+                    <span
+                      style={{ background: colorForType(task.type), color: '#fff', borderRadius: 10, padding: '1px 6px', fontSize: 10, fontWeight: 700 }}
+                      title={t('Tipo da tarefa')}
+                    >{typeLabel(task.type)}</span>
                     {(task.epics || []).slice(0,2).map((ep) => (<span key={ep.id} style={{ border: `1px solid ${ep.color || '#7c85ff'}`, color: ep.color || '#7c85ff', borderRadius: 10, padding: '1px 6px', fontSize: 10, fontWeight: 600 }}>{ep.name}</span>))}
                     {(task.labels || []).slice(0,4).map((lb) => (<span key={lb.id} style={{ background: lb.color || '#6b7280', color: '#fff', borderRadius: 10, padding: '1px 6px', fontSize: 10 }}>{lb.name}</span>))}
                   </div>

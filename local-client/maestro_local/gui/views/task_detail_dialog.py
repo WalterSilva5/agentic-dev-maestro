@@ -8,6 +8,7 @@ from datetime import datetime
 
 from PySide6.QtCore import QDate, Qt, QTimer, Signal
 from PySide6.QtWidgets import (
+    QCheckBox,
     QComboBox,
     QDateEdit,
     QDialog,
@@ -171,6 +172,18 @@ class TaskDetailDialog(QDialog):
             lin2.addWidget(self.due_edit)
             lay.addLayout(lin2)
 
+            # Linha 3b: tarefa local (existe só aqui, sync não toca)
+            lin_local = QHBoxLayout()
+            self.local_check = QCheckBox(_t("Tarefa local (não sincroniza)"))
+            self.local_check.setChecked(bool(task.is_local))
+            self.local_check.setToolTip(
+                _t("Card que existe só aqui: o sync do board externo não cria, não atualiza e não apaga.")
+            )
+            self.local_check.toggled.connect(self._toggle_local)
+            lin_local.addWidget(self.local_check)
+            lin_local.addStretch()
+            lay.addLayout(lin_local)
+
             lay.addWidget(_divisor(t))
 
             # Épicos
@@ -306,6 +319,17 @@ class TaskDetailDialog(QDialog):
                 s.close()
             return
         self._save_field("sprint_id", self.sprint_combo.currentData())
+
+    def _toggle_local(self, marcado: bool):
+        s = get_session()
+        try:
+            task = s.get(Task, self.task_id)
+            if task is not None and bool(task.is_local) != bool(marcado):
+                task.is_local = bool(marcado)
+                s.commit()
+                self.task_updated.emit()
+        finally:
+            s.close()
 
     def _move(self, column_id):
         if column_id is None:
