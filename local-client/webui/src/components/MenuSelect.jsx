@@ -51,7 +51,10 @@ export default function MenuSelect({
         <span className="msel-label">{label}</span>
         {onCreate && (
           <button type="button" className="msel-add" onClick={onCreate} title={createTitle}>
-            +
+            {/* SVG em vez do caractere "+": fica centralizado e nitido em qualquer fonte */}
+            <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+              <path d="M7 1.5v11M1.5 7h11" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            </svg>
           </button>
         )}
       </div>

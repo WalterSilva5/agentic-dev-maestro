@@ -67,7 +67,7 @@ function Sidebar({ onNavigate, onCollapse }) {
           title={t('Ocultar menu (F9)')}
           onClick={onCollapse}
         >
-          ◀
+          «
         </button>
       </div>
       <WorkspaceSelector />

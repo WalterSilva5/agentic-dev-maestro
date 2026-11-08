@@ -115,11 +115,17 @@ a { color: inherit; text-decoration: none; }
   text-transform: uppercase;
 }
 .msel-add {
-  width: 26px; height: 26px; border-radius: 8px; border: 1px solid var(--border);
-  background: transparent; color: var(--muted); font-size: 15px; line-height: 1;
+  /* o botão global tem padding 8/15 — aqui isso esmagava o ícone; zera o
+     padding e centraliza no grid (o "+" é um SVG, não um caractere) */
+  width: 28px; height: 28px; padding: 0;
+  border-radius: 8px; border: 1px solid var(--border);
+  background: transparent; color: var(--muted);
+  line-height: 0;
   display: grid; place-items: center; cursor: pointer;
 }
+.msel-add svg { display: block; }
 .msel-add:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.msel-add:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 .msel-btn {
   width: 100%; display: flex; align-items: center; gap: 10px;
@@ -190,7 +196,18 @@ a { color: inherit; text-decoration: none; }
 }
 .icon-btn.floating:hover { border-color: var(--accent); color: var(--accent); box-shadow: var(--shadow-lg); }
 
-.brand .sidebar-collapse { margin-left: auto; }
+.brand .sidebar-collapse {
+  margin-left: auto;
+  width: 30px; height: 30px;
+  border-color: var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 700;
+}
+.brand .sidebar-collapse:hover {
+  background: var(--accent-soft); border-color: var(--accent); color: var(--accent);
+}
 
 /* gaveta aberta no mobile: fundo escurecido para fechar ao toque */
 .nav-backdrop {
