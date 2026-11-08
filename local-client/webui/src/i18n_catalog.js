@@ -613,4 +613,12 @@ export const CATALOG = {
   "Baixar .md": "Download .md",
   "Falha ao salvar": "Failed to save",
   "Relatório copiado": "Report copied",
+  "Posição no fluxo": "Position in the flow",
+  "Onde cada card está agora e quantos já chegaram até um estágio (inclui quem seguiu adiante).": "Where each card is now and how many reached a stage (including those that moved on).",
+  "neste estágio ou depois": "in this stage or later",
+  "ou depois": "or later",
+  "cards agora": "cards now",
+  "{stage} ou depois · {n} cards": "{stage} or later · {n} cards",
+  "Nenhum card neste estágio ou depois.": "No card in this stage or later.",
+  "Cada card entra em um grupo só — a soma fecha em 100%.": "Each card lands in a single group — the split adds up to 100%.",
 }

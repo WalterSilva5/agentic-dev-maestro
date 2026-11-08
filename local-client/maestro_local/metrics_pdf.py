@@ -643,31 +643,30 @@ def build_metrics_pdf(session, project) -> bytes:
     # ---------- quem chegou em cada estágio (cumulativo) ----------
     est = m.get("estagios") or {}
     if est.get("stages"):
-        _titulo(flow, "Chegaram em cada estágio", st)
+        _titulo(flow, "Posição no fluxo", st)
         flow.append(Paragraph(
-            "Chegou = está no estágio ou já passou por ele (ordem das colunas + "
-            "movimentações registradas). Um card pode contar em vários estágios; "
-            "a coluna 'agora' mostra quantos estão ali neste momento.",
+            "Onde cada card está <b>agora</b> e quantos estão naquele estágio "
+            "<b>ou adiante</b> — que é o que responde \"quantos já chegaram até aqui\". "
+            "Um card conta em vários estágios (o de agora e os anteriores).",
             st["small"],
         ))
         flow.append(Spacer(1, 2 * mm))
-        maximo_est = max(x["reached"] for x in est["stages"]) or 1
+        maximo_est = max(x["current"] for x in est["stages"]) or 1
         linhas_est = [[
             Paragraph("<b>Estágio</b>", st["small"]),
-            Paragraph("<b>Proporção</b>", st["small"]),
-            Paragraph("<b>Chegaram · % do board</b>", st["small"]),
             Paragraph("<b>Agora</b>", st["small"]),
+            Paragraph("<b>Neste estágio ou depois</b>", st["small"]),
         ]]
         for x in est["stages"]:
-            largura = max(10, 96 * x["reached"] / maximo_est)
+            largura = max(10, 120 * x["current"] / maximo_est)
             cor = GREEN if x["isDone"] else ACCENT
             linhas_est.append([
                 Paragraph(x["name"], st["body"]),
-                _bar(x["pct"], width=largura, cor=cor),
+                _bar(x["current"] / max(x["reached"], 1) * 100, width=largura, cor=cor),
+                Paragraph(f"<b>{x['current']}</b>", st["small"]),
                 Paragraph(f"<b>{x['reached']}</b> · {x['pct']}%", st["small"]),
-                Paragraph(str(x["current"]), st["small"]),
             ])
-        t_est = Table(linhas_est, colWidths=[52 * mm, 62 * mm, 32 * mm, 22 * mm], repeatRows=1)
+        t_est = Table(linhas_est, colWidths=[52 * mm, 58 * mm, 26 * mm, 34 * mm], repeatRows=1)
         t_est.setStyle(TableStyle([
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
             ("TOPPADDING", (0, 0), (-1, -1), 2),

@@ -1806,20 +1806,20 @@ class BoardMetricsAccordion(QFrame):
             )
             estagios = compute_stages(tasks_metric, cols, historico_mov)
             if estagios["stages"]:
-                est_box = self._section_box("📈 " + _t("Chegaram em cada estágio"), t)
-                nota = QLabel(_t("Chegou = está no estágio ou já passou por ele (ordem das colunas + movimentações)."))
+                est_box = self._section_box("📍 " + _t("Posição no fluxo"), t)
+                nota = QLabel(_t("Onde cada card está agora e quantos já chegaram até um estágio (inclui quem seguiu adiante)."))
                 nota.setWordWrap(True)
                 nota.setStyleSheet(f"color: {t.text_muted}; font-size: 10px; border: none;")
                 est_box["layout"].addWidget(nota)
 
                 combo = QComboBox()
                 for x in estagios["stages"]:
-                    combo.addItem(f"{x['name']} · {x['reached']} " + _t("chegaram"), x["stage"])
+                    combo.addItem(x["name"], x["stage"])
                 por_estagio = {x["stage"]: x for x in estagios["stages"]}
                 padrao = "dev-box" if "dev-box" in por_estagio else estagios["stages"][0]["stage"]
                 combo.setCurrentIndex([x["stage"] for x in estagios["stages"]].index(padrao))
 
-                max_alcancado = max(x["reached"] for x in estagios["stages"]) or 1
+                max_alcancado = max(x["current"] for x in estagios["stages"]) or 1
                 funil = QVBoxLayout(); funil.setSpacing(2)
                 for x in estagios["stages"]:
                     linha = QHBoxLayout(); linha.setSpacing(6)
@@ -1828,14 +1828,15 @@ class BoardMetricsAccordion(QFrame):
                     nome.setFixedWidth(120)
                     linha.addWidget(nome)
                     barra_alc = QProgressBar()
-                    barra_alc.setValue(int(x["reached"] / max_alcancado * 100))
-                    barra_alc.setFormat(f"{x['reached']} ({x['pct']}%)")
+                    barra_alc.setValue(int(x["current"] / max_alcancado * 100))
+                    barra_alc.setFormat(str(x["current"]))
                     barra_alc.setFixedHeight(12)
                     linha.addWidget(barra_alc, 1)
-                    agora = QLabel(f"{_t('agora')}: {x['current']}")
-                    agora.setStyleSheet(f"color: {t.text_muted}; font-size: 10px; border: none;")
-                    agora.setFixedWidth(80)
-                    linha.addWidget(agora)
+                    depois = QLabel(f"{x['reached']} " + _t("ou depois"))
+                    depois.setToolTip(_t("neste estágio ou depois"))
+                    depois.setStyleSheet(f"color: {t.text_muted}; font-size: 10px; border: none;")
+                    depois.setFixedWidth(96)
+                    linha.addWidget(depois)
                     w_linha = QWidget(); w_linha.setLayout(linha)
                     funil.addWidget(w_linha)
                 est_box["layout"].addLayout(funil)
@@ -1855,11 +1856,11 @@ class BoardMetricsAccordion(QFrame):
                     if not est:
                         return
                     split_titulo.setText(
-                        f"{est['name']} · {_t('corte por módulo')} ({est['reached']} {_t('cards')})"
+                        f"{est['name']} " + _t("ou depois") + f" · {_t('corte por módulo')} ({est['reached']} {_t('cards')})"
                     )
                     grupos = estagios["breakdown"].get(chave_estagio, [])
                     if not grupos:
-                        split_box.addWidget(self._hint(_t("Nenhum card chegou neste estágio."), t))
+                        split_box.addWidget(self._hint(_t("Nenhum card neste estágio ou depois."), t))
                         return
                     for g in grupos:
                         r = QHBoxLayout(); r.setSpacing(6)

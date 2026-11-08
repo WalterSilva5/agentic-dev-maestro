@@ -595,18 +595,19 @@ export default function Board() {
               <div style={{ height: 14, background: 'var(--border-light)', borderRadius: 7, overflow: 'hidden', display: 'flex' }}><div style={{ width: `${pct}%`, background: pct===100?'#16a34a':'#f59e0b' }} /></div>
               <div className="muted" style={{ fontSize: 10, marginTop: 4 }}>{doneTasks}/{totalTasks} · {pct}%</div>
             </div>
-            {/* Chegaram em cada estágio (cumulativo) + corte por módulo */}
+            {/* Posição no fluxo + corte por módulo (sem "funil" artificial) */}
             {stages && stages.stages.length > 0 && (() => {
               const lista = stages.stages
               const sel = lista.find((x) => x.stage === selectedStage) || lista[0]
               const grupos = (stages.breakdown && stages.breakdown[sel.stage]) || []
-              const maxReached = Math.max(...lista.map((x) => x.reached), 1)
+              const total = stages.total || 1
+              const maxAtual = Math.max(...lista.map((x) => x.current), 1)
               return (
                 <div style={{ background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '10px', marginTop: 8 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <span className="muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, textTransform: 'uppercase' }}>📈 {t('Chegaram em cada estágio')}</span>
+                    <span className="muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, textTransform: 'uppercase' }}>📍 {t('Posição no fluxo')}</span>
                     <span className="muted" style={{ fontSize: 10 }}>
-                      {t('Chegou = está no estágio ou já passou por ele (ordem das colunas + movimentações).')}
+                      {t('Onde cada card está agora e quantos já chegaram até um estágio (inclui quem seguiu adiante).')}
                     </span>
                     <select
                       value={sel.stage}
@@ -615,51 +616,64 @@ export default function Board() {
                       title={t('Escolha o estágio para ver o corte por módulo')}
                     >
                       {lista.map((x) => (
-                        <option key={x.stage} value={x.stage}>
-                          {x.name} · {x.reached} {t('chegaram')}
-                        </option>
+                        <option key={x.stage} value={x.stage}>{x.name}</option>
                       ))}
                     </select>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 12, marginTop: 8 }}>
-                    {/* funil cumulativo */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                      {lista.map((x) => {
-                        const ativo = x.stage === sel.stage
-                        const largura = Math.max(8, Math.round((x.reached / maxReached) * 100))
-                        return (
-                          <button
-                            key={x.stage}
-                            onClick={() => setSelectedStage(x.stage)}
-                            style={{
-                              display: 'block', width: '100%', textAlign: 'left', cursor: 'pointer',
-                              background: ativo ? 'var(--card)' : 'transparent',
-                              border: `1px solid ${ativo ? 'var(--accent)' : 'transparent'}`,
-                              borderRadius: 6, padding: '3px 6px',
-                            }}
-                            title={`${x.reached} ${t('cards chegaram')} · ${x.current} ${t('estão agora')}`}
-                          >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, gap: 6 }}>
-                              <span style={{ fontWeight: ativo ? 700 : 500, color: 'var(--text)' }}>{x.name}</span>
-                              <span style={{ color: 'var(--text-muted, #6b7280)', fontSize: 10 }}>{x.reached} <span style={{ opacity: .65 }}>({x.pct}%)</span></span>
-                            </div>
-                            <div style={{ height: 7, background: 'var(--border-light)', borderRadius: 4, overflow: 'hidden', marginTop: 2 }}>
-                              <div style={{ width: `${largura}%`, height: '100%', background: x.isDone ? '#16a34a' : ativo ? 'var(--accent)' : '#93c5fd' }} />
-                            </div>
-                            <div className="muted" style={{ fontSize: 9 }}>{t('agora')}: {x.current}</div>
-                          </button>
-                        )
-                      })}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 14, marginTop: 10 }}>
+                    {/* agora (foto) + chegou até aqui */}
+                    <div>
+                      <div style={{ display: 'flex', gap: 18, alignItems: 'flex-end', marginBottom: 8 }}>
+                        <div>
+                          <div className="muted" style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: .5 }}>{t('agora')}</div>
+                          <div style={{ fontSize: 26, fontWeight: 800, lineHeight: 1.1 }}>{sel.current}</div>
+                        </div>
+                        <div>
+                          <div className="muted" style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: .5 }}>{t('neste estágio ou depois')}</div>
+                          <div style={{ fontSize: 26, fontWeight: 800, lineHeight: 1.1 }}>
+                            {sel.reached}
+                            <span className="muted" style={{ fontSize: 12, fontWeight: 600 }}> ({Math.round((sel.reached / total) * 100)}%)</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        {lista.map((x) => {
+                          const ativo = x.stage === sel.stage
+                          const largura = Math.max(6, Math.round((x.current / maxAtual) * 100))
+                          return (
+                            <button
+                              key={x.stage}
+                              onClick={() => setSelectedStage(x.stage)}
+                              title={`${x.current} ${t('cards agora')} · ${x.reached} ${t('neste estágio ou depois')}`}
+                              style={{
+                                display: 'grid', gridTemplateColumns: '110px 1fr 34px', alignItems: 'center', gap: 8,
+                                background: ativo ? 'var(--card)' : 'transparent',
+                                border: `1px solid ${ativo ? 'var(--accent)' : 'transparent'}`,
+                                borderRadius: 6, padding: '2px 6px', cursor: 'pointer', textAlign: 'left',
+                              }}
+                            >
+                              <span style={{ fontSize: 11, fontWeight: ativo ? 700 : 500, color: x.current ? 'var(--text)' : 'var(--text-muted, #6b7280)' }}>
+                                {x.name}
+                              </span>
+                              <span style={{ height: 7, background: 'var(--border-light)', borderRadius: 4, overflow: 'hidden' }}>
+                                <span style={{ display: 'block', width: `${largura}%`, height: '100%', background: x.isDone ? '#16a34a' : ativo ? 'var(--accent)' : '#93c5fd' }} />
+                              </span>
+                              <span style={{ fontSize: 11, fontWeight: 700, textAlign: 'right' }}>{x.current}</span>
+                            </button>
+                          )
+                        })}
+                      </div>
                     </div>
 
-                    {/* corte por módulo do estágio selecionado */}
+                    {/* corte por módulo de quem já chegou até o estágio */}
                     <div>
                       <div className="muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, textTransform: 'uppercase', marginBottom: 6 }}>
-                        {sel.name} · {t('corte por módulo')} ({sel.reached} {t('cards')})
+                        {tf('{stage} ou depois · {n} cards', { stage: sel.name, n: sel.reached })}
                       </div>
                       {grupos.length === 0 ? (
-                        <div className="muted" style={{ fontSize: 11 }}>{t('Nenhum card chegou neste estágio.')}</div>
+                        <div className="muted" style={{ fontSize: 11 }}>{t('Nenhum card neste estágio ou depois.')}</div>
                       ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                           {grupos.map((g, i) => (
@@ -674,7 +688,7 @@ export default function Board() {
                             </div>
                           ))}
                           <div className="muted" style={{ fontSize: 10, marginTop: 2 }}>
-                            {t('Cada card entra em um grupo só — a soma fecha em 100% do estágio.')}
+                            {t('Cada card entra em um grupo só — a soma fecha em 100%.')}
                           </div>
                         </div>
                       )}

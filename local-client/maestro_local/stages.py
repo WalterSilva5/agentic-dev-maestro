@@ -1,21 +1,19 @@
-"""Quem **chegou** em cada estágio do board (métrica cumulativa), e o corte por grupo.
+"""Posição do card no fluxo, por estágio — e o corte por grupo.
 
-Duas perguntas diferentes:
+Duas leituras, sem inventar histórico:
 
-- **está em** um estágio  -> `Task.column_id == coluna` (foto de agora)
-- **chegou** em um estágio -> já passou por ali alguma vez
+- **agora** (`current`) — `Task.column_id == coluna`: foto exata do board;
+- **neste estágio ou depois** (`reached`/`atOrAfter`) — quantos cards estão
+  nesta coluna **ou adiante** no fluxo. Serve para responder "quantos já
+  chegaram até aqui" (ex.: Dev Box = desenvolvimento concluído, aguardando
+  teste), sem contar como passagem quem só foi importado já no fim.
 
-"Chegou" é o que interessa para acompanhar fluxo: um card em `Dev Review` já
-passou por `Dev Review`, mesmo que hoje não esteja mais lá. O fluxo é
-`Doing → Dev Review → Dev Box → In Test → … → Done`, então **Dev Box é o
-último estado do desenvolvimento** (dev concluído, aguardando teste). Duas
-fontes combinadas:
+Fluxo: `Doing → Dev Review → Dev Box → In Test → … → Done`. **Dev Box é o
+último estado do desenvolvimento.**
 
-1. **ordem das colunas** — o fluxo é linear, então quem está numa coluna de
-   ordem N já passou por todas as de ordem menor (`Dev Review` antes de
-   `Dev Box`; `Rework`, `Verified`, `Accepted` e `Done` depois de `In Test`);
-2. **histórico de movimentação** (`activity_log`, action `moved`, detalhe
-   `Origem -> Destino`) — pega movimentos fora de ordem e saltos.
+A posição vem da ordem das colunas; o `activity_log` (`moved`) entra como
+histórico quando existir, mas o número principal **não depende** dele: cards
+importados não têm passagem registrada e isso não infla nem zera a métrica.
 
 O corte por grupo usa **um grupo por card** (o módulo principal, na ordem do
 plano), para que a soma dos grupos feche em 100% — a divisão é feita por maior
@@ -146,6 +144,7 @@ def compute_stages(tasks, columns, history_rows=None) -> dict:
             "order": c.order,
             "isDone": bool(c.is_done),
             "reached": len(ids),
+            "atOrAfter": len(ids),
             "current": len(atual[chave]),
         })
     # % do board que chegou / que está agora (não é divisão em partes)
