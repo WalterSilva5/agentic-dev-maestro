@@ -10,6 +10,9 @@ import os
 # Precisa vir antes de qualquer import do Qt.
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("PYTHONUTF8", "1")
+# atalhos globais (pynput/X Record) não podem subir na suíte: várias janelas
+# na mesma sessão derrubam o processo com segfault
+os.environ.setdefault("MAESTRO_DISABLE_HOTKEYS", "1")
 
 import pytest  # noqa: E402
 

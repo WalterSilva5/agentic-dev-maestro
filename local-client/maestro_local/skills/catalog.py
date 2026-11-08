@@ -162,8 +162,8 @@ curl -s http://127.0.0.1:9777/api/projects/1/metrics/dimensions | jq '{
 
 ## Quem chegou em cada estagio (cumulativo)
 
-"Esta em" != "chegou em": um card em Dev Review ja passou por Dev Box
-(dev concluido, aguardando teste).
+"Esta em" != "chegou em": um card em Dev Box ja passou por Dev Review.
+Fluxo: Doing -> Dev Review -> Dev Box (dev concluido, aguardando teste) -> In Test -> Done.
 
 ```bash
 curl -s "http://127.0.0.1:9777/api/projects/1/metrics/stages?stage=dev-box" | jq '{
@@ -174,6 +174,7 @@ curl -s "http://127.0.0.1:9777/api/projects/1/metrics/stages?stage=dev-box" | jq
 ```
 
 - `reached` = chegou (cumulativo), `current` = esta agora, `pct` = % do board
+- ordem: `Doing -> Dev Review -> Dev Box -> In Test -> ... -> Done`
 - `breakdown[estagio][]` = corte por modulo, **soma 100%** (um card por grupo;
   card sem modulo vira `sem-modulo`)
 - `stage=` devolve `selected` com `groups` do estagio
@@ -714,7 +715,7 @@ curl -s "http://127.0.0.1:9777/api/projects/1/metrics/stages?stage=dev-box" | jq
 }'
 ```
 
-`reached` = chegou (cumulativo: quem esta em Dev Review ja passou por Dev Box);
+`reached` = chegou (cumulativo: quem esta em Dev Box ja passou por Dev Review);
 `current` = esta ali agora. O corte por modulo soma 100%.
 
 ## 6. Metricas do dia

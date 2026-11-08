@@ -6,12 +6,14 @@ Duas perguntas diferentes:
 - **chegou** em um estágio -> já passou por ali alguma vez
 
 "Chegou" é o que interessa para acompanhar fluxo: um card em `Dev Review` já
-passou por `Dev Box` (dev concluído, aguardando teste), mesmo que hoje não
-esteja mais lá. Duas fontes combinadas:
+passou por `Dev Review`, mesmo que hoje não esteja mais lá. O fluxo é
+`Doing → Dev Review → Dev Box → In Test → … → Done`, então **Dev Box é o
+último estado do desenvolvimento** (dev concluído, aguardando teste). Duas
+fontes combinadas:
 
 1. **ordem das colunas** — o fluxo é linear, então quem está numa coluna de
-   ordem N já passou por todas as de ordem menor (`Rework`, `Verified`,
-   `Accepted` e `Done` são posteriores a `In Test`);
+   ordem N já passou por todas as de ordem menor (`Dev Review` antes de
+   `Dev Box`; `Rework`, `Verified`, `Accepted` e `Done` depois de `In Test`);
 2. **histórico de movimentação** (`activity_log`, action `moved`, detalhe
    `Origem -> Destino`) — pega movimentos fora de ordem e saltos.
 

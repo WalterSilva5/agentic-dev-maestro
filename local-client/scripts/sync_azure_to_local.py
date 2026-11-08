@@ -60,7 +60,8 @@ def main():
                 s.add(BoardColumn(project_id=proj.id, name=name, order=i, is_done=is_done))
             s.commit()
         # garante colunas Azure se faltar, na ordem do template Azure (To do -> Done)
-        template_order = ["To do","Approved","Refinement","Ready for Dev","Doing","Dev Box","Dev Review","In Test","Rework","Verified","Accepted","Done"]
+        # Dev Review vem antes de Dev Box: Dev Box é o último estado do dev
+        template_order = ["To do","Approved","Refinement","Ready for Dev","Doing","Dev Review","Dev Box","In Test","Rework","Verified","Accepted","Done"]
         order_index = {n.lower(): i for i, n in enumerate(template_order)}
         col_by_name = {c.name.lower(): c for c in s.query(BoardColumn).filter(BoardColumn.project_id == proj.id).all()}
         for state in sorted({it["fields"].get("System.State","To do") for it in data}, key=lambda x: order_index.get(x.lower(), 99)):

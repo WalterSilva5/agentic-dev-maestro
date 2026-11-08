@@ -1585,7 +1585,8 @@ def apply_column_template(project_id: int, s: Session = Depends(db)):
         raise HTTPException(400, "Remove/move cards before applying a template with different columns.")
     for c in s.query(BoardColumn).filter(BoardColumn.project_id == project_id).all():
         s.delete(c)
-    template = [("To do", False), ("Approved", False), ("Refinement", False), ("Ready for Dev", False), ("Doing", False), ("Dev Box", False), ("Dev Review", False), ("In Test", False), ("Rework", False), ("Verified", False), ("Accepted", False), ("Done", True)]
+    # fluxo: ... Doing -> Dev Review -> Dev Box -> In Test -> ... -> Done
+    template = [("To do", False), ("Approved", False), ("Refinement", False), ("Ready for Dev", False), ("Doing", False), ("Dev Review", False), ("Dev Box", False), ("In Test", False), ("Rework", False), ("Verified", False), ("Accepted", False), ("Done", True)]
     created = []
     for order, (name, is_done) in enumerate(template):
         col = BoardColumn(project_id=project_id, name=name, order=order, is_done=is_done)

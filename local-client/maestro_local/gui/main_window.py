@@ -825,6 +825,15 @@ class MainWindow(QMainWindow):
         release_model()
 
     def _setup_global_hotkeys(self):
+        # Nos testes (e quando MAESTRO_DISABLE_HOTKEYS=1) não registra atalho
+        # global: o pynput abre threads do X Record que derrubam a suíte com
+        # segfault quando várias janelas são criadas na mesma sessão.
+        import os
+        import sys
+
+        if os.environ.get("MAESTRO_DISABLE_HOTKEYS") or "pytest" in sys.modules:
+            self._hotkeys = None
+            return
         try:
             from maestro_local.transcricoes.constants import HOTKEY_TOGGLE_RECORDING
             from maestro_local.transcricoes.hotkeys import GlobalHotkeys

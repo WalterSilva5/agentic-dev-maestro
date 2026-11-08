@@ -646,6 +646,40 @@ def _run_light_migrations(engine):
             with engine.begin() as conn:
                 for stmt in tadds:
                     conn.execute(text(stmt))
+    if "board_columns" in tables:
+        # Fluxo corrigido: Dev Review vem ANTES de Dev Box (Dev Box é o último
+        # estado do dev, antes de In Test). Bancos que ainda têm a ordem antiga
+        # são ajustados uma única vez — depois a condição não casa mais.
+        from sqlalchemy import text as _text
+
+        with engine.begin() as conn:
+            antigos = conn.execute(_text(
+                'SELECT a.project_id FROM board_columns a '
+                'JOIN board_columns b ON b.project_id = a.project_id '
+                "WHERE a.name = 'Dev Box' AND b.name = 'Dev Review' "
+                'AND a."order" < b."order"'
+            )).fetchall()
+            for (projeto_id,) in antigos:
+                ordens = dict(conn.execute(_text(
+                    'SELECT name, "order" FROM board_columns '
+                    "WHERE project_id = :p AND name IN ('Dev Box', 'Dev Review')"
+                ), {"p": projeto_id}).fetchall())
+                if len(ordens) != 2:
+                    continue
+                # troca em três passos para não colidir durante o update
+                conn.execute(_text(
+                    'UPDATE board_columns SET "order" = -1 '
+                    "WHERE project_id = :p AND name = 'Dev Box'"
+                ), {"p": projeto_id})
+                conn.execute(_text(
+                    'UPDATE board_columns SET "order" = :o '
+                    "WHERE project_id = :p AND name = 'Dev Review'"
+                ), {"o": ordens["Dev Box"], "p": projeto_id})
+                conn.execute(_text(
+                    'UPDATE board_columns SET "order" = :o '
+                    "WHERE project_id = :p AND name = 'Dev Box'"
+                ), {"o": ordens["Dev Review"], "p": projeto_id})
+
     if "project_daily" in tables:
         dcols = {c["name"] for c in insp.get_columns("project_daily")}
         dadds = []

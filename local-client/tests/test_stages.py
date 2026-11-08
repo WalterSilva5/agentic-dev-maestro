@@ -27,31 +27,41 @@ class _Task:
         self.labels = [_Label(n) for n in labels]
 
 
+# Fluxo do time: ... Doing -> Dev Review -> Dev Box -> In Test -> ... -> Done
 COLS = [
     _Col(1, "To do", 0),
     _Col(4, "Ready for Dev", 3),
     _Col(5, "Doing", 4),
-    _Col(6, "Dev Box", 5),
-    _Col(7, "Dev Review", 6),
+    _Col(7, "Dev Review", 5),
+    _Col(6, "Dev Box", 6),
     _Col(8, "In Test", 7),
     _Col(12, "Done", 11, done=True),
 ]
-TO_DO, RFD, DOING, DEV_BOX, DEV_REVIEW, IN_TEST, DONE = COLS
+TO_DO, RFD, DOING, DEV_REVIEW, DEV_BOX, IN_TEST, DONE = COLS
 
 
 # --------------------------------------------------------------------------
 # "chegou" é cumulativo
 # --------------------------------------------------------------------------
 
-def test_quem_esta_em_dev_review_chegou_em_dev_box():
+def test_quem_esta_em_dev_box_chegou_em_dev_review():
+    """Dev Box é o último estado do dev: quem está nele já passou por Dev Review."""
+    tasks = [_Task(1, DEV_BOX)]
+    d = compute_stages(tasks, COLS)
+    por_estagio = {x["stage"]: x for x in d["stages"]}
+    assert por_estagio["dev-review"]["reached"] == 1
+    assert por_estagio["dev-review"]["current"] == 0
+    assert por_estagio["dev-box"]["current"] == 1
+    # não "chegou" no que vem depois (teste)
+    assert por_estagio["in-test"]["reached"] == 0
+
+
+def test_quem_esta_em_dev_review_ainda_nao_chegou_em_dev_box():
     tasks = [_Task(1, DEV_REVIEW)]
     d = compute_stages(tasks, COLS)
     por_estagio = {x["stage"]: x for x in d["stages"]}
-    assert por_estagio["dev-box"]["reached"] == 1
-    assert por_estagio["dev-box"]["current"] == 0
-    assert por_estagio["dev-review"]["current"] == 1
-    # não "chegou" no que vem depois
-    assert por_estagio["in-test"]["reached"] == 0
+    assert por_estagio["dev-review"]["reached"] == 1
+    assert por_estagio["dev-box"]["reached"] == 0
 
 
 def test_estagios_posteriores_nao_contam_para_tras():

@@ -1344,7 +1344,7 @@ class MembersDialog(QDialog):
 
 TEMPLATE_12_RAIAS = [
     ("To do", False), ("Approved", False), ("Refinement", False), ("Ready for Dev", False),
-    ("Doing", False), ("Dev Box", False), ("Dev Review", False), ("In Test", False),
+    ("Doing", False), ("Dev Review", False), ("Dev Box", False), ("In Test", False),
     ("Rework", False), ("Verified", False), ("Accepted", False), ("Done", True),
 ]
 
