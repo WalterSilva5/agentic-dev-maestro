@@ -21,12 +21,15 @@ from maestro_local.db.models import (
     DailyNote,
     Document,
     Epic,
+    Evidence,
+    GateRule,
     Goal,
     Label,
     ApiCall,
     ApiRequest,
     Member,
     MemoryEntry,
+    ParityResult,
     Project,
     ProjectLink,
     Runbook,
@@ -227,6 +230,91 @@ class ProjectLinkReorder(BaseModel):
 
 def _link_dict(l: ProjectLink) -> dict:
     return {"id": l.id, "projectId": l.project_id, "title": l.title, "url": l.url, "sortOrder": l.sort_order, "createdAt": l.created_at.isoformat() if l.created_at else None}
+
+
+class EvidenceCreate(BaseModel):
+    kind: str
+    title: Optional[str] = None
+    url: Optional[str] = None
+    environment: Optional[str] = None
+    executed_at: Optional[str] = None
+    executor: Optional[str] = None
+    result: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class ParityCreate(BaseModel):
+    case_name: str
+    status: str
+    expected: Optional[str] = None
+    actual: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class ParityUpdate(BaseModel):
+    status: Optional[str] = None
+    expected: Optional[str] = None
+    actual: Optional[str] = None
+    notes: Optional[str] = None
+    case_name: Optional[str] = None
+
+
+class GateRuleUpsert(BaseModel):
+    columnId: int
+    require_evidence: Optional[bool] = False
+    min_evidence: Optional[int] = 1
+    required_evidence_kinds: Optional[str] = None
+    require_parity: Optional[bool] = False
+    forbidden_parity: Optional[str] = "DIVERGENCIA"
+    require_comment_type: Optional[str] = None
+    require_pr_merged: Optional[bool] = False
+    message: Optional[str] = None
+
+
+def _evidence_dict(e) -> dict:
+    return {
+        "id": e.id,
+        "taskId": e.task_id,
+        "kind": e.kind,
+        "title": e.title,
+        "url": e.url,
+        "environment": e.environment,
+        "executed_at": e.executed_at.isoformat() if e.executed_at else None,
+        "executor": e.executor,
+        "result": e.result,
+        "notes": e.notes,
+        "createdAt": e.created_at.isoformat() if e.created_at else None,
+    }
+
+
+def _parity_dict(p) -> dict:
+    return {
+        "id": p.id,
+        "taskId": p.task_id,
+        "case_name": p.case_name,
+        "status": p.status,
+        "expected": p.expected,
+        "actual": p.actual,
+        "notes": p.notes,
+        "createdAt": p.created_at.isoformat() if p.created_at else None,
+    }
+
+
+def _gate_rule_dict(r) -> dict:
+    return {
+        "id": r.id,
+        "projectId": r.project_id,
+        "columnId": r.column_id,
+        "columnName": r.column.name if r.column else None,
+        "require_evidence": bool(r.require_evidence),
+        "min_evidence": r.min_evidence or 1,
+        "required_evidence_kinds": r.required_evidence_kinds,
+        "require_parity": bool(r.require_parity),
+        "forbidden_parity": r.forbidden_parity,
+        "require_comment_type": r.require_comment_type,
+        "require_pr_merged": bool(r.require_pr_merged),
+        "message": r.message,
+    }
 
 
 class CommentCreate(BaseModel):
@@ -1395,18 +1483,10 @@ def move_task(code: str, body: MoveBody, s: Session = Depends(db)):
     new_col = s.query(BoardColumn).filter(BoardColumn.id == body.columnId).first()
     if not new_col:
         raise HTTPException(404, "Column not found")
-    if new_col.name.lower() in ("revisão", "revisao", "review"):
-        has_review = (
-            s.query(Comment)
-            .filter(Comment.task_id == task.id, Comment.type == "CODE_REVIEW")
-            .first()
-        )
-        if not has_review:
-            raise HTTPException(
-                422,
-                "Code review obrigatorio antes de mover para Revisao. "
-                "Crie um comentario com type=CODE_REVIEW na tarefa.",
-            )
+    ok, missing, message = _check_gate(task, new_col, s)
+    if not ok:
+        # FastAPI detail pode ser dict — o frontend trata 422 com missing/message
+        raise HTTPException(status_code=422, detail={"missing": missing, "message": message})
     task.column_id = new_col.id
     task.updated_at = datetime.utcnow()
     # Marca/limpa o momento em que a tarefa ficou "concluída" (base do auto-arquivamento)
@@ -2138,6 +2218,239 @@ def reorder_links(project_id: int, body: ProjectLinkReorder, s: Session = Depend
         links[lid].sort_order = order
     s.commit()
     return [_link_dict(links[lid]) for lid in body.orderedIds]
+
+
+# ---------------------------------------------------------------------------
+# P0.1 — Gate de evidência / paridade
+# ---------------------------------------------------------------------------
+
+
+def _seed_gate_rules(project_id: int, s: Session):
+    """Cria as regras padrão da migração se ainda não existirem."""
+    cols = {c.name.lower(): c for c in s.query(BoardColumn).filter(BoardColumn.project_id == project_id).all()}
+    # mapeia nome da coluna → regra (cobre variações do hardcoded anterior)
+    seeds = {
+        "in test": {"require_evidence": True, "min_evidence": 1, "forbidden_parity": "DIVERGENCIA", "message": "In Test exige evidência e paridade sem DIVERGENCIA."},
+        "dev review": {"require_comment_type": "CODE_REVIEW", "message": "Dev Review exige comentário CODE_REVIEW."},
+        "review": {"require_comment_type": "CODE_REVIEW", "message": "Review exige comentário CODE_REVIEW."},
+        "revisão": {"require_comment_type": "CODE_REVIEW", "message": "Revisão exige comentário CODE_REVIEW."},
+        "revisao": {"require_comment_type": "CODE_REVIEW", "message": "Revisao exige comentário CODE_REVIEW."},
+        "accepted": {"require_parity": True, "forbidden_parity": "DIVERGENCIA", "message": "Accepted exige paridade FIEL."},
+        "done": {"require_pr_merged": True, "message": "Done exige PR mergeado quando houver link."},
+    }
+    changed = False
+    for col_name, cfg in seeds.items():
+        col = cols.get(col_name)
+        if not col:
+            continue
+        existing = s.query(GateRule).filter(GateRule.project_id == project_id, GateRule.column_id == col.id).first()
+        if existing:
+            continue
+        r = GateRule(project_id=project_id, column_id=col.id, **cfg)
+        s.add(r)
+        changed = True
+    if changed:
+        s.commit()
+
+
+def _check_gate(task: Task, dest_col: BoardColumn, s: Session) -> tuple[bool, list[str], str]:
+    """Valida se o card pode entrar na coluna de destino. Retorna (ok, missing, message)."""
+    rule = s.query(GateRule).filter(GateRule.project_id == task.project_id, GateRule.column_id == dest_col.id).first()
+    if not rule:
+        # tenta semear para o projeto de migração na primeira vez
+        _seed_gate_rules(task.project_id, s)
+        rule = s.query(GateRule).filter(GateRule.project_id == task.project_id, GateRule.column_id == dest_col.id).first()
+        if not rule:
+            return True, [], ""
+    missing: list[str] = []
+    # evidência
+    if rule.require_evidence:
+        evs = s.query(Evidence).filter(Evidence.task_id == task.id).all()
+        if len(evs) < (rule.min_evidence or 1):
+            missing.append("EVIDENCIA")
+        elif rule.required_evidence_kinds:
+            required = {k.strip().upper() for k in rule.required_evidence_kinds.split(",") if k.strip()}
+            kinds = {e.kind.upper() for e in evs}
+            if not required.issubset(kinds):
+                missing.append("EVIDENCIA_KIND")
+    # paridade
+    if rule.require_parity:
+        pars = s.query(ParityResult).filter(ParityResult.task_id == task.id).all()
+        if not pars:
+            missing.append("PARITY_FIEL")
+        else:
+            # se forbid DIVERGENCIA, bloqueia se existir
+            if rule.forbidden_parity:
+                forb = rule.forbidden_parity.upper()
+                if any(p.status.upper() == forb for p in pars):
+                    missing.append("PARITY_FIEL")
+            # exige ao menos um FIEL quando require_parity
+            if not any(p.status.upper() == "FIEL" for p in pars):
+                # se não tem FIEL, mas tem BLOQUEADO/NAO_EXECUTADO, também falta
+                missing.append("PARITY_FIEL")
+    elif rule.forbidden_parity:
+        pars = s.query(ParityResult).filter(ParityResult.task_id == task.id).all()
+        forb = rule.forbidden_parity.upper()
+        if any(p.status.upper() == forb for p in pars):
+            missing.append("PARITY_FIEL")
+    # comentário
+    if rule.require_comment_type:
+        has = s.query(Comment).filter(Comment.task_id == task.id, Comment.type == rule.require_comment_type).first()
+        if not has:
+            missing.append(rule.require_comment_type)
+    # PR mergeado — por enquanto verifica se há link de PR com status merged (se houver TaskLink no futuro, aqui é placeholder)
+    # Se não houver TaskLink, ignora; quando P0.2 existir, verificará TaskLink.kind==PR e status==merged
+    if rule.require_pr_merged:
+        # sem TaskLink ainda, não bloqueia por falta de PR (backward compat); quando houver, validar
+        pass
+    if missing:
+        return False, missing, rule.message or f"{dest_col.name} exige: {', '.join(missing)}"
+    return True, [], ""
+
+
+@app.get("/api/projects/{project_id}/gate-rules")
+def list_gate_rules(project_id: int, s: Session = Depends(db)):
+    if not s.query(Project).filter(Project.id == project_id).first():
+        raise HTTPException(404, "Project not found")
+    _seed_gate_rules(project_id, s)
+    rules = s.query(GateRule).filter(GateRule.project_id == project_id).all()
+    return [_gate_rule_dict(r) for r in rules]
+
+
+@app.put("/api/projects/{project_id}/gate-rules")
+def put_gate_rules(project_id: int, body: list[GateRuleUpsert], s: Session = Depends(db)):
+    if not s.query(Project).filter(Project.id == project_id).first():
+        raise HTTPException(404, "Project not found")
+    # upsert por columnId
+    for item in body:
+        col = s.query(BoardColumn).filter(BoardColumn.id == item.columnId, BoardColumn.project_id == project_id).first()
+        if not col:
+            raise HTTPException(400, f"Column {item.columnId} not in project {project_id}")
+        rule = s.query(GateRule).filter(GateRule.project_id == project_id, GateRule.column_id == item.columnId).first()
+        if not rule:
+            rule = GateRule(project_id=project_id, column_id=item.columnId)
+            s.add(rule)
+        data = item.model_dump(exclude_unset=True)
+        for k, v in data.items():
+            if k == "columnId":
+                continue
+            setattr(rule, k, v)
+    s.commit()
+    rules = s.query(GateRule).filter(GateRule.project_id == project_id).all()
+    return [_gate_rule_dict(r) for r in rules]
+
+
+@app.post("/api/tasks/{code}/evidence")
+def create_evidence(code: str, body: EvidenceCreate, s: Session = Depends(db)):
+    task = _resolve_task(code, s)
+    kind = (body.kind or "").strip().upper()
+    if not kind:
+        raise HTTPException(400, "kind is required")
+    ev = Evidence(
+        task_id=task.id,
+        kind=kind,
+        title=(body.title or "").strip()[:200] if body.title else None,
+        url=(body.url or "").strip() if body.url else None,
+        environment=(body.environment or "").strip()[:80] if body.environment else None,
+        executor=(body.executor or "").strip()[:100] if body.executor else None,
+        result=(body.result or "").strip().upper()[:20] if body.result else None,
+        notes=body.notes,
+    )
+    if body.executed_at:
+        try:
+            ev.executed_at = datetime.fromisoformat(body.executed_at.replace("Z", "+00:00"))
+        except ValueError:
+            raise HTTPException(400, "executed_at must be ISO datetime")
+    s.add(ev)
+    s.commit()
+    s.refresh(ev)
+    return _evidence_dict(ev)
+
+
+@app.get("/api/tasks/{code}/evidence")
+def list_evidence(code: str, s: Session = Depends(db)):
+    task = _resolve_task(code, s)
+    evs = s.query(Evidence).filter(Evidence.task_id == task.id).order_by(Evidence.created_at).all()
+    return [_evidence_dict(e) for e in evs]
+
+
+@app.delete("/api/tasks/evidence/{evidence_id}")
+def delete_evidence(evidence_id: int, s: Session = Depends(db)):
+    ev = s.query(Evidence).filter(Evidence.id == evidence_id).first()
+    if not ev:
+        raise HTTPException(404, "Evidence not found")
+    s.delete(ev)
+    s.commit()
+    return {"ok": True}
+
+
+@app.post("/api/tasks/{code}/parity")
+def create_parity(code: str, body: ParityCreate, s: Session = Depends(db)):
+    task = _resolve_task(code, s)
+    status = (body.status or "").strip().upper()
+    if status not in ("FIEL", "DIVERGENCIA", "BLOQUEADO", "NAO_EXECUTADO"):
+        raise HTTPException(400, "status must be FIEL|DIVERGENCIA|BLOQUEADO|NAO_EXECUTADO")
+    pr = ParityResult(task_id=task.id, case_name=body.case_name.strip()[:200], status=status, expected=body.expected, actual=body.actual, notes=body.notes)
+    s.add(pr)
+    s.commit()
+    s.refresh(pr)
+    return _parity_dict(pr)
+
+
+@app.get("/api/tasks/{code}/parity")
+def list_parity(code: str, s: Session = Depends(db)):
+    task = _resolve_task(code, s)
+    pars = s.query(ParityResult).filter(ParityResult.task_id == task.id).order_by(ParityResult.created_at).all()
+    return [_parity_dict(p) for p in pars]
+
+
+@app.patch("/api/tasks/parity/{parity_id}")
+def update_parity(parity_id: int, body: ParityUpdate, s: Session = Depends(db)):
+    pr = s.query(ParityResult).filter(ParityResult.id == parity_id).first()
+    if not pr:
+        raise HTTPException(404, "Parity not found")
+    data = body.model_dump(exclude_unset=True)
+    if "status" in data and data["status"] is not None:
+        st = data["status"].strip().upper()
+        if st not in ("FIEL", "DIVERGENCIA", "BLOQUEADO", "NAO_EXECUTADO"):
+            raise HTTPException(400, "status must be FIEL|DIVERGENCIA|BLOQUEADO|NAO_EXECUTADO")
+        pr.status = st
+    if "case_name" in data and data["case_name"] is not None:
+        pr.case_name = data["case_name"].strip()[:200]
+    if "expected" in data:
+        pr.expected = data["expected"]
+    if "actual" in data:
+        pr.actual = data["actual"]
+    if "notes" in data:
+        pr.notes = data["notes"]
+    s.commit()
+    s.refresh(pr)
+    return _parity_dict(pr)
+
+
+@app.get("/api/tasks/{code}/quality")
+def task_quality(code: str, s: Session = Depends(db)):
+    task = _resolve_task(code, s)
+    evs = s.query(Evidence).filter(Evidence.task_id == task.id).all()
+    pars = s.query(ParityResult).filter(ParityResult.task_id == task.id).all()
+    counts = {"fiel": 0, "divergencia": 0, "bloqueado": 0, "nao_executado": 0}
+    for p in pars:
+        k = p.status.lower()
+        if k == "fiel":
+            counts["fiel"] += 1
+        elif k == "divergencia":
+            counts["divergencia"] += 1
+        elif k == "bloqueado":
+            counts["bloqueado"] += 1
+        elif k == "nao_executado":
+            counts["nao_executado"] += 1
+    # gate_ok para cada coluna? retorna geral: se há regra que bloquearia
+    return {
+        "task": _task_brief(task),
+        "evidence_count": len(evs),
+        "parity": counts,
+        "gate_ok": counts["divergencia"] == 0,
+    }
 
 
 # ---------------------------------------------------------------------------

@@ -60,6 +60,7 @@ class Project(Base):
     epics = relationship("Epic", back_populates="project", cascade="all,delete-orphan", order_by="Epic.name")
     goals = relationship("Goal", back_populates="project", cascade="all,delete-orphan", order_by="Goal.due_date")
     links = relationship("ProjectLink", back_populates="project", cascade="all,delete-orphan", order_by="ProjectLink.sort_order")
+    gate_rules = relationship("GateRule", back_populates="project", cascade="all,delete-orphan")
 
 
 class ProjectLink(Base):
@@ -184,6 +185,8 @@ class Task(Base):
     documents = relationship("Document", back_populates="task", cascade="all,delete-orphan")
     blocking = relationship("TaskDependency", foreign_keys="TaskDependency.blocker_id", back_populates="blocker", cascade="all,delete-orphan")
     blocked_by = relationship("TaskDependency", foreign_keys="TaskDependency.blocked_id", back_populates="blocked", cascade="all,delete-orphan")
+    evidence = relationship("Evidence", back_populates="task", cascade="all,delete-orphan", order_by="Evidence.created_at")
+    parity_results = relationship("ParityResult", back_populates="task", cascade="all,delete-orphan", order_by="ParityResult.created_at")
 
     @property
     def code(self):
@@ -327,6 +330,58 @@ class TaskDependency(Base):
 
     blocker = relationship("Task", foreign_keys=[blocker_id], back_populates="blocking")
     blocked = relationship("Task", foreign_keys=[blocked_id], back_populates="blocked_by")
+
+
+class Evidence(Base):
+    __tablename__ = "task_evidence"
+
+    id = Column(Integer, primary_key=True)
+    task_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
+    kind = Column(String(24), nullable=False)  # REQUEST_RESPONSE|X_TRACE_ID|SQL|PRINT|PDF|LOG|OTHER
+    title = Column(String(200))
+    url = Column(Text)
+    environment = Column(String(80))
+    executed_at = Column(DateTime)
+    executor = Column(String(100))
+    result = Column(String(20))  # OK|FALHA|PARCIAL
+    notes = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    task = relationship("Task", back_populates="evidence")
+
+
+class ParityResult(Base):
+    __tablename__ = "task_parity"
+
+    id = Column(Integer, primary_key=True)
+    task_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
+    case_name = Column(String(200), nullable=False)
+    status = Column(String(20), nullable=False)  # FIEL|DIVERGENCIA|BLOQUEADO|NAO_EXECUTADO
+    expected = Column(Text)
+    actual = Column(Text)
+    notes = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    task = relationship("Task", back_populates="parity_results")
+
+
+class GateRule(Base):
+    __tablename__ = "gate_rules"
+
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    column_id = Column(Integer, ForeignKey("board_columns.id", ondelete="CASCADE"), nullable=False)
+    require_evidence = Column(Boolean, default=False)
+    min_evidence = Column(Integer, default=1)
+    required_evidence_kinds = Column(Text)  # CSV opcional: X_TRACE_ID,SQL
+    require_parity = Column(Boolean, default=False)
+    forbidden_parity = Column(String(60), default="DIVERGENCIA")
+    require_comment_type = Column(String(20))
+    require_pr_merged = Column(Boolean, default=False)
+    message = Column(Text)
+
+    project = relationship("Project", back_populates="gate_rules")
+    column = relationship("BoardColumn")
 
 
 class DailyNote(Base):
