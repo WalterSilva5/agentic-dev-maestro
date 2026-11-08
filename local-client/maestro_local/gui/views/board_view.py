@@ -2001,6 +2001,85 @@ class BoardMetricsAccordion(QFrame):
             w_extra = QWidget(); w_extra.setLayout(extra_row)
             self.content_layout.addWidget(w_extra)
 
+            # Visão hierárquica por módulos/submódulos (como 10-progresso-entrega.svg)
+            hier_box = self._section_box("📊 " + _t("Progresso por módulos e submódulos"), t)
+            # Header similar ao SVG
+            total_lbl = QLabel(_t("TOTAL DA MIGRAÇÃO") + f"  {done}/{total} — {pct}%")
+            total_lbl.setStyleSheet(f"color: {t.text_primary}; font-size: 11px; font-weight: 700; border: none;")
+            hier_box["layout"].addWidget(total_lbl)
+            # Barra total proporcional
+            total_bar = QProgressBar(); total_bar.setValue(pct); total_bar.setFormat(f"{pct}% ({done}/{total})"); total_bar.setFixedHeight(14)
+            hier_box["layout"].addWidget(total_bar)
+            # Agrupa por módulo via labels (tags do Azure)
+            from collections import defaultdict
+            mod_tags = ['auth','cashier','config','financeiro','troca','venda','voucher','tef','acordo','monitor','estatisticas','batch','abend','crm','tudoav','cobransaas','cliente']
+            mod_set = set(m.lower() for m in mod_tags)
+            by_mod = defaultdict(list)
+            for tk in tasks_all:
+                mods = [lb.name.lower() for lb in tk.labels if lb.name.lower() in mod_set]
+                for m in mods:
+                    by_mod[m].append(tk)
+            mod_keys = sorted(by_mod.keys(), key=lambda k: len(by_mod[k]), reverse=True)
+            if not mod_keys:
+                hier_box["layout"].addWidget(self._hint(_t("Nenhum módulo com tarefas etiquetadas."), t))
+            else:
+                max_mod = max(len(by_mod[k]) for k in mod_keys) if mod_keys else 1
+                groups = {"concluido": [], "andamento": [], "naoIniciado": []}
+                for mod in mod_keys:
+                    tot_m = len(by_mod[mod])
+                    done_m = sum(1 for tk in by_mod[mod] if tk.column_id in done_col_ids)
+                    p_m = done_m / tot_m if tot_m else 0
+                    if p_m == 1: groups["concluido"].append(mod)
+                    elif p_m == 0: groups["naoIniciado"].append(mod)
+                    else: groups["andamento"].append(mod)
+                for grp_key, grp_label in [("concluido", "CONCLUÍDOS"), ("andamento", "EM ANDAMENTO"), ("naoIniciado", "NÃO INICIADOS")]:
+                    mods = groups[grp_key]
+                    if not mods:
+                        continue
+                    sec_lbl = QLabel(_t(grp_label) + f"  · {len(mods)} { _t('módulo(s)')} · {sum(len(by_mod[m]) for m in mods)} { _t('tarefas')}")
+                    sec_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 10px; font-weight: 800; letter-spacing: .5px; border: none; margin-top: 8px;")
+                    hier_box["layout"].addWidget(sec_lbl)
+                    for mod in mods:
+                        tasks_mod = by_mod[mod]
+                        tot_m = len(tasks_mod)
+                        done_m = sum(1 for tk in tasks_mod if tk.column_id in done_col_ids)
+                        pct_m = int(done_m / tot_m * 100) if tot_m else 0
+                        row = QHBoxLayout(); row.setSpacing(6)
+                        nome = QLabel(f"{mod} · {tot_m} { _t('tarefas')}")
+                        nome.setStyleSheet(f"color: {t.text_primary}; font-size: 11px; font-weight: 600; border: none; text-transform: capitalize;")
+                        row.addWidget(nome, 1)
+                        pct_lbl = QLabel(f"{done_m}/{tot_m} — {pct_m}%")
+                        pct_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 11px; border: none;")
+                        row.addWidget(pct_lbl)
+                        w = QWidget(); w.setLayout(row)
+                        hier_box["layout"].addWidget(w)
+                        bar = QProgressBar(); bar.setValue(pct_m); bar.setFixedHeight(8)
+                        # largura proporcional
+                        bar.setMaximumWidth(max(80, int(300 * tot_m / max_mod)))
+                        hier_box["layout"].addWidget(bar)
+                        # submódulos desse módulo
+                        sub_map = defaultdict(list)
+                        for tk in tasks_mod:
+                            for lb in tk.labels:
+                                n = lb.name
+                                if "-" in n and n.lower() != mod and n.lower() not in ['sprint-1','sprint-2','sprint-3','sprint-4','sprint-5','vm','var-mobile','var3-app','fundacao','infra','despriorizado']:
+                                    prefix = mod[:3].lower()
+                                    if n.lower().startswith(prefix) or (n.lower().startswith("onda-") and mod=="cashier") or (n.lower().startswith("tro-") and mod=="troca") or (n.lower().startswith("ven-") and mod=="venda") or (n.lower().startswith("fin-") and mod=="financeiro"):
+                                        sub_map[n].append(tk)
+                        if sub_map:
+                            for sub, q in sorted(sub_map.items()):
+                                tot_s = len(q)
+                                done_s = sum(1 for tk in q if tk.column_id in done_col_ids)
+                                pct_s = int(done_s / tot_s * 100) if tot_s else 0
+                                sub_row = QHBoxLayout(); sub_row.setSpacing(6)
+                                sub_lbl = QLabel(f"  {sub}"); sub_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 10px; border: none;")
+                                sub_row.addWidget(sub_lbl, 1)
+                                sub_pct = QLabel(f"{done_s}/{tot_s} — {pct_s}%"); sub_pct.setStyleSheet(f"color: {t.text_muted}; font-size: 10px; border: none;")
+                                sub_row.addWidget(sub_pct)
+                                w2 = QWidget(); w2.setLayout(sub_row)
+                                hier_box["layout"].addWidget(w2)
+            self.content_layout.addWidget(hier_box["box"])
+
         finally:
             s.close()
 

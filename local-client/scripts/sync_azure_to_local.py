@@ -10,7 +10,7 @@ import argparse, json
 from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from maestro_local.db.models import BoardColumn, Project, Task, get_session, get_or_create_member
+from maestro_local.db.models import BoardColumn, Label, Project, Task, get_session, get_or_create_member
 from maestro_local.config import get_active_workspace_id, get_workspace_db_path
 from maestro_local.db.models import init_db
 
@@ -67,6 +67,12 @@ def main():
             assignee = (f.get("System.AssignedTo") or {}).get("displayName")
             col = col_by_name.get(state.lower()) or next(iter(col_by_name.values()))
             code_num = wid
+            # tags -> labels (System.Tags é "a; b; c")
+            raw_tags = (f.get("System.Tags") or "").strip()
+            tag_names = [t.strip() for t in raw_tags.split(";") if t.strip()] if raw_tags else []
+            # normaliza: remove duplicatas mantendo ordem, limita a 60 chars
+            seen = set()
+            tag_names = [t[:60] for t in tag_names if not (t in seen or seen.add(t))]
             task = s.query(Task).filter(Task.project_id==proj.id, Task.number==code_num).first()
             if task:
                 changed = False
@@ -75,6 +81,19 @@ def main():
                 if (task.assignee or "") != (assignee or ""):
                     task.assignee = assignee; changed=True
                     if assignee: get_or_create_member(s, proj.id, assignee)
+                # sincroniza labels
+                existing_labels = {lb.name for lb in task.labels}
+                desired_labels = set(tag_names)
+                if existing_labels != desired_labels:
+                    # limpa e recria
+                    task.labels.clear()
+                    for tname in tag_names:
+                        lb = s.query(Label).filter(Label.name == tname).first()
+                        if not lb:
+                            lb = Label(name=tname)
+                            s.add(lb); s.flush()
+                        task.labels.append(lb)
+                    changed = True
                 if changed: updated+=1
             else:
                 # encontra coluna inicial se estado não existe
@@ -83,6 +102,13 @@ def main():
                 task = Task(project_id=proj.id, column_id=col.id, number=code_num, title=title, description=f"Importado do Azure #{wid} - {state}", assignee=assignee)
                 s.add(task)
                 if assignee: get_or_create_member(s, proj.id, assignee)
+                # labels para novo card
+                for tname in tag_names:
+                    lb = s.query(Label).filter(Label.name == tname).first()
+                    if not lb:
+                        lb = Label(name=tname)
+                        s.add(lb); s.flush()
+                    task.labels.append(lb)
                 created+=1
         if args.dry_run:
             s.rollback()

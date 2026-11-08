@@ -587,6 +587,114 @@ export default function Board() {
         )}
       </div>
 
+      {/* Progresso por módulos e submódulos — similar a 10-progresso-entrega.svg */}
+      {(() => {
+        const moduleTags = ['auth','cashier','config','financeiro','troca','venda','voucher','tef','acordo','monitor','estatisticas','batch','abend','crm','tudoav','cobransaas','cliente']
+        const modSet = new Set(moduleTags.map((m)=>m.toLowerCase()))
+        const byModule = {}
+        for (const tk of tasksAll) {
+          const mods = (tk.labels||[]).map((l)=>l.name.toLowerCase()).filter((n)=>modSet.has(n))
+          for (const m of mods) {
+            if (!byModule[m]) byModule[m] = []
+            byModule[m].push(tk)
+          }
+        }
+        const moduleKeys = Object.keys(byModule).sort((a,b)=>byModule[b].length - byModule[a].length)
+        if (moduleKeys.length === 0) return null
+        const maxBar = Math.max(...moduleKeys.map((k)=>byModule[k].length), 1)
+        // Agrupa por status como o SVG
+        const groups = { concluido: [], andamento: [], naoIniciado: [] }
+        for (const mod of moduleKeys) {
+          const tot = byModule[mod].length
+          const done = byModule[mod].filter((tk)=>doneColIds.has(tk.columnId)).length
+          const p = tot ? done/tot : 0
+          if (p === 1) groups.concluido.push(mod)
+          else if (p === 0) groups.naoIniciado.push(mod)
+          else groups.andamento.push(mod)
+        }
+        return (
+          <div className="card" style={{ padding: '10px 14px', marginBottom: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <strong>📊 {t('Progresso por módulos e submódulos')}</strong>
+              <span className="muted" style={{ fontSize: 11 }}>{t('Similar a 10-progresso-entrega.svg — barra proporcional ao tamanho')}</span>
+            </div>
+            <div style={{ height: 18, background: 'var(--border-light)', borderRadius: 9, overflow: 'hidden', display: 'flex', marginBottom: 6 }}>
+              <div style={{ width: `${pct}%`, background: pct===100?'#16a34a':'#f59e0b', transition: 'width .3s' }} />
+            </div>
+            <div className="muted" style={{ fontSize: 11, marginBottom: 10 }}>{doneTasks}/{totalTasks} {t('concluídas')} · {pct}% · <span style={{ color: '#16a34a' }}>■ {t('Concluído')}</span> <span style={{ color: '#f59e0b' }}>■ {t('Em andamento')}</span> <span style={{ color: 'var(--border-light)', border: '1px solid var(--border)' }}>■</span> {t('Não iniciado')}</div>
+            {['concluido','andamento','naoIniciado'].map((grp) => {
+              const mods = groups[grp]
+              if (mods.length === 0) return null
+              const titles = { concluido: 'CONCLUÍDOS', andamento: 'EM ANDAMENTO', naoIniciado: 'NÃO INICIADOS' }
+              const counts = { concluido: `${mods.length} ${t('módulo(s)')} · ${mods.reduce((a,m)=>a+byModule[m].length,0)} ${t('tarefas')}`, andamento: `${mods.length} ${t('módulo(s)')} · ${mods.reduce((a,m)=>a+byModule[m].length,0)} ${t('tarefas')}`, naoIniciado: `${mods.length} ${t('módulo(s)')} · ${mods.reduce((a,m)=>a+byModule[m].length,0)} ${t('tarefas')}` }
+              return (
+                <div key={grp} style={{ marginBottom: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                    <span style={{ width: 4, height: 18, borderRadius: 2, background: grp==='concluido'?'#16a34a':grp==='andamento'?'#f59e0b':'#cbd5e1' }} />
+                    <span style={{ fontWeight: 800, fontSize: 11, letterSpacing: .5 }}>{t(titles[grp])}</span>
+                    <span className="muted" style={{ fontSize: 11 }}>{counts[grp]}</span>
+                  </div>
+                  {mods.map((mod) => {
+                    const tasksMod = byModule[mod]
+                    const tot = tasksMod.length
+                    const done = tasksMod.filter((tk)=>doneColIds.has(tk.columnId)).length
+                    const p = tot ? Math.round(done/tot*100) : 0
+                    const barW = Math.max(14, Math.round((tot / maxBar) * 460))
+                    const subTags = {}
+                    for (const tk of tasksMod) {
+                      for (const lb of tk.labels||[]) {
+                        const n = lb.name
+                        if (n.includes('-') && n.toLowerCase() !== mod && !['sprint-1','sprint-2','sprint-3','sprint-4','sprint-5','vm','var-mobile','var3-app','fundacao','infra','despriorizado'].includes(n.toLowerCase())) {
+                          const prefix = mod.slice(0,3).toLowerCase()
+                          if (n.toLowerCase().startsWith(prefix) || (n.toLowerCase().startsWith('onda-') && mod==='cashier') || (n.toLowerCase().startsWith('tro-') && mod==='troca') || (n.toLowerCase().startsWith('ven-') && mod==='venda') || (n.toLowerCase().startsWith('fin-') && mod==='financeiro')) {
+                            if (!subTags[n]) subTags[n] = []
+                            subTags[n].push(tk)
+                          }
+                        }
+                      }
+                    }
+                    const subKeys = Object.keys(subTags).sort()
+                    return (
+                      <div key={mod} style={{ marginBottom: 8, border: '1px solid var(--border-light)', borderRadius: 8, padding: '8px 10px', background: 'var(--bg)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontWeight: 700, fontSize: 13, textTransform: 'capitalize' }}>{mod} <span className="muted" style={{ fontWeight: 400, fontSize: 11 }}>· {tot} {t('tarefas')}</span></span>
+                          <span style={{ fontSize: 12, fontWeight: 700 }}>{done}/{tot} — {p}%</span>
+                        </div>
+                        <div style={{ height: 14, background: 'var(--border-light)', borderRadius: 7, overflow: 'hidden', marginTop: 4, maxWidth: barW }}>
+                          <div style={{ width: `${p}%`, height: '100%', background: p===100?'#16a34a':p>0?'#f59e0b':'var(--border-light)' }} />
+                        </div>
+                        {subKeys.length > 0 && (
+                          <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4, paddingLeft: 12, borderLeft: '2px solid var(--border-light)' }}>
+                            {subKeys.map((sub) => {
+                              const q = subTags[sub]
+                              const totS = q.length
+                              const doneS = q.filter((tk)=>doneColIds.has(tk.columnId)).length
+                              const pS = totS ? Math.round(doneS/totS*100) : 0
+                              const barSW = Math.max(10, Math.round((totS / maxBar) * 460 * 0.7))
+                              return (
+                                <div key={sub} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11 }}>
+                                    <span className="muted" style={{ flex: 1 }}>{sub}</span>
+                                    <span style={{ fontWeight: 600 }}>{doneS}/{totS} — {pS}%</span>
+                                  </div>
+                                  <div style={{ height: 8, background: 'var(--border-light)', borderRadius: 4, overflow: 'hidden', maxWidth: barSW }}>
+                                    <div style={{ width: `${pS}%`, height: '100%', background: pS===100?'#16a34a':pS>0?'#f59e0b':'var(--border-light)' }} />
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )
+            })}
+          </div>
+        )
+      })()}
+
       {/* Atalhos do projeto — links com título (PRs, docs, Azure, etc) */}
       <div className="card" style={{ padding: '10px 14px', marginBottom: 12 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
