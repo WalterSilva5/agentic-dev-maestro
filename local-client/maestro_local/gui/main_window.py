@@ -174,10 +174,22 @@ class TodoReminder(QFrame):
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, api_port: int = 9777):
+    # Atalhos vindos de fora (ex.: links maestro://reunioes).
+    VIEW_ALIASES = {
+        "reunioes": "transcricoes",
+        "transcricoes": "transcricoes",
+        "vault": "vault",
+        "senhas": "vault",
+        "config": "settings",
+        "settings": "settings",
+        "board": "board",
+    }
+
+    def __init__(self, api_port: int = 9777, initial_view: str | None = None):
         super().__init__()
         carregar_fontes()   # Inter embutida (precisa vir antes de criar widgets)
         self.api_port = api_port
+        self._initial_view = (initial_view or "").strip().lower()
         self.setWindowTitle("Agentic Dev Maestro")
         self.resize(1120, 720)
         self.setMinimumSize(720, 480)
@@ -240,33 +252,16 @@ class MainWindow(QMainWindow):
         proj_wrap.setLayout(proj_row)
         sb.addWidget(proj_wrap)
 
-        # Navegação agrupada. O Dashboard é a tela inicial (visão geral com
-        # abas); o resto segue a mesma separação de antes, agora no painel.
+        # Navegação do app desktop: só o que é nativo (o resto vive na
+        # versão web, aberta pelo botão do topo). Todo o resto continua
+        # acessível reativando em Configurações → Funcionalidades.
         nav_groups = [
             (t("PRINCIPAL"), [
-                (t("Dashboard"), "dashboard"),
-                (t("Board"), "board"),
                 (t("Reuniões"), "transcricoes"),
-                (t("Meu Dia"), "daily"),
                 (t("Assistente"), "chat"),
             ]),
-            (t("TRABALHO"), [
-                (t("Projetos"), "projects"),
-                (t("Goals"), "goals"),
-                (t("Skills"), "skills"),
-            ]),
             (t("FERRAMENTAS"), [
-                (t("Estudos"), "study"),
-                (t("Biblioteca"), "library"),
                 (t("Senhas"), "vault"),
-                (t("Testador de API"), "apitester"),
-                (t("Base de conhecimento"), "kb"),
-                (t("Memória agentic"), "memory"),
-                (t("Praticar Inglês"), "english"),
-                (t("Tradutor"), "translate"),
-            ]),
-            (t("RECURSOS"), [
-                (t("Novidades tech"), "techlinks"),
             ]),
             (t("SISTEMA"), [
                 (t("Instruções"), "guide"),
@@ -357,6 +352,15 @@ class MainWindow(QMainWindow):
         titulos.addWidget(self.page_subtitle)
         top.addLayout(titulos)
         top.addStretch(1)
+
+        # Versão web: o desktop fica com o mínimo (nativo); o resto vive na web.
+        self.web_btn = QToolButton()
+        self.web_btn.setProperty("class", "topIcon")
+        self.web_btn.setCursor(Qt.PointingHandCursor)
+        self.web_btn.setToolTip(t("Abrir versão web"))
+        self.web_btn.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        self.web_btn.clicked.connect(self._open_web_version)
+        top.addWidget(self.web_btn)
 
         # Gravação rápida (quando ligada em Funcionalidades).
         self.quick_record_btn = QToolButton()
@@ -493,10 +497,16 @@ class MainWindow(QMainWindow):
         self.dashboard_view.task_clicked.connect(self._open_task_from_dashboard)
         self.dashboard_view.project_clicked.connect(self._open_board)
 
-        # Tela inicial: a última aberta (ou Dashboard, visão geral com abas).
+        # Tela inicial: deep link (--view), depois a última aberta (ou a
+        # primeira do menu, que no desktop enxuto é Reuniões).
         _ultima = _persistido.get("last_screen")
-        self._last_screen = "dashboard"
-        self._open_key(_ultima if _ultima in self._nav_keys else "dashboard")
+        _alias = self.VIEW_ALIASES.get(self._initial_view or "")
+        if _alias:
+            _inicial = _alias
+        else:
+            _inicial = _ultima if _ultima in self._nav_keys else (self._nav_keys[0] if self._nav_keys else "settings")
+        self._last_screen = _inicial
+        self._open_key(_inicial)
 
         # Status bar
         self.status = QStatusBar()
@@ -760,6 +770,13 @@ class MainWindow(QMainWindow):
         # Esconde até o próximo ciclo (reaparece se ainda houver pendentes)
         self.todo_reminder.hide()
 
+    def _open_web_version(self):
+        """Abre a versão web no navegador. O desktop já serve a API na
+        mesma porta, então a web funciona sem precisar subir nada além."""
+        from PySide6.QtCore import QUrl
+        from PySide6.QtGui import QDesktopServices
+        QDesktopServices.openUrl(QUrl(f"http://127.0.0.1:{self.api_port}/"))
+
     def _transcricoes_quick_toggle(self):
         """Abre Reuniões. O botão do topo inicia a gravação, mas nunca encerra
         uma reunião em andamento — parar é ação explícita da tela de Reuniões."""
@@ -816,6 +833,8 @@ class MainWindow(QMainWindow):
         self.setStyleSheet(build_stylesheet(theme))
 
         # Ícones da barra superior: são pixmaps, então o QSS não os recolore.
+        self.web_btn.setIcon(nav_icon("web", theme.text_secondary, size=18))
+        self.web_btn.setText(t("Web"))
         self.search_btn.setIcon(nav_icon("search", theme.text_secondary, size=20))
         self.notif_btn.setIcon(nav_icon("bell", theme.text_secondary, size=20))
         self.quick_record_btn.setIcon(

@@ -54,11 +54,11 @@ def test_grupos_cobrem_todas_as_funcionalidades():
 def test_menu_respeita_o_que_esta_ligado(qapp, temp_db):
     from maestro_local.gui.main_window import MainWindow
     antes = len(MainWindow()._nav_keys)
-    for k in ("dashboard", "daily", "chat"):
+    for k in ("transcricoes", "chat", "vault"):
         features.definir(k, False)
     depois = MainWindow()._nav_keys
     assert len(depois) == antes - 3
-    assert "dashboard" not in depois
+    assert "transcricoes" not in depois
     assert "settings" in depois           # a protegida continua
 
 

@@ -156,4 +156,24 @@ export const updateKbNote = (id, body) => api.put(`/documents/${id}`, body).then
 export const deleteKbNote = (id) => api.delete(`/documents/${id}`).then((r) => r.data)
 export const kbAsk = (body) => api.post('/kb/ask', body).then((r) => r.data)
 
+// Épicos (agrupadores temáticos de cards)
+export const getEpics = (projectId) => api.get(`/projects/${projectId}/epics`).then((r) => r.data)
+export const createEpic = (projectId, body) => api.post(`/projects/${projectId}/epics`, body).then((r) => r.data)
+export const updateEpic = (id, body) => api.patch(`/epics/${id}`, body).then((r) => r.data)
+export const deleteEpic = (id) => api.delete(`/epics/${id}`).then((r) => r.data)
+export const attachEpic = (epicId, taskId) => api.post(`/epics/${epicId}/tasks/${taskId}`).then((r) => r.data)
+export const detachEpic = (epicId, taskId) => api.delete(`/epics/${epicId}/tasks/${taskId}`).then((r) => r.data)
+
+// Goals (objetivos com progresso e contagem regressiva)
+export const getGoals = (projectId) => api.get(`/projects/${projectId}/goals`).then((r) => r.data)
+export const createGoal = (projectId, body) => api.post(`/projects/${projectId}/goals`, body).then((r) => r.data)
+export const getGoal = (id) => api.get(`/goals/${id}`).then((r) => r.data)
+export const updateGoal = (id, body) => api.patch(`/goals/${id}`, body).then((r) => r.data)
+export const deleteGoal = (id) => api.delete(`/goals/${id}`).then((r) => r.data)
+
+// Responsáveis (membros do projeto + métricas por pessoa)
+export const getMembers = (projectId) => api.get(`/projects/${projectId}/members`).then((r) => r.data)
+export const createMember = (projectId, body) => api.post(`/projects/${projectId}/members`, body).then((r) => r.data)
+export const deleteMember = (id) => api.delete(`/members/${id}`).then((r) => r.data)
+
 export const getHealth = () => api.get('/health').then((r) => r.data)

@@ -28,9 +28,12 @@ def _restore_utf8_locale():
 
 def main():
     port = 9777
+    initial_view = None
     for i, arg in enumerate(sys.argv[1:], 1):
         if arg in ("--port", "-p") and i < len(sys.argv) - 1:
             port = int(sys.argv[i + 1])
+        if arg == "--view" and i < len(sys.argv) - 1:
+            initial_view = sys.argv[i + 1]
 
     from maestro_local.i18n import init_language
     init_language()
@@ -55,7 +58,7 @@ def main():
     set_theme(TEMAS.get(get_theme_name(), TEMAS["light"]))
     _restore_utf8_locale()  # Qt zera o locale ao criar o QApplication
     app.setApplicationName("Maestro Local")
-    window = MainWindow(api_port=port)
+    window = MainWindow(api_port=port, initial_view=initial_view)
     window.show()
     sys.exit(app.exec())
 

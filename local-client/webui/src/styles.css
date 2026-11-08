@@ -82,6 +82,7 @@ a { color: inherit; text-decoration: none; }
 .nav a .nav-ico { width: 18px; text-align: center; font-size: 15px; flex-shrink: 0; }
 .nav a:hover { background: var(--border-light); color: var(--text); }
 .nav a.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.nav a .nav-ext { margin-left: auto; font-size: 11px; opacity: .6; }
 .theme-toggle {
   margin: 10px 12px 2px; padding: 8px 12px; font-size: 12px; text-align: left;
   background: transparent; color: var(--muted); border: 1px solid var(--border);

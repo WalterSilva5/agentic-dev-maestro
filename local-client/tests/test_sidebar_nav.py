@@ -17,17 +17,17 @@ def _keys(w):
             if w.nav_list.item(i).data(Qt.UserRole)]
 
 
-def test_dashboard_e_a_tela_inicial(qapp, temp_db):
+def test_reunioes_e_a_tela_inicial(qapp, temp_db):
     from maestro_local.gui.main_window import MainWindow
     w = MainWindow()
-    assert w.stack.currentWidget() is w.dashboard_view
-    assert w.page_title.text() == "Dashboard"
+    assert w.stack.currentWidget() is w.transcricoes_view
+    assert w.page_title.text() == "Reuniões"
 
 
 def test_sidebar_tem_grupos(qapp, temp_db):
     from maestro_local.gui.main_window import MainWindow
     w = MainWindow()
-    assert _headers(w) == ["PRINCIPAL", "TRABALHO", "FERRAMENTAS", "RECURSOS", "SISTEMA"]
+    assert _headers(w) == ["PRINCIPAL", "FERRAMENTAS", "SISTEMA"]
 
 
 def test_cabecalhos_nao_sao_clicaveis(qapp, temp_db):
@@ -44,11 +44,11 @@ def test_atalhos_refletem_o_que_esta_ligado(qapp, temp_db):
     w = MainWindow()
     assert w._nav_keys == _keys(w)
     antes = len(w._nav_keys)
-    for k in ("dashboard", "daily", "chat"):
+    for k in ("transcricoes", "chat", "vault"):
         features.definir(k, False)
     depois = MainWindow()._nav_keys
     assert len(depois) == antes - 3
-    assert "dashboard" not in depois
+    assert "transcricoes" not in depois
     assert "settings" in depois           # a protegida continua
 
 
@@ -64,10 +64,9 @@ def test_toda_tela_do_menu_tem_icone(qapp, temp_db):
 def test_clicar_no_menu_abre_a_tela_e_atualiza_o_titulo(qapp, temp_db):
     from maestro_local.gui.main_window import MainWindow
     w = MainWindow()
-    row = w._nav_row_for("projects")
+    row = w._nav_row_for("vault")
     w.nav_list.setCurrentRow(row)
-    assert w.stack.currentWidget() is w.projects_view
-    assert w.page_title.text() == "Projetos"
+    assert w.page_title.text() == "Senhas"
 
 
 def test_sino_reflete_as_pendencias(qapp, temp_db):

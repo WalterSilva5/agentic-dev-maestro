@@ -290,6 +290,8 @@ CATALOG = {
   "Pendências ({n})": "Open items ({n})",
   "Pendências": "Open items",
   "Abrir TODOs": "Open TODOs",
+  "Abrir versão web": "Open web version",
+  "Web": "Web",
   "Ver projetos": "View projects",
   "Sem pendências": "No pending items",
   "{n} TODO(s) pendente(s)": "{n} pending TODO(s)",

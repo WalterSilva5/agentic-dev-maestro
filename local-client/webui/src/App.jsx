@@ -6,6 +6,7 @@ import Estudos from './pages/Estudos.jsx'
 import Projects from './pages/Projects.jsx'
 import Board from './pages/Board.jsx'
 import Assistente from './pages/Assistente.jsx'
+import Goals from './pages/Goals.jsx'
 import Metricas from './pages/Metricas.jsx'
 import Todos from './pages/Todos.jsx'
 import Labels from './pages/Labels.jsx'
@@ -40,10 +41,18 @@ function Sidebar({ onNavigate }) {
     ['/dashboard', t('Dashboard'), '📊'],
     ['/meu-dia', t('Meu Dia'), '📅'],
     ['/projetos', t('Projetos'), '📁'],
+    ['/goals', t('Goals'), '🎯'],
     ['/assistente', t('Assistente'), '💬'],
     ['/todos', t('TODOs'), '✅'],
     ['/ferramentas', t('Ferramentas'), '🧰'],
     ['/configuracoes', t('Configurações'), '⚙️'],
+  ]
+  // Abre o app desktop (nativo) na tela pedida. Funciona se o atalho
+  // maestro:// estiver registrado; senão o navegador só ignora o clique
+  // e o usuário pode abrir o Maestro desktop manualmente.
+  const desktopLinks = [
+    ['maestro://reunioes', '🎙️', t('Reuniões (app)'), t('Gravar e transcrever no desktop')],
+    ['maestro://vault', '🔒', t('Senhas (app)'), t('Cofre KeePass no desktop')],
   ]
   return (
     <aside className="sidebar">
@@ -76,6 +85,16 @@ function Sidebar({ onNavigate }) {
           </NavLink>
         ))}
       </nav>
+      <div className="nav-label">{t('No app desktop')}</div>
+      <nav className="nav">
+        {desktopLinks.map(([href, ico, label, hint]) => (
+          <a key={href} href={href} title={hint} className="nav-desktop-link">
+            <span className="nav-ico">{ico}</span>
+            <span>{label}</span>
+            <span className="nav-ext">↗</span>
+          </a>
+        ))}
+      </nav>
       <button className="theme-toggle" onClick={() => setTheme(toggleTheme())}>
         {theme === 'dark' ? `☀  ${t('Tema claro')}` : `☾  ${t('Tema escuro')}`}
       </button>
@@ -104,6 +123,7 @@ export default function App() {
           <Route path="/projetos" element={<Projects />} />
           <Route path="/board/:projectId" element={<Board />} />
           <Route path="/assistente" element={<Assistente />} />
+        <Route path="/goals" element={<Goals />} />
           <Route path="/metricas" element={<Metricas />} />
           <Route path="/todos" element={<Todos />} />
           <Route path="/labels" element={<Labels />} />

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Agentic Dev Maestro (Web)
+Comment=Abre o Maestro na versão web (mesmos dados do app desktop)
+Exec=/home/wsi/repositorios/github/agentic-dev-maestro/local-client/maestro-web.sh
+Icon=agentic-dev-maestro
+Terminal=false
+Categories=Development;
