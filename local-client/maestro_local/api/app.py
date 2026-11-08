@@ -145,6 +145,23 @@ class SprintComplete(BaseModel):
     moveUnfinishedTo: Optional[int] = None  # id da sprint destino; ausente/null = backlog
 
 
+class BoardColumnCreate(BaseModel):
+    name: str
+    wipLimit: Optional[int] = None
+    isDone: Optional[bool] = False
+
+
+class BoardColumnUpdate(BaseModel):
+    name: Optional[str] = None
+    wipLimit: Optional[int] = None
+    isDone: Optional[bool] = None
+    order: Optional[int] = None
+
+
+class BoardColumnReorder(BaseModel):
+    orderedIds: list[int]
+
+
 class ChecklistBody(BaseModel):
     title: str
 
@@ -481,6 +498,10 @@ def _project_dict(p: Project) -> dict:
         "externalDocsPath": getattr(p, "external_docs_path", "") or "",
         "createdAt": p.created_at.isoformat() if p.created_at else None,
     }
+
+
+def _board_column_dict(c: BoardColumn) -> dict:
+    return {"id": c.id, "projectId": c.project_id, "name": c.name, "order": c.order, "wipLimit": c.wip_limit, "isDone": bool(c.is_done)}
 
 
 def _sprint_dict(sp: Sprint, include_stats: bool = True) -> dict:
@@ -1227,6 +1248,117 @@ def delete_sprint(sprint_id: int, s: Session = Depends(db)):
     s.delete(sp)
     s.commit()
     return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# Board columns
+# ---------------------------------------------------------------------------
+
+
+@app.get("/api/projects/{project_id}/columns")
+def list_columns(project_id: int, s: Session = Depends(db)):
+    if not s.query(Project).filter(Project.id == project_id).first():
+        raise HTTPException(404, "Project not found")
+    cols = s.query(BoardColumn).filter(BoardColumn.project_id == project_id).order_by(BoardColumn.order).all()
+    return [_board_column_dict(c) for c in cols]
+
+
+@app.post("/api/projects/{project_id}/columns")
+def create_column(project_id: int, body: BoardColumnCreate, s: Session = Depends(db)):
+    if not s.query(Project).filter(Project.id == project_id).first():
+        raise HTTPException(404, "Project not found")
+    if not (body.name or "").strip():
+        raise HTTPException(400, "Name is required")
+    if s.query(BoardColumn).filter(BoardColumn.project_id == project_id, BoardColumn.name == body.name.strip()).first():
+        raise HTTPException(400, "Column name already exists in this project")
+    order = s.query(BoardColumn).filter(BoardColumn.project_id == project_id).count()
+    col = BoardColumn(project_id=project_id, name=body.name.strip()[:120], order=order, wip_limit=body.wipLimit, is_done=bool(body.isDone))
+    # garante única coluna de conclusão
+    if col.is_done:
+        for other in s.query(BoardColumn).filter(BoardColumn.project_id == project_id, BoardColumn.is_done == True).all():  # noqa: E712
+            other.is_done = False
+    s.add(col)
+    s.commit()
+    s.refresh(col)
+    return _board_column_dict(col)
+
+
+@app.patch("/api/columns/{column_id}")
+def update_column(column_id: int, body: BoardColumnUpdate, s: Session = Depends(db)):
+    col = s.query(BoardColumn).filter(BoardColumn.id == column_id).first()
+    if not col:
+        raise HTTPException(404, "Column not found")
+    data = body.model_dump(exclude_unset=True)
+    if "name" in data and (data["name"] or "").strip():
+        name = data["name"].strip()[:120]
+        if s.query(BoardColumn).filter(BoardColumn.project_id == col.project_id, BoardColumn.name == name, BoardColumn.id != col.id).first():
+            raise HTTPException(400, "Column name already exists in this project")
+        col.name = name
+    if "wipLimit" in data:
+        col.wip_limit = data["wipLimit"]
+    if "isDone" in data and data["isDone"] is not None:
+        if data["isDone"]:
+            for other in s.query(BoardColumn).filter(BoardColumn.project_id == col.project_id, BoardColumn.id != col.id, BoardColumn.is_done == True).all():  # noqa: E712
+                other.is_done = False
+        col.is_done = bool(data["isDone"])
+    if "order" in data and data["order"] is not None:
+        col.order = int(data["order"])
+    s.commit()
+    s.refresh(col)
+    return _board_column_dict(col)
+
+
+@app.delete("/api/columns/{column_id}")
+def delete_column(column_id: int, s: Session = Depends(db)):
+    col = s.query(BoardColumn).filter(BoardColumn.id == column_id).first()
+    if not col:
+        raise HTTPException(404, "Column not found")
+    cnt = s.query(Task).filter(Task.column_id == col.id, Task.deleted_at == None).count()  # noqa: E711
+    if cnt > 0:
+        raise HTTPException(400, "Column with tasks cannot be removed. Move the cards first.")
+    if s.query(BoardColumn).filter(BoardColumn.project_id == col.project_id).count() <= 1:
+        raise HTTPException(400, "Board needs at least one column.")
+    s.delete(col)
+    s.commit()
+    # reordena
+    remaining = s.query(BoardColumn).filter(BoardColumn.project_id == col.project_id).order_by(BoardColumn.order).all()
+    for i, c in enumerate(remaining):
+        c.order = i
+    s.commit()
+    return {"ok": True}
+
+
+@app.post("/api/projects/{project_id}/columns/reorder")
+def reorder_columns(project_id: int, body: BoardColumnReorder, s: Session = Depends(db)):
+    if not s.query(Project).filter(Project.id == project_id).first():
+        raise HTTPException(404, "Project not found")
+    cols = {c.id: c for c in s.query(BoardColumn).filter(BoardColumn.project_id == project_id).all()}
+    if set(body.orderedIds) != set(cols.keys()):
+        raise HTTPException(400, "orderedIds must contain exactly all column ids of the project")
+    for order, cid in enumerate(body.orderedIds):
+        cols[cid].order = order
+    s.commit()
+    return [_board_column_dict(cols[cid]) for cid in body.orderedIds]
+
+
+@app.post("/api/projects/{project_id}/columns/template")
+def apply_column_template(project_id: int, s: Session = Depends(db)):
+    if not s.query(Project).filter(Project.id == project_id).first():
+        raise HTTPException(404, "Project not found")
+    if s.query(Task).filter(Task.project_id == project_id, Task.deleted_at == None).count() > 0:  # noqa: E711
+        raise HTTPException(400, "Remove/move cards before applying a template with different columns.")
+    for c in s.query(BoardColumn).filter(BoardColumn.project_id == project_id).all():
+        s.delete(c)
+    template = [("To do", False), ("Approved", False), ("Refinement", False), ("Ready for Dev", False), ("Doing", False), ("Dev Box", False), ("Dev Review", False), ("In Test", False), ("Rework", False), ("Verified", False), ("Accepted", False), ("Done", True)]
+    created = []
+    for order, (name, is_done) in enumerate(template):
+        col = BoardColumn(project_id=project_id, name=name, order=order, is_done=is_done)
+        s.add(col)
+        created.append(col)
+    s.commit()
+    for c in created:
+        s.refresh(c)
+    return [_board_column_dict(c) for c in created]
 
 
 @app.post("/api/tasks/{code}/move")

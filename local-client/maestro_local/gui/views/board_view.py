@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QProgressBar,
     QPushButton,
+    QSpinBox,
     QScrollArea,
     QSizePolicy,
     QTabWidget,
@@ -1267,6 +1268,223 @@ class MembersDialog(QDialog):
 
 
 # ────────────────────────────────────────────────────────────
+# ColumnManagerDialog — customiza colunas como Jira/Azure
+# ────────────────────────────────────────────────────────────
+
+AZURE_MIGRATION_TEMPLATE = [
+    ("To do", False), ("Approved", False), ("Refinement", False), ("Ready for Dev", False),
+    ("Doing", False), ("Dev Box", False), ("Dev Review", False), ("In Test", False),
+    ("Rework", False), ("Verified", False), ("Accepted", False), ("Done", True),
+]
+
+
+class ColumnManagerDialog(QDialog):
+    """Edita colunas do board: nome, ordem, WIP e coluna de conclusão."""
+
+    def __init__(self, project_id, parent=None):
+        super().__init__(parent)
+        self.project_id = project_id
+        self.changed = False
+        self.setWindowTitle(_t("Colunas do quadro"))
+        self.resize(640, 520)
+        root = QVBoxLayout(self)
+        root.setSpacing(8)
+        hint = QLabel(_t("Arraste a ordem com ↑/↓. A coluna marcada como Concluído conta como Done. WIP limita o aviso no cabeçalho."))
+        hint.setWordWrap(True)
+        hint.setProperty("class", "hint")
+        root.addWidget(hint)
+        self.scroll = QScrollArea()
+        self.scroll.setWidgetResizable(True)
+        self.scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+        self.container = QWidget()
+        self.list_layout = QVBoxLayout(self.container)
+        self.list_layout.setContentsMargins(0, 0, 0, 0)
+        self.list_layout.setSpacing(6)
+        self.scroll.setWidget(self.container)
+        root.addWidget(self.scroll, 1)
+        btns = QHBoxLayout()
+        add_btn = QPushButton(_t("+ Coluna"))
+        add_btn.setCursor(Qt.PointingHandCursor)
+        add_btn.clicked.connect(self._add_row)
+        btns.addWidget(add_btn)
+        tmpl_btn = QPushButton(_t("Aplicar modelo Azure Migração"))
+        tmpl_btn.setProperty("flat", True)
+        tmpl_btn.setCursor(Qt.PointingHandCursor)
+        tmpl_btn.setToolTip(_t("Substitui as colunas pelo modelo do Azure (To do → Done)"))
+        tmpl_btn.clicked.connect(self._apply_template)
+        btns.addWidget(tmpl_btn)
+        btns.addStretch()
+        save_btn = QPushButton(_t("Salvar"))
+        save_btn.setCursor(Qt.PointingHandCursor)
+        save_btn.clicked.connect(self._save)
+        btns.addWidget(save_btn)
+        cancel_btn = QPushButton(_t("Cancelar"))
+        cancel_btn.setProperty("flat", True)
+        cancel_btn.clicked.connect(self.reject)
+        btns.addWidget(cancel_btn)
+        root.addLayout(btns)
+        self._rows: list[dict] = []
+        self._load()
+
+    def _load(self):
+        while self.list_layout.count():
+            item = self.list_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        self._rows.clear()
+        s = get_session()
+        try:
+            cols = s.query(BoardColumn).filter(BoardColumn.project_id == self.project_id).order_by(BoardColumn.order).all()
+            if not cols:
+                for i, c in enumerate(DEFAULT_COLUMNS):
+                    cols = [BoardColumn(project_id=self.project_id, name=c["name"], order=c["order"], is_done=c.get("is_done", False))]
+            for col in cols:
+                self._add_row_widget(col.name, col.wip_limit, col.is_done, col.id)
+        finally:
+            s.close()
+        if not self._rows:
+            self._add_row_widget("A fazer", None, False, None)
+        self.list_layout.addStretch()
+
+    def _add_row_widget(self, name, wip, is_done, col_id):
+        row = QFrame()
+        row.setStyleSheet(f"QFrame {{ background: {current_theme().bg_card}; border: 1px solid {current_theme().border_light}; border-radius: 8px; }}")
+        h = QHBoxLayout(row)
+        h.setContentsMargins(8, 6, 8, 6)
+        h.setSpacing(6)
+        name_edit = QLineEdit(name)
+        name_edit.setPlaceholderText(_t("Nome da coluna"))
+        h.addWidget(name_edit, 1)
+        wip_spin = QSpinBox()
+        wip_spin.setRange(0, 999)
+        wip_spin.setSpecialValueText("∞")
+        wip_spin.setValue(int(wip) if wip else 0)
+        wip_spin.setFixedWidth(60)
+        wip_spin.setToolTip("WIP limit (0 = sem limite)")
+        h.addWidget(QLabel("WIP"))
+        h.addWidget(wip_spin)
+        done_chk = QCheckBox(_t("Concluído"))
+        done_chk.setChecked(bool(is_done))
+        h.addWidget(done_chk)
+        up_btn = QPushButton("↑")
+        up_btn.setFixedSize(28, 28)
+        up_btn.setCursor(Qt.PointingHandCursor)
+        up_btn.clicked.connect(lambda _=False, r=row: self._move(r, -1))
+        h.addWidget(up_btn)
+        down_btn = QPushButton("↓")
+        down_btn.setFixedSize(28, 28)
+        down_btn.setCursor(Qt.PointingHandCursor)
+        down_btn.clicked.connect(lambda _=False, r=row: self._move(r, 1))
+        h.addWidget(down_btn)
+        del_btn = QPushButton("✕")
+        del_btn.setFixedSize(28, 28)
+        del_btn.setCursor(Qt.PointingHandCursor)
+        del_btn.setStyleSheet(f"color: {current_theme().danger}; background: transparent; border: none;")
+        del_btn.clicked.connect(lambda _=False, r=row: self._remove_row(r))
+        h.addWidget(del_btn)
+        self.list_layout.insertWidget(len(self._rows), row)
+        self._rows.append({"widget": row, "name": name_edit, "wip": wip_spin, "done": done_chk, "id": col_id})
+
+    def _add_row(self):
+        self._add_row_widget("", None, False, None)
+
+    def _remove_row(self, widget):
+        for i, r in enumerate(self._rows):
+            if r["widget"] is widget:
+                # impede remover se for a última ou se tem cards
+                if len(self._rows) <= 1:
+                    QMessageBox.warning(self, _t("Colunas"), _t("O quadro precisa de ao menos uma coluna."))
+                    return
+                s = get_session()
+                try:
+                    if r["id"] is not None:
+                        cnt = s.query(Task).filter(Task.column_id == r["id"], Task.deleted_at == None).count()  # noqa: E711
+                        if cnt > 0:
+                            QMessageBox.warning(self, _t("Colunas"), _t("Coluna com cards não pode ser removida. Mova os cards antes."))
+                            return
+                finally:
+                    s.close()
+                self.list_layout.removeWidget(widget)
+                widget.deleteLater()
+                self._rows.pop(i)
+                break
+
+    def _move(self, widget, delta):
+        idx = next((i for i, r in enumerate(self._rows) if r["widget"] is widget), None)
+        if idx is None:
+            return
+        nidx = idx + delta
+        if 0 <= nidx < len(self._rows):
+            self._rows[idx], self._rows[nidx] = self._rows[nidx], self._rows[idx]
+            # rebuild visual order
+            for r in self._rows:
+                self.list_layout.removeWidget(r["widget"])
+            for r in self._rows:
+                self.list_layout.insertWidget(self._rows.index(r), r["widget"])
+
+    def _apply_template(self):
+        if self._rows and QMessageBox.question(self, _t("Aplicar modelo"), _t("Substituir as colunas atuais pelo modelo Azure Migração (12 raias)?"), QMessageBox.Yes | QMessageBox.No, QMessageBox.No) != QMessageBox.Yes:
+            return
+        s = get_session()
+        try:
+            has_cards = s.query(Task).filter(Task.project_id == self.project_id, Task.deleted_at == None).count() > 0  # noqa: E711
+            if has_cards:
+                QMessageBox.warning(self, _t("Colunas"), _t("Remova/mova os cards antes de aplicar um modelo com colunas diferentes."))
+                return
+        finally:
+            s.close()
+        while self._rows:
+            r = self._rows.pop()
+            self.list_layout.removeWidget(r["widget"])
+            r["widget"].deleteLater()
+        for name, is_done in AZURE_MIGRATION_TEMPLATE:
+            self._add_row_widget(name, None, is_done, None)
+        # keep stretch at end
+        self.list_layout.addStretch()
+
+    def _save(self):
+        names = [r["name"].text().strip() for r in self._rows]
+        if any(not n for n in names):
+            QMessageBox.warning(self, _t("Colunas"), _t("Toda coluna precisa de um nome."))
+            return
+        if len(set(n.lower() for n in names)) != len(names):
+            QMessageBox.warning(self, _t("Colunas"), _t("Há colunas com nome duplicado."))
+            return
+        done_count = sum(1 for r in self._rows if r["done"].isChecked())
+        if done_count != 1:
+            QMessageBox.warning(self, _t("Colunas"), _t("Marque exatamente uma coluna como Concluído."))
+            return
+        s = get_session()
+        try:
+            existing = {c.id: c for c in s.query(BoardColumn).filter(BoardColumn.project_id == self.project_id).all()}
+            # delete removed
+            keep_ids = {r["id"] for r in self._rows if r["id"] is not None}
+            for cid, col in list(existing.items()):
+                if cid not in keep_ids:
+                    s.delete(col)
+            # upsert in order
+            for order, r in enumerate(self._rows):
+                cid = r["id"]
+                if cid is not None and cid in existing:
+                    col = existing[cid]
+                else:
+                    col = BoardColumn(project_id=self.project_id)
+                    s.add(col)
+                col.name = r["name"].text().strip()[:120]
+                col.order = order
+                col.wip_limit = r["wip"].value() or None
+                col.is_done = r["done"].isChecked()
+            s.commit()
+            self.changed = True
+            self.accept()
+        except Exception as e:  # noqa: BLE001
+            s.rollback()
+            QMessageBox.warning(self, _t("Erro"), str(e))
+        finally:
+            s.close()
+
+
+# ────────────────────────────────────────────────────────────
 # ArchivedDialog
 # ────────────────────────────────────────────────────────────
 
@@ -1441,6 +1659,14 @@ class BoardView(QWidget):
         self.members_btn.clicked.connect(self._open_members)
         header_row.addWidget(self.members_btn)
 
+        self.columns_btn = QPushButton(_t("Colunas"))
+        self.columns_btn.setProperty("flat", True)
+        self.columns_btn.setFixedHeight(28)
+        self.columns_btn.setCursor(Qt.PointingHandCursor)
+        self.columns_btn.setToolTip(_t("Personalizar colunas do quadro"))
+        self.columns_btn.clicked.connect(self._open_columns)
+        header_row.addWidget(self.columns_btn)
+
         self.archived_btn = QPushButton(_t("Arquivados"))
         self.archived_btn.setProperty("flat", True)
         self.archived_btn.setFixedHeight(28)
@@ -1599,6 +1825,13 @@ class BoardView(QWidget):
         dlg.exec()
         self.refresh()
         self.task_changed.emit()
+
+    def _open_columns(self):
+        if not self.project_id:
+            return
+        dlg = ColumnManagerDialog(self.project_id, self)
+        if dlg.exec() == QDialog.Accepted and dlg.changed:
+            self.refresh()
 
     def _auto_archive(self, s):
         """Arquiva tarefas concluídas há mais de 3 dias (backfill do done_at)."""
