@@ -13,6 +13,7 @@ import {
   getMembers,
   createMember,
   deleteMember,
+  updateProject,
 } from '../api'
 import TaskDetail from '../components/TaskDetail.jsx'
 import SprintPlanning from './SprintPlanning.jsx'
@@ -269,11 +270,27 @@ export default function Board() {
 
   return (
     <div>
-      <div className="row" style={{ justifyContent: 'space-between' }}>
-        <h1 className="page-title">
+      <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+        <h1 className="page-title" style={{ margin: 0 }}>
           {board.key} · {board.name}
         </h1>
-        <Link to="/projetos"><button className="ghost">{t('← Projetos')}</button></Link>
+        <div className="row" style={{ gap: 8 }}>
+          {board.azureBoardUrl ? (
+            <>
+              <a href={board.azureBoardUrl} target="_blank" rel="noreferrer"><button className="ghost" style={{ background: '#0078d4', color: '#fff', borderColor: '#0078d4' }}>🔗 {t('Abrir no Azure')}</button></a>
+              <button className="ghost" title={board.azureBoardUrl} onClick={()=>{
+                const v = window.prompt(t('Link do board do Azure (cole a URL):'), board.azureBoardUrl || '')
+                if(v!==null) updateProject(projectId, { azureBoardUrl: v.trim() }).then(load)
+              }}>{t('Editar link')}</button>
+            </>
+          ) : (
+            <button className="ghost" onClick={()=>{
+              const v = window.prompt(t('Link do board do Azure (cole a URL):'), '')
+              if(v!==null) updateProject(projectId, { azureBoardUrl: v.trim() }).then(load)
+            }}>{t('Definir link Azure')}</button>
+          )}
+          <Link to="/projetos"><button className="ghost">{t('← Projetos')}</button></Link>
+        </div>
       </div>
       <p className="subtitle">{tf('Board kanban via API ({count} colunas).', { count: cols.length })}</p>
 

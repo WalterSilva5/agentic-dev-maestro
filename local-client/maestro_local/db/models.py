@@ -50,6 +50,7 @@ class Project(Base):
     description = Column(Text)
     task_seq = Column(Integer, default=0)
     external_docs_path = Column(String(500), default="")
+    azure_board_url = Column(String(500), default="")
     created_at = Column(DateTime, default=datetime.utcnow)
 
     columns = relationship("BoardColumn", back_populates="project", cascade="all,delete-orphan", order_by="BoardColumn.order")
@@ -500,6 +501,9 @@ def _run_light_migrations(engine):
         if "external_docs_path" not in pcols:
             with engine.begin() as conn:
                 conn.execute(text("ALTER TABLE projects ADD COLUMN external_docs_path VARCHAR(500) DEFAULT ''"))
+        if "azure_board_url" not in pcols:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE projects ADD COLUMN azure_board_url VARCHAR(500) DEFAULT ''"))
 
 
 def init_db(db_path=None):

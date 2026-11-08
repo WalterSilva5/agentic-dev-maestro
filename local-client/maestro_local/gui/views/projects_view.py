@@ -29,11 +29,14 @@ from maestro_local.i18n import t as _t
 class ProjectCard(QFrame):
     open_clicked = Signal(int)
     delete_clicked = Signal(int)
+    azure_clicked = Signal(int)
+    edit_azure_clicked = Signal(int)
 
-    def __init__(self, project_id, key, name, description, done, total, theme):
+    def __init__(self, project_id, key, name, description, done, total, theme, azure_url=""):
         super().__init__()
         t = theme
         pct = int(done / total * 100) if total else 0
+        self._azure_url = azure_url or ""
 
         self.setStyleSheet(
             f"ProjectCard {{ background: {t.bg_card}; border: 1px solid {t.border_light}; "
@@ -99,6 +102,36 @@ class ProjectCard(QFrame):
         stats_row.addWidget(bar)
 
         stats_row.addStretch()
+
+        # Azure link row (atalho)
+        azure_row = QHBoxLayout()
+        azure_row.setSpacing(6)
+        if self._azure_url:
+            az_btn = QPushButton("🔗 Azure Board ↗")
+            az_btn.setFixedHeight(26)
+            az_btn.setCursor(Qt.PointingHandCursor)
+            az_btn.setStyleSheet(f"QPushButton {{ background: #0078d4; color: #fff; border-radius: 6px; padding: 4px 10px; font-size: 11px; font-weight: 600; border: none; }}")
+            az_btn.setToolTip(self._azure_url)
+            az_btn.clicked.connect(lambda: self.azure_clicked.emit(project_id))
+            azure_row.addWidget(az_btn)
+            edit_az = QPushButton(_t("Editar link"))
+            edit_az.setFixedHeight(26)
+            edit_az.setProperty("flat", True)
+            edit_az.setCursor(Qt.PointingHandCursor)
+            edit_az.clicked.connect(lambda: self.edit_azure_clicked.emit(project_id))
+            azure_row.addWidget(edit_az)
+        else:
+            no_lbl = QLabel(_t("Sem link Azure"))
+            no_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 11px; border: none;")
+            azure_row.addWidget(no_lbl)
+            set_az = QPushButton(_t("Definir link"))
+            set_az.setFixedHeight(26)
+            set_az.setProperty("flat", True)
+            set_az.setCursor(Qt.PointingHandCursor)
+            set_az.clicked.connect(lambda: self.edit_azure_clicked.emit(project_id))
+            azure_row.addWidget(set_az)
+        azure_row.addStretch()
+        content.addLayout(azure_row)
 
         # Action buttons
         open_btn = QPushButton(_t("Abrir Board"))
@@ -168,6 +201,10 @@ class ProjectsView(QWidget):
         self.key_input.setPlaceholderText("KEY")
         self.key_input.setMaximumWidth(120)
         form_layout.addRow(_t("Chave:"), self.key_input)
+
+        self.azure_input = QLineEdit()
+        self.azure_input.setPlaceholderText("https://dev.azure.com/.../_boards")
+        form_layout.addRow(_t("Link Azure:"), self.azure_input)
 
         form_outer.addLayout(form_layout)
 
@@ -259,9 +296,12 @@ class ProjectsView(QWidget):
                     done=done,
                     total=total,
                     theme=t,
+                    azure_url=getattr(p, "azure_board_url", "") or "",
                 )
                 card.open_clicked.connect(self.project_selected.emit)
                 card.delete_clicked.connect(self._delete)
+                card.azure_clicked.connect(self._open_azure)
+                card.edit_azure_clicked.connect(self._edit_azure)
                 self.cards_layout.addWidget(card)
 
             self.cards_layout.addStretch()
@@ -274,9 +314,10 @@ class ProjectsView(QWidget):
         if not name or not key:
             return
         desc = self.desc_input.text().strip() or None
+        azure = self.azure_input.text().strip() or ""
         s = get_session()
         try:
-            p = Project(name=name, key=key, description=desc)
+            p = Project(name=name, key=key, description=desc, azure_board_url=azure)
             s.add(p)
             s.flush()
             for col_def in DEFAULT_COLUMNS:
@@ -291,9 +332,43 @@ class ProjectsView(QWidget):
             self.name_input.clear()
             self.key_input.clear()
             self.desc_input.clear()
+            self.azure_input.clear()
             self.refresh()
         except Exception:
             s.rollback()
+        finally:
+            s.close()
+
+    def _open_azure(self, project_id):
+        s = get_session()
+        try:
+            p = s.get(Project, project_id)
+            url = (getattr(p, "azure_board_url", "") or "").strip() if p else ""
+            if url:
+                from PySide6.QtGui import QDesktopServices
+                from PySide6.QtCore import QUrl
+                QDesktopServices.openUrl(QUrl(url))
+        finally:
+            s.close()
+
+    def _edit_azure(self, project_id):
+        s = get_session()
+        try:
+            p = s.get(Project, project_id)
+            cur = (getattr(p, "azure_board_url", "") or "") if p else ""
+        finally:
+            s.close()
+        from PySide6.QtWidgets import QInputDialog
+        url, ok = QInputDialog.getText(self, _t("Link Azure"), _t("Link do board do Azure (cole a URL):"), text=cur)
+        if not ok:
+            return
+        s = get_session()
+        try:
+            p = s.get(Project, project_id)
+            if p is not None:
+                p.azure_board_url = url.strip()
+                s.commit()
+            self.refresh()
         finally:
             s.close()
 

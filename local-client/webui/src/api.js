@@ -10,6 +10,7 @@ export const setActiveWorkspace = (id) => api.post('/workspaces/active', { id })
 // Projetos / board
 export const getProjects = () => api.get('/projects').then((r) => r.data)
 export const createProject = (body) => api.post('/projects', body).then((r) => r.data)
+export const updateProject = (id, body) => api.patch(`/projects/${id}`, body).then((r) => r.data)
 export const deleteProject = (id) => api.delete(`/projects/${id}`).then((r) => r.data)
 export const getBoard = (projectId, sprintId) =>
   api

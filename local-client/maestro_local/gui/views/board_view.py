@@ -2073,6 +2073,15 @@ class BoardView(QWidget):
         self.archived_btn.clicked.connect(self._open_archived)
         header_row.addWidget(self.archived_btn)
 
+        self.azure_btn = QPushButton("🔗 Azure")
+        self.azure_btn.setFixedHeight(28)
+        self.azure_btn.setCursor(Qt.PointingHandCursor)
+        self.azure_btn.setToolTip(_t("Abrir board do Azure"))
+        self.azure_btn.clicked.connect(self._handle_azure)
+        self.azure_btn.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.azure_btn.customContextMenuRequested.connect(lambda _: self._edit_azure())
+        header_row.addWidget(self.azure_btn)
+
         self.refresh_btn = QPushButton(_t("Atualizar"))
         self.refresh_btn.setProperty("flat", True)
         self.refresh_btn.setFixedHeight(28)
@@ -2133,6 +2142,8 @@ class BoardView(QWidget):
         self._sprint_filter = None
         if hasattr(self, "back_btn"):
             self.back_btn.setVisible(bool(project_id))
+        if hasattr(self, "azure_btn"):
+            self._update_azure_button()
         if project_id:
             self.empty_widget.setVisible(False)
             self.board_widget.setVisible(True)
@@ -2276,6 +2287,67 @@ class BoardView(QWidget):
         dlg.exec()
         self.refresh()
 
+    def _handle_azure(self):
+        if not self.project_id:
+            return
+        s = get_session()
+        try:
+            p = s.get(Project, self.project_id)
+            url = (getattr(p, "azure_board_url", "") or "").strip() if p else ""
+        finally:
+            s.close()
+        if url:
+            from PySide6.QtGui import QDesktopServices
+            from PySide6.QtCore import QUrl
+            QDesktopServices.openUrl(QUrl(url))
+        else:
+            self._edit_azure()
+
+    def _edit_azure(self):
+        if not self.project_id:
+            return
+        s = get_session()
+        try:
+            p = s.get(Project, self.project_id)
+            cur = (getattr(p, "azure_board_url", "") or "") if p else ""
+        finally:
+            s.close()
+        from PySide6.QtWidgets import QInputDialog
+        url, ok = QInputDialog.getText(self, _t("Link Azure"), _t("Link do board do Azure (cole a URL):"), text=cur)
+        if not ok:
+            return
+        s = get_session()
+        try:
+            p = s.get(Project, self.project_id)
+            if p is not None:
+                p.azure_board_url = url.strip()
+                s.commit()
+            self._update_azure_button()
+        finally:
+            s.close()
+
+    def _update_azure_button(self):
+        if not hasattr(self, "azure_btn"):
+            return
+        s = get_session()
+        try:
+            p = s.get(Project, self.project_id) if self.project_id else None
+            url = (getattr(p, "azure_board_url", "") or "").strip() if p else ""
+        finally:
+            s.close()
+        t = current_theme()
+        if url:
+            self.azure_btn.setText("🔗 Azure")
+            self.azure_btn.setToolTip(url)
+            self.azure_btn.setStyleSheet(f"QPushButton {{ background: #0078d4; color: #fff; border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: 600; border: none; }} QPushButton:hover {{ background: #106ebe; }}")
+            self.azure_btn.setProperty("flat", False)
+        else:
+            self.azure_btn.setText(_t("Definir link Azure"))
+            self.azure_btn.setToolTip(_t("Cadastrar link do board do Azure"))
+            self.azure_btn.setStyleSheet("")
+            self.azure_btn.setProperty("flat", True)
+        self.azure_btn.setVisible(bool(self.project_id))
+
     def refresh(self):
         if not self.project_id:
             return
@@ -2291,6 +2363,7 @@ class BoardView(QWidget):
             if not project:
                 return
             self.header.setText(project.name)
+            self._update_azure_button()
 
             self._auto_archive(s)
 
