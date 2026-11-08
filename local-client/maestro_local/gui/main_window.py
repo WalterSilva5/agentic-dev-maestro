@@ -982,7 +982,8 @@ class MainWindow(QMainWindow):
 
             bandeja = getattr(self, "_tray", None) or getattr(self, "_tray_icon", None)
             if bandeja is not None and bandeja.supportsMessages():
-                bandeja.showMessage(titulo, mensagem, QSystemTrayIcon.Information, 6000)
+                # 10s: o padrão de 5-6s some antes de a pessoa olhar para o canto
+                bandeja.showMessage(titulo, mensagem, QSystemTrayIcon.Information, 10000)
                 return
         except Exception:  # noqa: BLE001
             pass
@@ -990,7 +991,7 @@ class MainWindow(QMainWindow):
             import subprocess
 
             subprocess.Popen(
-                ["notify-send", "-a", "Maestro", "-t", "6000", titulo, mensagem],
+                ["notify-send", "-a", "Maestro", "-t", "10000", titulo, mensagem],
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             )
         except Exception:  # noqa: BLE001
