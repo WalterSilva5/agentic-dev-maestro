@@ -5059,6 +5059,139 @@ def import_todos(body: ImportTodosBody, s: Session = Depends(db)):
 
 
 # ---------------------------------------------------------------------------
+# Backup rápido do banco (cópia consistente via API do SQLite)
+# ---------------------------------------------------------------------------
+
+
+def _backup_dir() -> "Path":
+    """Destino do backup: `settings.backup_dir` ou `~/maestro-backups`."""
+    from pathlib import Path
+
+    from maestro_local.config import load_config
+
+    cfg = (load_config().get("settings") or {}).get("backup_dir")
+    destino = Path(cfg).expanduser() if cfg else Path.home() / "maestro-backups"
+    destino.mkdir(parents=True, exist_ok=True)
+    return destino
+
+
+def _db_atual() -> "Path":
+    """Arquivo do banco em uso (o engine acompanha o workspace ativo)."""
+    from pathlib import Path
+
+    from maestro_local.config import get_active_workspace_id, get_workspace_db_path
+    from maestro_local.db.models import get_engine
+
+    url = get_engine().url
+    if url.database and url.database != ":memory:":
+        return Path(url.database)
+    return Path(get_workspace_db_path(get_active_workspace_id()))
+
+
+def _copia_sqlite(origem: "Path", destino: "Path") -> None:
+    """Copia usando a API de backup do SQLite.
+
+    Copiar o arquivo “na mão” pode pegar um estado no meio de uma escrita; a
+    API do sqlite3 garante um instantâneo consistente (inclusive com WAL).
+    """
+    import sqlite3
+    from pathlib import Path  # noqa: F401  (usado na assinatura)
+
+    src = sqlite3.connect(f"file:{origem}?mode=ro", uri=True)
+    try:
+        dst = sqlite3.connect(str(destino))
+        try:
+            src.backup(dst)
+        finally:
+            dst.close()
+    finally:
+        src.close()
+
+
+@app.post("/api/backup")
+def create_backup(todos: bool = Query(False, alias="all")):
+    """Backup do banco do workspace ativo (ou `?all=1` = todos os workspaces).
+
+    Grava em `~/maestro-backups/maestro-<workspace>-<data-hora>.db`.
+    """
+    from datetime import datetime
+
+    from maestro_local.config import WORKSPACES_DIR, get_active_workspace_id
+
+    destino_dir = _backup_dir()
+    agora = datetime.now().strftime("%Y%m%d-%H%M%S")
+    criados: list[dict] = []
+
+    if todos:
+        origens = [(pasta.parent.name, pasta) for pasta in sorted(WORKSPACES_DIR.glob("*/maestro.db"))]
+    else:
+        origem = _db_atual()
+        if not origem.exists():
+            raise HTTPException(404, "Banco de dados não encontrado")
+        origens = [(get_active_workspace_id(), origem)]
+
+    for workspace, origem in origens:
+        alvo = destino_dir / f"maestro-{workspace}-{agora}.db"
+        try:
+            _copia_sqlite(origem, alvo)
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(500, f"Falha ao copiar {origem.name}: {exc}") from exc
+        criados.append({
+            "workspace": workspace,
+            "file": alvo.name,
+            "path": str(alvo),
+            "bytes": alvo.stat().st_size,
+        })
+
+    return {
+        "ok": True,
+        "dir": str(destino_dir),
+        "createdAt": datetime.now().isoformat(timespec="seconds"),
+        "backups": criados,
+    }
+
+
+@app.get("/api/backup")
+def list_backups(limit: int = 20):
+    """Últimos backups gravados (mais recentes primeiro)."""
+    from datetime import datetime
+
+    destino_dir = _backup_dir()
+    arquivos = sorted(
+        destino_dir.glob("maestro-*.db"), key=lambda p: p.stat().st_mtime, reverse=True
+    )[: max(1, min(limit, 200))]
+    return {
+        "dir": str(destino_dir),
+        "backups": [
+            {
+                "file": p.name,
+                "path": str(p),
+                "bytes": p.stat().st_size,
+                "createdAt": datetime.fromtimestamp(p.stat().st_mtime).isoformat(timespec="seconds"),
+            }
+            for p in arquivos
+        ],
+    }
+
+
+@app.get("/api/backup/{nome}")
+def download_backup(nome: str):
+    """Baixa um backup pelo nome (o arquivo precisa estar na pasta de backup)."""
+    from pathlib import Path
+
+    from fastapi.responses import FileResponse
+
+    destino_dir = _backup_dir().resolve()
+    alvo = (destino_dir / nome).resolve()
+    # só serve arquivo que está de fato dentro da pasta e com nome de backup
+    if alvo.parent != destino_dir or not alvo.name.startswith("maestro-") or alvo.suffix != ".db":
+        raise HTTPException(404, "Backup not found")
+    if not alvo.exists():
+        raise HTTPException(404, "Backup not found")
+    return FileResponse(str(alvo), media_type="application/octet-stream", filename=alvo.name)
+
+
+# ---------------------------------------------------------------------------
 # Reuniões (recordings) — mesmas gravações do app desktop
 # ---------------------------------------------------------------------------
 

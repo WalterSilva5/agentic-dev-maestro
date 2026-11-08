@@ -217,3 +217,9 @@ export const deleteRecording = (id) => api.delete(`/recordings/${id}`).then((r) 
 export const archiveRecording = (id, archived) => api.post(`/recordings/${id}/archive`, { archived }).then((r) => r.data)
 export const recordingExportUrl = (id, format = 'md') => `/api/recordings/${id}/export?format=${format}`
 export const recordingAudioUrl = (id) => `/api/recordings/${id}/audio`
+
+// Backup do banco
+export const createBackup = (all = false) =>
+  api.post('/backup', null, { params: all ? { all: 1 } : {} }).then((r) => r.data)
+export const listBackups = () => api.get('/backup').then((r) => r.data)
+export const backupDownloadUrl = (file) => `/api/backup/${encodeURIComponent(file)}`

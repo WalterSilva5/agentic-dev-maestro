@@ -929,4 +929,12 @@ CATALOG = {
   "Salvar alterações": "Save changes",
   "Reunião salva.": "Meeting saved.",
   "Excluir reunião?": "Delete meeting?",
+  "Backup rápido": "Quick backup",
+  "Falha no backup": "Backup failed",
+  "Fazendo backup...": "Backing up...",
+  "Arquivo": "File",
+  "Pasta": "Folder",
+  "Tamanho": "Size",
+  "Baixar": "Download",
+  "Copia o banco do workspace ativo para a pasta de backup do servidor": "Copies the active workspace database to the server backup folder",
 }

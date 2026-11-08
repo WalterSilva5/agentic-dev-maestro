@@ -212,6 +212,24 @@ curl -s -o reuniao.md "http://127.0.0.1:9777/api/recordings/1/export?format=md" 
 - export `md`: usa o resumo salvo ou monta a partir das secoes + transcricao
 - `DELETE /api/recordings/{id}` remove; `GET /api/recordings/{id}/audio` serve o audio
 
+## Backup do banco (quem copia e a API, nao o cliente)
+
+```bash
+# backup do workspace ativo (grava no servidor, em ~/maestro-backups)
+curl -s -X POST http://127.0.0.1:9777/api/backup | jq
+# todos os workspaces
+curl -s -X POST "http://127.0.0.1:9777/api/backup?all=1" | jq '.backups[] | {workspace, file, bytes}'
+# listar os ultimos backups
+curl -s http://127.0.0.1:9777/api/backup | jq '.dir, .backups[0]'
+# baixar uma copia (o arquivo vem da pasta de backup do servidor)
+curl -s -o copia.db "http://127.0.0.1:9777/api/backup/maestro-gav-20261108-180558.db"
+```
+
+- destino: `~/maestro-backups/maestro-<workspace>-<AAAAMMDD-HHMMSS>.db`
+  (configuravel em `settings.backup_dir` do `config.json`)
+- a copia usa a API de backup do SQLite (instantaneo consistente, mesmo com o
+  banco em uso) — o front so chama `POST /api/backup`
+- `GET /api/backup/{arquivo}` valida o nome e so serve arquivo da pasta
 """,
     },
     {

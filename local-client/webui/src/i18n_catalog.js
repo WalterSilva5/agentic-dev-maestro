@@ -548,4 +548,13 @@ export const CATALOG = {
   "Reunião desarquivada.": "Meeting unarchived.",
   "Reunião excluída.": "Meeting deleted.",
   "Excluir reunião?": "Delete meeting?",
+  "Backup rápido": "Quick backup",
+  "Backup concluído": "Backup finished",
+  "Falha no backup": "Backup failed",
+  "Fazendo backup...": "Backing up...",
+  "Arquivo": "File",
+  "Pasta": "Folder",
+  "Tamanho": "Size",
+  "Baixar": "Download",
+  "Copia o banco do workspace ativo para a pasta de backup do servidor": "Copies the active workspace database to the server backup folder",
 }
