@@ -28,6 +28,7 @@ from maestro_local.db.models import (
     Member,
     MemoryEntry,
     Project,
+    ProjectLink,
     Runbook,
     Snippet,
     Sprint,
@@ -207,6 +208,25 @@ class GoalUpdate(BaseModel):
 class MemberCreate(BaseModel):
     name: str
     color: Optional[str] = None
+
+
+class ProjectLinkCreate(BaseModel):
+    title: str
+    url: str
+
+
+class ProjectLinkUpdate(BaseModel):
+    title: Optional[str] = None
+    url: Optional[str] = None
+    sort_order: Optional[int] = None
+
+
+class ProjectLinkReorder(BaseModel):
+    orderedIds: list[int]
+
+
+def _link_dict(l: ProjectLink) -> dict:
+    return {"id": l.id, "projectId": l.project_id, "title": l.title, "url": l.url, "sortOrder": l.sort_order, "createdAt": l.created_at.isoformat() if l.created_at else None}
 
 
 class CommentCreate(BaseModel):
@@ -498,6 +518,7 @@ def _project_dict(p: Project) -> dict:
         "taskSeq": p.task_seq,
         "externalDocsPath": getattr(p, "external_docs_path", "") or "",
         "azureBoardUrl": getattr(p, "azure_board_url", "") or "",
+        "links": [_link_dict(l) for l in getattr(p, "links", [])],
         "createdAt": p.created_at.isoformat() if p.created_at else None,
     }
 
@@ -2029,6 +2050,94 @@ def delete_member(member_id: int, s: Session = Depends(db)):
     s.delete(m)   # os cards mantêm o nome em Task.assignee
     s.commit()
     return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# Project links (atalhos com título)
+# ---------------------------------------------------------------------------
+
+
+def _validate_url(url: str) -> str:
+    url = (url or "").strip()
+    if not url:
+        raise HTTPException(400, "URL is required")
+    if not (url.startswith("http://") or url.startswith("https://")):
+        raise HTTPException(400, "URL deve começar com http:// ou https://")
+    if len(url) > 500:
+        raise HTTPException(400, "URL muito longa")
+    return url
+
+
+@app.get("/api/projects/{project_id}/links")
+def list_links(project_id: int, s: Session = Depends(db)):
+    if not s.query(Project).filter(Project.id == project_id).first():
+        raise HTTPException(404, "Project not found")
+    links = s.query(ProjectLink).filter(ProjectLink.project_id == project_id).order_by(ProjectLink.sort_order, ProjectLink.id).all()
+    return [_link_dict(l) for l in links]
+
+
+@app.post("/api/projects/{project_id}/links")
+def create_link(project_id: int, body: ProjectLinkCreate, s: Session = Depends(db)):
+    if not s.query(Project).filter(Project.id == project_id).first():
+        raise HTTPException(404, "Project not found")
+    title = (body.title or "").strip()
+    if not title:
+        raise HTTPException(400, "Title is required")
+    url = _validate_url(body.url)
+    order = s.query(ProjectLink).filter(ProjectLink.project_id == project_id).count()
+    link = ProjectLink(project_id=project_id, title=title[:120], url=url, sort_order=order)
+    s.add(link)
+    s.commit()
+    s.refresh(link)
+    return _link_dict(link)
+
+
+@app.patch("/api/links/{link_id}")
+def update_link(link_id: int, body: ProjectLinkUpdate, s: Session = Depends(db)):
+    link = s.query(ProjectLink).filter(ProjectLink.id == link_id).first()
+    if not link:
+        raise HTTPException(404, "Link not found")
+    data = body.model_dump(exclude_unset=True)
+    if "title" in data and data["title"] is not None:
+        title = data["title"].strip()
+        if not title:
+            raise HTTPException(400, "Title is required")
+        link.title = title[:120]
+    if "url" in data and data["url"] is not None:
+        link.url = _validate_url(data["url"])
+    if "sort_order" in data and data["sort_order"] is not None:
+        link.sort_order = int(data["sort_order"])
+    s.commit()
+    s.refresh(link)
+    return _link_dict(link)
+
+
+@app.delete("/api/links/{link_id}")
+def delete_link(link_id: int, s: Session = Depends(db)):
+    link = s.query(ProjectLink).filter(ProjectLink.id == link_id).first()
+    if not link:
+        raise HTTPException(404, "Link not found")
+    s.delete(link)
+    s.commit()
+    # reordena
+    remaining = s.query(ProjectLink).filter(ProjectLink.project_id == link.project_id).order_by(ProjectLink.sort_order).all()
+    for i, l in enumerate(remaining):
+        l.sort_order = i
+    s.commit()
+    return {"ok": True}
+
+
+@app.post("/api/projects/{project_id}/links/reorder")
+def reorder_links(project_id: int, body: ProjectLinkReorder, s: Session = Depends(db)):
+    if not s.query(Project).filter(Project.id == project_id).first():
+        raise HTTPException(404, "Project not found")
+    links = {l.id: l for l in s.query(ProjectLink).filter(ProjectLink.project_id == project_id).all()}
+    if set(body.orderedIds) != set(links.keys()):
+        raise HTTPException(400, "orderedIds must contain exactly all link ids of the project")
+    for order, lid in enumerate(body.orderedIds):
+        links[lid].sort_order = order
+    s.commit()
+    return [_link_dict(links[lid]) for lid in body.orderedIds]
 
 
 # ---------------------------------------------------------------------------

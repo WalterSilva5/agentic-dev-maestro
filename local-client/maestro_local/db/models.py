@@ -59,6 +59,22 @@ class Project(Base):
     sprints = relationship("Sprint", back_populates="project", cascade="all,delete-orphan", order_by="Sprint.sort_order")
     epics = relationship("Epic", back_populates="project", cascade="all,delete-orphan", order_by="Epic.name")
     goals = relationship("Goal", back_populates="project", cascade="all,delete-orphan", order_by="Goal.due_date")
+    links = relationship("ProjectLink", back_populates="project", cascade="all,delete-orphan", order_by="ProjectLink.sort_order")
+
+
+class ProjectLink(Base):
+    """Atalho de link com título por projeto (ex.: PR, docs, Azure board)."""
+
+    __tablename__ = "project_links"
+
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    title = Column(String(120), nullable=False)
+    url = Column(String(500), nullable=False)
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    project = relationship("Project", back_populates="links")
 
 
 class BoardColumn(Base):

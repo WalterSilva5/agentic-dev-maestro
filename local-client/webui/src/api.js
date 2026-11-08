@@ -177,4 +177,11 @@ export const getMembers = (projectId) => api.get(`/projects/${projectId}/members
 export const createMember = (projectId, body) => api.post(`/projects/${projectId}/members`, body).then((r) => r.data)
 export const deleteMember = (id) => api.delete(`/members/${id}`).then((r) => r.data)
 
+// Atalhos / links do projeto
+export const getLinks = (projectId) => api.get(`/projects/${projectId}/links`).then((r) => r.data)
+export const createLink = (projectId, body) => api.post(`/projects/${projectId}/links`, body).then((r) => r.data)
+export const updateLink = (id, body) => api.patch(`/links/${id}`, body).then((r) => r.data)
+export const deleteLink = (id) => api.delete(`/links/${id}`).then((r) => r.data)
+export const reorderLinks = (projectId, orderedIds) => api.post(`/projects/${projectId}/links/reorder`, { orderedIds }).then((r) => r.data)
+
 export const getHealth = () => api.get('/health').then((r) => r.data)

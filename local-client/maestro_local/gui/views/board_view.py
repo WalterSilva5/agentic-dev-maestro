@@ -1879,6 +1879,193 @@ class BoardMetricsAccordion(QFrame):
 # ArchivedDialog
 # ────────────────────────────────────────────────────────────
 
+class ProjectLinksWidget(QFrame):
+    """Atalhos do projeto — links com título (PRs, docs, Azure, etc)"""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.project_id = None
+        t = current_theme()
+        self.setStyleSheet(f"QFrame {{ background: {t.bg_card}; border: 1px solid {t.border_light}; border-radius: 10px; }}")
+        root = QVBoxLayout(self)
+        root.setContentsMargins(12, 10, 12, 10)
+        root.setSpacing(8)
+
+        head = QHBoxLayout()
+        title = QLabel("🔗 " + _t("Atalhos"))
+        title.setStyleSheet(f"font-weight: 700; font-size: 13px; color: {t.text_primary}; border: none;")
+        head.addWidget(title)
+        self.count_lbl = QLabel("")
+        self.count_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 11px; border: none;")
+        head.addWidget(self.count_lbl)
+        head.addStretch()
+        root.addLayout(head)
+
+        self.list_layout = QVBoxLayout()
+        self.list_layout.setSpacing(6)
+        root.addLayout(self.list_layout)
+
+        form = QHBoxLayout()
+        form.setSpacing(6)
+        self.title_input = QLineEdit()
+        self.title_input.setPlaceholderText(_t("Título do atalho"))
+        form.addWidget(self.title_input, 1)
+        self.url_input = QLineEdit()
+        self.url_input.setPlaceholderText("https://...")
+        form.addWidget(self.url_input, 2)
+        add_btn = QPushButton(_t("+ Adicionar atalho"))
+        add_btn.setCursor(Qt.PointingHandCursor)
+        add_btn.clicked.connect(self._add)
+        form.addWidget(add_btn)
+        root.addLayout(form)
+
+        hint = QLabel(_t("Ex.: PR da sprint, doc de migração, board do Azure, pipeline."))
+        hint.setProperty("class", "hint")
+        hint.setWordWrap(True)
+        root.addWidget(hint)
+
+        self._editing_id = None
+
+    def set_project(self, project_id):
+        self.project_id = project_id
+        self.refresh()
+
+    def refresh(self):
+        while self.list_layout.count():
+            item = self.list_layout.takeAt(0)
+            w = item.widget()
+            if w:
+                w.hide()
+                w.setParent(None)
+                w.deleteLater()
+            elif item.layout():
+                while item.layout().count():
+                    c = item.layout().takeAt(0)
+                    if c.widget():
+                        c.widget().hide()
+                        c.widget().setParent(None)
+                        c.widget().deleteLater()
+        t = current_theme()
+        if not self.project_id:
+            self.count_lbl.setText("")
+            return
+        s = get_session()
+        try:
+            from maestro_local.db.models import ProjectLink
+            links = s.query(ProjectLink).filter(ProjectLink.project_id == self.project_id).order_by(ProjectLink.sort_order, ProjectLink.id).all()
+            self.count_lbl.setText(f"{len(links)} { _t('atalho(s)')}")
+            if not links:
+                lbl = QLabel(_t("Nenhum atalho ainda."))
+                lbl.setProperty("class", "hint")
+                self.list_layout.addWidget(lbl)
+            for link in links:
+                row = QFrame()
+                row.setStyleSheet(f"QFrame {{ background: {t.bg_secondary}; border: 1px solid {t.border_light}; border-radius: 8px; }}")
+                h = QHBoxLayout(row)
+                h.setContentsMargins(8, 6, 8, 6)
+                h.setSpacing(6)
+                title = QLabel(link.title)
+                title.setStyleSheet(f"color: {t.accent}; font-size: 12px; font-weight: 600; border: none;")
+                title.setWordWrap(True)
+                h.addWidget(title, 1)
+                open_btn = QPushButton("↗")
+                open_btn.setFixedSize(28, 28)
+                open_btn.setCursor(Qt.PointingHandCursor)
+                open_btn.setToolTip(link.url)
+                lid = link.id
+                url = link.url
+                open_btn.clicked.connect(lambda _, u=url: self._open(u))
+                h.addWidget(open_btn)
+                edit_btn = QPushButton(_t("Editar"))
+                edit_btn.setProperty("flat", True)
+                edit_btn.setFixedHeight(26)
+                edit_btn.clicked.connect(lambda _, x=lid: self._start_edit(x))
+                h.addWidget(edit_btn)
+                del_btn = QPushButton("✕")
+                del_btn.setFixedSize(28, 28)
+                del_btn.setStyleSheet(f"color: {t.danger}; background: transparent; border: none;")
+                del_btn.clicked.connect(lambda _, x=lid: self._delete(x))
+                h.addWidget(del_btn)
+                self.list_layout.addWidget(row)
+        finally:
+            s.close()
+
+    def _open(self, url):
+        from PySide6.QtGui import QDesktopServices
+        from PySide6.QtCore import QUrl
+        QDesktopServices.openUrl(QUrl(url))
+
+    def _add(self):
+        title = self.title_input.text().strip()
+        url = self.url_input.text().strip()
+        if not title or not url:
+            return
+        if not (url.startswith("http://") or url.startswith("https://")):
+            QMessageBox.warning(self, _t("Atalho"), _t("URL deve começar com http:// ou https://"))
+            return
+        s = get_session()
+        try:
+            from maestro_local.db.models import ProjectLink
+            order = s.query(ProjectLink).filter(ProjectLink.project_id == self.project_id).count()
+            link = ProjectLink(project_id=self.project_id, title=title[:120], url=url[:500], sort_order=order)
+            s.add(link)
+            s.commit()
+        finally:
+            s.close()
+        self.title_input.clear()
+        self.url_input.clear()
+        self.refresh()
+
+    def _start_edit(self, link_id):
+        s = get_session()
+        try:
+            from maestro_local.db.models import ProjectLink
+            link = s.get(ProjectLink, link_id)
+            if not link:
+                return
+            cur_title, cur_url = link.title, link.url
+        finally:
+            s.close()
+        from PySide6.QtWidgets import QInputDialog
+        title, ok1 = QInputDialog.getText(self, _t("Editar atalho"), _t("Título do atalho"), text=cur_title)
+        if not ok1 or not title.strip():
+            return
+        url, ok2 = QInputDialog.getText(self, _t("Editar atalho"), _t("Link do atalho (cole a URL):"), text=cur_url)
+        if not ok2 or not url.strip():
+            return
+        if not (url.strip().startswith("http://") or url.strip().startswith("https://")):
+            QMessageBox.warning(self, _t("Atalho"), _t("URL deve começar com http:// ou https://"))
+            return
+        s = get_session()
+        try:
+            from maestro_local.db.models import ProjectLink
+            link = s.get(ProjectLink, link_id)
+            if link:
+                link.title = title.strip()[:120]
+                link.url = url.strip()[:500]
+                s.commit()
+            self.refresh()
+        finally:
+            s.close()
+
+    def _delete(self, link_id):
+        s = get_session()
+        try:
+            from maestro_local.db.models import ProjectLink
+            link = s.get(ProjectLink, link_id)
+            if link:
+                pid = link.project_id
+                s.delete(link)
+                s.commit()
+                remaining = s.query(ProjectLink).filter(ProjectLink.project_id == pid).order_by(ProjectLink.sort_order).all()
+                for i, l in enumerate(remaining):
+                    l.sort_order = i
+                s.commit()
+            self.refresh()
+        finally:
+            s.close()
+
+
 class ArchivedDialog(QDialog):
     """Board à parte com as tarefas arquivadas (desarquivar volta ao board)."""
 
@@ -2105,6 +2292,10 @@ class BoardView(QWidget):
         self.metrics_accordion = BoardMetricsAccordion()
         board_tab_layout.addWidget(self.metrics_accordion)
 
+        # Atalhos do projeto
+        self.links_widget = ProjectLinksWidget()
+        board_tab_layout.addWidget(self.links_widget)
+
         # Board scroll area
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
@@ -2137,6 +2328,8 @@ class BoardView(QWidget):
         self.project_id = project_id
         if hasattr(self, "metrics_accordion"):
             self.metrics_accordion.set_project(project_id)
+        if hasattr(self, "links_widget"):
+            self.links_widget.set_project(project_id)
         # Novo projeto: re-aplica o default (sprint ativa) e volta o filtro.
         self._sprint_filter_initialized = False
         self._sprint_filter = None
@@ -2469,6 +2662,8 @@ class BoardView(QWidget):
         # atualiza métricas (alertas/prazos/objetivos) sem recriar colunas
         if hasattr(self, "metrics_accordion"):
             self.metrics_accordion.refresh()
+        if hasattr(self, "links_widget"):
+            self.links_widget.refresh()
 
     def _apply_filters(self):
         search = self.filter_bar.get_search_text()

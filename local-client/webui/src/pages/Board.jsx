@@ -50,6 +50,10 @@ export default function Board() {
   const [members, setMembers] = useState([])
   const [showMembers, setShowMembers] = useState(false)
   const [newMemberName, setNewMemberName] = useState('')
+  const [links, setLinks] = useState([])
+  const [newLinkTitle, setNewLinkTitle] = useState('')
+  const [newLinkUrl, setNewLinkUrl] = useState('')
+  const [editingLink, setEditingLink] = useState(null)
 
   // Filtros (paridade com desktop FilterBar)
   const [searchText, setSearchText] = useState('')
@@ -93,6 +97,11 @@ export default function Board() {
       .then(setMembers)
       .catch(() => setMembers([]))
 
+  const loadLinks = () =>
+    getLinks(projectId)
+      .then(setLinks)
+      .catch(() => setLinks([]))
+
   useEffect(() => {
     // Novo projeto: re-aplica o default (sprint ativa) e volta pra aba Board.
     defaultedRef.current = false
@@ -106,6 +115,7 @@ export default function Board() {
     loadArchived()
     loadGoals()
     loadMembers()
+    loadLinks()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, sprintFilter])
 
@@ -188,6 +198,23 @@ export default function Board() {
 
   const handleDeleteMember = async (id) => {
     try { await deleteMember(id); loadMembers(); load() } catch (e) { setError(String(e.message || e)) }
+  }
+
+  const handleCreateLink = async () => {
+    const title = newLinkTitle.trim()
+    const url = newLinkUrl.trim()
+    if (!title || !url) return
+    try { await createLink(projectId, { title, url }); setNewLinkTitle(''); setNewLinkUrl(''); loadLinks() } catch (e) { setError(e.response?.data?.detail || String(e.message || e)) }
+  }
+  const handleUpdateLink = async () => {
+    if (!editingLink) return
+    const title = (editingLink.title || '').trim()
+    const url = (editingLink.url || '').trim()
+    if (!title || !url) return
+    try { await updateLink(editingLink.id, { title, url }); setEditingLink(null); loadLinks() } catch (e) { setError(e.response?.data?.detail || String(e.message || e)) }
+  }
+  const handleDeleteLink = async (id) => {
+    try { await deleteLink(id); loadLinks() } catch (e) { setError(String(e.message || e)) }
   }
 
   if (error) return <div className="banner">{error}</div>
@@ -461,6 +488,40 @@ export default function Board() {
             )}
           </div>
         )}
+      </div>
+
+      {/* Atalhos do projeto — links com título (PRs, docs, Azure, etc) */}
+      <div className="card" style={{ padding: '10px 14px', marginBottom: 12 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <strong>🔗 {t('Atalhos')}</strong>
+          <span className="muted" style={{ fontSize: 11 }}>{links.length} {t('atalho(s)')}</span>
+        </div>
+        {links.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+            {links.map((l) => (
+              <span key={l.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 20, padding: '4px 10px', fontSize: 12 }}>
+                <a href={l.url} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', textDecoration: 'none', fontWeight: 600 }}>{l.title} ↗</a>
+                <button className="ghost" style={{ padding: '1px 6px', fontSize: 10 }} onClick={() => setEditingLink(l)}>{t('Editar')}</button>
+                <button className="ghost" style={{ padding: '1px 6px', fontSize: 10, color: 'var(--danger)' }} onClick={() => handleDeleteLink(l.id)}>✕</button>
+              </span>
+            ))}
+          </div>
+        )}
+        {editingLink ? (
+          <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+            <input placeholder={t('Título do atalho')} value={editingLink.title} onChange={(e)=>setEditingLink({...editingLink, title: e.target.value})} style={{ flex: '1 1 140px' }} />
+            <input placeholder="https://..." value={editingLink.url} onChange={(e)=>setEditingLink({...editingLink, url: e.target.value})} style={{ flex: '2 1 260px' }} />
+            <button onClick={handleUpdateLink}>{t('Salvar')}</button>
+            <button className="ghost" onClick={()=>setEditingLink(null)}>{t('Cancelar')}</button>
+          </div>
+        ) : (
+          <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+            <input placeholder={t('Título do atalho')} value={newLinkTitle} onChange={(e)=>setNewLinkTitle(e.target.value)} style={{ flex: '1 1 140px' }} />
+            <input placeholder="https://..." value={newLinkUrl} onChange={(e)=>setNewLinkUrl(e.target.value)} style={{ flex: '2 1 260px' }} onKeyDown={(e)=>e.key==='Enter' && handleCreateLink()} />
+            <button onClick={handleCreateLink}>{t('+ Adicionar atalho')}</button>
+          </div>
+        )}
+        <div className="muted" style={{ fontSize: 11, marginTop: 6 }}>{t('Ex.: PR da sprint, doc de migração, board do Azure, pipeline.')}</div>
       </div>
 
       {/* Barra de filtros (paridade desktop FilterBar) */}
