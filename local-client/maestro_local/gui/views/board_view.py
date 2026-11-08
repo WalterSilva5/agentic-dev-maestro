@@ -3060,6 +3060,17 @@ class BoardView(QWidget):
         metrics_layout = QVBoxLayout(self.metrics_tab)
         metrics_layout.setContentsMargins(0, 0, 0, 0)
         metrics_layout.setSpacing(12)
+        acoes_metrics = QHBoxLayout()
+        acoes_metrics.addStretch()
+        self.export_metrics_btn = QPushButton("⬇ " + _t("Exportar PDF"))
+        self.export_metrics_btn.setProperty("flat", True)
+        self.export_metrics_btn.setFixedHeight(28)
+        self.export_metrics_btn.setCursor(Qt.PointingHandCursor)
+        self.export_metrics_btn.setToolTip(_t("Exportar as métricas em PDF"))
+        self.export_metrics_btn.clicked.connect(self._export_metrics_pdf)
+        acoes_metrics.addWidget(self.export_metrics_btn)
+        metrics_layout.addLayout(acoes_metrics)
+
         self.metrics_accordion = BoardMetricsAccordion()
         # Métricas em aba tem scroll próprio
         metrics_scroll = QScrollArea()
@@ -3248,6 +3259,37 @@ class BoardView(QWidget):
                 changed = True
         if changed:
             s.commit()
+
+    def _export_metrics_pdf(self):
+        """Gera o relatório de métricas do projeto em PDF."""
+        if not self.project_id:
+            return
+        from maestro_local.metrics_pdf import build_metrics_pdf, metrics_pdf_filename
+
+        s = get_session()
+        try:
+            project = s.get(Project, self.project_id)
+            if not project:
+                return
+            nome = metrics_pdf_filename(project)
+            try:
+                pdf = build_metrics_pdf(s, project)
+            except Exception as e:  # noqa: BLE001
+                QMessageBox.warning(self, _t("Exportar PDF"), str(e))
+                return
+        finally:
+            s.close()
+
+        from PySide6.QtWidgets import QFileDialog
+        destino, _ = QFileDialog.getSaveFileName(self, _t("Exportar PDF"), nome, "PDF (*.pdf)")
+        if not destino:
+            return
+        try:
+            from pathlib import Path
+            Path(destino).write_bytes(pdf)
+            QMessageBox.information(self, _t("Exportar PDF"), _t("Exportado:") + f"\n{destino}")
+        except Exception as e:  # noqa: BLE001
+            QMessageBox.warning(self, _t("Exportar PDF"), str(e))
 
     def _open_archived(self):
         if not self.project_id:

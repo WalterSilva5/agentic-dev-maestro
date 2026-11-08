@@ -15,6 +15,7 @@ import {
   createMember,
   deleteMember,
   updateProject,
+  metricsPdfUrl,
   getLinks,
   createLink,
   updateLink,
@@ -394,9 +395,14 @@ export default function Board() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {/* Métricas — conteúdo completo sem acordeão */}
           <div className="card" style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <strong>{t('Métricas do projeto')}</strong>
               <span className="muted" style={{ fontSize: 11 }}>{metricSummary.length ? metricSummary.join('  ·  ') : t('Tudo em dia')}</span>
+              <a href={metricsPdfUrl(projectId)} target="_blank" rel="noreferrer" style={{ marginLeft: 'auto' }}>
+                <button className="ghost" style={{ padding: '3px 10px', fontSize: 11 }} title={t('Exportar as métricas em PDF')}>
+                  ⬇ {t('Exportar PDF')}
+                </button>
+              </a>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span className="muted" style={{ fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>{t('Progresso geral')}</span>

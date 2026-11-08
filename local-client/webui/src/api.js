@@ -91,6 +91,8 @@ export const getDailyActivity = (date) => api.get(`/daily/${date}/activity`).the
 
 // Dashboard / métricas / atividade
 export const getMetrics = () => api.get('/projects/metrics').then((r) => r.data)
+// Relatório de métricas do projeto em PDF
+export const metricsPdfUrl = (projectId) => `/api/projects/${projectId}/metrics/export.pdf`
 export const getActivity = (limit = 15) => api.get('/activity', { params: { limit } }).then((r) => r.data)
 
 // Assistente

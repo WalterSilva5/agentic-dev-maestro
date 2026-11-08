@@ -1703,7 +1703,17 @@ curl -X PATCH http://127.0.0.1:9777/api/goals/5 \\
 curl -X DELETE http://127.0.0.1:9777/api/goals/5
 ```
 
-## 4. Ler o progresso como lider
+## 4. Exportar as metricas do projeto em PDF
+
+```bash
+# mesmo conteudo da aba Metricas do board (progresso, colunas, pessoas,
+# modulos, prioridades e daily), pronto para enviar a lideranca
+curl -s -o metricas.pdf \
+  "http://127.0.0.1:9777/api/projects/1/metrics/export.pdf"
+# Content-Disposition: attachment; filename="metricas-<KEY>-<data>.pdf"
+```
+
+## 5. Ler o progresso como lider
 
 - `pct` < 100 com `daysLeft` <= 7 → risco, verificar bloqueios no board
 - `daysLeft` negativo → atrasado; renegociar escopo ou data

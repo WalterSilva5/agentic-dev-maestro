@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import Any, Optional
 
-from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -2737,6 +2737,26 @@ def project_daily_summary(
         "byAuthor": authors,
         "days": sorted(by_day.values(), key=lambda d: d["date"], reverse=True),
     }
+
+
+@app.get("/api/projects/{project_id}/metrics/export.pdf")
+def export_project_metrics_pdf(project_id: int, s: Session = Depends(db)):
+    """Relatório de métricas do projeto em PDF (mesmo conteúdo da aba Métricas)."""
+    from maestro_local.metrics_pdf import build_metrics_pdf, metrics_pdf_filename
+
+    project = s.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(404, "Project not found")
+    try:
+        pdf = build_metrics_pdf(s, project)
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(500, f"failed to build PDF: {e}")
+    filename = metrics_pdf_filename(project)
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @app.get("/api/projects/{project_id}/daily/export")

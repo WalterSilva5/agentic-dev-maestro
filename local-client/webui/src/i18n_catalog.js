@@ -4,6 +4,8 @@ export const CATALOG = {
   en: {
   "Dashboard": "Dashboard",
   "Daily": "Daily",
+  "Exportar PDF": "Export PDF",
+  "Exportar as métricas em PDF": "Export the metrics as PDF",
   "Exportar .md": "Export .md",
   "Importar .md": "Import .md",
   "Exportar o dia em markdown (formato do vault)": "Export the day as markdown (vault format)",
