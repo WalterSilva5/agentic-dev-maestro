@@ -10,6 +10,9 @@ import {
   unarchiveTask,
   getArchived,
   getGoals,
+  getMembers,
+  createMember,
+  deleteMember,
 } from '../api'
 import TaskDetail from '../components/TaskDetail.jsx'
 import SprintPlanning from './SprintPlanning.jsx'
@@ -43,6 +46,9 @@ export default function Board() {
   // Métricas do projeto (acordeão)
   const [goals, setGoals] = useState([])
   const [metricsOpen, setMetricsOpen] = useState(true)
+  const [members, setMembers] = useState([])
+  const [showMembers, setShowMembers] = useState(false)
+  const [newMemberName, setNewMemberName] = useState('')
 
   // Filtros (paridade com desktop FilterBar)
   const [searchText, setSearchText] = useState('')
@@ -81,6 +87,11 @@ export default function Board() {
       .then(setGoals)
       .catch(() => setGoals([]))
 
+  const loadMembers = () =>
+    getMembers(projectId)
+      .then(setMembers)
+      .catch(() => setMembers([]))
+
   useEffect(() => {
     // Novo projeto: re-aplica o default (sprint ativa) e volta pra aba Board.
     defaultedRef.current = false
@@ -93,6 +104,7 @@ export default function Board() {
     loadSprints()
     loadArchived()
     loadGoals()
+    loadMembers()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, sprintFilter])
 
@@ -157,6 +169,26 @@ export default function Board() {
     }
   }
 
+  const assignTask = async (task, assignee) => {
+    const val = (assignee || '').trim() || null
+    try {
+      if (val) { try { await createMember(projectId, { name: val }) } catch {} }
+      await updateTask(task.code, { assignee: val })
+      load()
+      loadMembers()
+    } catch (e) { setError(e.response?.data?.detail || String(e.message || e)) }
+  }
+
+  const handleCreateMember = async () => {
+    const name = newMemberName.trim()
+    if (!name) return
+    try { await createMember(projectId, { name }); setNewMemberName(''); loadMembers() } catch (e) { setError(e.response?.data?.detail || String(e.message || e)) }
+  }
+
+  const handleDeleteMember = async (id) => {
+    try { await deleteMember(id); loadMembers(); load() } catch (e) { setError(String(e.message || e)) }
+  }
+
   if (error) return <div className="banner">{error}</div>
   if (!board) return <div className="muted">{t('Carregando...')}</div>
 
@@ -205,7 +237,7 @@ export default function Board() {
   // Filtros derivados (client-side)
   const epicOptions = [...new Set(tasksAll.flatMap((tk) => (tk.epics || []).map((e) => e.name)))].sort()
   const tagOptions = [...new Set(tasksAll.flatMap((tk) => (tk.labels || []).map((l) => l.name)))].sort()
-  const assigneeOptions = [...new Set(tasksAll.map((tk) => tk.assignee).filter(Boolean))].sort()
+  const assigneeOptions = [...new Set([...tasksAll.map((tk) => tk.assignee).filter(Boolean), ...members.map((m) => m.name)])].sort()
   const filteredCols = cols.map((col) => ({
     ...col,
     tasks: col.tasks.filter((tk) => {
@@ -285,6 +317,7 @@ export default function Board() {
         <button className="ghost" onClick={() => setShowArchived((v) => !v)}>
           {showArchived ? t('← Voltar ao board') : tf('Arquivados ({count})', { count: archived.length })}
         </button>
+        <button className="ghost" onClick={() => setShowMembers(true)}>{t('Responsáveis')} ({members.length})</button>
       </div>
 
       {/* Métricas do projeto — acordeão (web) */}
@@ -503,6 +536,18 @@ export default function Board() {
                     ))}
                   </select>
                 </div>
+                <div className="row" style={{ marginTop: 6 }} onClick={(e) => e.stopPropagation()}>
+                  <select
+                    style={{ fontSize: 11, flex: 1 }}
+                    value={task.assignee || ''}
+                    onChange={(e) => assignTask(task, e.target.value)}
+                    title={t('Responsável')}
+                  >
+                    <option value="">{t('Sem responsável')}</option>
+                    {assigneeOptions.map((a) => (<option key={a} value={a}>{a}</option>))}
+                    {task.assignee && !assigneeOptions.includes(task.assignee) && (<option value={task.assignee}>{task.assignee}</option>)}
+                  </select>
+                </div>
                 {!col.isDone && (
                   <div>
                     <button
@@ -546,6 +591,44 @@ export default function Board() {
       </div>
       )}
         </>
+      )}
+
+      {showMembers && (
+        <div className="overlay" onClick={()=>setShowMembers(false)}>
+          <div className="modal" onClick={(e)=>e.stopPropagation()}>
+            <button className="close-x" onClick={()=>setShowMembers(false)}>✕</button>
+            <h2>{t('Responsáveis do projeto')}</h2>
+            <p className="muted">{t('Quem aparece aqui pode ser atribuído aos cards e filtrado no board.')}</p>
+            <div className="row" style={{ marginTop: 12 }}>
+              <input placeholder={t('Nome do responsável...')} value={newMemberName} onChange={(e)=>setNewMemberName(e.target.value)} style={{ flex: 1 }} onKeyDown={(e)=>e.key==='Enter' && handleCreateMember()} />
+              <button onClick={handleCreateMember}>{t('Adicionar')}</button>
+            </div>
+            <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {members.length===0 && <div className="muted">{t('Nenhum responsável ainda. Adicione acima.')}</div>}
+              {members.map((m)=>{
+                const stats = (() => {
+                  const q = tasksAll.filter((tk)=>tk.assignee===m.name)
+                  const tot=q.length
+                  const done=q.filter((tk)=>doneColIds.has(tk.columnId)).length
+                  const pct=tot?Math.round(done/tot*100):0
+                  const overdue=q.filter((tk)=>tk.dueDate && new Date(tk.dueDate)<today0 && !doneColIds.has(tk.columnId)).length
+                  return {tot, done, pct, overdue}
+                })()
+                return (
+                  <div key={m.id} className="card" style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ width: 16, height: 16, borderRadius: 8, background: m.color || 'var(--accent)' }} />
+                      <strong style={{ flex: 1 }}>{m.name}</strong>
+                      <button className="ghost" style={{ color: 'var(--danger)', padding: '2px 8px' }} onClick={()=>handleDeleteMember(m.id)}>{t('Excluir')}</button>
+                    </div>
+                    <div style={{ height: 8, background: 'var(--border-light)', borderRadius: 4, overflow: 'hidden' }}><div style={{ width: `${stats.pct}%`, height: '100%', background: 'var(--accent)' }} /></div>
+                    <div className="muted" style={{ fontSize: 11 }}>{stats.tot} {t('tarefas')} · {stats.done} {t('concluídas')} {stats.overdue?`· ${stats.overdue} ${t('vencida(s)')}`:''} · {stats.pct}%</div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
       )}
 
       {openCode && (

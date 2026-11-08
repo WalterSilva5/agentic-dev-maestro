@@ -7,6 +7,8 @@ import {
   addChecklist,
   toggleChecklist,
   deleteChecklist,
+  getMembers,
+  createMember,
 } from '../api'
 import { t, tf } from '../i18n'
 
@@ -19,15 +21,20 @@ export default function TaskDetail({ code, onClose, onChanged }) {
   const [newComment, setNewComment] = useState('')
   const [newCheck, setNewCheck] = useState('')
   const [error, setError] = useState('')
+  const [members, setMembers] = useState([])
+  const [newAssignee, setNewAssignee] = useState('')
+  const [showNewAssignee, setShowNewAssignee] = useState(false)
 
-  const load = () =>
-    Promise.all([getTask(code), null])
-      .then(async () => {
-        const t = await getTask(code)
-        setTask(t)
-        setComments(await getComments(t.id))
-      })
-      .catch((e) => setError(String(e.message || e)))
+  const load = async () => {
+    try {
+      const t = await getTask(code)
+      setTask(t)
+      setComments(await getComments(t.id))
+      if (t.projectId) {
+        try { setMembers(await getMembers(t.projectId)) } catch { setMembers([]) }
+      }
+    } catch (e) { setError(String(e.message || e)) }
+  }
 
   useEffect(() => {
     load()
@@ -41,6 +48,17 @@ export default function TaskDetail({ code, onClose, onChanged }) {
     } catch (e) {
       setError(e.response?.data?.detail || String(e.message || e))
     }
+  }
+
+  const assignMember = async (name) => {
+    const val = (name || '').trim() || null
+    try {
+      if (val && task?.projectId) {
+        try { await createMember(task.projectId, { name: val }) } catch {}
+        try { setMembers(await getMembers(task.projectId)) } catch {}
+      }
+      await patch({ assignee: val })
+    } catch (e) { setError(String(e.message || e)) }
   }
 
   const submitComment = async () => {
@@ -83,6 +101,31 @@ export default function TaskDetail({ code, onClose, onChanged }) {
           <select value={task.priority} onChange={(e) => patch({ priority: e.target.value })}>
             {PRIOS.map((p) => <option key={p} value={p}>{p}</option>)}
           </select>
+        </div>
+
+        <div className="section">
+          <h4>{t('Responsável')}</h4>
+          <div className="row" style={{ gap: 8, alignItems: 'center' }}>
+            <select value={task.assignee || ''} onChange={(e) => { const v=e.target.value; if(v==='__new__') setShowNewAssignee(true); else assignMember(v) }} style={{ flex: 1 }}>
+              <option value="">{t('Sem responsável')}</option>
+              {members.map((m) => (<option key={m.id} value={m.name}>{m.name}</option>))}
+              {task.assignee && !members.some((m)=>m.name===task.assignee) && (<option value={task.assignee}>{task.assignee} (legado)</option>)}
+              <option value="__new__">{t('+ Novo responsável...')}</option>
+            </select>
+            {task.assignee && (
+              <span style={{ width: 28, height: 28, borderRadius: 14, background: members.find((m)=>m.name===task.assignee)?.color || 'var(--accent)', color: '#fff', display: 'grid', placeItems: 'center', fontSize: 11, fontWeight: 700 }} title={task.assignee}>
+                {task.assignee.split(' ').slice(0,2).map((p)=>p[0]?.toUpperCase()).join('') || '?'}
+              </span>
+            )}
+          </div>
+          {showNewAssignee && (
+            <div className="row" style={{ marginTop: 8 }}>
+              <input placeholder={t('Nome do responsável...')} value={newAssignee} onChange={(e)=>setNewAssignee(e.target.value)} style={{ flex: 1 }} onKeyDown={async (e)=>{ if(e.key==='Enter' && newAssignee.trim()){ await assignMember(newAssignee.trim()); setNewAssignee(''); setShowNewAssignee(false) }}} />
+              <button onClick={async()=>{ if(!newAssignee.trim()) return; await assignMember(newAssignee.trim()); setNewAssignee(''); setShowNewAssignee(false)}}>{t('Atribuir')}</button>
+              <button className="ghost" onClick={()=>setShowNewAssignee(false)}>{t('Cancelar')}</button>
+            </div>
+          )}
+          <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>{t('Facilita filtro e métricas por pessoa.')}</div>
         </div>
 
         <div className="section">
