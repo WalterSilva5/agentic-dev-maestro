@@ -2139,10 +2139,27 @@ class ProjectDailyTab(QWidget):
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(10)
 
-        # --- resumo ---
+        # --- resumo + ações do doc ---
+        resumo_row = QHBoxLayout()
+        resumo_row.setSpacing(6)
         self.summary_lbl = QLabel("")
         self.summary_lbl.setProperty("class", "hint")
-        root.addWidget(self.summary_lbl)
+        resumo_row.addWidget(self.summary_lbl, 1)
+        self.export_btn = QPushButton("⬇ " + _t("Exportar .md"))
+        self.export_btn.setProperty("flat", True)
+        self.export_btn.setFixedHeight(26)
+        self.export_btn.setCursor(Qt.PointingHandCursor)
+        self.export_btn.setToolTip(_t("Exportar o dia em markdown (formato do vault)"))
+        self.export_btn.clicked.connect(self._export)
+        resumo_row.addWidget(self.export_btn)
+        self.import_btn = QPushButton("⬆ " + _t("Importar .md"))
+        self.import_btn.setProperty("flat", True)
+        self.import_btn.setFixedHeight(26)
+        self.import_btn.setCursor(Qt.PointingHandCursor)
+        self.import_btn.setToolTip(_t("Importar um doc de daily (.md)"))
+        self.import_btn.clicked.connect(self._import)
+        resumo_row.addWidget(self.import_btn)
+        root.addLayout(resumo_row)
 
         # --- formulário ---
         form = QFrame()
@@ -2400,6 +2417,109 @@ class ProjectDailyTab(QWidget):
         return row
 
     # ------------------------------------------------------------------
+    def _export(self):
+        if not self.project_id:
+            return
+        from maestro_local.daily_doc import render_daily_markdown, suggested_filename, DailyBlock
+
+        dia = self.date_input.date().toString("yyyy-MM-dd")
+        s = get_session()
+        try:
+            entries = (
+                s.query(ProjectDailyEntry)
+                .filter(ProjectDailyEntry.project_id == self.project_id, ProjectDailyEntry.date == dia)
+                .order_by(ProjectDailyEntry.sort_order, ProjectDailyEntry.id)
+                .all()
+            )
+            if not entries:
+                QMessageBox.information(self, _t("Daily"), _t("Nada para exportar em") + f" {dia}.")
+                return
+            blocks = [
+                DailyBlock(section=e.section or "ITEMS", title=e.title or "", body=e.body or "",
+                           kind=e.kind or "WORK", author=e.author, minutes=e.minutes,
+                           task_code=e.task_code or "", sort_order=e.sort_order or 0)
+                for e in entries
+            ]
+            titulo = next((e.title for e in entries if e.section == "INTRO" and e.title), "")
+            if not titulo:
+                titulo = next((e.title for e in entries if e.section == "ITEMS" and e.title), "")
+            markdown = render_daily_markdown(dia, titulo, blocks)
+            nome, _mes = suggested_filename(dia, titulo)
+        finally:
+            s.close()
+
+        from PySide6.QtWidgets import QFileDialog
+        destino, _ = QFileDialog.getSaveFileName(self, _t("Exportar daily"), nome, "Markdown (*.md)")
+        if not destino:
+            return
+        try:
+            from pathlib import Path
+            Path(destino).write_text(markdown, encoding="utf-8")
+            QMessageBox.information(self, _t("Exportar daily"), _t("Exportado:") + f"\n{destino}")
+        except Exception as e:  # noqa: BLE001
+            QMessageBox.warning(self, _t("Exportar daily"), str(e))
+
+    def _import(self):
+        if not self.project_id:
+            return
+        from PySide6.QtWidgets import QFileDialog
+        origem, _ = QFileDialog.getOpenFileName(self, _t("Importar daily"), "", "Markdown (*.md)")
+        if not origem:
+            return
+        from pathlib import Path
+        from maestro_local.daily_doc import parse_daily_markdown
+
+        try:
+            day, titulo, blocks = parse_daily_markdown(Path(origem).read_text(encoding="utf-8", errors="replace"))
+        except Exception as e:  # noqa: BLE001
+            QMessageBox.warning(self, _t("Importar daily"), str(e))
+            return
+        if not day or not blocks:
+            QMessageBox.warning(self, _t("Importar daily"), _t("Não encontrei o cabeçalho '# Daily - DD/MM/AAAA' no arquivo."))
+            return
+
+        resposta = QMessageBox.question(
+            self, _t("Importar daily"),
+            _t("Importar") + f" {day} ({len(blocks)} " + _t("bloco(s)") + ")?\n" + _t("Os registros do dia serão substituídos."),
+            QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
+        )
+        if resposta != QMessageBox.Yes:
+            return
+
+        s = get_session()
+        try:
+            for old in (
+                s.query(ProjectDailyEntry)
+                .filter(ProjectDailyEntry.project_id == self.project_id, ProjectDailyEntry.date == day)
+                .all()
+            ):
+                s.delete(old)
+            s.flush()
+            for i, b in enumerate(blocks):
+                s.add(ProjectDailyEntry(
+                    project_id=self.project_id,
+                    date=day,
+                    kind=(b.kind or "WORK")[:20],
+                    section=(b.section or "ITEMS")[:20],
+                    title=(b.title or "")[:200],
+                    sort_order=i,
+                    body=b.body or "",
+                    author=(b.author or None),
+                    minutes=b.minutes,
+                    task_code=(b.task_code or "")[:40],
+                ))
+            s.commit()
+        except Exception as e:  # noqa: BLE001
+            s.rollback()
+            QMessageBox.warning(self, _t("Importar daily"), str(e))
+            return
+        finally:
+            s.close()
+
+        self.date_input.setDate(QDate.fromString(day, "yyyy-MM-dd"))
+        self.refresh()
+        QMessageBox.information(self, _t("Importar daily"), _t("Importado") + f" {day} ({len(blocks)}).")
+
     def _add(self):
         texto = self.body_input.toPlainText().strip()
         if not texto or not self.project_id:

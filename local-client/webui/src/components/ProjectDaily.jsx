@@ -6,6 +6,8 @@ import {
   updateProjectDaily,
   deleteProjectDaily,
   getProjectDailySummary,
+  exportProjectDaily,
+  importProjectDaily,
 } from '../api'
 import { t } from '../i18n'
 
@@ -118,6 +120,52 @@ export default function ProjectDaily({ projectId, author }) {
     }
   }
 
+  const exportDay = async () => {
+    try {
+      const data = await exportProjectDaily(projectId, date)
+      const blob = new Blob([data.markdown], { type: 'text/markdown;charset=utf-8' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = data.filename
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      const msg = e.response?.data?.detail || String(e.message || e)
+      Swal.fire({ icon: 'info', title: t('Nada para exportar'), text: msg })
+    }
+  }
+
+  const importDay = () => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.md,text/markdown,text/plain'
+    input.onchange = async () => {
+      const file = input.files?.[0]
+      if (!file) return
+      const content = await file.text()
+      const conf = await Swal.fire({
+        title: t('Importar daily'),
+        html: `<p>${t('Importar')} <b>${file.name}</b>?</p><p class="muted">${t('Os registros do dia serão substituídos.')}</p>`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: t('Importar'),
+        cancelButtonText: t('Cancelar'),
+      })
+      if (!conf.isConfirmed) return
+      try {
+        const r = await importProjectDaily(projectId, { content, replace: true })
+        Swal.fire({ icon: 'success', title: t('Importado'), text: `${r.date} · ${r.created} ${t('bloco(s)')}`, timer: 1800, showConfirmButton: false })
+        load()
+      } catch (e) {
+        Swal.fire({ icon: 'error', title: t('Erro'), text: e.response?.data?.detail || String(e.message || e) })
+      }
+    }
+    input.click()
+  }
+
   // agrupa por dia
   const grouped = useMemo(() => {
     const map = new Map()
@@ -157,6 +205,14 @@ export default function ProjectDaily({ projectId, author }) {
               {d.date}: {d.entries}
             </span>
           ))}
+          <span style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+            <button className="ghost" style={{ padding: '3px 9px', fontSize: 11 }} onClick={exportDay} title={t('Exportar o dia em markdown (formato do vault)')}>
+              ⬇ {t('Exportar .md')}
+            </button>
+            <button className="ghost" style={{ padding: '3px 9px', fontSize: 11 }} onClick={importDay} title={t('Importar um doc de daily (.md)')}>
+              ⬆ {t('Importar .md')}
+            </button>
+          </span>
         </div>
       )}
 

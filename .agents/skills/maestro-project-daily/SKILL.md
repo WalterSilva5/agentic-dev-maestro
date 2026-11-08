@@ -82,6 +82,67 @@ curl -s "http://127.0.0.1:9777/api/projects/2/daily/summary?dateFrom=2026-11-01&
 #   days: [{date, entries, minutes, authors}, ...] }
 ```
 
+## Formato do doc de daily (vault)
+
+O time mantém um arquivo por dia em
+`vault-docs-projetos/tarefas/VERZEL/GAV/daily/YYYY-MM/DD-MM-YYYY - Daily - <tema>.md`:
+
+```markdown
+# Daily - 04/11/2026 — tema do dia
+
+<contexto do dia>
+
+## Itens trabalhados
+
+### `13972` — modo de conexão do banco
+- o que foi feito
+- testes / commit / estado do card
+
+## Estado da sprint
+
+<números do board e progresso>
+
+## Pendências
+
+- item aberto
+```
+
+O Maestro guarda o mesmo conteúdo em registros por **seção**:
+`INTRO` · `ITEMS` (um por `###`) · `SPRINT` · `PENDING` (um por bullet) · `OTHER`.
+
+### Exportar o dia no formato do vault
+```bash
+curl -s "http://127.0.0.1:9777/api/projects/2/daily/export?date=2026-11-04" \
+  | jq -r '.markdown' > "/tmp/04-11-2026 - Daily - tema.md"
+# também devolve .filename e .monthDir prontos para salvar no vault
+```
+
+Na UI: aba **Daily** → **⬇ Exportar .md** (web baixa o arquivo; desktop abre o
+salvar como).
+
+### Importar um doc existente
+```bash
+# por conteúdo
+curl -s -X POST "http://127.0.0.1:9777/api/projects/2/daily/import" \
+  -H 'Content-Type: application/json' \
+  -d "{\"content\": $(jq -Rs . < doc.md), \"replace\": true}" | jq
+
+# por caminho (servidor local)
+curl -s -X POST "http://127.0.0.1:9777/api/projects/2/daily/import" \
+  -H 'Content-Type: application/json' \
+  -d '{"path":"/home/wsi/.../04-11-2026 - Daily - tema.md","replace":true}' | jq
+```
+
+`replace=true` (padrão) substitui os registros daquele dia — o import é idempotente.
+
+### Importar o histórico inteiro do vault
+```bash
+python3 local-client/scripts/import_daily_vault.py \
+  --dir /home/wsi/repositorios/github/vault-docs-projetos/tarefas/VERZEL/GAV/daily \
+  --project-key MIG --dry-run     # confere
+# depois sem --dry-run (ou --month 2026-11 para um mês)
+```
+
 ## Fluxo recomendado para o agente
 
 1. Descobrir o projeto: `GET /api/projects` (ou usar o projeto ativo do workspace).

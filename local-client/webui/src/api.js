@@ -196,5 +196,9 @@ export const updateProjectDaily = (id, body) => api.patch(`/project-daily/${id}`
 export const deleteProjectDaily = (id) => api.delete(`/project-daily/${id}`).then((r) => r.data)
 export const getProjectDailySummary = (projectId, params = {}) =>
   api.get(`/projects/${projectId}/daily/summary`, { params }).then((r) => r.data)
+export const exportProjectDaily = (projectId, date) =>
+  api.get(`/projects/${projectId}/daily/export`, { params: { date } }).then((r) => r.data)
+export const importProjectDaily = (projectId, body) =>
+  api.post(`/projects/${projectId}/daily/import`, body).then((r) => r.data)
 
 export const getHealth = () => api.get('/health').then((r) => r.data)

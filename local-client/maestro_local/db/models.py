@@ -427,6 +427,11 @@ class ProjectDailyEntry(Base):
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
     date = Column(String(10), nullable=False, index=True)   # YYYY-MM-DD (dia do trabalho)
     kind = Column(String(20), default="WORK")               # WORK|BLOCKER|DECISION|NOTE
+    # Onde o registro aparece no doc do dia (formato do vault):
+    # INTRO (contexto) | ITEMS (itens trabalhados) | SPRINT (estado) | PENDING | OTHER
+    section = Column(String(20), default="ITEMS")
+    title = Column(String(200), default="")                 # tema do item/dia
+    sort_order = Column(Integer, default=0)                 # ordem dentro do dia
     body = Column(Text, nullable=False, default="")
     author = Column(String(100))
     minutes = Column(Integer)                               # tempo dedicado (opcional)
@@ -610,6 +615,19 @@ def _run_light_migrations(engine):
         if tadds:
             with engine.begin() as conn:
                 for stmt in tadds:
+                    conn.execute(text(stmt))
+    if "project_daily" in tables:
+        dcols = {c["name"] for c in insp.get_columns("project_daily")}
+        dadds = []
+        if "section" not in dcols:
+            dadds.append("ALTER TABLE project_daily ADD COLUMN section VARCHAR(20) DEFAULT 'ITEMS'")
+        if "title" not in dcols:
+            dadds.append("ALTER TABLE project_daily ADD COLUMN title VARCHAR(200) DEFAULT ''")
+        if "sort_order" not in dcols:
+            dadds.append("ALTER TABLE project_daily ADD COLUMN sort_order INTEGER DEFAULT 0")
+        if dadds:
+            with engine.begin() as conn:
+                for stmt in dadds:
                     conn.execute(text(stmt))
     if "projects" in tables:
         pcols = {c["name"] for c in insp.get_columns("projects")}

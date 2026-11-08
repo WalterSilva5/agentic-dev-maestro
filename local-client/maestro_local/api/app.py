@@ -235,6 +235,7 @@ def _link_dict(l: ProjectLink) -> dict:
 
 
 DAILY_KINDS = ("WORK", "BLOCKER", "DECISION", "NOTE")
+DAILY_SECTIONS = ("INTRO", "ITEMS", "SPRINT", "PENDING", "OTHER")
 
 
 class ProjectDailyCreate(BaseModel):
@@ -244,6 +245,8 @@ class ProjectDailyCreate(BaseModel):
     author: Optional[str] = None
     minutes: Optional[int] = None
     taskCode: Optional[str] = None
+    title: Optional[str] = None         # tema do item/dia
+    section: Optional[str] = "ITEMS"    # INTRO|ITEMS|SPRINT|PENDING|OTHER
 
 
 class ProjectDailyUpdate(BaseModel):
@@ -253,6 +256,22 @@ class ProjectDailyUpdate(BaseModel):
     author: Optional[str] = None
     minutes: Optional[int] = None
     taskCode: Optional[str] = None
+    title: Optional[str] = None
+    section: Optional[str] = None
+    sortOrder: Optional[int] = None
+
+
+class ProjectDailyImport(BaseModel):
+    content: Optional[str] = None       # markdown cru
+    path: Optional[str] = None          # ou caminho de um .md
+    replace: Optional[bool] = True      # apaga os registros do dia antes de importar
+
+
+def _daily_validate_section(value: str | None) -> str:
+    sec = (value or "ITEMS").strip().upper()
+    if sec not in DAILY_SECTIONS:
+        raise HTTPException(400, f"section must be one of {', '.join(DAILY_SECTIONS)}")
+    return sec
 
 
 def _daily_dict(e: ProjectDailyEntry) -> dict:
@@ -261,6 +280,9 @@ def _daily_dict(e: ProjectDailyEntry) -> dict:
         "projectId": e.project_id,
         "date": e.date,
         "kind": e.kind or "WORK",
+        "section": e.section or "ITEMS",
+        "title": e.title or "",
+        "sortOrder": e.sort_order or 0,
         "body": e.body or "",
         "author": e.author,
         "minutes": e.minutes,
@@ -2579,7 +2601,12 @@ def list_project_daily(
         query = query.filter(ProjectDailyEntry.body.ilike(f"%{q.strip()}%"))
 
     limit = max(1, min(int(limit or 200), 1000))
-    entries = query.order_by(ProjectDailyEntry.date.desc(), ProjectDailyEntry.created_at.desc()).limit(limit).all()
+    # dia mais recente primeiro; dentro do dia, a ordem do documento
+    entries = query.order_by(
+        ProjectDailyEntry.date.desc(),
+        ProjectDailyEntry.sort_order.asc(),
+        ProjectDailyEntry.id.asc(),
+    ).limit(limit).all()
     return [_daily_dict(e) for e in entries]
 
 
@@ -2592,10 +2619,18 @@ def create_project_daily(project_id: int, body: ProjectDailyCreate, s: Session =
     if not text:
         raise HTTPException(400, "body is required")
 
+    prox = (
+        s.query(ProjectDailyEntry)
+        .filter(ProjectDailyEntry.project_id == project_id, ProjectDailyEntry.date == _daily_validate_date(body.date))
+        .count()
+    )
     entry = ProjectDailyEntry(
         project_id=project_id,
         date=_daily_validate_date(body.date),
         kind=_daily_validate_kind(body.kind),
+        section=_daily_validate_section(body.section),
+        title=(body.title or "").strip()[:200],
+        sort_order=prox,
         body=text,
         author=(body.author or "").strip()[:100] or None,
         minutes=body.minutes,
@@ -2639,6 +2674,12 @@ def update_project_daily(entry_id: int, body: ProjectDailyUpdate, s: Session = D
         entry.minutes = data["minutes"]
     if "taskCode" in data:
         entry.task_code = (data["taskCode"] or "").strip()[:40]
+    if "title" in data:
+        entry.title = (data["title"] or "").strip()[:200]
+    if "section" in data and data["section"] is not None:
+        entry.section = _daily_validate_section(data["section"])
+    if "sortOrder" in data and data["sortOrder"] is not None:
+        entry.sort_order = int(data["sortOrder"])
     entry.updated_at = datetime.utcnow()
     s.commit()
     s.refresh(entry)
@@ -2695,6 +2736,133 @@ def project_daily_summary(
         "byKind": by_kind,
         "byAuthor": authors,
         "days": sorted(by_day.values(), key=lambda d: d["date"], reverse=True),
+    }
+
+
+@app.get("/api/projects/{project_id}/daily/export")
+def export_project_daily(project_id: int, date: Optional[str] = None, s: Session = Depends(db)):
+    """Monta o markdown do dia no formato do vault (`DD-MM-YYYY - Daily - tema.md`)."""
+    from maestro_local.daily_doc import DailyBlock, render_daily_markdown, suggested_filename
+
+    if not s.query(Project).filter(Project.id == project_id).first():
+        raise HTTPException(404, "Project not found")
+    day = _daily_validate_date(date)
+
+    entries = (
+        s.query(ProjectDailyEntry)
+        .filter(ProjectDailyEntry.project_id == project_id, ProjectDailyEntry.date == day)
+        .order_by(ProjectDailyEntry.sort_order, ProjectDailyEntry.id)
+        .all()
+    )
+    if not entries:
+        raise HTTPException(404, f"No daily entries for {day}")
+
+    blocks = [
+        DailyBlock(
+            section=e.section or "ITEMS",
+            title=e.title or "",
+            body=e.body or "",
+            kind=e.kind or "WORK",
+            author=e.author,
+            minutes=e.minutes,
+            task_code=e.task_code or "",
+            sort_order=e.sort_order or 0,
+        )
+        for e in entries
+    ]
+
+    # o tema do dia vem do registro INTRO (título) ou do primeiro ITEMS
+    titulo = ""
+    for e in entries:
+        if e.section == "INTRO" and e.title:
+            titulo = e.title
+            break
+    if not titulo:
+        for e in entries:
+            if e.section == "ITEMS" and e.title:
+                titulo = e.title[:80]
+                break
+
+    markdown = render_daily_markdown(day, titulo, blocks)
+    filename, month_dir = suggested_filename(day, titulo)
+    return {
+        "projectId": project_id,
+        "date": day,
+        "title": titulo,
+        "markdown": markdown,
+        "filename": filename,
+        "monthDir": month_dir,
+        "entries": len(entries),
+    }
+
+
+@app.post("/api/projects/{project_id}/daily/import")
+def import_project_daily(project_id: int, body: ProjectDailyImport, s: Session = Depends(db)):
+    """Importa um doc de daily (markdown) e cria os registros do dia.
+
+    Aceita `content` (markdown cru) ou `path` (arquivo .md). Com
+    `replace=true` (padrão) os registros daquele dia são substituídos.
+    """
+    from pathlib import Path as _Path
+
+    from maestro_local.daily_doc import parse_daily_markdown
+
+    if not s.query(Project).filter(Project.id == project_id).first():
+        raise HTTPException(404, "Project not found")
+
+    content = body.content
+    if not content:
+        if not body.path:
+            raise HTTPException(400, "content or path is required")
+        p = _Path(body.path).expanduser()
+        if not p.is_absolute():
+            raise HTTPException(400, "path must be absolute")
+        if not p.exists() or not p.is_file():
+            raise HTTPException(404, f"file not found: {p}")
+        content = p.read_text(encoding="utf-8", errors="replace")
+
+    day, titulo, blocks = parse_daily_markdown(content)
+    if not day:
+        raise HTTPException(400, "could not find the '# Daily - DD/MM/YYYY' header")
+    if not blocks:
+        raise HTTPException(400, "no content found in the daily document")
+
+    if body.replace:
+        for old in (
+            s.query(ProjectDailyEntry)
+            .filter(ProjectDailyEntry.project_id == project_id, ProjectDailyEntry.date == day)
+            .all()
+        ):
+            s.delete(old)
+        s.flush()
+
+    base = (
+        s.query(ProjectDailyEntry)
+        .filter(ProjectDailyEntry.project_id == project_id, ProjectDailyEntry.date == day)
+        .count()
+    )
+    for i, b in enumerate(blocks):
+        s.add(ProjectDailyEntry(
+            project_id=project_id,
+            date=day,
+            kind=(b.kind or "WORK")[:20],
+            section=(b.section or "ITEMS")[:20],
+            title=(b.title or "")[:200],
+            sort_order=base + i,
+            body=b.body or "",
+            author=(b.author or None),
+            minutes=b.minutes,
+            task_code=(b.task_code or "")[:40],
+        ))
+    _log(s, "project", project_id, "daily_imported", f"{day} ({len(blocks)} blocos)")
+    s.commit()
+    return {
+        "ok": True,
+        "projectId": project_id,
+        "date": day,
+        "title": titulo,
+        "created": len(blocks),
+        "replaced": bool(body.replace),
     }
 
 
