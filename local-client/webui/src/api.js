@@ -6,6 +6,7 @@ export const api = axios.create({ baseURL: '/api' })
 // Workspaces
 export const getWorkspaces = () => api.get('/workspaces').then((r) => r.data)
 export const setActiveWorkspace = (id) => api.post('/workspaces/active', { id }).then((r) => r.data)
+export const createWorkspace = (body) => api.post('/workspaces', body).then((r) => r.data)
 
 // Projetos / board
 export const getProjects = () => api.get('/projects').then((r) => r.data)

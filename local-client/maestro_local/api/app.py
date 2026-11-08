@@ -3586,6 +3586,17 @@ def set_active_workspace_ep(body: dict):
     return {"ok": True, "active": ws_id}
 
 
+@app.post("/api/workspaces")
+def create_workspace_ep(body: dict):
+    from maestro_local.config import create_workspace as cfg_create
+    name = (body.get("name") or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="name é obrigatório")
+    icon = (body.get("icon") or "W").strip()[:4] or "W"
+    ws = cfg_create(name, icon=icon)
+    return ws
+
+
 # ---------------------------------------------------------------------------
 # Assistente (agente interno)
 # ---------------------------------------------------------------------------

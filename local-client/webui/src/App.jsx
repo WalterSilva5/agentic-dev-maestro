@@ -17,6 +17,7 @@ import Ferramentas from './pages/Ferramentas.jsx'
 import Traducao from './pages/Traducao.jsx'
 import Configuracoes from './pages/Configuracoes.jsx'
 import WorkspaceSelector from './components/WorkspaceSelector.jsx'
+import ProjectSelector from './components/ProjectSelector.jsx'
 import PendingTodosReminder from './components/PendingTodosReminder.jsx'
 import CoachTip from './components/CoachTip.jsx'
 import { getPendingTodos } from './api'
@@ -73,6 +74,7 @@ function Sidebar({ onNavigate, onCollapse }) {
         </button>
       </div>
       <WorkspaceSelector />
+      <ProjectSelector />
       <div className="nav-label">{t('Workspace')}</div>
       <nav className="nav">
         {nav.map(([to, label, ico]) => (
