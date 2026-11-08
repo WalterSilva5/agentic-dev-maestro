@@ -2334,7 +2334,13 @@ class ProjectDailyTab(QWidget):
                 query = query.filter(ProjectDailyEntry.author.ilike(f"%{f['author']}%"))
             if f["q"]:
                 query = query.filter(ProjectDailyEntry.body.ilike(f"%{f['q']}%"))
-            entries = query.order_by(ProjectDailyEntry.date.desc(), ProjectDailyEntry.created_at.desc()).limit(500).all()
+            entries = (
+                query.order_by(
+                    ProjectDailyEntry.date.desc(),
+                    ProjectDailyEntry.sort_order.asc(),
+                    ProjectDailyEntry.id.asc(),
+                ).limit(2000).all()
+            )
 
             total_min = sum(e.minutes or 0 for e in entries)
             dias = len({e.date for e in entries})
