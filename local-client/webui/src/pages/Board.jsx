@@ -29,6 +29,32 @@ const SPRINT_STATUS_LABELS = {
   CONCLUIDA: 'Concluída',
 }
 
+function PieChart({ data, size = 110 }) {
+  const total = data.reduce((a, b) => a + (b.value || 0), 0)
+  if (!total) return <div className="muted" style={{ fontSize: 11 }}>{'Sem dados'}</div>
+  let acc = 0
+  const r = size / 2
+  const cx = r, cy = r
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ flexShrink: 0 }}>
+      {data.map((d, i) => {
+        const angle = (d.value / total) * 360
+        const start = acc
+        acc += angle
+        const sr = (start - 90) * Math.PI / 180
+        const er = (start + angle - 90) * Math.PI / 180
+        const x1 = cx + r * Math.cos(sr), y1 = cy + r * Math.sin(sr)
+        const x2 = cx + r * Math.cos(er), y2 = cy + r * Math.sin(er)
+        const large = angle > 180 ? 1 : 0
+        return <path key={i} d={`M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} Z`} fill={d.color} stroke="var(--card)" strokeWidth="1.5" />
+      })}
+      <circle cx={cx} cy={cy} r={r * 0.52} fill="var(--card)" />
+      <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle" fontSize="11" fontWeight="700" fill="var(--text)">{total}</text>
+    </svg>
+  )
+}
+const PIE_COLORS = ['#4f46e5','#06b6d4','#f59e0b','#ef4444','#10b981','#8b5cf6','#ec4899','#6366f1','#14b8a6','#f97316']
+
 export default function Board() {
   const { projectId } = useParams()
   const [board, setBoard] = useState(null)
@@ -292,12 +318,23 @@ export default function Board() {
     const tot = q.length; const done = q.filter((tk) => doneColIds.has(tk.columnId)).length
     return { ep, done, tot, pct: tot ? Math.round((done / tot) * 100) : 0 }
   }).sort((a, b) => b.tot - a.tot).slice(0, 8)
-  const assigneeProgressList = assigneeOptions.map((name) => {
+  const unassignedTasks = tasksAll.filter((tk) => !tk.assignee)
+  const unassignedTot = unassignedTasks.length
+  const unassignedDone = unassignedTasks.filter((tk) => doneColIds.has(tk.columnId)).length
+  const unassignedPct = unassignedTot ? Math.round((unassignedDone / unassignedTot) * 100) : 0
+  const assigneeProgressListBase = assigneeOptions.map((name) => {
     const q = tasksAll.filter((tk) => tk.assignee === name)
     const tot = q.length; const done = q.filter((tk) => doneColIds.has(tk.columnId)).length
     return { name, done, tot, pct: tot ? Math.round((done / tot) * 100) : 0 }
-  }).sort((a, b) => b.tot - a.tot).slice(0, 6)
+  })
+  if (unassignedTot > 0) assigneeProgressListBase.push({ name: 'Sem responsável', done: unassignedDone, tot: unassignedTot, pct: unassignedPct, isUnassigned: true })
+  const assigneeProgressList = assigneeProgressListBase.sort((a, b) => b.tot - a.tot).slice(0, 8)
   const activeFilterCount = (searchText.trim() ? 1 : 0) + (priorityFilter !== 'all' ? 1 : 0) + (epicFilter !== 'all' ? 1 : 0) + (tagFilter !== 'all' ? 1 : 0) + (assigneeFilter !== 'all' ? 1 : 0)
+  // Pie data
+  const columnPieData = cols.map((c, i) => ({ label: c.name, value: c.tasks.length, color: PIE_COLORS[i % PIE_COLORS.length] })).filter((d) => d.value > 0)
+  const assigneePieData = assigneeProgressList.map((a, i) => ({ label: a.name, value: a.tot, color: a.isUnassigned ? '#9ca3af' : PIE_COLORS[i % PIE_COLORS.length] }))
+  const priorityPieData = ['URGENT','HIGH','MEDIUM','LOW'].map((p) => ({ label: p, value: tasksAll.filter((t) => t.priority === p).length, color: PRIORITY_COLORS[p] })).filter((d) => d.value > 0)
+  const epicPieData = epicProgressList.map((e, i) => ({ label: e.ep.name, value: e.tot, color: e.ep.color || PIE_COLORS[i % PIE_COLORS.length] }))
 
   return (
     <div>
@@ -434,10 +471,19 @@ export default function Board() {
                   )})}
               </div>
             </div>
-            {/* Progresso por módulo / responsável / distribuição */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
+            {/* Progresso por módulo / responsável / distribuição — com pizza */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 10 }}>
               <div style={{ background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '8px 10px' }}>
                 <div className="muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, textTransform: 'uppercase', marginBottom: 6 }}>{t('Por módulo (épico)')}</div>
+                {epicPieData.length > 0 && (
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 8 }}>
+                    <PieChart data={epicPieData} size={90} />
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      {epicPieData.slice(0,4).map((d,i)=>(<div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: d.color }} />{d.label} <span className="muted">({d.value})</span></div>))}
+                      {epicPieData.length>4 && <div className="muted" style={{ fontSize: 10 }}>+{epicPieData.length-4} {t('outros')}</div>}
+                    </div>
+                  </div>
+                )}
                 {epicProgressList.length === 0
                   ? <div className="muted" style={{ fontSize: 12 }}>{t('Nenhum épico vinculado.')}</div>
                   : epicProgressList.map(({ ep, done, tot, pct: p }) => (
@@ -452,20 +498,37 @@ export default function Board() {
               </div>
               <div style={{ background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '8px 10px' }}>
                 <div className="muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, textTransform: 'uppercase', marginBottom: 6 }}>{t('Por responsável')}</div>
+                {assigneePieData.length > 0 && (
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 8 }}>
+                    <PieChart data={assigneePieData} size={90} />
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      {assigneePieData.slice(0,4).map((d,i)=>(<div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: d.color }} />{d.label} <span className="muted">({d.value})</span></div>))}
+                      {assigneePieData.length>4 && <div className="muted" style={{ fontSize: 10 }}>+{assigneePieData.length-4} {t('outros')}</div>}
+                    </div>
+                  </div>
+                )}
                 {assigneeProgressList.length === 0
                   ? <div className="muted" style={{ fontSize: 12 }}>{t('Nenhum responsável atribuído.')}</div>
-                  : assigneeProgressList.map(({ name, done, tot, pct: p }) => (
+                  : assigneeProgressList.map(({ name, done, tot, pct: p, isUnassigned }) => (
                     <div key={name} style={{ marginBottom: 6 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6, fontSize: 12, fontWeight: 600 }}>
-                        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
+                        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: isUnassigned ? '#9ca3af' : 'var(--text)' }}>{name} {isUnassigned && `(${unassignedTot})`}</span>
                         <span className="muted" style={{ fontSize: 11 }}>{p}% ({done}/{tot})</span>
                       </div>
-                      <div style={{ height: 6, background: 'var(--border-light)', borderRadius: 4, overflow: 'hidden', marginTop: 2 }}><div style={{ width: `${p}%`, height: '100%', background: 'var(--accent)' }} /></div>
+                      <div style={{ height: 6, background: 'var(--border-light)', borderRadius: 4, overflow: 'hidden', marginTop: 2 }}><div style={{ width: `${p}%`, height: '100%', background: isUnassigned ? '#9ca3af' : 'var(--accent)' }} /></div>
                     </div>
                   ))}
               </div>
               <div style={{ background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '8px 10px' }}>
                 <div className="muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, textTransform: 'uppercase', marginBottom: 6 }}>{t('Distribuição por coluna')}</div>
+                {columnPieData.length > 0 && (
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 8 }}>
+                    <PieChart data={columnPieData} size={90} />
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      {columnPieData.slice(0,4).map((d,i)=>(<div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: d.color }} />{d.label} <span className="muted">({d.value})</span></div>))}
+                    </div>
+                  </div>
+                )}
                 {cols.map((c) => {
                   const pctCol = c.tasks.length ? Math.round((c.tasks.filter((tk) => doneColIds.has(tk.columnId)).length / c.tasks.length) * 100) : 0
                   const over = c.wipLimit && c.tasks.length > c.wipLimit
@@ -477,6 +540,36 @@ export default function Board() {
                     </div>
                   )
                 })}
+              </div>
+            </div>
+            {/* Por prioridade e métricas extras — pizza */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
+              <div style={{ background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '8px 10px' }}>
+                <div className="muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, textTransform: 'uppercase', marginBottom: 6 }}>{t('Por prioridade')}</div>
+                {priorityPieData.length > 0 ? (
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                    <PieChart data={priorityPieData} size={90} />
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      {priorityPieData.map((d,i)=>(<div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: d.color }} />{d.label} <span className="muted">({d.value})</span></div>))}
+                    </div>
+                  </div>
+                ) : <div className="muted" style={{ fontSize: 12 }}>{t('Sem dados')}</div>}
+              </div>
+              <div style={{ background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '8px 10px' }}>
+                <div className="muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, textTransform: 'uppercase', marginBottom: 6 }}>{t('Métricas de fluxo')}</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="muted">{t('WIP total')}</span><span style={{ fontWeight: 700 }}>{tasksAll.filter((tk)=>!doneColIds.has(tk.columnId)).length} {t('em aberto')}</span></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="muted">{t('Vencidas')}</span><span style={{ fontWeight: 700, color: vencidos.length?'var(--danger)':'var(--text)' }}>{vencidos.length}</span></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="muted">{t('Paradas 14d+')}</span><span style={{ fontWeight: 700, color: parados.length?'#d97706':'var(--text)' }}>{parados.length}</span></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="muted">{t('Sem responsável')}</span><span style={{ fontWeight: 700 }}>{unassignedTot} ({unassignedPct}%)</span></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="muted">{t('Concluídas')}</span><span style={{ fontWeight: 700, color: 'var(--accent)' }}>{doneTasks}/{totalTasks} ({pct}%)</span></div>
+                </div>
+              </div>
+              <div style={{ background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '8px 10px' }}>
+                <div className="muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, textTransform: 'uppercase', marginBottom: 6 }}>{t('Filtros')}</div>
+                <div className="muted" style={{ fontSize: 11 }}>{activeFilterCount === 0 ? t('Nenhum filtro ativo — mostrando tudo') : tf('{visible}/{total} visíveis com filtros', { visible: visibleCount, total: totalTasks })}</div>
+                <div style={{ marginTop: 6, height: 6, background: 'var(--border-light)', borderRadius: 4, overflow: 'hidden' }}><div style={{ width: `${totalTasks?Math.round(visibleCount/totalTasks*100):0}%`, height: '100%', background: 'var(--accent)' }} /></div>
+                <div className="muted" style={{ fontSize: 10, marginTop: 4 }}>{t('Use Buscar, Prioridade, Épico, Tag, Responsável acima')}</div>
               </div>
             </div>
             {activeFilterCount > 0 && (

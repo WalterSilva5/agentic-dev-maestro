@@ -1510,6 +1510,47 @@ def _goal_progress(goal, s) -> tuple[int, int]:
     return done, total
 
 
+class PieChartWidget(QFrame):
+    """Pizza simples em QPainter — sem dependência externa."""
+
+    def __init__(self, data: list[tuple[str, int, str]], size=90, parent=None):
+        super().__init__(parent)
+        self._data = [(label, value, color) for label, value, color in data if value > 0]
+        self._size = size
+        self.setFixedSize(size, size)
+        self.setStyleSheet("background: transparent; border: none;")
+
+    def paintEvent(self, event):
+        if not self._data:
+            return
+        total = sum(v for _, v, _ in self._data)
+        if total == 0:
+            return
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        rect = self.rect().adjusted(2, 2, -2, -2)
+        start = -90 * 16
+        for _, value, color in self._data:
+            span = int(360 * 16 * value / total)
+            painter.setBrush(QColor(color))
+            painter.setPen(QColor(current_theme().bg_card))
+            painter.drawPie(rect, start, span)
+            start += span
+        # furo central para virar donut
+        painter.setBrush(QColor(current_theme().bg_card))
+        painter.setPen(QColor(current_theme().bg_card))
+        r = rect.width() * 0.28
+        cx, cy = rect.center().x(), rect.center().y()
+        painter.drawEllipse(int(cx - r), int(cy - r), int(r * 2), int(r * 2))
+        # total no centro
+        painter.setPen(QColor(current_theme().text_primary))
+        f = painter.font()
+        f.setPointSize(8)
+        f.setBold(True)
+        painter.setFont(f)
+        painter.drawText(rect, Qt.AlignCenter, str(total))
+
+
 class BoardMetricsAccordion(QFrame):
     """Acordeão no topo do kanban: alertas, prazos e objetivos do projeto."""
 
@@ -1782,6 +1823,25 @@ class BoardMetricsAccordion(QFrame):
                 pct_e = int(done_e / tot * 100) if tot else 0
                 epic_data.append((ep, done_e, tot, pct_e))
             epic_data.sort(key=lambda x: x[3])
+            # Pizza por módulo
+            if epic_data:
+                pie_epic = [(ep.name, tot, ep.color or ["#4f46e5","#06b6d4","#f59e0b","#ef4444","#10b981","#8b5cf6"][i % 6]) for i, (ep, _, tot, _) in enumerate(epic_data[:6])]
+                pie_row = QHBoxLayout(); pie_row.setSpacing(8)
+                pie = PieChartWidget(pie_epic, size=72)
+                pie_row.addWidget(pie)
+                leg = QVBoxLayout(); leg.setSpacing(2)
+                for label, value, color in pie_epic[:4]:
+                    leg_row = QHBoxLayout(); leg_row.setSpacing(4)
+                    dot = QLabel(); dot.setFixedSize(10, 10); dot.setStyleSheet(f"background: {color}; border-radius: 2px;")
+                    leg_row.addWidget(dot)
+                    leg_lbl = QLabel(f"{label} ({value})"); leg_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 10px; border: none;")
+                    leg_row.addWidget(leg_lbl); leg_row.addStretch()
+                    w = QWidget(); w.setLayout(leg_row); leg.addWidget(w)
+                if len(pie_epic) > 4:
+                    leg.addWidget(self._hint(f"+{len(pie_epic)-4} { _t('outros')}", t))
+                w_leg = QWidget(); w_leg.setLayout(leg)
+                pie_row.addWidget(w_leg, 1)
+                mod_box["layout"].addLayout(pie_row)
             if not epic_data:
                 mod_box["layout"].addWidget(self._hint(_t("Nenhum épico vinculado."), t))
             else:
@@ -1803,7 +1863,7 @@ class BoardMetricsAccordion(QFrame):
                     mod_box["layout"].addWidget(self._hint(_t("+ {n} épico(s)").format(n=len(epic_data)-6), t))
             mod_row.addWidget(mod_box["box"], 1)
 
-            # Por responsável
+            # Por responsável (inclui Sem responsável para métricas corretas)
             resp_box = self._section_box(_t("Por responsável"), t)
             from collections import Counter
             assignees = [tk.assignee for tk in tasks_all if tk.assignee]
@@ -1813,14 +1873,41 @@ class BoardMetricsAccordion(QFrame):
                 q = [tk for tk in tasks_all if tk.assignee == name]
                 done_r = sum(1 for tk in q if tk.column_id in done_col_ids)
                 pct_r = int(done_r / tot * 100) if tot else 0
-                resp_data.append((name, done_r, tot, pct_r))
+                resp_data.append((name, done_r, tot, pct_r, False))
+            # Sem responsável
+            unassigned = [tk for tk in tasks_all if not tk.assignee]
+            if unassigned:
+                tot_u = len(unassigned)
+                done_u = sum(1 for tk in unassigned if tk.column_id in done_col_ids)
+                pct_u = int(done_u / tot_u * 100) if tot_u else 0
+                resp_data.append((_t("Sem responsável"), done_u, tot_u, pct_u, True))
+                resp_data.sort(key=lambda x: x[2], reverse=True)
+            # Pizza por responsável
+            if resp_data:
+                pie_data = [(n, tot, "#9ca3af" if is_u else ["#4f46e5","#06b6d4","#f59e0b","#ef4444","#10b981","#8b5cf6","#ec4899"][i % 7]) for i, (n, _, tot, _, is_u) in enumerate(resp_data[:6])]
+                pie_row = QHBoxLayout(); pie_row.setSpacing(8)
+                pie = PieChartWidget(pie_data, size=72)
+                pie_row.addWidget(pie)
+                leg = QVBoxLayout(); leg.setSpacing(2)
+                for label, value, color in pie_data[:4]:
+                    leg_row = QHBoxLayout(); leg_row.setSpacing(4)
+                    dot = QLabel(); dot.setFixedSize(10, 10); dot.setStyleSheet(f"background: {color}; border-radius: 2px;")
+                    leg_row.addWidget(dot)
+                    leg_lbl = QLabel(f"{label} ({value})"); leg_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 10px; border: none;")
+                    leg_row.addWidget(leg_lbl); leg_row.addStretch()
+                    w = QWidget(); w.setLayout(leg_row); leg.addWidget(w)
+                if len(pie_data) > 4:
+                    leg.addWidget(self._hint(f"+{len(pie_data)-4} { _t('outros')}", t))
+                w_leg = QWidget(); w_leg.setLayout(leg)
+                pie_row.addWidget(w_leg, 1)
+                resp_box["layout"].addLayout(pie_row)
             if not resp_data:
                 resp_box["layout"].addWidget(self._hint(_t("Nenhum responsável atribuído."), t))
             else:
-                for name, done_r, tot, pct_r in resp_data:
+                for name, done_r, tot, pct_r, is_u in resp_data[:6]:
                     row = QHBoxLayout(); row.setSpacing(6)
                     nome = QLabel(name)
-                    nome.setStyleSheet(f"color: {t.text_primary}; font-size: 12px; font-weight: 600; border: none;")
+                    nome.setStyleSheet(f"color: {'#9ca3af' if is_u else t.text_primary}; font-size: 12px; font-weight: 600; border: none;")
                     nome.setWordWrap(True)
                     row.addWidget(nome, 1)
                     pct_lbl = QLabel(f"{pct_r}% ({done_r}/{tot})")
@@ -1829,11 +1916,29 @@ class BoardMetricsAccordion(QFrame):
                     w = QWidget(); w.setLayout(row)
                     resp_box["layout"].addWidget(w)
                     barra = QProgressBar(); barra.setValue(pct_r); barra.setFixedHeight(8)
+                    if is_u:
+                        barra.setStyleSheet(f"QProgressBar {{ background: {t.bg_badge}; }} QProgressBar::chunk {{ background: #9ca3af; }}")
                     resp_box["layout"].addWidget(barra)
             mod_row.addWidget(resp_box["box"], 1)
 
-            # Distribuição por coluna
+            # Distribuição por coluna (com pizza)
             dist_box = self._section_box(_t("Distribuição por coluna"), t)
+            pie_col_data = [(col.name, sum(1 for tk in tasks_all if tk.column_id == col.id), ["#4f46e5","#06b6d4","#f59e0b","#ef4444","#10b981","#8b5cf6"][i % 6]) for i, col in enumerate(cols) if sum(1 for tk in tasks_all if tk.column_id == col.id) > 0]
+            if pie_col_data:
+                pie_row = QHBoxLayout(); pie_row.setSpacing(8)
+                pie = PieChartWidget(pie_col_data, size=72)
+                pie_row.addWidget(pie)
+                leg = QVBoxLayout(); leg.setSpacing(2)
+                for label, value, color in pie_col_data[:4]:
+                    leg_row = QHBoxLayout(); leg_row.setSpacing(4)
+                    dot = QLabel(); dot.setFixedSize(10, 10); dot.setStyleSheet(f"background: {color}; border-radius: 2px;")
+                    leg_row.addWidget(dot)
+                    leg_lbl = QLabel(f"{label} ({value})"); leg_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 10px; border: none;")
+                    leg_row.addWidget(leg_lbl); leg_row.addStretch()
+                    w = QWidget(); w.setLayout(leg_row); leg.addWidget(w)
+                w_leg = QWidget(); w_leg.setLayout(leg)
+                pie_row.addWidget(w_leg, 1)
+                dist_box["layout"].addLayout(pie_row)
             for col in cols:
                 cnt_col = sum(1 for tk in tasks_all if tk.column_id == col.id)
                 over = col.wip_limit and cnt_col > col.wip_limit
@@ -1846,6 +1951,55 @@ class BoardMetricsAccordion(QFrame):
             w_mod = QWidget()
             w_mod.setLayout(mod_row)
             self.content_layout.addWidget(w_mod)
+
+            # Linha extra: Por prioridade (pizza) + Métricas de fluxo
+            extra_row = QHBoxLayout(); extra_row.setSpacing(12)
+            # Por prioridade
+            pri_box = self._section_box(_t("Por prioridade"), t)
+            from collections import Counter as _Counter2
+            pri_counts = _Counter2(tk.priority for tk in tasks_all)
+            pri_order = ["URGENT","HIGH","MEDIUM","LOW"]
+            pri_colors = {"URGENT":"#ef4444","HIGH":"#f59e0b","MEDIUM":"#4f46e5","LOW":"#9ca3af"}
+            pri_data = [(p, pri_counts[p], pri_colors[p]) for p in pri_order if pri_counts[p] > 0]
+            if pri_data:
+                pie_row = QHBoxLayout(); pie_row.setSpacing(8)
+                pie = PieChartWidget(pri_data, size=72)
+                pie_row.addWidget(pie)
+                leg = QVBoxLayout(); leg.setSpacing(2)
+                for label, value, color in pri_data:
+                    leg_row = QHBoxLayout(); leg_row.setSpacing(4)
+                    dot = QLabel(); dot.setFixedSize(10, 10); dot.setStyleSheet(f"background: {color}; border-radius: 2px;")
+                    leg_row.addWidget(dot)
+                    leg_lbl = QLabel(f"{label} ({value})"); leg_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 10px; border: none;")
+                    leg_row.addWidget(leg_lbl); leg_row.addStretch()
+                    w = QWidget(); w.setLayout(leg_row); leg.addWidget(w)
+                w_leg = QWidget(); w_leg.setLayout(leg)
+                pie_row.addWidget(w_leg, 1)
+                pri_box["layout"].addLayout(pie_row)
+            else:
+                pri_box["layout"].addWidget(self._hint(_t("Sem dados"), t))
+            extra_row.addWidget(pri_box["box"], 1)
+            # Métricas de fluxo
+            flow_box = self._section_box(_t("Métricas de fluxo"), t)
+            wip_total = sum(1 for tk in tasks_all if tk.column_id not in done_col_ids)
+            flow_items = [
+                (_t("WIP total"), f"{wip_total} { _t('em aberto')}", t.text_primary),
+                (_t("Vencidas"), str(len(vencidos)), t.danger if vencidos else t.text_primary),
+                (_t("Paradas 14d+"), str(len(parados)), t.warning if parados else t.text_primary),
+                (_t("Sem responsável"), f"{len(unassigned)} ({int(len(unassigned)/len(tasks_all)*100) if tasks_all else 0}%)", "#9ca3af" if unassigned else t.text_primary),
+                (_t("Concluídas"), f"{done}/{total} ({pct}%)", t.accent),
+            ]
+            for label, value, col in flow_items:
+                row = QHBoxLayout(); row.setSpacing(6)
+                lbl = QLabel(label); lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 11px; border: none;")
+                row.addWidget(lbl, 1)
+                val = QLabel(value); val.setStyleSheet(f"color: {col}; font-size: 11px; font-weight: 700; border: none;")
+                row.addWidget(val)
+                w = QWidget(); w.setLayout(row)
+                flow_box["layout"].addWidget(w)
+            extra_row.addWidget(flow_box["box"], 1)
+            w_extra = QWidget(); w_extra.setLayout(extra_row)
+            self.content_layout.addWidget(w_extra)
 
         finally:
             s.close()
