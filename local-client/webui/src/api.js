@@ -208,3 +208,12 @@ export const importProjectDaily = (projectId, body) =>
   api.post(`/projects/${projectId}/daily/import`, body).then((r) => r.data)
 
 export const getHealth = () => api.get('/health').then((r) => r.data)
+
+// Reuniões (gravações do app desktop)
+export const listRecordings = (params) => api.get('/recordings', { params }).then((r) => r.data)
+export const getRecording = (id) => api.get(`/recordings/${id}`).then((r) => r.data)
+export const updateRecording = (id, body) => api.patch(`/recordings/${id}`, body).then((r) => r.data)
+export const deleteRecording = (id) => api.delete(`/recordings/${id}`).then((r) => r.data)
+export const archiveRecording = (id, archived) => api.post(`/recordings/${id}/archive`, { archived }).then((r) => r.data)
+export const recordingExportUrl = (id, format = 'md') => `/api/recordings/${id}/export?format=${format}`
+export const recordingAudioUrl = (id) => `/api/recordings/${id}/audio`

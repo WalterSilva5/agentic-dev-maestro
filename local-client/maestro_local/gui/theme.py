@@ -811,6 +811,20 @@ QToolButton[class="topIcon"]:hover {{
     background: {t.bg_hover}; border-color: {t.border_light};
     color: {t.text_primary};
 }}
+/* Atalho para a versão web: é a porta de entrada do resto da app, então
+   ganha destaque de botão primário (não é mais um ícone discreto). */
+QToolButton#webShortcut {{
+    background: {t.accent}; border: 1px solid {t.accent};
+    border-radius: 9px; padding: 6px 14px; color: {t.text_on_accent};
+    font-weight: 700; font-size: 12px;
+}}
+QToolButton#webShortcut:hover {{
+    background: {t.accent_hover}; border-color: {t.accent_hover};
+    color: {t.text_on_accent};
+}}
+QToolButton#webShortcut:pressed {{
+    background: {t.accent_pressed}; border-color: {t.accent_pressed};
+}}
 QToolButton#newProjectBtn {{
     background: transparent; border: 1px solid {t.border};
     border-radius: 8px; color: {t.text_secondary};

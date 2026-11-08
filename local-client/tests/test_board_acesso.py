@@ -94,7 +94,10 @@ def test_botao_web_existe_e_abre_navegador(qapp, temp_db, monkeypatch):
         lambda url: abertos.append(url.toString()),
     )
     w = MainWindow()
-    assert w.web_btn.toolTip() == "Abrir versão web"
+    assert "versão web" in w.web_btn.toolTip()
+    # atalho com destaque: deixou de ser ícone discreto e virou botão primário
+    assert w.web_btn.objectName() == "webShortcut"
+    assert w.web_btn.text() == "Abrir web"
     w.web_btn.click()
     assert abertos == [f"http://127.0.0.1:{w.api_port}/"]
 

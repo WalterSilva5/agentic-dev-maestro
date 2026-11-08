@@ -1754,6 +1754,24 @@ curl -s -X POST http://127.0.0.1:9777/api/tasks -H 'Content-Type: application/js
   tarefa local (lembrete de prazo). No PDF/UI o alerta vem marcado como local
   (no PDF: `alertasLocal`)
 
+## 4c. Reunioes (gravacoes do desktop)
+
+Mesmas gravacoes do app desktop, disponiveis tambem na web (`/reunioes`).
+
+```bash
+curl -s "http://127.0.0.1:9777/api/recordings?archived=all&q=migracao" | jq '.[] | {id,title,createdAt,hasSummary}'
+curl -s "http://127.0.0.1:9777/api/recordings/1" | jq '{title, sections, transcript}'
+curl -s -X PATCH "http://127.0.0.1:9777/api/recordings/1" -H 'Content-Type: application/json' \
+  -d '{"title":"Daily 08/11","tags":["daily"]}'
+curl -s -X POST "http://127.0.0.1:9777/api/recordings/1/archive" -H 'Content-Type: application/json' -d '{"archived":true}'
+curl -s -o reuniao.md "http://127.0.0.1:9777/api/recordings/1/export?format=md"   # md | txt | json
+```
+
+- `sections` = plano, dicas, acoes, decisoes e perguntas do assistente ao vivo
+- export `md` usa o resumo salvo e, se nao houver, monta a partir das secoes +
+  transcricao (mesmo formato do vault)
+- `GET /api/recordings/{id}/audio` serve o audio original quando existe
+
 ## 5. Quem chegou em cada estagio (cumulativo)
 
 "Esta em" != "chegou em". Um card em Dev Review ja passou por Dev Box. Para

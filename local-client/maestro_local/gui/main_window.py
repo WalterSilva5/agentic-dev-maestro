@@ -348,6 +348,12 @@ class MainWindow(QMainWindow):
         self.page_title.setObjectName("pageTitle")
         self.page_subtitle = QLabel(t("Visão geral do seu trabalho"))
         self.page_subtitle.setObjectName("pageSubtitle")
+        # Podem encolher: em janela estreita quem cede espaço é o texto do
+        # topo, não o menu lateral nem o atalho "Abrir web".
+        from PySide6.QtWidgets import QSizePolicy
+        for _lbl in (self.page_title, self.page_subtitle):
+            _lbl.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+            _lbl.setMinimumWidth(0)
         titulos.addWidget(self.page_title)
         titulos.addWidget(self.page_subtitle)
         top.addLayout(titulos)
@@ -355,11 +361,13 @@ class MainWindow(QMainWindow):
 
         # Versão web: o desktop fica com o mínimo (nativo); o resto vive na web.
         self.web_btn = QToolButton()
-        self.web_btn.setProperty("class", "topIcon")
+        self.web_btn.setObjectName("webShortcut")
+        self.web_btn.setProperty("class", "primary")
         self.web_btn.setCursor(Qt.PointingHandCursor)
-        self.web_btn.setToolTip(t("Abrir versão web"))
+        self.web_btn.setToolTip(t("Abrir a versão web (board, métricas, reuniões...)"))
         self.web_btn.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
         self.web_btn.clicked.connect(self._open_web_version)
+        self.web_btn.setMinimumHeight(34)
         top.addWidget(self.web_btn)
 
         # Gravação rápida (quando ligada em Funcionalidades).
@@ -834,8 +842,8 @@ class MainWindow(QMainWindow):
         self.setStyleSheet(build_stylesheet(theme))
 
         # Ícones da barra superior: são pixmaps, então o QSS não os recolore.
-        self.web_btn.setIcon(nav_icon("web", theme.text_secondary, size=18))
-        self.web_btn.setText(t("Web"))
+        self.web_btn.setIcon(nav_icon("web", theme.text_on_accent, size=18))
+        self.web_btn.setText(t("Abrir web"))
         self.search_btn.setIcon(nav_icon("search", theme.text_secondary, size=20))
         self.notif_btn.setIcon(nav_icon("bell", theme.text_secondary, size=20))
         self.quick_record_btn.setIcon(

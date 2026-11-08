@@ -12,6 +12,7 @@ from typing import Any, Optional
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from maestro_local.db.models import (
@@ -33,6 +34,7 @@ from maestro_local.db.models import (
     Project,
     ProjectDailyEntry,
     ProjectLink,
+    Recording,
     Runbook,
     Snippet,
     Sprint,
@@ -5054,6 +5056,212 @@ def import_todos(body: ImportTodosBody, s: Session = Depends(db)):
     s.commit()
     _log(s, "project", project.id, "import_todos", f"{created} tarefa(s) de TODO/FIXME")
     return {"ok": True, "created": created}
+
+
+# ---------------------------------------------------------------------------
+# Reuniões (recordings) — mesmas gravações do app desktop
+# ---------------------------------------------------------------------------
+
+
+class RecordingUpdate(BaseModel):
+    title: Optional[str] = None
+    topic: Optional[str] = None
+    transcript: Optional[str] = None
+    markdown: Optional[str] = None
+    tags: Optional[list[str]] = None
+    kind: Optional[str] = None
+    summaryJson: Optional[str] = None
+    liveState: Optional[dict] = None
+
+
+class ArchiveRecordingBody(BaseModel):
+    archived: bool = True
+
+
+def _recording_base(r: Recording) -> dict:
+    from pathlib import Path
+
+    audio = (r.audio_path or "").strip()
+    return {
+        "id": r.id,
+        "kind": r.kind or "meeting",
+        "title": r.title or "",
+        "topic": r.topic or "",
+        "duration": r.duration or 0.0,
+        "language": r.language or "",
+        "tags": _recording_tags(r.tags),
+        "hasAudio": bool(audio and Path(audio).exists()),
+        "hasSummary": bool((r.markdown or "").strip() or (r.summary_json or "").strip()),
+        "hasTranscript": bool((r.transcript or "").strip()),
+        "preview": (r.transcript or r.markdown or "").strip()[:240],
+        "createdAt": r.created_at.isoformat() if r.created_at else None,
+        "archivedAt": r.archived_at.isoformat() if r.archived_at else None,
+    }
+
+
+def _recording_full(r: Recording) -> dict:
+    from maestro_local.meetings_export import parse_json, sections
+
+    d = _recording_base(r)
+    d.update({
+        "transcript": r.transcript or "",
+        "markdown": r.markdown or "",
+        "summaryJson": r.summary_json or "",
+        "liveState": parse_json(r.live_state_json, {}),
+        "sections": sections({"live_state": r.live_state_json}),
+    })
+    return d
+
+
+def _recording_tags(raw: str | None) -> list[str]:
+    from maestro_local.meetings_export import parse_json
+
+    valor = parse_json(raw, [])
+    return [str(t) for t in valor] if isinstance(valor, list) else []
+
+
+@app.get("/api/recordings")
+def list_recordings(
+    kind: str | None = None,
+    archived: str = "hide",
+    q: str | None = None,
+    limit: int = 200,
+    s: Session = Depends(db),
+):
+    """Reuniões/estudos do workspace ativo.
+
+    `archived`: `hide` (padrão), `only` ou `all`.
+    `q`: busca no título, tópico e transcrição.
+    """
+    query = s.query(Recording)
+    if kind:
+        query = query.filter(Recording.kind == kind)
+    if archived == "hide":
+        query = query.filter(Recording.archived_at == None)  # noqa: E711
+    elif archived == "only":
+        query = query.filter(Recording.archived_at != None)  # noqa: E711
+    if q and q.strip():
+        alvo = f"%{q.strip().lower()}%"
+        query = query.filter(
+            func.lower(Recording.title).like(alvo)
+            | func.lower(Recording.topic).like(alvo)
+            | func.lower(Recording.transcript).like(alvo)
+        )
+    linhas = (
+        query.order_by(Recording.sort_order, Recording.created_at.desc())
+        .limit(max(1, min(limit, 1000)))
+        .all()
+    )
+    return [_recording_base(r) for r in linhas]
+
+
+@app.get("/api/recordings/{rec_id}")
+def get_recording(rec_id: int, s: Session = Depends(db)):
+    r = s.get(Recording, rec_id)
+    if not r:
+        raise HTTPException(404, "Recording not found")
+    return _recording_full(r)
+
+
+@app.patch("/api/recordings/{rec_id}")
+def update_recording(rec_id: int, body: RecordingUpdate, s: Session = Depends(db)):
+    import json as _json
+
+    r = s.get(Recording, rec_id)
+    if not r:
+        raise HTTPException(404, "Recording not found")
+    dados = body.model_dump(exclude_unset=True)
+    campo = {
+        "title": "title", "topic": "topic", "transcript": "transcript",
+        "markdown": "markdown", "kind": "kind", "summaryJson": "summary_json",
+    }
+    for api_field, model_field in campo.items():
+        if api_field in dados:
+            setattr(r, model_field, dados[api_field])
+    if "tags" in dados:
+        r.tags = _json.dumps(dados["tags"] or [], ensure_ascii=False)
+    if "liveState" in dados:
+        r.live_state_json = _json.dumps(dados["liveState"] or {}, ensure_ascii=False)
+    s.commit()
+    s.refresh(r)
+    return _recording_full(r)
+
+
+@app.delete("/api/recordings/{rec_id}")
+def delete_recording(rec_id: int, s: Session = Depends(db)):
+    r = s.get(Recording, rec_id)
+    if not r:
+        raise HTTPException(404, "Recording not found")
+    s.delete(r)
+    s.commit()
+    return {"ok": True}
+
+
+@app.post("/api/recordings/{rec_id}/archive")
+def archive_recording(rec_id: int, body: ArchiveRecordingBody, s: Session = Depends(db)):
+    r = s.get(Recording, rec_id)
+    if not r:
+        raise HTTPException(404, "Recording not found")
+    r.archived_at = datetime.utcnow() if body.archived else None
+    s.commit()
+    s.refresh(r)
+    return _recording_base(r)
+
+
+@app.get("/api/recordings/{rec_id}/export")
+def export_recording(rec_id: int, format: str = "md", s: Session = Depends(db)):
+    """Exporta a reunião em `md`, `txt` ou `json`."""
+    import json as _json
+
+    from maestro_local.meetings_export import to_markdown, to_text
+
+    r = s.get(Recording, rec_id)
+    if not r:
+        raise HTTPException(404, "Recording not found")
+
+    completo = _recording_full(r)
+    formato = (format or "md").lower()
+    if formato == "json":
+        corpo = _json.dumps(completo, ensure_ascii=False, indent=2)
+        media, ext = "application/json", "json"
+    elif formato == "txt":
+        corpo = to_text(completo)
+        media, ext = "text/plain; charset=utf-8", "txt"
+    elif formato == "md":
+        corpo = to_markdown(completo)
+        media, ext = "text/markdown; charset=utf-8", "md"
+    else:
+        raise HTTPException(400, "format deve ser md, txt ou json")
+
+    import unicodedata
+
+    base = (r.title or r.topic or f"reuniao-{r.id}").strip()
+    # nome de arquivo em ASCII: cabeçalho HTTP não aceita acento
+    sem_acento = unicodedata.normalize("NFKD", base).encode("ascii", "ignore").decode()
+    seguro = "".join(c if c.isalnum() or c in "-_ " else "-" for c in sem_acento).strip().replace(" ", "-")
+    nome = f"{(seguro or 'reuniao')[:60]}-{r.id}.{ext}"
+    return Response(
+        # bytes para o download sair sempre em UTF-8 (acentos do português)
+        content=corpo.encode("utf-8"),
+        media_type=media,
+        headers={"Content-Disposition": f'attachment; filename="{nome}"'},
+    )
+
+
+@app.get("/api/recordings/{rec_id}/audio")
+def recording_audio(rec_id: int, s: Session = Depends(db)):
+    """Áudio original da gravação (quando existir no disco)."""
+    from pathlib import Path
+
+    from fastapi.responses import FileResponse
+
+    r = s.get(Recording, rec_id)
+    if not r or not (r.audio_path or "").strip():
+        raise HTTPException(404, "Audio not found")
+    caminho = Path(r.audio_path)
+    if not caminho.exists():
+        raise HTTPException(404, "Audio file not found")
+    return FileResponse(str(caminho), media_type="audio/wav", filename=caminho.name)
 
 
 # ---------------------------------------------------------------------------

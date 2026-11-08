@@ -8,6 +8,7 @@ import Board from './pages/Board.jsx'
 import Assistente from './pages/Assistente.jsx'
 import Goals from './pages/Goals.jsx'
 import Metricas from './pages/Metricas.jsx'
+import Reunioes from './pages/Reunioes.jsx'
 import Todos from './pages/Todos.jsx'
 import Labels from './pages/Labels.jsx'
 import Biblioteca from './pages/Biblioteca.jsx'
@@ -43,6 +44,7 @@ function Sidebar({ onNavigate, onCollapse }) {
     ['/meu-dia', t('Meu Dia'), '📅'],
     ['/projetos', t('Projetos'), '📁'],
     ['/goals', t('Goals'), '🎯'],
+    ['/reunioes', t('Reuniões'), '🎙️'],
     ['/assistente', t('Assistente'), '💬'],
     ['/todos', t('TODOs'), '✅'],
     ['/ferramentas', t('Ferramentas'), '🧰'],
@@ -52,7 +54,6 @@ function Sidebar({ onNavigate, onCollapse }) {
   // maestro:// estiver registrado; senão o navegador só ignora o clique
   // e o usuário pode abrir o Maestro desktop manualmente.
   const desktopLinks = [
-    ['maestro://reunioes', '🎙️', t('Reuniões (app)'), t('Gravar e transcrever no desktop')],
     ['maestro://vault', '🔒', t('Senhas (app)'), t('Cofre KeePass no desktop')],
   ]
   return (
@@ -165,6 +166,7 @@ export default function App() {
           <Route path="/assistente" element={<Assistente />} />
         <Route path="/goals" element={<Goals />} />
           <Route path="/metricas" element={<Metricas />} />
+          <Route path="/reunioes" element={<Reunioes />} />
           <Route path="/todos" element={<Todos />} />
           <Route path="/labels" element={<Labels />} />
           <Route path="/biblioteca" element={<Biblioteca />} />
