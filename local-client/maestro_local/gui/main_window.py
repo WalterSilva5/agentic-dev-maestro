@@ -493,6 +493,7 @@ class MainWindow(QMainWindow):
         # Connections
         self.projects_view.project_selected.connect(self._open_board)
         self.board_view.project_opened.connect(self._open_board)
+        self.board_view.back_requested.connect(self._board_back_to_projects)
         self.board_view.task_changed.connect(self._refresh_all)
         self.dashboard_view.task_clicked.connect(self._open_task_from_dashboard)
         self.dashboard_view.project_clicked.connect(self._open_board)
@@ -1060,6 +1061,21 @@ class MainWindow(QMainWindow):
         set_active_project_id(project_id)
         self._populate_project_selector()
         self.board_view.set_project(project_id)
+        self._atualizar_status()
+        self._open_key("board")
+
+    def _board_back_to_projects(self):
+        """Voltar do kanban: limpa o projeto ativo e volta à lista do board.
+
+        O desktop enxuto não tem Projetos no menu (padrao=False) — o seletor
+        de projetos VIVE dentro do próprio Board (empty_widget). Voltar para
+        \"projects\" quebraria quando a feature está desligada. Em vez disso,
+        limpamos o projeto ativo e exibimos a lista interna do board.
+        """
+        from maestro_local.config import set_active_project_id
+        set_active_project_id(None)
+        self._populate_project_selector()
+        self.board_view.set_project(None)
         self._atualizar_status()
         self._open_key("board")
 

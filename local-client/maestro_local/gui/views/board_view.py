@@ -1898,6 +1898,7 @@ class ArchivedDialog(QDialog):
 class BoardView(QWidget):
     task_changed = Signal()
     project_opened = Signal(int)
+    back_requested = Signal()
 
     AUTO_REFRESH_MS = 5000
 
@@ -1941,6 +1942,13 @@ class BoardView(QWidget):
 
         header_row = QHBoxLayout()
         header_row.setSpacing(8)
+        self.back_btn = QPushButton("← " + _t("Projetos"))
+        self.back_btn.setProperty("flat", True)
+        self.back_btn.setFixedHeight(28)
+        self.back_btn.setCursor(Qt.PointingHandCursor)
+        self.back_btn.setToolTip(_t("Voltar à lista de projetos"))
+        self.back_btn.clicked.connect(lambda: self.back_requested.emit())
+        header_row.addWidget(self.back_btn)
         self.header = QLabel("")
         self.header.setObjectName("sectionTitle")
         header_row.addWidget(self.header)
@@ -2040,6 +2048,8 @@ class BoardView(QWidget):
         # Novo projeto: re-aplica o default (sprint ativa) e volta o filtro.
         self._sprint_filter_initialized = False
         self._sprint_filter = None
+        if hasattr(self, "back_btn"):
+            self.back_btn.setVisible(bool(project_id))
         if project_id:
             self.empty_widget.setVisible(False)
             self.board_widget.setVisible(True)
