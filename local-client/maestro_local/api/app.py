@@ -925,6 +925,31 @@ def update_project(project_id: int, body: dict, s: Session = Depends(db)):
     return _project_dict(p)
 
 
+class MoveProjectBody(BaseModel):
+    targetWorkspaceId: str
+
+
+@app.post("/api/projects/{project_id}/move")
+def move_project(project_id: int, body: MoveProjectBody, s: Session = Depends(db)):
+    from maestro_local.db.models import move_project_to_workspace
+    from maestro_local.config import list_workspaces
+
+    p = s.query(Project).get(project_id)
+    if not p:
+        raise HTTPException(404, "Project not found")
+    target_ws = (body.targetWorkspaceId or "").strip()
+    if not target_ws:
+        raise HTTPException(400, "targetWorkspaceId is required")
+    if target_ws not in {w["id"] for w in list_workspaces()}:
+        raise HTTPException(404, f"Workspace '{target_ws}' not found")
+    # move_project_to_workspace gerencia suas próprias sessões/engines
+    new_id = move_project_to_workspace(project_id, target_ws)
+    if new_id is None:
+        raise HTTPException(400, "Move failed (maybe same workspace or not found)")
+    s_expire = s  # força recarregar lista na próxima chamada
+    return {"ok": True, "projectId": project_id, "newProjectId": new_id, "targetWorkspaceId": target_ws}
+
+
 def _validate_docs_path(path: str) -> str:
     path = (path or "").strip()
     if not path:

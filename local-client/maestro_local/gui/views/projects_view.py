@@ -31,6 +31,7 @@ class ProjectCard(QFrame):
     delete_clicked = Signal(int)
     azure_clicked = Signal(int)
     edit_azure_clicked = Signal(int)
+    move_clicked = Signal(int)
 
     def __init__(self, project_id, key, name, description, done, total, theme, azure_url=""):
         super().__init__()
@@ -155,6 +156,14 @@ class ProjectCard(QFrame):
         del_btn.setCursor(Qt.PointingHandCursor)
         del_btn.clicked.connect(lambda: self.delete_clicked.emit(project_id))
         stats_row.addWidget(del_btn)
+
+        move_btn = QPushButton("↗ " + _t("Mover"))
+        move_btn.setFixedHeight(28)
+        move_btn.setProperty("flat", True)
+        move_btn.setCursor(Qt.PointingHandCursor)
+        move_btn.setToolTip(_t("Mover para outro workspace"))
+        move_btn.clicked.connect(lambda: self.move_clicked.emit(project_id))
+        stats_row.addWidget(move_btn)
 
         content.addLayout(stats_row)
 
@@ -302,6 +311,7 @@ class ProjectsView(QWidget):
                 card.delete_clicked.connect(self._delete)
                 card.azure_clicked.connect(self._open_azure)
                 card.edit_azure_clicked.connect(self._edit_azure)
+                card.move_clicked.connect(self._move)
                 self.cards_layout.addWidget(card)
 
             self.cards_layout.addStretch()
@@ -371,6 +381,55 @@ class ProjectsView(QWidget):
             self.refresh()
         finally:
             s.close()
+
+    def _move(self, project_id):
+        from maestro_local.config import list_workspaces, get_active_workspace_id
+        from maestro_local.db.models import move_project_to_workspace
+
+        workspaces = list_workspaces()
+        cur_ws = get_active_workspace_id()
+        # Filtra o workspace atual
+        targets = [w for w in workspaces if w["id"] != cur_ws]
+        if not targets:
+            QMessageBox.information(self, _t("Mover projeto"), _t("Crie outro workspace antes de mover."))
+            return
+        s = get_session()
+        try:
+            p = s.get(Project, project_id)
+            name = f"{p.key} — {p.name}" if p else str(project_id)
+        finally:
+            s.close()
+        from PySide6.QtWidgets import QInputDialog
+        items = [f"{w['id']}: {w['name']}" for w in targets]
+        choice, ok = QInputDialog.getItem(self, _t("Mover projeto"), _t("Mover para workspace:") + f"\n{name}", items, 0, False)
+        if not ok or not choice:
+            return
+        target_ws = choice.split(":")[0].strip()
+        reply = QMessageBox.question(
+            self,
+            _t("Confirmar mover"),
+            _t("Mover o projeto") + f' "{name}" ' + _t("para o workspace") + f' "{target_ws}"?',
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if reply != QMessageBox.Yes:
+            return
+        s = get_session()
+        try:
+            # move_project_to_workspace gerencia suas próprias engines e já apaga na origem
+            new_id = move_project_to_workspace(project_id, target_ws)
+            if new_id is None:
+                QMessageBox.warning(self, _t("Mover projeto"), _t("Falha ao mover. Verifique se o workspace de destino existe."))
+                return
+            QMessageBox.information(self, _t("Mover projeto"), _t("Projeto movido para") + f' "{target_ws}" (novo id {new_id}).')
+            self.refresh()
+        except Exception as e:  # noqa: BLE001
+            QMessageBox.warning(self, _t("Mover projeto"), str(e))
+        finally:
+            try:
+                s.close()
+            except Exception:
+                pass
 
     def _delete(self, project_id):
         reply = QMessageBox.question(

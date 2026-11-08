@@ -584,6 +584,295 @@ def init_db(db_path=None):
     _run_light_migrations(engine)
 
 
+def move_project_to_workspace(project_id: int, target_ws_id: str) -> int | None:
+    """Move um projeto de seu workspace atual para outro (copia profunda e apaga na origem).
+
+    Retorna o novo id no workspace de destino ou None se falhar. Persiste o
+    projeto atual como no workspace (igual ao seletor de workspace).
+    """
+    from maestro_local.config import get_active_workspace_id, get_workspace_db_path, set_active_project_id
+
+    source_ws = get_active_workspace_id()
+    if target_ws_id == source_ws:
+        return None
+    source_db = get_workspace_db_path(source_ws)
+    target_db = get_workspace_db_path(target_ws_id)
+
+    # Garante que o DB de destino existe
+    init_db(target_db)
+
+    # Abre sessões separadas para origem e destino
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    src_engine = create_engine(f"sqlite:///{source_db}", echo=False)
+    SrcSession = sessionmaker(bind=src_engine)
+    src_s = SrcSession()
+
+    tgt_engine = create_engine(f"sqlite:///{target_db}", echo=False)
+    # Garante que o DB de destino tem todas as tabelas (o init_db global não afeta este engine isolado)
+    Base.metadata.create_all(tgt_engine)
+    TgtSession = sessionmaker(bind=tgt_engine)
+    tgt_s = TgtSession()
+
+    try:
+        proj = src_s.query(Project).filter(Project.id == project_id).first()
+        if not proj:
+            return None
+
+        # Garante chave única no destino (igual ao create)
+        base_key = proj.key
+        new_key = base_key
+        n = 2
+        while tgt_s.query(Project).filter(Project.key == new_key).first():
+            new_key = f"{base_key}-{n}"
+            n += 1
+
+        # Cria projeto no destino (copia campos)
+        new_proj = Project(
+            name=proj.name,
+            key=new_key,
+            description=proj.description,
+            azure_board_url=getattr(proj, "azure_board_url", "") or "",
+            external_docs_path=getattr(proj, "external_docs_path", "") or "",
+        )
+        tgt_s.add(new_proj)
+        tgt_s.flush()  # gera id
+
+        # Mapeia ids antigos -> novos para colunas, sprints, epics, members, etc.
+        # BoardColumn
+        col_map = {}
+        for col in src_s.query(BoardColumn).filter(BoardColumn.project_id == proj.id).order_by(BoardColumn.order).all():
+            new_col = BoardColumn(
+                project_id=new_proj.id,
+                name=col.name,
+                order=col.order,
+                wip_limit=col.wip_limit,
+                is_done=col.is_done,
+            )
+            tgt_s.add(new_col)
+            tgt_s.flush()
+            col_map[col.id] = new_col.id
+
+        # Sprint
+        sprint_map = {}
+        for sp in src_s.query(Sprint).filter(Sprint.project_id == proj.id).all():
+            new_sp = Sprint(
+                project_id=new_proj.id,
+                name=sp.name,
+                goal=sp.goal,
+                status=sp.status,
+                start_date=sp.start_date,
+                end_date=sp.end_date,
+                capacity=sp.capacity,
+                retro_json=sp.retro_json,
+                sort_order=sp.sort_order,
+            )
+            tgt_s.add(new_sp)
+            tgt_s.flush()
+            sprint_map[sp.id] = new_sp.id
+
+        # Epic
+        epic_map = {}
+        for ep in src_s.query(Epic).filter(Epic.project_id == proj.id).all():
+            new_ep = Epic(project_id=new_proj.id, name=ep.name, color=ep.color)
+            tgt_s.add(new_ep)
+            tgt_s.flush()
+            epic_map[ep.id] = new_ep.id
+
+        # Member
+        member_map = {}
+        for m in src_s.query(Member).filter(Member.project_id == proj.id).all():
+            new_m = Member(project_id=new_proj.id, name=m.name, color=m.color)
+            tgt_s.add(new_m)
+            tgt_s.flush()
+            member_map[m.id] = new_m.id
+
+        # ProjectLink
+        for link in src_s.query(ProjectLink).filter(ProjectLink.project_id == proj.id).all():
+            new_link = ProjectLink(
+                project_id=new_proj.id,
+                title=link.title,
+                url=link.url,
+                sort_order=link.sort_order,
+            )
+            tgt_s.add(new_link)
+
+        # GateRule (precisa coluna mapeada)
+        for gr in src_s.query(GateRule).filter(GateRule.project_id == proj.id).all():
+            new_col_id = col_map.get(gr.column_id)
+            if not new_col_id:
+                continue
+            new_gr = GateRule(
+                project_id=new_proj.id,
+                column_id=new_col_id,
+                require_evidence=gr.require_evidence,
+                min_evidence=gr.min_evidence,
+                required_evidence_kinds=gr.required_evidence_kinds,
+                require_parity=gr.require_parity,
+                forbidden_parity=gr.forbidden_parity,
+                require_comment_type=gr.require_comment_type,
+                require_pr_merged=gr.require_pr_merged,
+                message=gr.message,
+            )
+            tgt_s.add(new_gr)
+
+        # Goal
+        for g in src_s.query(Goal).filter(Goal.project_id == proj.id).all():
+            new_g = Goal(
+                project_id=new_proj.id,
+                name=g.name,
+                description=g.description,
+                due_date=g.due_date,
+                tag=g.tag,
+                epic_id=epic_map.get(g.epic_id),
+                sprint_id=sprint_map.get(g.sprint_id),
+            )
+            tgt_s.add(new_g)
+
+        # Task + relações (labels, epics, checklist, comments, evidence, parity, dependencies, etc.)
+        # Primeiro, cria todos os Tasks sem parent para mapear ids
+        task_map = {}
+        tasks = src_s.query(Task).filter(Task.project_id == proj.id).order_by(Task.id).all()
+        for t in tasks:
+            new_t = Task(
+                project_id=new_proj.id,
+                column_id=col_map.get(t.column_id),
+                number=t.number,
+                title=t.title,
+                description=t.description,
+                objective=t.objective,
+                acceptance=t.acceptance,
+                type=t.type,
+                priority=t.priority,
+                estimate_md=t.estimate_md,
+                parent_id=None,  # resolve depois
+                sprint_id=sprint_map.get(t.sprint_id),
+                rank=t.rank,
+                created_at=t.created_at,
+                updated_at=t.updated_at,
+                deleted_at=t.deleted_at,
+                due_date=t.due_date,
+                assignee=t.assignee,
+                requires_human=t.requires_human,
+                done_at=t.done_at,
+                archived_at=t.archived_at,
+            )
+            tgt_s.add(new_t)
+            tgt_s.flush()
+            task_map[t.id] = new_t.id
+
+        # Resolve parent_id
+        for t in tasks:
+            if t.parent_id and t.parent_id in task_map:
+                new_t = tgt_s.query(Task).filter(Task.id == task_map[t.id]).first()
+                new_t.parent_id = task_map[t.parent_id]
+
+        # Labels e epics por task
+        for t in tasks:
+            new_t = tgt_s.query(Task).filter(Task.id == task_map[t.id]).first()
+            for lb in t.labels:
+                # Label é global (unique por nome), reaproveita ou cria
+                existing = tgt_s.query(Label).filter(Label.name == lb.name).first()
+                if not existing:
+                    existing = Label(name=lb.name, color=lb.color)
+                    tgt_s.add(existing)
+                    tgt_s.flush()
+                new_t.labels.append(existing)
+            for ep in t.epics:
+                new_ep_id = epic_map.get(ep.id)
+                if new_ep_id:
+                    new_ep = tgt_s.query(Epic).filter(Epic.id == new_ep_id).first()
+                    new_t.epics.append(new_ep)
+
+        tgt_s.flush()
+
+        # TaskChecklist, Comment, Evidence, ParityResult, TaskDependency
+        for t in tasks:
+            new_tid = task_map[t.id]
+            for ch in t.checklist:
+                new_ch = TaskChecklist(task_id=new_tid, title=ch.title, checked=ch.checked, sort_order=ch.sort_order)
+                tgt_s.add(new_ch)
+            for c in t.comments:
+                new_c = Comment(task_id=new_tid, body=c.body, type=c.type, author=c.author, created_at=c.created_at)
+                tgt_s.add(new_c)
+            for ev in getattr(t, "evidence", []) or []:
+                new_ev = Evidence(
+                    task_id=new_tid,
+                    kind=ev.kind,
+                    title=ev.title,
+                    url=ev.url,
+                    environment=ev.environment,
+                    executed_at=ev.executed_at,
+                    executor=ev.executor,
+                    result=ev.result,
+                    notes=ev.notes,
+                    created_at=ev.created_at,
+                )
+                tgt_s.add(new_ev)
+            for pr in getattr(t, "parity_results", []) or []:
+                new_pr = ParityResult(
+                    task_id=new_tid,
+                    case_name=pr.case_name,
+                    status=pr.status,
+                    expected=pr.expected,
+                    actual=pr.actual,
+                    notes=pr.notes,
+                    created_at=pr.created_at,
+                )
+                tgt_s.add(new_pr)
+
+        # TaskDependency (precisa mapear ambos os lados)
+        for t in tasks:
+            for dep in t.blocking:
+                # dep.blocker_id == t.id, dep.blocked_id == other
+                if dep.blocked_id in task_map and dep.blocker_id in task_map:
+                    new_dep = TaskDependency(
+                        blocker_id=task_map[dep.blocker_id],
+                        blocked_id=task_map[dep.blocked_id],
+                    )
+                    tgt_s.add(new_dep)
+
+        # Atualiza task_seq do projeto
+        new_proj.task_seq = proj.task_seq
+
+        tgt_s.commit()
+
+        # Apaga na origem (move, não copia)
+        # Deleta em cascata via Project
+        src_s.delete(proj)
+        src_s.commit()
+
+        # Se o projeto movido era o ativo, limpa o ativo na origem e ativa no destino
+        try:
+            if get_active_project_id() == project_id:
+                set_active_project_id(None)
+        except Exception:
+            pass
+        # Define como ativo no destino (persiste via config, igual ao seletor de workspace)
+        # O destino ainda não é o workspace ativo, então salva no dict diretamente
+        from maestro_local.config import load_config, save_config
+        cfg = load_config()
+        by_ws = cfg.setdefault("active_project_by_ws", {})
+        by_ws[target_ws_id] = int(new_proj.id)
+        save_config(cfg)
+
+        return int(new_proj.id)
+    finally:
+        src_s.close()
+        tgt_s.close()
+        src_engine.dispose()
+        tgt_engine.dispose()
+        # Volta o engine global para o workspace ativo (evita ficar apontando para o último)
+        from maestro_local.config import get_active_workspace_id, get_workspace_db_path
+        from maestro_local.db.models import get_engine, _SessionLocal, _active_db_path
+        import maestro_local.db.models as m
+        m._engine = None
+        m._SessionLocal = None
+        m._active_db_path = get_workspace_db_path(get_active_workspace_id())
+        # Não faz init aqui para não mascarar erros; o próximo get_session vai recriar
+
+
 def switch_db(db_path: str):
     """Close current engine and switch to a different database file."""
     global _engine, _SessionLocal, _active_db_path
