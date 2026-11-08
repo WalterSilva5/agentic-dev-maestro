@@ -16,32 +16,25 @@ from __future__ import annotations
 
 import re
 
+from maestro_local.module_plan import (
+    DISCONTINUED,
+    MODULE_PLAN,
+    PLAN_ORDER,
+    delivery_endpoints,
+    delivery_label,
+    plan_summary,
+)
+
 # ---------------------------------------------------------------------------
 # Classificação
 # ---------------------------------------------------------------------------
 
-# Módulos canônicos (unidade de entrega da migração) -> rótulo de exibição.
-MODULES: dict[str, str] = {
-    "auth": "Auth",
-    "cashier": "Cashier",
-    "cliente": "Cliente",
-    "config": "Config",
-    "financeiro": "Financeiro",
-    "troca": "Troca",
-    "venda": "Venda",
-    "voucher": "Voucher",
-    "tef": "TEF",
-    "acordo": "Acordo",
-    "monitor": "Monitor",
-    "estatisticas": "Estatísticas",
-    "batch": "Batch",
-    "abend": "Abend",
-    "crm": "CRM",
-    "tudoav": "TudoAV",
-    "cobransaas": "CobranSaaS",
-    "nfce": "NFC-e",
-    "carteira-digital": "Carteira Digital",
-}
+# Módulos canônicos: vêm do plano oficial (10-progresso-entrega.svg).
+# O rótulo exibido é o próprio nome do módulo, como no plano.
+MODULES: dict[str, str] = {nome: dados["label"] for nome, dados in MODULE_PLAN.items()}
+# módulos descontinuados (fora do escopo de migração)
+for _nome, _dados in DISCONTINUED.items():
+    MODULES.setdefault(_nome, _dados["label"])
 
 # Prefixos de submódulo (`cfg-e1`) -> módulo dono.
 SUBMODULE_PREFIXES: dict[str, str] = {
@@ -119,7 +112,8 @@ def classify_label(nome: str) -> dict:
     m = _WAVE_RE.match(chave)
     if m:
         return {"kind": "SUBMODULE", "module": WAVE_MODULE, "code": chave,
-                "label": f"Onda {m.group(1)}", "order": int(m.group(1))}
+                "label": delivery_label(chave) or f"Onda {m.group(1)}",
+                "order": int(m.group(1))}
 
     m = _SUBMODULE_RE.match(chave)
     if m:
@@ -127,7 +121,7 @@ def classify_label(nome: str) -> dict:
         modulo = SUBMODULE_PREFIXES.get(prefixo)
         if modulo:
             return {"kind": "SUBMODULE", "module": modulo, "code": chave,
-                    "label": f"E{numero}", "order": int(numero)}
+                    "label": delivery_label(chave) or f"E{numero}", "order": int(numero)}
 
     if chave in PLATFORM_LABELS:
         return {"kind": "PLATFORM", "module": None, "code": chave,
@@ -150,17 +144,18 @@ def _pct(done: int, total: int) -> int:
 
 
 def aggregate_dimensions(tasks, done_ids) -> dict:
-    """Agrupa as tarefas por dimensão, sem misturar módulo com sprint/tag.
+    """Agrupa as tarefas por dimensão, usando o plano oficial como referência.
 
-    - `modules`: cada módulo com seus submódulos/ondas aninhados
-    - `sprints`, `platforms`, `process`, `other`: listas independentes
-    - `unlabeled`: cards sem nenhuma label de módulo (para métricas honestas)
+    - `modules`: todos os módulos **do plano** (mesmo os ainda sem card, 0/26),
+      com as sub-entregas nomeadas (`E1 · loja`) e o nº de endpoints
+    - `discontinued`: `nfce` / `carteira-digital` (fora de escopo)
+    - `sprints`, `platforms`, `process`, `other`: dimensões independentes
+    - `unlabeled`: cards sem nenhuma label de módulo (honestidade da métrica)
     """
     total_cards = len(tasks)
 
-    # módulo -> tarefas (inclui quem só tem submódulo/onda)
-    por_modulo: dict[str, set] = {k: set() for k in MODULES}
-    sub_por_modulo: dict[str, dict[str, set]] = {k: {} for k in MODULES}
+    por_modulo: dict[str, set] = {}
+    sub_por_modulo: dict[str, dict[str, set]] = {}
     sprints: dict[str, set] = {}
     plataformas: dict[str, set] = {}
     processos: dict[str, set] = {}
@@ -193,31 +188,67 @@ def aggregate_dimensions(tasks, done_ids) -> dict:
         return {"name": code, "label": rotulo or code, "total": len(ids),
                 "done": done, "pct": _pct(done, len(ids))}
 
-    modulos = []
-    for chave, ids in por_modulo.items():
-        if not ids:
-            continue
-        subs = [
-            _item(cod, sub_ids, classify_label(cod).get("label") or cod)
-            for cod, sub_ids in sorted(
-                sub_por_modulo.get(chave, {}).items(),
-                key=lambda kv: classify_label(kv[0]).get("order", 0),
-            )
-        ]
-        item = _item(chave, ids, MODULES.get(chave, chave))
+    modulos: list[dict] = []
+    usados: set[str] = set()
+
+    def _monta_modulo(chave: str, rotulo: str, endpoints: int | None,
+                      plano: dict | None, planejado: bool) -> dict:
+        ids = por_modulo.get(chave, set())
+        item = _item(chave, ids, rotulo)
+        item["endpoints"] = endpoints
+        item["planned"] = planejado
+        subs = []
+        # sub-entregas do plano (mesmo com 0 card), depois as que só existem em label
+        vistos: set[str] = set()
+        for codigo, rotulo_sub, n_sub in (plano or {}).get("deliveries", []):
+            vistos.add(codigo)
+            s_ids = sub_por_modulo.get(chave, {}).get(codigo, set())
+            sub = _item(codigo, s_ids, rotulo_sub)
+            sub["endpoints"] = n_sub
+            subs.append(sub)
+        for codigo, s_ids in sorted(
+            sub_por_modulo.get(chave, {}).items(),
+            key=lambda kv: classify_label(kv[0]).get("order", 0),
+        ):
+            if codigo in vistos:
+                continue
+            sub = _item(codigo, s_ids, delivery_label(codigo) or codigo)
+            sub["endpoints"] = delivery_endpoints(codigo)
+            subs.append(sub)
         item["submodules"] = subs
         item["submodules_total"] = sum(s["total"] for s in subs)
-        modulos.append(item)
+        return item
+
+    # 1) módulos do plano, na ordem do diagrama
+    for chave in PLAN_ORDER:
+        plano = MODULE_PLAN.get(chave)
+        if not plano:
+            continue
+        usados.add(chave)
+        modulos.append(_monta_modulo(chave, plano["label"], plano["endpoints"], plano, True))
+
+    # 2) módulos descontinuados (só se tiverem card)
+    descontinuados = []
+    for chave, dados in DISCONTINUED.items():
+        if not por_modulo.get(chave):
+            continue
+        usados.add(chave)
+        item = _monta_modulo(chave, dados["label"], dados["endpoints"], None, False)
+        item["reason"] = dados.get("motivo", "descontinuado")
+        descontinuados.append(item)
+
+    # 3) módulos encontrados em label que não estão no plano (não perder dado)
+    for chave in sorted(por_modulo):
+        if chave in usados:
+            continue
+        rotulo = MODULES.get(chave, chave)
+        modulos.append(_monta_modulo(chave, rotulo, None, None, False))
 
     def _lista(fonte: dict[str, set], rotulos: dict[str, str] | None = None) -> list[dict]:
-        itens = [
-            _item(cod, ids, (rotulos or {}).get(cod))
-            for cod, ids in fonte.items()
-        ]
+        itens = [_item(cod, ids, (rotulos or {}).get(cod)) for cod, ids in fonte.items()]
         itens.sort(key=lambda x: (-x["total"], x["name"]))
         return itens
 
-    # sprints ordenadas por número e com rótulo legível ("Sprint 1")
     sprints_lista = _lista(
         sprints, {cod: classify_label(cod)["label"] for cod in sprints}
     )
@@ -225,11 +256,11 @@ def aggregate_dimensions(tasks, done_ids) -> dict:
         classify_label(x["name"]).get("order", 0), x["name"]
     ))
 
-    modulos.sort(key=lambda x: (-x["total"], x["label"]))
-
     return {
         "cards": total_cards,
+        "plan": plan_summary(),
         "modules": modulos,
+        "discontinued": descontinuados,
         "sprints": sprints_lista,
         "platforms": _lista(plataformas),
         "process": _lista(processos, PROCESS_LABELS_PT),

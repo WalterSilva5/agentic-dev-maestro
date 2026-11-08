@@ -1725,6 +1725,11 @@ curl -s http://127.0.0.1:9777/api/projects/1/metrics/dimensions | jq '{
 - `unlabeled` — cards sem label de modulo (nao inflar % de modulo com eles)
 
 Classificacao: `maestro_local/dimensions.py` (`classify_label`).
+Plano oficial (modulos, sub-entregas, endpoints): `maestro_local/module_plan.py`,
+gerado de `docs-migração/diagrams/acompanhamento/10-progresso-entrega.svg`
+(17 modulos, 156 endpoints; `nfce` e `carteira-digital` fora de escopo).
+Modulo planejado sem card aparece zerado (ex.: `tef 0/5 ep`), e as sub-entregas
+usam o nome do plano (`cfg-e1` -> "E1 · loja", `onda-2` -> "O2 · movimentar").
 
 ## 5. Exportar as metricas do projeto em PDF
 

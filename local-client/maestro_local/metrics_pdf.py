@@ -417,7 +417,7 @@ def _dados_prioridade(m: dict) -> list[tuple[str, int, str]]:
 
 def _dados_modulos(m: dict) -> list[tuple[str, int, str]]:
     """Só módulos (sem sprint/plataforma/tag) — usa a classificação."""
-    mods = m.get("dimensoes", {}).get("modules", [])
+    mods = [x for x in m.get("dimensoes", {}).get("modules", []) if x["total"] > 0]
     return [
         (x["label"], x["total"], PIE_COLORS[i % len(PIE_COLORS)])
         for i, x in enumerate(mods)
@@ -516,8 +516,10 @@ def build_metrics_pdf(session, project) -> bytes:
     if mods:
         _titulo(flow, "Módulos e submódulos", st)
         sem = dims.get("unlabeled", {}).get("total", 0)
+        plano = dims.get("plan") or {}
         flow.append(Paragraph(
-            f"{dims.get('with_module', 0)}/{dims.get('cards', 0)} cards com módulo"
+            f"<b>{plano.get('modules', 0)} módulos · {plano.get('endpoints', 0)} endpoints no plano</b>"
+            + f" · {dims.get('with_module', 0)}/{dims.get('cards', 0)} cards com módulo"
             + (f" · {sem} sem módulo (não entram no progresso por módulo)" if sem else "")
             + " · um card pode ter mais de um módulo · largura da barra proporcional ao tamanho",
             st["small"],
@@ -525,26 +527,28 @@ def build_metrics_pdf(session, project) -> bytes:
         flow.append(Spacer(1, 2 * mm))
         maximo = max(x["total"] for x in mods) or 1
         linhas = [[
-            Paragraph("<b>Módulo / submódulo</b>", st["small"]),
+            Paragraph("<b>Módulo / sub-entrega</b>", st["small"]),
             Paragraph("<b>Progresso</b>", st["small"]),
-            Paragraph("<b>Cards</b>", st["small"]),
+            Paragraph("<b>Cards / endpoints</b>", st["small"]),
         ]]
         for x in mods[:24]:
             largura = max(10, 150 * x["total"] / maximo)
             cor = GREEN if x["pct"] == 100 else (AMBER if x["pct"] > 0 else colors.HexColor("#CBD5E1"))
+            ep = f" · {x['endpoints']} ep" if x.get("endpoints") else ""
             linhas.append([
                 Paragraph(f"<b>{x['label']}</b>", st["body"]),
                 _bar(x["pct"], width=largura, cor=cor),
-                Paragraph(f"{x['done']}/{x['total']} — {x['pct']}%", st["small"]),
+                Paragraph(f"{x['done']}/{x['total']} cards{ep} · {x['pct']}%", st["small"]),
             ])
             for sub in x.get("submodules", [])[:6]:
                 largura_s = max(8, 110 * sub["total"] / maximo)
                 cor_s = GREEN if sub["pct"] == 100 else (AMBER if sub["pct"] > 0 else colors.HexColor("#CBD5E1"))
+                ep_s = f" · {sub['endpoints']} ep" if sub.get("endpoints") else ""
                 linhas.append([
                     Paragraph(f"&nbsp;&nbsp;&nbsp;{sub['label']} <font color='#9CA3AF'>({sub['name']})</font>",
                               st["small"]),
                     _bar(sub["pct"], width=largura_s, height=5, cor=cor_s),
-                    Paragraph(f"{sub['done']}/{sub['total']} — {sub['pct']}%", st["small"]),
+                    Paragraph(f"{sub['done']}/{sub['total']}{ep_s} · {sub['pct']}%", st["small"]),
                 ])
         t = Table(linhas, colWidths=[52 * mm, 78 * mm, 44 * mm], repeatRows=1)
         t.setStyle(TableStyle([
@@ -558,6 +562,15 @@ def build_metrics_pdf(session, project) -> bytes:
         flow.append(t)
         if len(mods) > 24:
             flow.append(Paragraph(f"+ {len(mods) - 24} módulo(s) não exibidos", st["small"]))
+        if dims.get("discontinued"):
+            fora = " · ".join(
+                f"{x['label']} ({x['total']} cards"
+                + (f" / {x['endpoints']} ep" if x.get("endpoints") else "")
+                + f") — {x.get('reason', '')}"
+                for x in dims["discontinued"]
+            )
+            flow.append(Spacer(1, 1.5 * mm))
+            flow.append(Paragraph(f"<b>Fora de escopo:</b> {fora}", st["small"]))
 
     # ---------- sprints / plataformas / natureza (dimensões separadas) ----------
     sprints = dims.get("sprints", [])

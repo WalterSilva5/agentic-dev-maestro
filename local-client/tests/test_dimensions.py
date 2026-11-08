@@ -27,14 +27,16 @@ def client(tmp_path):
 # --------------------------------------------------------------------------
 
 @pytest.mark.parametrize("label,kind,module,rotulo", [
-    ("cashier", "MODULE", "cashier", "Cashier"),
-    ("config", "MODULE", "config", "Config"),
-    ("venda", "MODULE", "venda", "Venda"),
-    ("cfg-e1", "SUBMODULE", "config", "E1"),
-    ("fin-e2", "SUBMODULE", "financeiro", "E2"),
-    ("tro-e4", "SUBMODULE", "troca", "E4"),
-    ("ven-e3", "SUBMODULE", "venda", "E3"),
-    ("onda-1", "SUBMODULE", "cashier", "Onda 1"),
+    ("cashier", "MODULE", "cashier", "cashier"),
+    ("config", "MODULE", "config", "config"),
+    ("venda", "MODULE", "venda", "venda"),
+    # sub-entregas usam os nomes do plano oficial (10-progresso-entrega.svg)
+    ("cfg-e1", "SUBMODULE", "config", "E1 · loja"),
+    ("fin-e2", "SUBMODULE", "financeiro", "E2 · adesão e termos"),
+    ("tro-e4", "SUBMODULE", "troca", "E4 · fechamento"),
+    ("ven-e3", "SUBMODULE", "venda", "E3 · fechamento e TEF"),
+    ("onda-1", "SUBMODULE", "cashier", "O1 · abrir e carregar"),
+    ("onda-3", "SUBMODULE", "cashier", "O3 · fechar e acertar"),
     ("sprint-4", "SPRINT", None, "Sprint 4"),
     ("vm", "PLATFORM", None, "vm"),
     ("var3-app", "PLATFORM", None, "var3-app"),
@@ -86,12 +88,25 @@ def test_agrega_modulo_com_submodulos_e_ondas():
     d = aggregate_dimensions(tasks, done_ids={9})
 
     modulos = {m["name"]: m for m in d["modules"]}
-    assert set(modulos) == {"config", "cashier"}
+    # o plano completo aparece (17 modulos), mesmo sem card
+    assert len(modulos) == 17
+    assert {"config", "cashier", "tef", "crm"} <= set(modulos)
+    # modulo sem nenhum card aparece zerado, com os endpoints do plano
+    assert modulos["tef"]["total"] == 0
+    assert modulos["tef"]["endpoints"] == 5
+
     assert modulos["config"]["total"] == 2
     assert modulos["config"]["done"] == 1
-    assert [s["name"] for s in modulos["config"]["submodules"]] == ["cfg-e1", "cfg-e2"]
+    assert modulos["config"]["endpoints"] == 26
+    # sub-entregas do plano, em ordem, com nome oficial e endpoints
+    subs_cfg = [(s["name"], s["label"], s["endpoints"]) for s in modulos["config"]["submodules"]]
+    assert subs_cfg[:2] == [("cfg-e1", "E1 · loja", 4), ("cfg-e2", "E2 · monitor e estação", 5)]
+    assert len(subs_cfg) == 4
+
     assert modulos["cashier"]["total"] == 2
-    assert [s["label"] for s in modulos["cashier"]["submodules"]] == ["Onda 1", "Onda 2"]
+    assert [s["label"] for s in modulos["cashier"]["submodules"]] == [
+        "O1 · abrir e carregar", "O2 · movimentar", "O3 · fechar e acertar"
+    ]
 
     # dimensões separadas
     assert d["sprints"] == [{"name": "sprint-1", "label": "Sprint 1",
@@ -108,9 +123,43 @@ def test_soma_de_modulos_pode_exceder_cards():
     """Card com dois módulos conta nos dois (por isso a nota no PDF)."""
     tasks = [_T(1, ["config", "cashier"])]
     d = aggregate_dimensions(tasks, done_ids=set())
-    assert {m["name"] for m in d["modules"]} == {"config", "cashier"}
     assert d["with_module"] == 1
     assert sum(m["total"] for m in d["modules"]) == 2
+    # mas o plano tem sempre os 17 módulos
+    assert d["plan"]["modules"] == 17
+    assert d["plan"]["endpoints"] == 156
+
+
+def test_plano_oficial_de_modulos_e_subentregas():
+    """Nomes/ordem/endpoints vêm do 10-progresso-entrega.svg."""
+    from maestro_local.module_plan import (
+        MODULE_PLAN,
+        PLAN_ORDER,
+        TOTAL_ENDPOINTS,
+        delivery_endpoints,
+        delivery_label,
+        module_of_delivery,
+    )
+
+    assert len(MODULE_PLAN) == 17
+    assert TOTAL_ENDPOINTS == 156
+    assert PLAN_ORDER[0] == "auth" and PLAN_ORDER[-1] == "crm"
+    assert delivery_label("cfg-e3") == "E3 · parâmetros e utilitários"
+    assert delivery_endpoints("cfg-e3") == 15
+    assert module_of_delivery("cfg-e3") == "config"
+    assert delivery_endpoints("onda-2") == 11
+
+    # 5 módulos com sub-entregas: config, cashier, financeiro, troca, venda
+    com_subs = {n for n, m in MODULE_PLAN.items() if m["deliveries"]}
+    assert com_subs == {"config", "cashier", "financeiro", "troca", "venda"}
+
+
+def test_descontinuados_ficam_fora_do_plano_mas_sao_visiveis():
+    tasks = [_T(1, ["nfce"])]
+    d = aggregate_dimensions(tasks, done_ids=set())
+    assert [x["name"] for x in d["discontinued"]] == ["nfce"]
+    # nao entram na lista de modulos do plano
+    assert "nfce" not in {m["name"] for m in d["modules"]}
 
 
 # --------------------------------------------------------------------------

@@ -557,7 +557,7 @@ export default function Board() {
             </div>
             {/* Hierárquico por módulos — barra proporcional */}
             <div style={{ background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '10px', marginTop: 4 }}>
-              <div className="muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, textTransform: 'uppercase', marginBottom: 6 }}>📊 {t('Progresso por módulos e submódulos')}</div>
+              <div className="muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, textTransform: 'uppercase', marginBottom: 6 }}>📊 {t('Progresso geral')}</div>
               <div style={{ height: 14, background: 'var(--border-light)', borderRadius: 7, overflow: 'hidden', display: 'flex' }}><div style={{ width: `${pct}%`, background: pct===100?'#16a34a':'#f59e0b' }} /></div>
               <div className="muted" style={{ fontSize: 10, marginTop: 4 }}>{doneTasks}/{totalTasks} · {pct}%</div>
             </div>
@@ -567,6 +567,8 @@ export default function Board() {
                 <span className="muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, textTransform: 'uppercase' }}>📊 {t('Módulos e submódulos')}</span>
                 {dimensions && (
                   <span className="muted" style={{ fontSize: 10 }}>
+                    {dimensions.plan?.modules} {t('módulos')} · {dimensions.plan?.endpoints} {t('endpoints no plano')}
+                    {' · '}
                     {dimensions.with_module}/{dimensions.cards} {t('cards com módulo')}
                     {dimensions.unlabeled?.total > 0 && ` · ${dimensions.unlabeled.total} ${t('sem módulo')}`}
                   </span>
@@ -592,7 +594,7 @@ export default function Board() {
                         return (
                           <div key={mod.name} style={{ border: '1px solid var(--border-light)', borderRadius: 8, padding: '7px 9px', background: 'var(--card)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                              <span style={{ fontWeight: 700, fontSize: 12 }}>{mod.label} <span className="muted" style={{ fontWeight: 400, fontSize: 11 }}>· {mod.total} {t('cards')}</span></span>
+                              <span style={{ fontWeight: 700, fontSize: 12 }}>{mod.label} <span className="muted" style={{ fontWeight: 400, fontSize: 11 }}>· {mod.total} {t('cards')}{mod.endpoints ? ` / ${mod.endpoints} ${t('endpoints')}` : ''}</span></span>
                               <span style={{ fontSize: 11, fontWeight: 700 }}>{mod.done}/{mod.total} — {mod.pct}%</span>
                             </div>
                             <div style={{ height: 10, background: 'var(--border-light)', borderRadius: 5, overflow: 'hidden', marginTop: 4, maxWidth: barW }}>
@@ -606,7 +608,7 @@ export default function Board() {
                                   return (
                                     <div key={sub.name} style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10 }}>
-                                        <span className="muted">{sub.label} <span style={{ opacity: .7 }}>({sub.name})</span></span>
+                                        <span className="muted">{sub.label} <span style={{ opacity: .7 }}>({sub.name}{sub.endpoints ? ` · ${sub.endpoints} ep` : ''})</span></span>
                                         <span style={{ fontWeight: 600 }}>{sub.done}/{sub.total} — {sub.pct}%</span>
                                       </div>
                                       <div style={{ height: 6, background: 'var(--border-light)', borderRadius: 3, overflow: 'hidden', maxWidth: barSW }}>
@@ -625,6 +627,16 @@ export default function Board() {
                 })()
               )}
             </div>
+
+            {/* Fora de escopo (descontinuados) */}
+            {dimensions?.discontinued?.length > 0 && (
+              <div style={{ background: 'var(--bg)', border: '1px dashed var(--border)', borderRadius: 8, padding: '8px 10px', fontSize: 11 }}>
+                <span className="muted" style={{ fontWeight: 700, textTransform: 'uppercase', fontSize: 10, letterSpacing: .6 }}>{t('Fora de escopo')}: </span>
+                {dimensions.discontinued.map((x) => (
+                  <span key={x.name} style={{ marginRight: 8 }}>{x.label} ({x.total} {t('cards')}{x.endpoints ? ` / ${x.endpoints} ep` : ''}) — {x.reason}</span>
+                ))}
+              </div>
+            )}
 
             {/* Sprints, plataformas e natureza — dimensões separadas do módulo */}
             {dimensions && (dimensions.sprints.length > 0 || dimensions.platforms.length > 0 || dimensions.process.length > 0) && (

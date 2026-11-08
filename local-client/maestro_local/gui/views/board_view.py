@@ -2009,8 +2009,10 @@ class BoardMetricsAccordion(QFrame):
 
             dims = aggregate_dimensions(tasks_all, done_col_ids)
             hier_box = self._section_box("📊 " + _t("Módulos e submódulos"), t)
+            plano = dims.get("plan") or {}
             resumo = QLabel(
-                f"{dims['with_module']}/{dims['cards']} {_t('cards com módulo')}"
+                f"{plano.get('modules', 0)} {_t('módulos')} · {plano.get('endpoints', 0)} {_t('endpoints no plano')}"
+                f"  ·  {dims['with_module']}/{dims['cards']} {_t('cards com módulo')}"
                 + (f"  ·  {dims['unlabeled']['total']} {_t('sem módulo')}" if dims['unlabeled']['total'] else "")
             )
             resumo.setStyleSheet(f"color: {t.text_muted}; font-size: 10px; border: none;")
@@ -2023,7 +2025,8 @@ class BoardMetricsAccordion(QFrame):
                 for mod in dims["modules"]:
                     cor = t.success if mod["pct"] == 100 else (t.warning if mod["pct"] > 0 else t.text_muted)
                     row = QHBoxLayout(); row.setSpacing(6)
-                    nome = QLabel(f"{mod['label']} · {mod['total']} {_t('cards')}")
+                    ep = f" / {mod['endpoints']} {_t('endpoints')}" if mod.get("endpoints") else ""
+                    nome = QLabel(f"{mod['label']} · {mod['total']} {_t('cards')}{ep}")
                     nome.setStyleSheet(f"color: {t.text_primary}; font-size: 11px; font-weight: 600; border: none;")
                     row.addWidget(nome, 1)
                     pct_lbl = QLabel(f"{mod['done']}/{mod['total']} — {mod['pct']}%")
@@ -2037,7 +2040,8 @@ class BoardMetricsAccordion(QFrame):
 
                     for sub in mod.get("submodules", []):
                         sub_row = QHBoxLayout(); sub_row.setSpacing(6)
-                        sub_lbl = QLabel(f"    {sub['label']} ({sub['name']})")
+                        ep_sub = f" · {sub['endpoints']} ep" if sub.get("endpoints") else ""
+                        sub_lbl = QLabel(f"    {sub['label']} ({sub['name']}{ep_sub})")
                         sub_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 10px; border: none;")
                         sub_row.addWidget(sub_lbl, 1)
                         sub_pct = QLabel(f"{sub['done']}/{sub['total']} — {sub['pct']}%")
@@ -2046,6 +2050,20 @@ class BoardMetricsAccordion(QFrame):
                         w2 = QWidget(); w2.setLayout(sub_row)
                         hier_box["layout"].addWidget(w2)
             self.content_layout.addWidget(hier_box["box"])
+
+            if dims.get("discontinued"):
+                fora = "  ·  ".join(
+                    f"{x['label']} ({x['total']} {_t('cards')}"
+                    + (f" / {x['endpoints']} ep" if x.get("endpoints") else "")
+                    + f") — {x.get('reason', '')}"
+                    for x in dims["discontinued"]
+                )
+                fora_box = self._section_box(_t("Fora de escopo"), t)
+                fora_lbl = QLabel(fora)
+                fora_lbl.setWordWrap(True)
+                fora_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 10px; border: none;")
+                fora_box["layout"].addWidget(fora_lbl)
+                self.content_layout.addWidget(fora_box["box"])
 
             # Sprints / plataformas / natureza — dimensões separadas do módulo
             if dims["sprints"] or dims["platforms"] or dims["process"]:
