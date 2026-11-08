@@ -47,12 +47,8 @@ function Sidebar({ onNavigate, onCollapse }) {
     ['/todos', t('TODOs'), '✅'],
     ['/ferramentas', t('Ferramentas'), '🧰'],
     ['/configuracoes', t('Configurações'), '⚙️'],
-  ]
-  // Abre o app desktop (nativo) na tela pedida. Funciona se o atalho
-  // maestro:// estiver registrado; senão o navegador só ignora o clique
-  // e o usuário pode abrir o Maestro desktop manualmente.
-  const desktopLinks = [
-    ['maestro://vault', '🔒', t('Senhas (app)'), t('Cofre KeePass no desktop')],
+    // deep link do app desktop: mesma lista, sem seção própria
+    ['maestro://vault', t('Senhas'), '🔒', t('Cofre KeePass no desktop')],
   ]
   return (
     <aside className="sidebar">
@@ -76,34 +72,33 @@ function Sidebar({ onNavigate, onCollapse }) {
       <ProjectSelector />
       <div className="nav-label">{t('Workspace')}</div>
       <nav className="nav">
-        {nav.map(([to, label, ico]) => (
-          <NavLink key={to} to={to} onClick={onNavigate}>
-            <span className="nav-ico">{ico}</span>
-            <span>{label}</span>
-            {to === '/todos' && pendingCount > 0 && (
-              <span
-                style={{
-                  marginLeft: 'auto',
-                  fontSize: 11,
-                  fontWeight: 700,
-                  color: 'var(--danger, #e5484d)',
-                }}
-              >
-                ⏰{pendingCount}
-              </span>
-            )}
-          </NavLink>
-        ))}
-      </nav>
-      <div className="nav-label">{t('No app desktop')}</div>
-      <nav className="nav">
-        {desktopLinks.map(([href, ico, label, hint]) => (
-          <a key={href} href={href} title={hint} className="nav-desktop-link">
-            <span className="nav-ico">{ico}</span>
-            <span>{label}</span>
-            <span className="nav-ext">↗</span>
-          </a>
-        ))}
+        {nav.map(([to, label, ico, hint]) =>
+          to.startsWith('maestro://') ? (
+            // atalho do app desktop (abre o Maestro nativo)
+            <a key={to} href={to} title={hint}>
+              <span className="nav-ico">{ico}</span>
+              <span>{label}</span>
+              <span className="nav-ext">↗</span>
+            </a>
+          ) : (
+            <NavLink key={to} to={to} onClick={onNavigate}>
+              <span className="nav-ico">{ico}</span>
+              <span>{label}</span>
+              {to === '/todos' && pendingCount > 0 && (
+                <span
+                  style={{
+                    marginLeft: 'auto',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: 'var(--danger, #e5484d)',
+                  }}
+                >
+                  ⏰{pendingCount}
+                </span>
+              )}
+            </NavLink>
+          )
+        )}
       </nav>
     </aside>
   )

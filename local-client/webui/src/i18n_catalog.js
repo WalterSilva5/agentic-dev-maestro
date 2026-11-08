@@ -570,4 +570,6 @@ export const CATALOG = {
   "Último backup:": "Last backup:",
   "Últimos backups": "Recent backups",
   "Nenhum backup ainda.": "No backup yet.",
+  "Senhas": "Passwords",
+
 }
