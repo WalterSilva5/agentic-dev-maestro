@@ -1578,18 +1578,18 @@ class BoardMetricsAccordion(QFrame):
         self.refresh()
 
     def refresh(self):
-        # limpa
-        while self.content_layout.count():
-            it = self.content_layout.takeAt(0)
-            w = it.widget()
-            if w:
-                w.deleteLater()
-            elif it.layout():
-                # limpa layouts aninhados
-                while it.layout().count():
-                    c = it.layout().takeAt(0)
-                    if c.widget():
-                        c.widget().deleteLater()
+        # limpa (detach imediato para não sobrepor até o deleteLater)
+        def _clear_layout(lay):
+            while lay.count():
+                it = lay.takeAt(0)
+                ww = it.widget()
+                if ww is not None:
+                    ww.hide()
+                    ww.setParent(None)
+                    ww.deleteLater()
+                elif it.layout() is not None:
+                    _clear_layout(it.layout())
+        _clear_layout(self.content_layout)
         t = current_theme()
         if not self.project_id:
             self.summary_lbl.setText("")
