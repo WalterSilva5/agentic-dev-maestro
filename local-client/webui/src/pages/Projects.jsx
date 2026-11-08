@@ -8,7 +8,7 @@ export default function Projects() {
   const [projects, setProjects] = useState([])
   const [name, setName] = useState('')
   const [key, setKey] = useState('')
-  const [azureUrl, setAzureUrl] = useState('')
+  const [boardUrl, setBoardUrl] = useState('')
   const [error, setError] = useState('')
   const [workspaces, setWorkspaces] = useState([])
   const nav = useNavigate()
@@ -28,11 +28,11 @@ export default function Projects() {
     if (!name.trim() || !key.trim()) return
     try {
       const body = { name: name.trim(), key: key.trim().toUpperCase() }
-      if (azureUrl.trim()) body.azureBoardUrl = azureUrl.trim()
+      if (boardUrl.trim()) body.boardUrl = boardUrl.trim()
       await createProject(body)
       setName('')
       setKey('')
-      setAzureUrl('')
+      setBoardUrl('')
       setError('')
       load()
     } catch (e) {
@@ -40,20 +40,20 @@ export default function Projects() {
     }
   }
 
-  const onSetAzure = async (p) => {
-    const cur = p.azureBoardUrl || ''
+  const onSetBoard = async (p) => {
+    const cur = p.boardUrl || ''
     const { value: val } = await Swal.fire({
-      title: t('Link do board do Azure (cole a URL):'),
+      title: t('Link do board externo (cole a URL):'),
       input: 'url',
       inputValue: cur,
-      inputPlaceholder: 'https://dev.azure.com/...',
+      inputPlaceholder: 'https://...',
       showCancelButton: true,
       confirmButtonText: t('Salvar'),
       cancelButtonText: t('Cancelar'),
     })
     if (val === undefined) return
     try {
-      await updateProject(p.id, { azureBoardUrl: (val || '').trim() })
+      await updateProject(p.id, { boardUrl: (val || '').trim() })
       load()
     } catch (e) { setError(String(e.message || e)) }
   }
@@ -107,10 +107,10 @@ export default function Projects() {
           onChange={(e) => setKey(e.target.value)}
         />
         <input
-          placeholder={t('Link do board Azure (opcional)')}
-          value={azureUrl}
+          placeholder={t('Link do board externo (opcional)')}
+          value={boardUrl}
           style={{ flex: 1, minWidth: 220 }}
-          onChange={(e) => setAzureUrl(e.target.value)}
+          onChange={(e) => setBoardUrl(e.target.value)}
         />
         <button onClick={onCreate}>{t('+ Criar projeto')}</button>
       </div>
@@ -122,12 +122,12 @@ export default function Projects() {
             <div className="pname">{p.name}</div>
             <div className="desc">{p.description || t('Sem descrição')}</div>
             <div className="row" style={{ marginTop: 8, gap: 6 }} onClick={(e)=>e.stopPropagation()}>
-              {p.azureBoardUrl ? (
-                <a href={p.azureBoardUrl} target="_blank" rel="noreferrer" className="badge-type" style={{ textDecoration: 'none' }} title={p.azureBoardUrl}>🔗 Azure Board ↗</a>
+              {p.boardUrl ? (
+                <a href={p.boardUrl} target="_blank" rel="noreferrer" className="badge-type" style={{ textDecoration: 'none' }} title={p.boardUrl}>🔗 Board ↗</a>
               ) : (
-                <span className="muted" style={{ fontSize: 11 }}>{t('Sem link Azure')}</span>
+                <span className="muted" style={{ fontSize: 11 }}>{t('Sem link do board')}</span>
               )}
-              <button className="ghost" style={{ marginLeft: 'auto', padding: '2px 8px', fontSize: 11 }} onClick={()=>onSetAzure(p)}>{p.azureBoardUrl ? t('Editar link') : t('Definir link')}</button>
+              <button className="ghost" style={{ marginLeft: 'auto', padding: '2px 8px', fontSize: 11 }} onClick={()=>onSetBoard(p)}>{p.boardUrl ? t('Editar link') : t('Definir link')}</button>
               <button className="ghost" style={{ padding: '2px 8px', fontSize: 11 }} onClick={()=>onMove(p)} title={t('Mover para outro workspace')}>↗ {t('Mover')}</button>
             </div>
           </div>

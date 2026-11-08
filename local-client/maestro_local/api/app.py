@@ -87,6 +87,7 @@ class ProjectCreate(BaseModel):
     name: str
     key: str
     description: Optional[str] = None
+    boardUrl: Optional[str] = None
     azureBoardUrl: Optional[str] = None
 
 
@@ -605,6 +606,9 @@ def _project_dict(p: Project) -> dict:
         "description": p.description,
         "taskSeq": p.task_seq,
         "externalDocsPath": getattr(p, "external_docs_path", "") or "",
+        # Alias genérico (o board externo pode ser Azure DevOps, Jira, ClickUp...).
+        # `azureBoardUrl` fica por compatibilidade com clientes antigos.
+        "boardUrl": getattr(p, "azure_board_url", "") or "",
         "azureBoardUrl": getattr(p, "azure_board_url", "") or "",
         "links": [_link_dict(l) for l in getattr(p, "links", [])],
         "createdAt": p.created_at.isoformat() if p.created_at else None,
@@ -738,7 +742,8 @@ def create_project(body: ProjectCreate, s: Session = Depends(db)):
     existing = s.query(Project).filter(Project.key == body.key.upper()).first()
     if existing:
         raise HTTPException(400, "Project key already exists")
-    p = Project(name=body.name, key=body.key.upper(), description=body.description, azure_board_url=(body.azureBoardUrl or "").strip() if body.azureBoardUrl else "")
+    board_url = (body.boardUrl or body.azureBoardUrl or "").strip()
+    p = Project(name=body.name, key=body.key.upper(), description=body.description, azure_board_url=board_url)
     s.add(p)
     s.flush()
     for col_def in DEFAULT_COLUMNS:
@@ -917,6 +922,8 @@ def update_project(project_id: int, body: dict, s: Session = Depends(db)):
         p.external_docs_path = (body["externalDocsPath"] or "").strip()
     if "external_docs_path" in body:
         p.external_docs_path = (body["external_docs_path"] or "").strip()
+    if "boardUrl" in body:
+        p.azure_board_url = (body["boardUrl"] or "").strip()
     if "azureBoardUrl" in body:
         p.azure_board_url = (body["azureBoardUrl"] or "").strip()
     if "azure_board_url" in body:

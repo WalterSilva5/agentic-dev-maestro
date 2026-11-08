@@ -62,9 +62,23 @@ class Project(Base):
     links = relationship("ProjectLink", back_populates="project", cascade="all,delete-orphan", order_by="ProjectLink.sort_order")
     gate_rules = relationship("GateRule", back_populates="project", cascade="all,delete-orphan")
 
+    @property
+    def board_url(self) -> str:
+        """Link do board na plataforma de origem (Azure DevOps, Jira, ClickUp...).
+
+        A coluna no banco continua `azure_board_url` por compatibilidade com
+        bancos já existentes; este alias mantém o código neutro em relação à
+        plataforma.
+        """
+        return self.azure_board_url or ""
+
+    @board_url.setter
+    def board_url(self, value: str) -> None:
+        self.azure_board_url = (value or "").strip()
+
 
 class ProjectLink(Base):
-    """Atalho de link com título por projeto (ex.: PR, docs, Azure board)."""
+    """Atalho de link com título por projeto (ex.: PR, docs, board externo)."""
 
     __tablename__ = "project_links"
 

@@ -1272,10 +1272,10 @@ class MembersDialog(QDialog):
 
 
 # ────────────────────────────────────────────────────────────
-# ColumnManagerDialog — customiza colunas como Jira/Azure
+# ColumnManagerDialog — customiza colunas como Jira/Azure DevOps
 # ────────────────────────────────────────────────────────────
 
-AZURE_MIGRATION_TEMPLATE = [
+TEMPLATE_12_RAIAS = [
     ("To do", False), ("Approved", False), ("Refinement", False), ("Ready for Dev", False),
     ("Doing", False), ("Dev Box", False), ("Dev Review", False), ("In Test", False),
     ("Rework", False), ("Verified", False), ("Accepted", False), ("Done", True),
@@ -1311,10 +1311,10 @@ class ColumnManagerDialog(QDialog):
         add_btn.setCursor(Qt.PointingHandCursor)
         add_btn.clicked.connect(self._add_row)
         btns.addWidget(add_btn)
-        tmpl_btn = QPushButton(_t("Aplicar modelo Azure Migração"))
+        tmpl_btn = QPushButton(_t("Aplicar modelo 12 raias"))
         tmpl_btn.setProperty("flat", True)
         tmpl_btn.setCursor(Qt.PointingHandCursor)
-        tmpl_btn.setToolTip(_t("Substitui as colunas pelo modelo do Azure (To do → Done)"))
+        tmpl_btn.setToolTip(_t("Substitui as colunas pelo modelo de 12 raias (To do → Done)"))
         tmpl_btn.clicked.connect(self._apply_template)
         btns.addWidget(tmpl_btn)
         btns.addStretch()
@@ -1427,7 +1427,7 @@ class ColumnManagerDialog(QDialog):
                 self.list_layout.insertWidget(self._rows.index(r), r["widget"])
 
     def _apply_template(self):
-        if self._rows and QMessageBox.question(self, _t("Aplicar modelo"), _t("Substituir as colunas atuais pelo modelo Azure Migração (12 raias)?"), QMessageBox.Yes | QMessageBox.No, QMessageBox.No) != QMessageBox.Yes:
+        if self._rows and QMessageBox.question(self, _t("Aplicar modelo"), _t("Substituir as colunas atuais pelo modelo de 12 raias?"), QMessageBox.Yes | QMessageBox.No, QMessageBox.No) != QMessageBox.Yes:
             return
         s = get_session()
         try:
@@ -1441,7 +1441,7 @@ class ColumnManagerDialog(QDialog):
             r = self._rows.pop()
             self.list_layout.removeWidget(r["widget"])
             r["widget"].deleteLater()
-        for name, is_done in AZURE_MIGRATION_TEMPLATE:
+        for name, is_done in TEMPLATE_12_RAIAS:
             self._add_row_widget(name, None, is_done, None)
         # keep stretch at end
         self.list_layout.addStretch()
@@ -2010,7 +2010,7 @@ class BoardMetricsAccordion(QFrame):
             # Barra total proporcional
             total_bar = QProgressBar(); total_bar.setValue(pct); total_bar.setFormat(f"{pct}% ({done}/{total})"); total_bar.setFixedHeight(14)
             hier_box["layout"].addWidget(total_bar)
-            # Agrupa por módulo via labels (tags do Azure)
+            # Agrupa por módulo via labels (tags da plataforma de origem)
             from collections import defaultdict
             mod_tags = ['auth','cashier','config','financeiro','troca','venda','voucher','tef','acordo','monitor','estatisticas','batch','abend','crm','tudoav','cobransaas','cliente']
             mod_set = set(m.lower() for m in mod_tags)
@@ -2113,7 +2113,7 @@ class BoardMetricsAccordion(QFrame):
 # ────────────────────────────────────────────────────────────
 
 class ProjectLinksWidget(QFrame):
-    """Atalhos do projeto — links com título (PRs, docs, Azure, etc)"""
+    """Atalhos do projeto — links com título (PRs, docs, board externo, etc)"""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -2152,7 +2152,7 @@ class ProjectLinksWidget(QFrame):
         form.addWidget(add_btn)
         root.addLayout(form)
 
-        hint = QLabel(_t("Ex.: PR da sprint, doc de migração, board do Azure, pipeline."))
+        hint = QLabel(_t("Ex.: PR da sprint, doc de migração, board externo, pipeline."))
         hint.setProperty("class", "hint")
         hint.setWordWrap(True)
         root.addWidget(hint)
@@ -2493,14 +2493,14 @@ class BoardView(QWidget):
         self.archived_btn.clicked.connect(self._open_archived)
         header_row.addWidget(self.archived_btn)
 
-        self.azure_btn = QPushButton("🔗 Azure")
-        self.azure_btn.setFixedHeight(28)
-        self.azure_btn.setCursor(Qt.PointingHandCursor)
-        self.azure_btn.setToolTip(_t("Abrir board do Azure"))
-        self.azure_btn.clicked.connect(self._handle_azure)
-        self.azure_btn.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.azure_btn.customContextMenuRequested.connect(lambda _: self._edit_azure())
-        header_row.addWidget(self.azure_btn)
+        self.board_link_btn = QPushButton("🔗 Board")
+        self.board_link_btn.setFixedHeight(28)
+        self.board_link_btn.setCursor(Qt.PointingHandCursor)
+        self.board_link_btn.setToolTip(_t("Abrir board externo"))
+        self.board_link_btn.clicked.connect(self._open_board_link)
+        self.board_link_btn.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.board_link_btn.customContextMenuRequested.connect(lambda _: self._edit_board_link())
+        header_row.addWidget(self.board_link_btn)
 
         self.refresh_btn = QPushButton(_t("Atualizar"))
         self.refresh_btn.setProperty("flat", True)
@@ -2583,8 +2583,8 @@ class BoardView(QWidget):
         self._sprint_filter = None
         if hasattr(self, "back_btn"):
             self.back_btn.setVisible(bool(project_id))
-        if hasattr(self, "azure_btn"):
-            self._update_azure_button()
+        if hasattr(self, "board_link_btn"):
+            self._update_board_link_button()
         if project_id:
             self.empty_widget.setVisible(False)
             self.board_widget.setVisible(True)
@@ -2728,13 +2728,13 @@ class BoardView(QWidget):
         dlg.exec()
         self.refresh()
 
-    def _handle_azure(self):
+    def _open_board_link(self):
         if not self.project_id:
             return
         s = get_session()
         try:
             p = s.get(Project, self.project_id)
-            url = (getattr(p, "azure_board_url", "") or "").strip() if p else ""
+            url = (getattr(p, "board_url", "") or "").strip() if p else ""
         finally:
             s.close()
         if url:
@@ -2742,52 +2742,52 @@ class BoardView(QWidget):
             from PySide6.QtCore import QUrl
             QDesktopServices.openUrl(QUrl(url))
         else:
-            self._edit_azure()
+            self._edit_board_link()
 
-    def _edit_azure(self):
+    def _edit_board_link(self):
         if not self.project_id:
             return
         s = get_session()
         try:
             p = s.get(Project, self.project_id)
-            cur = (getattr(p, "azure_board_url", "") or "") if p else ""
+            cur = (getattr(p, "board_url", "") or "") if p else ""
         finally:
             s.close()
         from PySide6.QtWidgets import QInputDialog
-        url, ok = QInputDialog.getText(self, _t("Link Azure"), _t("Link do board do Azure (cole a URL):"), text=cur)
+        url, ok = QInputDialog.getText(self, _t("Link do Board"), _t("Link do board externo (cole a URL):"), text=cur)
         if not ok:
             return
         s = get_session()
         try:
             p = s.get(Project, self.project_id)
             if p is not None:
-                p.azure_board_url = url.strip()
+                p.board_url = url.strip()
                 s.commit()
-            self._update_azure_button()
+            self._update_board_link_button()
         finally:
             s.close()
 
-    def _update_azure_button(self):
-        if not hasattr(self, "azure_btn"):
+    def _update_board_link_button(self):
+        if not hasattr(self, "board_link_btn"):
             return
         s = get_session()
         try:
             p = s.get(Project, self.project_id) if self.project_id else None
-            url = (getattr(p, "azure_board_url", "") or "").strip() if p else ""
+            url = (getattr(p, "board_url", "") or "").strip() if p else ""
         finally:
             s.close()
         t = current_theme()
         if url:
-            self.azure_btn.setText("🔗 Azure")
-            self.azure_btn.setToolTip(url)
-            self.azure_btn.setStyleSheet(f"QPushButton {{ background: #0078d4; color: #fff; border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: 600; border: none; }} QPushButton:hover {{ background: #106ebe; }}")
-            self.azure_btn.setProperty("flat", False)
+            self.board_link_btn.setText("🔗 Board")
+            self.board_link_btn.setToolTip(url)
+            self.board_link_btn.setStyleSheet(f"QPushButton {{ background: #0078d4; color: #fff; border-radius: 6px; padding: 6px 12px; font-size: 12px; font-weight: 600; border: none; }} QPushButton:hover {{ background: #106ebe; }}")
+            self.board_link_btn.setProperty("flat", False)
         else:
-            self.azure_btn.setText(_t("Definir link Azure"))
-            self.azure_btn.setToolTip(_t("Cadastrar link do board do Azure"))
-            self.azure_btn.setStyleSheet("")
-            self.azure_btn.setProperty("flat", True)
-        self.azure_btn.setVisible(bool(self.project_id))
+            self.board_link_btn.setText(_t("Definir link do Board"))
+            self.board_link_btn.setToolTip(_t("Cadastrar link do board externo"))
+            self.board_link_btn.setStyleSheet("")
+            self.board_link_btn.setProperty("flat", True)
+        self.board_link_btn.setVisible(bool(self.project_id))
 
     def refresh(self):
         if not self.project_id:
@@ -2804,7 +2804,7 @@ class BoardView(QWidget):
             if not project:
                 return
             self.header.setText(project.name)
-            self._update_azure_button()
+            self._update_board_link_button()
 
             self._auto_archive(s)
 

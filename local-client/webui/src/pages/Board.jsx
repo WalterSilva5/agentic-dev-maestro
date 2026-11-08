@@ -344,19 +344,19 @@ export default function Board() {
           {board.key} · {board.name}
         </h1>
         <div className="row" style={{ gap: 8 }}>
-          {board.azureBoardUrl ? (
+          {board.boardUrl ? (
             <>
-              <a href={board.azureBoardUrl} target="_blank" rel="noreferrer"><button className="ghost" style={{ background: '#0078d4', color: '#fff', borderColor: '#0078d4' }}>🔗 {t('Abrir no Azure')}</button></a>
-              <button className="ghost" title={board.azureBoardUrl} onClick={async ()=>{
-                const { value: v } = await Swal.fire({ title: t('Link do board do Azure (cole a URL):'), input: 'url', inputValue: board.azureBoardUrl || '', inputPlaceholder: 'https://dev.azure.com/...', showCancelButton: true, confirmButtonText: t('Salvar'), cancelButtonText: t('Cancelar') })
-                if(v!==undefined) updateProject(projectId, { azureBoardUrl: (v||'').trim() }).then(load)
+              <a href={board.boardUrl} target="_blank" rel="noreferrer"><button className="ghost" style={{ background: '#0078d4', color: '#fff', borderColor: '#0078d4' }}>🔗 {t('Abrir board')}</button></a>
+              <button className="ghost" title={board.boardUrl} onClick={async ()=>{
+                const { value: v } = await Swal.fire({ title: t('Link do board externo (cole a URL):'), input: 'url', inputValue: board.boardUrl || '', inputPlaceholder: 'https://...', showCancelButton: true, confirmButtonText: t('Salvar'), cancelButtonText: t('Cancelar') })
+                if(v!==undefined) updateProject(projectId, { boardUrl: (v||'').trim() }).then(load)
               }}>{t('Editar link')}</button>
             </>
           ) : (
             <button className="ghost" onClick={async ()=>{
-              const { value: v } = await Swal.fire({ title: t('Link do board do Azure (cole a URL):'), input: 'url', inputPlaceholder: 'https://dev.azure.com/...', showCancelButton: true, confirmButtonText: t('Salvar'), cancelButtonText: t('Cancelar') })
-              if(v!==undefined) updateProject(projectId, { azureBoardUrl: (v||'').trim() }).then(load)
-            }}>{t('Definir link Azure')}</button>
+              const { value: v } = await Swal.fire({ title: t('Link do board externo (cole a URL):'), input: 'url', inputPlaceholder: 'https://...', showCancelButton: true, confirmButtonText: t('Salvar'), cancelButtonText: t('Cancelar') })
+              if(v!==undefined) updateProject(projectId, { boardUrl: (v||'').trim() }).then(load)
+            }}>{t('Definir link do Board')}</button>
           )}
           <Link to="/projetos"><button className="ghost">{t('← Projetos')}</button></Link>
         </div>
@@ -639,7 +639,7 @@ export default function Board() {
         <button className="ghost" onClick={() => setShowMembers(true)}>{t('Responsáveis')} ({members.length})</button>
       </div>
 
-      {/* Atalhos do projeto — links com título (PRs, docs, Azure, etc) */}
+      {/* Atalhos do projeto — links com título (PRs, docs, board externo, etc) */}
       <div className="card" style={{ padding: '10px 14px', marginBottom: 12 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <strong>🔗 {t('Atalhos')}</strong>
@@ -670,7 +670,7 @@ export default function Board() {
             <button onClick={handleCreateLink}>{t('+ Adicionar atalho')}</button>
           </div>
         )}
-        <div className="muted" style={{ fontSize: 11, marginTop: 6 }}>{t('Ex.: PR da sprint, doc de migração, board do Azure, pipeline.')}</div>
+        <div className="muted" style={{ fontSize: 11, marginTop: 6 }}>{t('Ex.: PR da sprint, doc de migração, board externo, pipeline.')}</div>
       </div>
 
       {/* Barra de filtros (paridade desktop FilterBar) */}
