@@ -115,8 +115,8 @@ a { color: inherit; text-decoration: none; }
   text-transform: uppercase;
 }
 .msel-add {
-  width: 22px; height: 22px; border-radius: 7px; border: 1px solid var(--border);
-  background: transparent; color: var(--muted); font-size: 14px; line-height: 1;
+  width: 26px; height: 26px; border-radius: 8px; border: 1px solid var(--border);
+  background: transparent; color: var(--muted); font-size: 15px; line-height: 1;
   display: grid; place-items: center; cursor: pointer;
 }
 .msel-add:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
@@ -168,19 +168,45 @@ a { color: inherit; text-decoration: none; }
 .msel-empty { padding: 10px; font-size: 12px; color: var(--muted); text-align: center; }
 .msel-dica { padding: 6px 16px 0; font-size: 11px; color: var(--muted); }
 
-/* Sidebar recolhe em telas estreitas + colapso no desktop (F9) */
-.nav-toggle { display: none; }
-.sidebar-collapse { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 7px; flex-shrink: 0; }
-.sidebar-show {
-  display: none; position: fixed; z-index: 30; top: 12px; left: 12px;
-  width: 40px; height: 40px; border-radius: 10px; background: var(--card);
-  border: 1px solid var(--border); box-shadow: var(--shadow); color: var(--text); font-size: 18px;
-  place-items: center; cursor: pointer;
+/* ----------------------------------------------------------------------
+   Botões auxiliares (recolher/abrir menu, criar) — mesmo padrão visual
+   ---------------------------------------------------------------------- */
+.icon-btn {
+  display: inline-grid; place-items: center;
+  width: 32px; height: 32px; padding: 0;
+  border: 1px solid transparent; border-radius: 9px;
+  background: transparent; color: var(--muted);
+  font-size: 15px; line-height: 1; cursor: pointer;
 }
-.layout.sidebar-collapsed .sidebar { display: none; }
-.layout.sidebar-collapsed .sidebar-show { display: grid; }
-.layout.sidebar-collapsed .nav-toggle { display: none; }
-.layout.sidebar-collapsed .content { padding-left: 28px; }
+.icon-btn:hover { background: var(--bg); border-color: var(--border); color: var(--text); }
+.icon-btn:active { transform: translateY(1px); }
+.icon-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.icon-btn.floating {
+  position: fixed; top: 14px; left: 14px; z-index: 45;
+  width: 40px; height: 40px; border-radius: 11px; font-size: 18px;
+  background: var(--card); border-color: var(--border); color: var(--text);
+  box-shadow: var(--shadow);
+}
+.icon-btn.floating:hover { border-color: var(--accent); color: var(--accent); box-shadow: var(--shadow-lg); }
+
+.brand .sidebar-collapse { margin-left: auto; }
+
+/* gaveta aberta no mobile: fundo escurecido para fechar ao toque */
+.nav-backdrop {
+  display: none; position: fixed; inset: 0; z-index: 39;
+  background: rgba(10, 12, 20, .38); border: none; padding: 0; cursor: pointer;
+}
+
+/* Desktop: menu fixo; o recolher/expandir é do próprio menu */
+@media (min-width: 761px) {
+  .nav-toggle { display: none; }
+  .sidebar-show { display: none; }
+  .layout.sidebar-collapsed .sidebar-show { display: grid; }
+  .layout.sidebar-collapsed .content { padding-left: 68px; }
+}
+
+/* Mobile: menu vira gaveta; o hambúrguer é o único controle */
 @media (max-width: 760px) {
   .sidebar {
     position: fixed; z-index: 40; height: 100vh; left: calc(-1 * var(--sidebar-w)); top: 0;
@@ -188,21 +214,23 @@ a { color: inherit; text-decoration: none; }
   }
   .layout.nav-open .sidebar { left: 0; display: flex; }
   .layout.sidebar-collapsed .sidebar { left: calc(-1 * var(--sidebar-w)); }
-  .nav-toggle {
-    display: grid; place-items: center; position: fixed; z-index: 30; top: 12px; left: 12px;
-    width: 40px; height: 40px; border-radius: 10px; background: var(--card);
-    border: 1px solid var(--border); box-shadow: var(--shadow); color: var(--text); font-size: 18px;
-  }
-  .content { padding: 64px 16px 16px; }
+  .layout.nav-open .nav-backdrop { display: block; }
+  .sidebar-collapse { display: none; }
+  .sidebar-show { display: none; }
+  .nav-toggle { display: grid; }
+  /* com a gaveta aberta o ✕ sai de cima da marca e vai para a borda */
+  .layout.nav-open .nav-toggle { left: calc(var(--sidebar-w) + 14px); }
+  .content { padding: 64px 16px 20px; }
   .layout.sidebar-collapsed .content { padding-left: 16px; }
 }
-@media (min-width: 761px) {
-  .nav-toggle { display: grid; place-items: center; position: fixed; z-index: 30; top: 12px; left: 12px;
-    width: 40px; height: 40px; border-radius: 10px; background: var(--card);
-    border: 1px solid var(--border); box-shadow: var(--shadow); color: var(--text); font-size: 18px; }
-  .layout:not(.sidebar-collapsed) .content { padding-left: 56px; }
-  .layout.sidebar-collapsed .nav-toggle { display: none; }
+
+/* Toque: alvos maiores */
+@media (pointer: coarse) {
+  .icon-btn { width: 38px; height: 38px; }
+  .icon-btn.floating { width: 44px; height: 44px; }
+  .msel-add { width: 30px; height: 30px; }
 }
+
 .row { display: flex; gap: 8px; align-items: center; }
 input, select, textarea {
   border: 1px solid var(--border); border-radius: 9px; padding: 8px 11px;

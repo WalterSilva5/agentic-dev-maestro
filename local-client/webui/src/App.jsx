@@ -59,11 +59,11 @@ function Sidebar({ onNavigate, onCollapse }) {
           <div className="sub">Maestro · web</div>
         </div>
         <button
-          className="sidebar-collapse"
+          type="button"
+          className="icon-btn sidebar-collapse"
           aria-label={t('Ocultar menu')}
-          title={t('Ocultar menu')}
+          title={t('Ocultar menu (F9)')}
           onClick={onCollapse}
-          style={{ marginLeft: 'auto', background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', padding: '4px 8px', fontSize: 12 }}
         >
           ◀
         </button>
@@ -125,18 +125,31 @@ export default function App() {
   }, [])
   return (
     <div className={'layout' + (navOpen ? ' nav-open' : '') + (sidebarVisible ? '' : ' sidebar-collapsed')}>
+      {/* mobile: abre/fecha a gaveta (no desktop este botão não aparece) */}
       <button
-        className="nav-toggle"
-        aria-label={t('Menu')}
-        onClick={() => (sidebarVisible ? toggleSidebar() : setNavOpen((v) => !v))}
-        title={sidebarVisible ? t('Ocultar menu (F9)') : t('Mostrar menu (F9)')}
+        type="button"
+        className="icon-btn floating nav-toggle"
+        aria-label={navOpen ? t('Fechar menu') : t('Abrir menu')}
+        aria-expanded={navOpen}
+        title={navOpen ? t('Fechar menu') : t('Abrir menu')}
+        onClick={() => setNavOpen((v) => !v)}
       >
         {navOpen ? '✕' : '☰'}
       </button>
+      {navOpen && (
+        <button
+          type="button"
+          className="nav-backdrop"
+          aria-label={t('Fechar menu')}
+          onClick={() => setNavOpen(false)}
+        />
+      )}
       {sidebarVisible && <Sidebar onNavigate={() => setNavOpen(false)} onCollapse={toggleSidebar} />}
+      {/* desktop recolhido: botão para trazer o menu de volta */}
       {!sidebarVisible && (
         <button
-          className="sidebar-show"
+          type="button"
+          className="icon-btn floating sidebar-show"
           aria-label={t('Mostrar menu')}
           title={t('Mostrar menu (F9)')}
           onClick={toggleSidebar}

@@ -577,4 +577,6 @@ export const CATALOG = {
   "Nenhum projeto neste workspace": "No project in this workspace",
   "Nada encontrado": "Nothing found",
   "abrir o board": "open the board",
+  "Abrir menu": "Open menu",
+  "Fechar menu": "Close menu",
 }
