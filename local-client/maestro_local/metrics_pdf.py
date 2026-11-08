@@ -72,17 +72,20 @@ def collect_metrics(session, project) -> dict:
         )
         .all()
     )
-    locais = sum(1 for t in tasks if getattr(t, "is_local", False))
+    # tarefa local não entra em progresso/módulo, mas GERA ALERTA de prazo
+    todas = list(tasks)
+    locais = [t for t in tasks if getattr(t, "is_local", False)]
     tasks = [t for t in tasks if not getattr(t, "is_local", False)]
     total = len(tasks)
     done = sum(1 for t in tasks if t.column_id in done_ids)
     pct = round(done / total * 100) if total else 0
 
     hoje = date.today()
-    vencidas = [t for t in tasks if t.due_date and t.due_date.date() < hoje and t.column_id not in done_ids]
+    vencidas = [t for t in todas if t.due_date and t.due_date.date() < hoje and t.column_id not in done_ids]
     limite = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
     limite = limite.fromordinal(limite.toordinal() - 14)
-    paradas = [t for t in tasks if t.column_id not in done_ids and t.updated_at and t.updated_at < limite]
+    paradas = [t for t in todas if t.column_id not in done_ids and t.updated_at and t.updated_at < limite]
+    alertas_local = len({t.id for t in vencidas + paradas if getattr(t, "is_local", False)})
 
     wip = []
     for c in cols:
@@ -184,12 +187,13 @@ def collect_metrics(session, project) -> dict:
     return {
         "projeto": {"key": project.key, "name": project.name, "id": project.id},
         "total": total,
-        "local": locais,
+        "local": len(locais),
         "done": done,
         "pct": pct,
         "abertas": total - done,
         "vencidas": len(vencidas),
         "paradas": len(paradas),
+        "alertasLocal": alertas_local,
         "wip": wip,
         "por_coluna": por_coluna,
         "por_pessoa": por_pessoa,
@@ -508,6 +512,11 @@ def build_metrics_pdf(session, project) -> bytes:
         alertas.append(f"<b>{m['vencidas']} tarefa(s) vencida(s)</b> sem concluir")
     if m["paradas"]:
         alertas.append(f"<b>{m['paradas']} tarefa(s) parada(s)</b> há mais de 14 dias")
+    if m.get("alertasLocal"):
+        alertas.append(
+            f"{m['alertasLocal']} alerta(s) vêm de <b>tarefa(s) local(is)</b> "
+            "(lembrete: não entram no progresso, mas contam no prazo)"
+        )
     sem_dono = next((p for p in m["por_pessoa"] if p["sem_dono"]), None)
     if sem_dono and sem_dono["total"]:
         alertas.append(

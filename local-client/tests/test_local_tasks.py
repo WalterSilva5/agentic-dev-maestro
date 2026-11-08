@@ -290,3 +290,53 @@ def test_pdf_ignora_tarefas_locais(tmp_path):
     assert dados["local"] == 1
     m._engine = None
     m._SessionLocal = None
+
+
+def test_tarefa_local_gera_alerta_de_prazo(tmp_path):
+    """Local não entra no progresso, mas o prazo vencido dela vira alerta."""
+    from datetime import datetime, timedelta
+
+    from maestro_local.metrics_pdf import collect_metrics
+
+    import maestro_local.db.models as m
+    from maestro_local.db.models import BoardColumn, Project, Task, get_session
+
+    db = str(tmp_path / "alerta.db")
+    init_db(db)
+    m._engine = None
+    m._SessionLocal = None
+    m._active_db_path = db
+    init_db(db)
+
+    s = get_session()
+    p = Project(name="Alerta", key="ALR")
+    s.add(p); s.flush()
+    col = BoardColumn(project_id=p.id, name="To do", order=0, is_done=False)
+    s.add(col); s.flush()
+    s.add(Task(project_id=p.id, column_id=col.id, number=1, title="remota"))
+    s.add(Task(
+        project_id=p.id, column_id=col.id, number=2, title="revisar o dev",
+        is_local=True, due_date=datetime.utcnow() - timedelta(days=2),
+    ))
+    s.commit()
+
+    dados = collect_metrics(s, p)
+    s.close()
+    m._engine = None
+    m._SessionLocal = None
+
+    assert dados["total"] == 1        # progresso só com a remota
+    assert dados["local"] == 1
+    assert dados["vencidas"] == 1     # a local vencida aparece no alerta
+    assert dados["alertasLocal"] == 1
+
+
+def test_tarefa_local_nao_conta_como_parada_remota():
+    """Paradas contam todas (alerta), mas o total de progresso continua remoto."""
+    from maestro_local.stages import compute_stages
+
+    col = _Col(6, "Dev Box", 5)
+    local = _Task(2, col, local=True)
+    d = compute_stages([_Task(1, col), local], [col])
+    assert d["total"] == 1
+    assert d["local"] == 1

@@ -1747,9 +1747,12 @@ curl -s -X POST http://127.0.0.1:9777/api/tasks -H 'Content-Type: application/js
 - `PATCH /api/tasks/{code}` com `{"isLocal": true|false}` converte
 - No board: filtro "Origem" (Todas / Do board / Locais) e checkbox
   "Criar como local" no formulario de criacao
-- **Nao entra em metrica nenhuma**: progresso, alertas, WIP, por coluna,
-  responsavel, epico, modulo, estagio, objetivo e PDF ignoram tarefas locais.
-  As metricas reportam `local: N` so para dar transparencia da diferenca
+- **Nao entra no progresso**: por coluna, responsavel, epico, modulo,
+  estagio, WIP, objetivo e o % concluido ignoram tarefas locais. As metricas
+  reportam `local: N` so para dar transparencia da diferenca
+- **Mas gera alerta**: vencidas, paradas 14d+ e "vence em 7 dias" contam
+  tarefa local (lembrete de prazo). No PDF/UI o alerta vem marcado como local
+  (no PDF: `alertasLocal`)
 
 ## 5. Quem chegou em cada estagio (cumulativo)
 

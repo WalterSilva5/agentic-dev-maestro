@@ -1735,13 +1735,14 @@ class BoardMetricsAccordion(QFrame):
                     if cnt > col.wip_limit:
                         wip_alerts.append(f"{col.name}: {cnt}/{col.wip_limit}")
 
-            # vencidos
+            # alertas de prazo/fluxo contam TODAS as tarefas (a local é lembrete de entrega)
             hoje = date.today()
-            vencidos = [tk for tk in tasks_metric if tk.due_date and tk.due_date.date() < hoje and tk.column_id not in done_col_ids]
+            vencidos = [tk for tk in tasks_all if tk.due_date and tk.due_date.date() < hoje and tk.column_id not in done_col_ids]
             # parados (sem atualização há 14d, não concluídos)
             from datetime import timedelta
             limite_parado = datetime.utcnow() - timedelta(days=14)
-            parados = [tk for tk in tasks_metric if tk.column_id not in done_col_ids and tk.updated_at and tk.updated_at < limite_parado]
+            parados = [tk for tk in tasks_all if tk.column_id not in done_col_ids and tk.updated_at and tk.updated_at < limite_parado]
+            alertas_locais = len({tk.id for tk in vencidos + parados if tk.is_local})
 
             # sprint ativa
             sprint_ativa = s.query(Sprint).filter(Sprint.project_id == self.project_id, Sprint.status == "ATIVA").first()
@@ -1767,7 +1768,9 @@ class BoardMetricsAccordion(QFrame):
             if goals_atrasados:
                 partes.append(f"🎯 {goals_atrasados} objetivo(s) atrasado(s)")
             if locais:
-                partes.append("🏠 " + _t("{n} local(is) fora das métricas").format(n=len(locais)))
+                partes.append("🏠 " + _t("{n} local(is) fora do progresso").format(n=len(locais)))
+            if alertas_locais:
+                partes.append(_t("{n} alerta(s) de tarefa local").format(n=alertas_locais))
             self.summary_lbl.setText("  ·  ".join(partes) if partes else _t("Tudo em dia"))
 
             # — linha de progresso geral —
@@ -1893,12 +1896,15 @@ class BoardMetricsAccordion(QFrame):
                 for a in wip_alerts:
                     alert_box["layout"].addWidget(self._alert_row(f"WIP: {a}", t.danger, t))
                 for tk in vencidos[:5]:
-                    alert_box["layout"].addWidget(self._alert_row(f"{tk.code} vencida em {tk.due_date.date().strftime('%d/%m')}", t.danger, t))
+                    marca = f" · {_t('local')}" if tk.is_local else ""
+                    alert_box["layout"].addWidget(self._alert_row(
+                        f"{tk.code} vencida em {tk.due_date.date().strftime('%d/%m')}{marca}", t.danger, t))
                 if len(vencidos) > 5:
                     alert_box["layout"].addWidget(self._hint(_t("+ {n} vencida(s)").format(n=len(vencidos)-5), t))
                 for tk in parados[:4]:
                     dias = (datetime.utcnow() - tk.updated_at).days if tk.updated_at else 0
-                    alert_box["layout"].addWidget(self._alert_row(f"{tk.code} parada há {dias}d", t.warning, t))
+                    marca = f" · {_t('local')}" if tk.is_local else ""
+                    alert_box["layout"].addWidget(self._alert_row(f"{tk.code} parada há {dias}d{marca}", t.warning, t))
                 if len(parados) > 4:
                     alert_box["layout"].addWidget(self._hint(_t("+ {n} parada(s)").format(n=len(parados)-4), t))
             cols_row.addWidget(alert_box["box"], 1)
@@ -1923,10 +1929,12 @@ class BoardMetricsAccordion(QFrame):
             elif not (sprint_ativa and sprint_ativa.end_date):
                 prazos_box["layout"].addWidget(self._hint(_t("Nenhum prazo definido."), t))
             # tarefas vencidas já estão em alertas, mas mostra próximas a vencer (7d)
-            proximas = [tk for tk in tasks_metric if tk.due_date and 0 <= (tk.due_date.date() - hoje).days <= 7 and tk.column_id not in done_col_ids]
+            proximas = [tk for tk in tasks_all if tk.due_date and 0 <= (tk.due_date.date() - hoje).days <= 7 and tk.column_id not in done_col_ids]
             if proximas:
                 for tk in proximas[:3]:
-                    prazos_box["layout"].addWidget(self._hint(f"{tk.code} vence {tk.due_date.date().strftime('%d/%m')}", t))
+                    marca = f" · {_t('local')}" if tk.is_local else ""
+                    prazos_box["layout"].addWidget(self._hint(
+                        f"{tk.code} vence {tk.due_date.date().strftime('%d/%m')}{marca}", t))
             cols_row.addWidget(prazos_box["box"], 1)
 
             # Objetivos

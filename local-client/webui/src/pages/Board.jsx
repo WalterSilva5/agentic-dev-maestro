@@ -291,9 +291,11 @@ export default function Board() {
   const pct = tasksMetric.length ? Math.round((doneTasks / tasksMetric.length) * 100) : 0
   const wipAlerts = cols.filter((c) => c.wipLimit && c.wipLimit > 0 && c.tasks.length > c.wipLimit)
   const today0 = new Date(); today0.setHours(0,0,0,0)
-  const vencidos = tasksMetric.filter((tk) => tk.dueDate && new Date(tk.dueDate) < today0 && !doneColIds.has(tk.columnId))
+  // alertas de prazo/fluxo contam TODAS as tarefas (a local é lembrete de entrega)
+  const vencidos = tasksAll.filter((tk) => tk.dueDate && new Date(tk.dueDate) < today0 && !doneColIds.has(tk.columnId))
   const limiteParado = Date.now() - 14 * 24 * 60 * 60 * 1000
-  const parados = tasksMetric.filter((tk) => !doneColIds.has(tk.columnId) && tk.updatedAt && new Date(tk.updatedAt).getTime() < limiteParado)
+  const parados = tasksAll.filter((tk) => !doneColIds.has(tk.columnId) && tk.updatedAt && new Date(tk.updatedAt).getTime() < limiteParado)
+  const alertasLocais = new Set([...vencidos, ...parados].filter((tk) => tk.isLocal).map((tk) => tk.id)).size
   const goalsAtrasados = goals.filter((g) => {
     if (!g.dueDate) return false
     if (new Date(g.dueDate) >= today0) return false
@@ -456,8 +458,8 @@ export default function Board() {
                   ? <div className="muted" style={{ fontSize: 12 }}>{t('Nenhum alerta — fluxo saudável.')}</div>
                   : <>
                     {wipAlerts.slice(0,3).map((a,i)=>(<div key={i} style={{ color: 'var(--danger)', fontSize: 12 }}>{'\u2022'} WIP: {a}</div>))}
-                    {vencidos.slice(0,3).map((tk)=>(<div key={tk.id} style={{ color: 'var(--danger)', fontSize: 12 }}>{'\u2022'} {tk.code} vencida</div>))}
-                    {parados.slice(0,3).map((tk)=>(<div key={tk.id} style={{ color: '#d97706', fontSize: 12 }}>{'\u2022'} {tk.code} parada</div>))}
+                    {vencidos.slice(0,3).map((tk)=>(<div key={tk.id} style={{ color: 'var(--danger)', fontSize: 12 }}>{'\u2022'} {tk.code} vencida{tk.isLocal ? ' · ' + t('local') : ''}</div>))}
+                    {parados.slice(0,3).map((tk)=>(<div key={tk.id} style={{ color: '#d97706', fontSize: 12 }}>{'\u2022'} {tk.code} parada{tk.isLocal ? ' · ' + t('local') : ''}</div>))}
                   </>}
               </div>
               <div style={{ background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '8px 10px' }}>
@@ -573,8 +575,9 @@ export default function Board() {
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="muted">{t('Sem responsável')}</span><span style={{ fontWeight: 700 }}>{unassignedTot} ({unassignedPct}%)</span></div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="muted">{t('Concluídas')}</span><span style={{ fontWeight: 700, color: 'var(--accent)' }}>{doneTasks}/{tasksMetric.length} ({pct}%)</span></div>
                   {localTasks > 0 && (
-                    <div className="muted" style={{ fontSize: 10, marginTop: 2 }} title={t('Lembretes locais não sincronizam e não contam em nenhuma métrica')}>
-                      {localTasks} {t('tarefa(s) local(is) fora das métricas')}
+                    <div className="muted" style={{ fontSize: 10, marginTop: 2 }} title={t('Lembretes locais não entram no progresso, mas contam no alerta de prazo')}>
+                      {localTasks} {t('local(is) fora do progresso')}
+                      {alertasLocais > 0 && ` · ${alertasLocais} ${t('em alerta de prazo')}`}
                     </div>
                   )}
                 </div>

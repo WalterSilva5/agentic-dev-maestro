@@ -895,4 +895,9 @@ CATALOG = {
   "tarefa(s) local(is) fora das métricas": "local task(s) outside the metrics",
   "Lembretes locais não sincronizam e não contam em nenhuma métrica": "Local reminders do not sync and do not count in any metric",
   "{n} local(is) fora das métricas": "{n} local(s) outside the metrics",
+  "local": "local",
+  "local(is) fora do progresso": "local(s) outside the progress",
+  "em alerta de prazo": "on a deadline alert",
+  "Lembretes locais não entram no progresso, mas contam no alerta de prazo": "Local reminders do not count in progress, but they do count in deadline alerts",
+  "{n} alerta(s) de tarefa local": "{n} alert(s) from local tasks",
 }
