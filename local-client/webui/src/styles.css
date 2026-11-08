@@ -99,20 +99,40 @@ a { color: inherit; text-decoration: none; }
   border-radius: var(--radius); padding: 14px 16px; box-shadow: var(--shadow);
 }
 
-/* Sidebar recolhe em telas estreitas */
+/* Sidebar recolhe em telas estreitas + colapso no desktop (F9) */
 .nav-toggle { display: none; }
+.sidebar-collapse { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 7px; flex-shrink: 0; }
+.sidebar-show {
+  display: none; position: fixed; z-index: 30; top: 12px; left: 12px;
+  width: 40px; height: 40px; border-radius: 10px; background: var(--card);
+  border: 1px solid var(--border); box-shadow: var(--shadow); color: var(--text); font-size: 18px;
+  place-items: center; cursor: pointer;
+}
+.layout.sidebar-collapsed .sidebar { display: none; }
+.layout.sidebar-collapsed .sidebar-show { display: grid; }
+.layout.sidebar-collapsed .nav-toggle { display: none; }
+.layout.sidebar-collapsed .content { padding-left: 28px; }
 @media (max-width: 760px) {
   .sidebar {
     position: fixed; z-index: 40; height: 100vh; left: -260px; top: 0;
     transition: left .2s ease; box-shadow: var(--shadow-lg);
   }
-  .layout.nav-open .sidebar { left: 0; }
+  .layout.nav-open .sidebar { left: 0; display: flex; }
+  .layout.sidebar-collapsed .sidebar { left: -260px; }
   .nav-toggle {
     display: grid; place-items: center; position: fixed; z-index: 30; top: 12px; left: 12px;
     width: 40px; height: 40px; border-radius: 10px; background: var(--card);
     border: 1px solid var(--border); box-shadow: var(--shadow); color: var(--text); font-size: 18px;
   }
   .content { padding: 64px 16px 16px; }
+  .layout.sidebar-collapsed .content { padding-left: 16px; }
+}
+@media (min-width: 761px) {
+  .nav-toggle { display: grid; place-items: center; position: fixed; z-index: 30; top: 12px; left: 12px;
+    width: 40px; height: 40px; border-radius: 10px; background: var(--card);
+    border: 1px solid var(--border); box-shadow: var(--shadow); color: var(--text); font-size: 18px; }
+  .layout:not(.sidebar-collapsed) .content { padding-left: 56px; }
+  .layout.sidebar-collapsed .nav-toggle { display: none; }
 }
 .row { display: flex; gap: 8px; align-items: center; }
 input, select, textarea {

@@ -23,7 +23,7 @@ import { getPendingTodos } from './api'
 import { getTheme, toggleTheme } from './theme'
 import { t } from './i18n'
 
-function Sidebar({ onNavigate }) {
+function Sidebar({ onNavigate, onCollapse }) {
   const [theme, setTheme] = useState(getTheme())
   const [pendingCount, setPendingCount] = useState(0)
 
@@ -62,6 +62,15 @@ function Sidebar({ onNavigate }) {
           <div className="name">Agentic Dev</div>
           <div className="sub">Maestro · web</div>
         </div>
+        <button
+          className="sidebar-collapse"
+          aria-label={t('Ocultar menu')}
+          title={t('Ocultar menu')}
+          onClick={onCollapse}
+          style={{ marginLeft: 'auto', background: 'transparent', border: '1px solid var(--border)', color: 'var(--muted)', padding: '4px 8px', fontSize: 12 }}
+        >
+          ◀
+        </button>
       </div>
       <WorkspaceSelector />
       <div className="nav-label">{t('Workspace')}</div>
@@ -104,16 +113,44 @@ function Sidebar({ onNavigate }) {
 
 export default function App() {
   const [navOpen, setNavOpen] = useState(false)
+  const [sidebarVisible, setSidebarVisible] = useState(() => {
+    try { return localStorage.getItem('maestro.sidebarVisible') !== 'false' } catch { return true }
+  })
+  const toggleSidebar = () => {
+    setSidebarVisible((v) => {
+      const n = !v
+      try { localStorage.setItem('maestro.sidebarVisible', String(n)) } catch {}
+      return n
+    })
+    setNavOpen(false)
+  }
+  // Atalho F9 como no desktop
+  useEffect(() => {
+    const h = (e) => { if (e.key === 'F9') { e.preventDefault(); toggleSidebar() } }
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, [])
   return (
-    <div className={'layout' + (navOpen ? ' nav-open' : '')}>
+    <div className={'layout' + (navOpen ? ' nav-open' : '') + (sidebarVisible ? '' : ' sidebar-collapsed')}>
       <button
         className="nav-toggle"
         aria-label={t('Menu')}
-        onClick={() => setNavOpen((v) => !v)}
+        onClick={() => (sidebarVisible ? toggleSidebar() : setNavOpen((v) => !v))}
+        title={sidebarVisible ? t('Ocultar menu (F9)') : t('Mostrar menu (F9)')}
       >
         {navOpen ? '✕' : '☰'}
       </button>
-      <Sidebar onNavigate={() => setNavOpen(false)} />
+      {sidebarVisible && <Sidebar onNavigate={() => setNavOpen(false)} onCollapse={toggleSidebar} />}
+      {!sidebarVisible && (
+        <button
+          className="sidebar-show"
+          aria-label={t('Mostrar menu')}
+          title={t('Mostrar menu (F9)')}
+          onClick={toggleSidebar}
+        >
+          ☰
+        </button>
+      )}
       <main className="content" onClick={() => navOpen && setNavOpen(false)}>
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
