@@ -44,6 +44,13 @@ export default function Board() {
   const [goals, setGoals] = useState([])
   const [metricsOpen, setMetricsOpen] = useState(true)
 
+  // Filtros (paridade com desktop FilterBar)
+  const [searchText, setSearchText] = useState('')
+  const [priorityFilter, setPriorityFilter] = useState('all')
+  const [epicFilter, setEpicFilter] = useState('all')
+  const [tagFilter, setTagFilter] = useState('all')
+  const [assigneeFilter, setAssigneeFilter] = useState('all')
+
   const filterParam = sprintFilter === 'all' ? null : sprintFilter
 
   const load = () =>
@@ -195,13 +202,35 @@ export default function Board() {
   const daysUntil = (d) => Math.round((new Date(d) - today0) / 86400000)
   const colorForDays = (d, warn=7) => d < 0 ? 'var(--danger)' : d <= warn ? '#d97706' : 'var(--text)'
 
+  // Filtros derivados (client-side)
+  const epicOptions = [...new Set(tasksAll.flatMap((tk) => (tk.epics || []).map((e) => e.name)))].sort()
+  const tagOptions = [...new Set(tasksAll.flatMap((tk) => (tk.labels || []).map((l) => l.name)))].sort()
+  const assigneeOptions = [...new Set(tasksAll.map((tk) => tk.assignee).filter(Boolean))].sort()
+  const filteredCols = cols.map((col) => ({
+    ...col,
+    tasks: col.tasks.filter((tk) => {
+      const s = searchText.trim().toLowerCase()
+      if (s && !((tk.title || '').toLowerCase().includes(s) || (tk.code || '').toLowerCase().includes(s))) return false
+      if (priorityFilter !== 'all' && tk.priority !== priorityFilter) return false
+      if (epicFilter !== 'all' && !(tk.epics || []).some((e) => e.name === epicFilter)) return false
+      if (tagFilter !== 'all' && !(tk.labels || []).some((l) => l.name === tagFilter)) return false
+      if (assigneeFilter !== 'all') {
+        if (assigneeFilter === '__none__') { if (tk.assignee) return false }
+        else if (tk.assignee !== assigneeFilter) return false
+      }
+      return true
+    }),
+  }))
+  const visibleCount = filteredCols.reduce((a, c) => a + c.tasks.length, 0)
+  const PRIORITY_COLORS = { LOW: '#71717A', MEDIUM: '#4f46e5', HIGH: '#EA580C', URGENT: '#DC2626' }
+
   return (
     <div>
       <div className="row" style={{ justifyContent: 'space-between' }}>
         <h1 className="page-title">
           {board.key} · {board.name}
         </h1>
-        <Link to="/projects"><button className="ghost">{t('← Projetos')}</button></Link>
+        <Link to="/projetos"><button className="ghost">{t('← Projetos')}</button></Link>
       </div>
       <p className="subtitle">{tf('Board kanban via API ({count} colunas).', { count: cols.length })}</p>
 
@@ -317,6 +346,23 @@ export default function Board() {
         )}
       </div>
 
+      {/* Barra de filtros (paridade desktop FilterBar) */}
+      {!showArchived && view === 'board' && (
+        <div className="card" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 10, padding: '10px 12px' }}>
+          <input placeholder={t('🔍 Buscar por título ou código...')} value={searchText} onChange={(e) => setSearchText(e.target.value)} style={{ minWidth: 180, flex: '1 1 180px' }} />
+          <span className="muted" style={{ fontSize: 11, fontWeight: 700 }}>{t('Prioridade:')}</span>
+          <select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)} style={{ minWidth: 110 }}><option value="all">{t('Todas')}</option><option value="LOW">{t('Baixa')}</option><option value="MEDIUM">{t('Média')}</option><option value="HIGH">{t('Alta')}</option><option value="URGENT">{t('Urgente')}</option></select>
+          <span className="muted" style={{ fontSize: 11, fontWeight: 700 }}>{t('Épico:')}</span>
+          <select value={epicFilter} onChange={(e) => setEpicFilter(e.target.value)} style={{ minWidth: 110 }}><option value="all">{t('Todos')}</option>{epicOptions.map((ep) => (<option key={ep} value={ep}>{ep}</option>))}</select>
+          <span className="muted" style={{ fontSize: 11, fontWeight: 700 }}>{t('Tag:')}</span>
+          <select value={tagFilter} onChange={(e) => setTagFilter(e.target.value)} style={{ minWidth: 110 }}><option value="all">{t('Todas')}</option>{tagOptions.map((tg) => (<option key={tg} value={tg}>{tg}</option>))}</select>
+          <span className="muted" style={{ fontSize: 11, fontWeight: 700 }}>{t('Responsável:')}</span>
+          <select value={assigneeFilter} onChange={(e) => setAssigneeFilter(e.target.value)} style={{ minWidth: 120 }}><option value="all">{t('Todos')}</option><option value="__none__">{t('Sem responsável')}</option>{assigneeOptions.map((a) => (<option key={a} value={a}>{a}</option>))}</select>
+          <span className="muted" style={{ fontSize: 11, marginLeft: 'auto' }}>{visibleCount === totalTasks ? tf('{total} tarefas', { total: totalTasks }) : tf('{visible}/{total} tarefas', { visible: visibleCount, total: totalTasks })}</span>
+          <button className="ghost" onClick={() => { setSearchText(''); setPriorityFilter('all'); setEpicFilter('all'); setTagFilter('all'); setAssigneeFilter('all') }}>{t('Limpar')}</button>
+        </div>
+      )}
+
       {showArchived && (
         <div className="card">
           <strong>{t('Tarefas arquivadas')}</strong>
@@ -341,18 +387,40 @@ export default function Board() {
 
       {!showArchived && (
       <div className="board">
-        {cols.map((col) => (
+        {filteredCols.map((col) => {
+          const orig = cols.find((c) => c.id === col.id)
+          const wipOver = orig?.wipLimit && orig.tasks.length > orig.wipLimit
+          const countText = orig?.wipLimit ? `${col.tasks.length}/${orig.wipLimit}` : String(col.tasks.length)
+          return (
           <div key={col.id} className="column">
             <h3>
               <span>{col.name}</span>
-              <span className="count">{col.tasks.length}</span>
+              <span className="count" style={wipOver ? { color: 'var(--danger)', fontWeight: 700 } : {}} title={wipOver ? t('Acima do WIP') : ''}>{countText}</span>
             </h3>
+            {col.tasks.length === 0 && <div className="muted" style={{ fontSize: 11, textAlign: 'center', padding: 8 }}>{t('Vazio')}</div>}
             {col.tasks.map((task) => (
-              <div key={task.id} className="task" onClick={() => setOpenCode(task.code)}>
-                <div className="code">{task.code}</div>
-                <div className="ttitle">{task.title}</div>
-                <span className="badge-type">{task.type}</span>
-                <span className={`badge-prio ${task.priority}`}>{task.priority}</span>
+              <div key={task.id} className="task" onClick={() => setOpenCode(task.code)} style={{ borderLeft: `4px solid ${PRIORITY_COLORS[task.priority] || '#71717A'}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6 }}>
+                  <span className="code" style={{ fontFamily: 'monospace', fontSize: 10 }}>{task.code}</span>
+                  {task.assignee && (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)' }}>{task.assignee}</span>
+                      <span style={{ width: 18, height: 18, borderRadius: 9, background: 'var(--accent)', color: '#fff', fontSize: 9, fontWeight: 700, display: 'grid', placeItems: 'center' }} title={task.assignee}>{(task.assignee || '').split(' ').slice(0,2).map((p)=>p[0]?.toUpperCase()).join('') || '?'}</span>
+                    </span>
+                  )}
+                </div>
+                <div className="ttitle" style={{ fontSize: 13, margin: '4px 0 6px' }}>{task.title}</div>
+                {(task.epics?.length > 0 || task.labels?.length > 0) && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 4 }}>
+                    {(task.epics || []).slice(0,2).map((ep) => (<span key={ep.id} style={{ border: `1px solid ${ep.color || '#7c85ff'}`, color: ep.color || '#7c85ff', borderRadius: 10, padding: '1px 6px', fontSize: 10, fontWeight: 600 }}>{ep.name}</span>))}
+                    {(task.labels || []).slice(0,4).map((lb) => (<span key={lb.id} style={{ background: lb.color || '#6b7280', color: '#fff', borderRadius: 10, padding: '1px 6px', fontSize: 10 }}>{lb.name}</span>))}
+                  </div>
+                )}
+                {task.dueDate && (
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 11, color: task.dueDate && new Date(task.dueDate) < today0 && !doneColIds.has(task.columnId) ? 'var(--danger)' : 'var(--muted)' }}>
+                    <span style={{ fontWeight: task.dueDate && new Date(task.dueDate) < today0 && !doneColIds.has(task.columnId) ? 700 : 400 }}>📅 {new Date(task.dueDate).toLocaleDateString()}</span>
+                  </div>
+                )}
                 <div className="row" style={{ marginTop: 6 }} onClick={(e) => e.stopPropagation()}>
                   <select
                     style={{ fontSize: 11, flex: 1 }}
@@ -406,7 +474,8 @@ export default function Board() {
               />
             </div>
           </div>
-        ))}
+          )
+        })}
       </div>
       )}
         </>

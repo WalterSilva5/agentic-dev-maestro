@@ -121,6 +121,7 @@ export default function App() {
           <Route path="/meu-dia" element={<MeuDia />} />
           <Route path="/estudos" element={<Estudos />} />
           <Route path="/projetos" element={<Projects />} />
+          <Route path="/projects" element={<Navigate to="/projetos" replace />} />
           <Route path="/board/:projectId" element={<Board />} />
           <Route path="/assistente" element={<Assistente />} />
         <Route path="/goals" element={<Goals />} />
