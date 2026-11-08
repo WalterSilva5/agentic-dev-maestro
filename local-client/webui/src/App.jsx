@@ -9,6 +9,7 @@ import Assistente from './pages/Assistente.jsx'
 import Goals from './pages/Goals.jsx'
 import Metricas from './pages/Metricas.jsx'
 import Reunioes from './pages/Reunioes.jsx'
+import Time from './pages/Time.jsx'
 import Todos from './pages/Todos.jsx'
 import Labels from './pages/Labels.jsx'
 import Biblioteca from './pages/Biblioteca.jsx'
@@ -42,6 +43,7 @@ function Sidebar({ onNavigate, onCollapse }) {
     ['/meu-dia', t('Meu Dia'), '📅'],
     ['/projetos', t('Projetos'), '📁'],
     ['/goals', t('Goals'), '🎯'],
+    ['/time', t('Time'), '👥'],
     ['/reunioes', t('Reuniões'), '🎙️'],
     ['/assistente', t('Assistente'), '💬'],
     ['/todos', t('TODOs'), '✅'],
@@ -169,6 +171,7 @@ export default function App() {
           <Route path="/assistente" element={<Assistente />} />
         <Route path="/goals" element={<Goals />} />
           <Route path="/metricas" element={<Metricas />} />
+          <Route path="/time" element={<Time />} />
           <Route path="/reunioes" element={<Reunioes />} />
           <Route path="/todos" element={<Todos />} />
           <Route path="/labels" element={<Labels />} />

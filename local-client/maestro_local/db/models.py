@@ -3,6 +3,8 @@ from datetime import datetime
 from pathlib import Path
 
 from sqlalchemy import (
+    Date,
+    UniqueConstraint,
     Boolean,
     Column,
     DateTime,
@@ -296,6 +298,30 @@ def member_stats(session, project_id: int) -> list[dict]:
                       "pct": round(done / total * 100) if total else 0,
                       "overdue": overdue})
     return stats
+
+
+class TeamNote(Base):
+    """Anotação de gestão de um membro em uma semana (base do report semanal).
+
+    Os números vêm do board; os campos de texto são a leitura do líder
+    ("como está trabalhando", serviço/apoio, atenção, próximo passo).
+    """
+
+    __tablename__ = "team_notes"
+
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    member_name = Column(String(100), nullable=False)
+    week_start = Column(Date, nullable=False)  # sempre uma segunda-feira
+    highlights = Column(Text, default="")      # como está trabalhando / entregas
+    service = Column(Text, default="")         # serviço: reviews, infra, suporte
+    attention = Column(Text, default="")       # pontos de atenção (fatos)
+    next_step = Column(Text, default="")       # próximo passo combinado
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("project_id", "member_name", "week_start", name="uq_team_note"),
+    )
 
 
 class TaskChecklist(Base):

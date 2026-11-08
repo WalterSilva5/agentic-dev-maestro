@@ -942,8 +942,11 @@ def _auto_archive(s: Session, project_id: int) -> int:
     ).all()
     archived = 0
     for t in tasks:
+        # Cards importados chegam concluídos e sem data real de conclusão:
+        # inventar `done_at` falsearia relatório de entrega. Só arquiva quem
+        # tem data de verdade (movido para a coluna de conclusão pelo app).
         if t.done_at is None:
-            t.done_at = t.updated_at or now
+            continue
         if t.done_at <= cutoff:
             t.archived_at = now
             archived += 1
@@ -5056,6 +5059,122 @@ def import_todos(body: ImportTodosBody, s: Session = Depends(db)):
     s.commit()
     _log(s, "project", project.id, "import_todos", f"{created} tarefa(s) de TODO/FIXME")
     return {"ok": True, "created": created}
+
+
+# ---------------------------------------------------------------------------
+# Time: report semanal por membro (números do board + anotação do líder)
+# ---------------------------------------------------------------------------
+
+
+class TeamNoteBody(BaseModel):
+    member: str
+    weekStart: str  # YYYY-MM-DD (normalizado para a segunda-feira)
+    highlights: str = ""
+    service: str = ""
+    attention: str = ""
+    nextStep: str = ""
+
+
+@app.get("/api/projects/{project_id}/team/weekly")
+def team_weekly(project_id: int, week: str | None = None, s: Session = Depends(db)):
+    """Números da semana por membro, com as anotações de gestão já salvas.
+
+    `week` pode ser qualquer dia da semana; o período é normalizado para
+    segunda→domingo.
+    """
+    from datetime import date as _date
+
+    from maestro_local.team_report import compute_weekly
+
+    project = s.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(404, "Project not found")
+    try:
+        ref = _date.fromisoformat(week) if week else None
+    except ValueError:
+        raise HTTPException(400, "week deve ser YYYY-MM-DD") from None
+    return compute_weekly(s, project, ref)
+
+
+@app.put("/api/projects/{project_id}/team/notes")
+def save_team_note(project_id: int, body: TeamNoteBody, s: Session = Depends(db)):
+    """Cria/atualiza a anotação de gestão de um membro em uma semana."""
+    from datetime import date as _date
+
+    from maestro_local.db.models import TeamNote
+    from maestro_local.team_report import week_bounds
+
+    project = s.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(404, "Project not found")
+    try:
+        semana = _date.fromisoformat(body.weekStart)
+    except ValueError:
+        raise HTTPException(400, "weekStart deve ser YYYY-MM-DD") from None
+    semana = week_bounds(semana)[0]
+
+    nome = (body.member or "").strip()
+    if not nome:
+        raise HTTPException(422, "member é obrigatório")
+
+    nota = (
+        s.query(TeamNote)
+        .filter(
+            TeamNote.project_id == project_id,
+            TeamNote.member_name == nome,
+            TeamNote.week_start == semana,
+        )
+        .first()
+    )
+    if nota is None:
+        nota = TeamNote(project_id=project_id, member_name=nome, week_start=semana)
+        s.add(nota)
+    nota.highlights = body.highlights or ""
+    nota.service = body.service or ""
+    nota.attention = body.attention or ""
+    nota.next_step = body.nextStep or ""
+    s.commit()
+    s.refresh(nota)
+    return {
+        "member": nota.member_name,
+        "weekStart": nota.week_start.isoformat(),
+        "highlights": nota.highlights or "",
+        "service": nota.service or "",
+        "attention": nota.attention or "",
+        "nextStep": nota.next_step or "",
+        "updatedAt": nota.updated_at.isoformat() if nota.updated_at else None,
+    }
+
+
+@app.get("/api/projects/{project_id}/team/weekly/export")
+def team_weekly_export(
+    project_id: int,
+    week: str | None = None,
+    anonymized: int = 0,
+    s: Session = Depends(db),
+):
+    """Relatório semanal em markdown (nominal ou anonimizado)."""
+    from datetime import date as _date
+
+    from maestro_local.team_report import compute_weekly, render_markdown
+
+    project = s.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(404, "Project not found")
+    try:
+        ref = _date.fromisoformat(week) if week else None
+    except ValueError:
+        raise HTTPException(400, "week deve ser YYYY-MM-DD") from None
+
+    dados = compute_weekly(s, project, ref)
+    md = render_markdown(dados, anonimizado=bool(anonymized))
+    sufixo = "-anonimizado" if anonymized else ""
+    nome = f"acompanhamento-semanal{sufixo}-{dados['week']['start']}.md"
+    return Response(
+        content=md.encode("utf-8"),
+        media_type="text/markdown; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{nome}"'},
+    )
 
 
 # ---------------------------------------------------------------------------

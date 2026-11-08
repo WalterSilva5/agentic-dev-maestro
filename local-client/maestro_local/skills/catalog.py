@@ -1990,6 +1990,33 @@ curl -X PATCH http://127.0.0.1:9777/api/tasks/KEY-1 \\
 - `overdue` > 0 → cards vencidos em aberto; cobrar desbloqueio
 - Comparar `done` entre membros no fechamento da sprint
 
+## 5. Report semanal do time (entregas + servico)
+
+Numero vem do board; a leitura do lider vem das anotacoes (`TeamNote`).
+
+```bash
+curl -s "http://127.0.0.1:9777/api/projects/1/team/weekly?week=2026-11-04" | jq '{
+  week, summary,
+  membros: [.members[] | {name, deliveredCount, open, overdue, reviews, byColumn, note}]
+}'
+# salvar a anotacao da semana (weekStart normaliza para segunda)
+curl -s -X PUT http://127.0.0.1:9777/api/projects/1/team/notes \\
+  -H 'Content-Type: application/json' \\
+  -d '{"member":"Ana","weekStart":"2026-11-04","highlights":"fechou config","service":"revisou 2 PRs","attention":"PR sem revisor","nextStep":"cashier O1"}' | jq
+# relatorio em markdown (nominal ou anonimizado)
+curl -s -o report.md "http://127.0.0.1:9777/api/projects/1/team/weekly/export?week=2026-11-02"
+curl -s -o report-anon.md "http://127.0.0.1:9777/api/projects/1/team/weekly/export?week=2026-11-02&anonymized=1"
+```
+
+- `week` aceita qualquer dia; normaliza para **segunda→domingo**
+- `delivered[]` so conta `done_at` real; card importado (concluido na carga)
+  vira `legacyDone` e nao entra como entrega da semana
+- `note` tem `highlights` (como esta trabalhando), `service` (reviews/infra/
+  suporte), `attention` e `nextStep`
+- o markdown segue o formato `lideranca/gestao/acompanhamento-semanal-equipe-*.md`
+  (secoes: resumo, por membro, distribuicao de carga)
+- versao anonimizada troca nomes por `Pessoa A/B/C` — use para apresentacao ampla
+
 ## OpenCode tools (se disponiveis)
 
 - `maestro_listMembers` — listar com metricas

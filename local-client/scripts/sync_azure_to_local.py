@@ -11,6 +11,23 @@ from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from maestro_local.db.models import BoardColumn, Label, Project, Task, get_session, get_or_create_member
+
+from datetime import datetime
+
+
+def _data_conclusao(fields: dict):
+    """Data real de conclusão do work item (Azure), se o board informar."""
+    for chave in ("Microsoft.VSTS.Common.ClosedDate",
+                  "Microsoft.VSTS.Common.ResolvedDate",
+                  "System.ChangedDate"):
+        valor = fields.get(chave)
+        if not valor:
+            continue
+        try:
+            return datetime.fromisoformat(str(valor).replace("Z", "+00:00")).replace(tzinfo=None)
+        except ValueError:
+            continue
+    return None
 from maestro_local.config import get_active_workspace_id, get_workspace_db_path
 from maestro_local.db.models import init_db
 
@@ -88,6 +105,11 @@ def main():
                 changed = False
                 if task.title != title: task.title = title; changed=True
                 if task.column_id != col.id: task.column_id = col.id; changed=True
+                if col.is_done:
+                    quando = _data_conclusao(f)
+                    if quando and (task.done_at is None or abs((task.done_at - quando).days) > 0):
+                        task.done_at = quando
+                        changed = True
                 if (task.assignee or "") != (assignee or ""):
                     task.assignee = assignee; changed=True
                     if assignee: get_or_create_member(s, proj.id, assignee)
@@ -109,7 +131,9 @@ def main():
                 # encontra coluna inicial se estado não existe
                 proj_task_seq = (proj.task_seq or 0) + 1
                 proj.task_seq = proj_task_seq
-                task = Task(project_id=proj.id, column_id=col.id, number=code_num, title=title, description=f"Importado do Azure #{wid} - {state}", assignee=assignee)
+                task = Task(project_id=proj.id, column_id=col.id, number=code_num, title=title,
+                            description=f"Importado do Azure #{wid} - {state}", assignee=assignee,
+                            done_at=_data_conclusao(f) if col.is_done else None)
                 s.add(task)
                 if assignee: get_or_create_member(s, proj.id, assignee)
                 # labels para novo card

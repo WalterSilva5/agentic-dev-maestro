@@ -223,3 +223,15 @@ export const createBackup = (all = false) =>
   api.post('/backup', null, { params: all ? { all: 1 } : {} }).then((r) => r.data)
 export const listBackups = () => api.get('/backup').then((r) => r.data)
 export const backupDownloadUrl = (file) => `/api/backup/${encodeURIComponent(file)}`
+
+// Time — report semanal por membro
+export const getTeamWeekly = (projectId, week) =>
+  api.get(`/projects/${projectId}/team/weekly`, { params: week ? { week } : {} }).then((r) => r.data)
+export const saveTeamNote = (projectId, body) =>
+  api.put(`/projects/${projectId}/team/notes`, body).then((r) => r.data)
+export const teamReportUrl = (projectId, week, anonymized = false) => {
+  const p = new URLSearchParams()
+  if (week) p.set('week', week)
+  if (anonymized) p.set('anonymized', '1')
+  return `/api/projects/${projectId}/team/weekly/export?${p.toString()}`
+}
