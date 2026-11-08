@@ -24,7 +24,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from maestro_local.config import get_active_workspace_id, get_workspace_db_path  # noqa: E402
+from maestro_local.config import (  # noqa: E402
+    get_active_workspace_id,
+    get_workspace_db_path,
+    list_workspaces,
+)
 from maestro_local.daily_doc import parse_daily_markdown  # noqa: E402
 from maestro_local.db.models import (  # noqa: E402
     Project,
@@ -47,22 +51,40 @@ def main() -> int:
     ap.add_argument("--dir", default="", help="pasta raiz dos dailies (daily/)")
     ap.add_argument("--file", default="", help="importar um único .md")
     ap.add_argument("--month", default="", help="importar só um mês (YYYY-MM)")
+    ap.add_argument("--workspace", default="", help="workspace de destino (padrão: o ativo)")
     ap.add_argument("--project-key", required=True, help="key do projeto local (ex.: MIG)")
     ap.add_argument("--replace", action="store_true",
                     help="substitui os registros do dia (padrão: pula dias já existentes)")
+    ap.add_argument("--merge", action="store_true",
+                    help="anexa os blocos ao dia (não substitui nem pula)")
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
 
     if not args.file and not args.dir:
         ap.error("informe --dir ou --file")
 
-    init_db(get_workspace_db_path(get_active_workspace_id()))
+    ws_id = (args.workspace or "").strip() or get_active_workspace_id()
+    disponiveis = {w["id"] for w in list_workspaces()}
+    if ws_id not in disponiveis:
+        print(f"Workspace {ws_id!r} não existe. Disponíveis: {', '.join(sorted(disponiveis))}")
+        return 2
+
+    init_db(get_workspace_db_path(ws_id))
+    # aponta as sessões para o workspace escolhido (não o ativo)
+    import maestro_local.db.models as _m
+    _m._engine = None
+    _m._SessionLocal = None
+    _m._active_db_path = get_workspace_db_path(ws_id)
+
     s = get_session()
     try:
         projeto = s.query(Project).filter(Project.key == args.project_key.upper()).first()
         if not projeto:
-            print(f"Projeto {args.project_key!r} não encontrado neste workspace.")
+            outros = [p.key for p in s.query(Project).all()]
+            print(f"Projeto {args.project_key!r} não encontrado no workspace {ws_id!r}.")
+            print(f"  projetos nesse workspace: {', '.join(outros) or '(nenhum)'}")
             return 2
+        print(f"Destino: workspace {ws_id} · projeto {projeto.key} ({projeto.name})")
 
         arquivos = _arquivos(Path(args.dir).expanduser(), args.month or None, args.file or None)
         print(f"{len(arquivos)} arquivo(s) para importar em {projeto.key} ({projeto.name})")
@@ -89,8 +111,9 @@ def main() -> int:
                 .filter(ProjectDailyEntry.project_id == projeto.id, ProjectDailyEntry.date == day)
                 .count()
             )
-            if ja and not args.replace:
+            if ja and not args.replace and not args.merge:
                 pulados += 1
+                print(f"  = {day}  já existe ({ja} registros) — pulado: {arq.name}")
                 continue
 
             if ja and args.replace:
