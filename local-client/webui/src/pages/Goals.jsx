@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import Swal from 'sweetalert2'
 import {
   getEpics,
   getGoals,
@@ -75,7 +76,14 @@ export default function Goals() {
   }
 
   const onDelete = async (id) => {
-    if (!window.confirm(t('Excluir este goal?'))) return
+    const res = await Swal.fire({
+      title: t('Excluir este goal?'),
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: t('Excluir'),
+      cancelButtonText: t('Cancelar'),
+    })
+    if (!res.isConfirmed) return
     try {
       await deleteGoal(id)
       load()

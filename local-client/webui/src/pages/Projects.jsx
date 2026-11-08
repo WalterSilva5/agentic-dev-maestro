@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import Swal from 'sweetalert2'
 import { getProjects, createProject, updateProject, moveProject, getWorkspaces } from '../api'
 import { t } from '../i18n'
 
@@ -41,28 +42,52 @@ export default function Projects() {
 
   const onSetAzure = async (p) => {
     const cur = p.azureBoardUrl || ''
-    const val = window.prompt(t('Link do board do Azure (cole a URL):'), cur)
-    if (val === null) return
+    const { value: val } = await Swal.fire({
+      title: t('Link do board do Azure (cole a URL):'),
+      input: 'url',
+      inputValue: cur,
+      inputPlaceholder: 'https://dev.azure.com/...',
+      showCancelButton: true,
+      confirmButtonText: t('Salvar'),
+      cancelButtonText: t('Cancelar'),
+    })
+    if (val === undefined) return
     try {
-      await updateProject(p.id, { azureBoardUrl: val.trim() })
+      await updateProject(p.id, { azureBoardUrl: (val || '').trim() })
       load()
     } catch (e) { setError(String(e.message || e)) }
   }
 
   const onMove = async (p) => {
     if (workspaces.length <= 1) {
-      window.alert(t('Crie outro workspace antes de mover.'))
+      await Swal.fire({ icon: 'info', title: t('Crie outro workspace antes de mover.') })
       return
     }
-    const opts = workspaces.map((w) => `${w.id}: ${w.name}`).join('\n')
-    const target = window.prompt(t('Mover para workspace (cole o id):') + '\n' + opts, workspaces[0]?.id || '')
-    if (!target) return
-    const tid = target.trim().split(':')[0].trim()
+    const { value: tid } = await Swal.fire({
+      title: t('Mover para workspace'),
+      html: `<p>${t('Mover o projeto')} "<b>${p.name}</b>" (${p.key})</p>`,
+      input: 'select',
+      inputOptions: Object.fromEntries(workspaces.map((w) => [w.id, `${w.id}: ${w.name}`])),
+      inputPlaceholder: t('Selecione um workspace'),
+      showCancelButton: true,
+      confirmButtonText: t('Mover'),
+      cancelButtonText: t('Cancelar'),
+      inputValidator: (v) => (!v ? t('Selecione um workspace') : null),
+    })
     if (!tid) return
-    if (!window.confirm(t('Mover o projeto') + ` "${p.name}" (${p.key}) ` + t('para o workspace') + ` "${tid}"?`)) return
+    const confirm = await Swal.fire({
+      title: t('Confirmar mover'),
+      text: `${t('Mover o projeto')} "${p.name}" (${p.key}) ${t('para o workspace')} "${tid}"?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: t('Mover'),
+      cancelButtonText: t('Cancelar'),
+    })
+    if (!confirm.isConfirmed) return
     try {
       await moveProject(p.id, tid)
       load()
+      Swal.fire({ icon: 'success', title: t('Projeto movido'), timer: 1500, showConfirmButton: false })
     } catch (e) { setError(e.response?.data?.detail || String(e.message || e)) }
   }
 

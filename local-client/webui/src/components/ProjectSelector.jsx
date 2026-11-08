@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import Swal from 'sweetalert2';
 import { getProjects, createProject, getWorkspaces } from '../api';
 import { t } from '../i18n';
 
@@ -58,19 +59,37 @@ export default function ProjectSelector() {
   };
 
   const handleCreate = async () => {
-    const name = window.prompt(t('Nome do novo projeto:'));
-    if (!name || !name.trim()) return;
-    let key = window.prompt(t('Chave (ex: DEMO):'), name.trim().slice(0,4).toUpperCase().replace(/[^A-Z0-9]/g,''));
-    if (!key || !key.trim()) return;
-    key = key.trim().toUpperCase();
+    const { value: name } = await Swal.fire({
+      title: t('Novo projeto'),
+      input: 'text',
+      inputLabel: t('Nome do novo projeto:'),
+      inputPlaceholder: 'Ex: Migração GX',
+      showCancelButton: true,
+      confirmButtonText: t('Criar'),
+      cancelButtonText: t('Cancelar'),
+      inputValidator: (v) => (!v || !v.trim() ? t('Informe um nome') : null),
+    });
+    if (!name) return;
+    const suggested = name.trim().slice(0,4).toUpperCase().replace(/[^A-Z0-9]/g,'');
+    const { value: key } = await Swal.fire({
+      title: t('Chave (ex: DEMO):'),
+      input: 'text',
+      inputValue: suggested,
+      inputPlaceholder: 'DEMO',
+      showCancelButton: true,
+      confirmButtonText: t('Criar'),
+      cancelButtonText: t('Cancelar'),
+      inputValidator: (v) => (!v || !v.trim() ? t('Informe uma chave') : null),
+    });
+    if (!key) return;
     try {
-      const p = await createProject({ name: name.trim(), key });
+      const p = await createProject({ name: name.trim(), key: key.trim().toUpperCase() });
       setProjects((prev) => [...prev, p]);
       if (activeWs) setActiveProjectId(activeWs, String(p.id));
       setActiveProject(String(p.id));
       nav(`/board/${p.id}`);
     } catch (e) {
-      window.alert(e.response?.data?.detail || String(e.message || e));
+      Swal.fire({ icon: 'error', title: t('Erro'), text: e.response?.data?.detail || String(e.message || e) });
     }
   };
 

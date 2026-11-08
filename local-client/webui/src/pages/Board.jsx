@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, Link } from 'react-router-dom'
+import Swal from 'sweetalert2'
 import {
   getBoard,
   createTask,
@@ -346,15 +347,15 @@ export default function Board() {
           {board.azureBoardUrl ? (
             <>
               <a href={board.azureBoardUrl} target="_blank" rel="noreferrer"><button className="ghost" style={{ background: '#0078d4', color: '#fff', borderColor: '#0078d4' }}>🔗 {t('Abrir no Azure')}</button></a>
-              <button className="ghost" title={board.azureBoardUrl} onClick={()=>{
-                const v = window.prompt(t('Link do board do Azure (cole a URL):'), board.azureBoardUrl || '')
-                if(v!==null) updateProject(projectId, { azureBoardUrl: v.trim() }).then(load)
+              <button className="ghost" title={board.azureBoardUrl} onClick={async ()=>{
+                const { value: v } = await Swal.fire({ title: t('Link do board do Azure (cole a URL):'), input: 'url', inputValue: board.azureBoardUrl || '', inputPlaceholder: 'https://dev.azure.com/...', showCancelButton: true, confirmButtonText: t('Salvar'), cancelButtonText: t('Cancelar') })
+                if(v!==undefined) updateProject(projectId, { azureBoardUrl: (v||'').trim() }).then(load)
               }}>{t('Editar link')}</button>
             </>
           ) : (
-            <button className="ghost" onClick={()=>{
-              const v = window.prompt(t('Link do board do Azure (cole a URL):'), '')
-              if(v!==null) updateProject(projectId, { azureBoardUrl: v.trim() }).then(load)
+            <button className="ghost" onClick={async ()=>{
+              const { value: v } = await Swal.fire({ title: t('Link do board do Azure (cole a URL):'), input: 'url', inputPlaceholder: 'https://dev.azure.com/...', showCancelButton: true, confirmButtonText: t('Salvar'), cancelButtonText: t('Cancelar') })
+              if(v!==undefined) updateProject(projectId, { azureBoardUrl: (v||'').trim() }).then(load)
             }}>{t('Definir link Azure')}</button>
           )}
           <Link to="/projetos"><button className="ghost">{t('← Projetos')}</button></Link>

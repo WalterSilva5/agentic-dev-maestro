@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import Swal from 'sweetalert2';
 import { getWorkspaces, setActiveWorkspace, createWorkspace } from '../api';
 import { t } from '../i18n';
 
@@ -35,16 +36,32 @@ export default function WorkspaceSelector() {
   };
 
   const handleCreate = async () => {
-    const name = window.prompt(t('Nome do novo workspace:'));
-    if (!name || !name.trim()) return;
-    const icon = window.prompt(t('Ícone (emoji, opcional):'), '📁') || '📁';
+    const { value: name } = await Swal.fire({
+      title: t('Novo workspace'),
+      input: 'text',
+      inputLabel: t('Nome do novo workspace:'),
+      inputPlaceholder: 'Ex: Migração GX',
+      showCancelButton: true,
+      confirmButtonText: t('Criar'),
+      cancelButtonText: t('Cancelar'),
+      inputValidator: (v) => (!v || !v.trim() ? t('Informe um nome') : null),
+    });
+    if (!name) return;
+    const { value: icon } = await Swal.fire({
+      title: t('Ícone (emoji, opcional):'),
+      input: 'text',
+      inputPlaceholder: '📁',
+      inputValue: '📁',
+      showCancelButton: true,
+      confirmButtonText: t('Criar'),
+      cancelButtonText: t('Cancelar'),
+    });
     try {
-      const ws = await createWorkspace({ name: name.trim(), icon: icon.trim() || '📁' });
-      // Torna o novo workspace ativo e recarrega
+      const ws = await createWorkspace({ name: name.trim(), icon: (icon || '📁').trim() || '📁' });
       await setActiveWorkspace(ws.id);
       window.location.reload();
     } catch (e) {
-      window.alert(e.response?.data?.detail || String(e.message || e));
+      Swal.fire({ icon: 'error', title: t('Erro'), text: e.response?.data?.detail || String(e.message || e) });
     }
   };
 
