@@ -152,6 +152,9 @@ def aggregate_dimensions(tasks, done_ids) -> dict:
     - `sprints`, `platforms`, `process`, `other`: dimensões independentes
     - `unlabeled`: cards sem nenhuma label de módulo (honestidade da métrica)
     """
+    # tarefa local (lembrete pessoal) não entra em métrica nenhuma
+    locais = sum(1 for t in tasks if getattr(t, "is_local", False))
+    tasks = [t for t in tasks if not getattr(t, "is_local", False)]
     total_cards = len(tasks)
 
     por_modulo: dict[str, set] = {}
@@ -258,6 +261,7 @@ def aggregate_dimensions(tasks, done_ids) -> dict:
 
     return {
         "cards": total_cards,
+        "local": locais,
         "plan": plan_summary(),
         "modules": modulos,
         "discontinued": descontinuados,

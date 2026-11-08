@@ -101,6 +101,10 @@ def compute_stages(tasks, columns, history_rows=None) -> dict:
     `columns` aceita objetos com `id`, `name`, `order`, `is_done`;
     `history_rows` é uma lista de `(task_id, detail)` de `activity_log`.
     """
+    # tarefa local (lembrete pessoal) não entra em métrica nenhuma
+    locais = sum(1 for t in tasks if getattr(t, "is_local", False))
+    tasks = [t for t in tasks if not getattr(t, "is_local", False)]
+
     ordenadas = sorted(columns, key=lambda c: (c.order, c.id))
     por_ordem = {c.order: c for c in ordenadas}
     historico = _colunas_do_historico(history_rows or [])
@@ -188,6 +192,7 @@ def compute_stages(tasks, columns, history_rows=None) -> dict:
 
     return {
         "total": total,
+        "local": locais,
         "stages": linhas,
         "breakdown": breakdown,
         "board": board,

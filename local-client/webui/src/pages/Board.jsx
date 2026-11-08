@@ -284,17 +284,20 @@ export default function Board() {
   const doneColIds = new Set(cols.filter((c) => c.isDone).map((c) => c.id))
   const tasksAll = cols.flatMap((c) => c.tasks)
   const totalTasks = tasksAll.length
-  const doneTasks = tasksAll.filter((tk) => doneColIds.has(tk.columnId)).length
-  const pct = totalTasks ? Math.round((doneTasks / totalTasks) * 100) : 0
+  // tarefa local é lembrete pessoal: aparece no board, mas não entra em métrica
+  const tasksMetric = tasksAll.filter((tk) => !tk.isLocal)
+  const localTasks = tasksAll.length - tasksMetric.length
+  const doneTasks = tasksMetric.filter((tk) => doneColIds.has(tk.columnId)).length
+  const pct = tasksMetric.length ? Math.round((doneTasks / tasksMetric.length) * 100) : 0
   const wipAlerts = cols.filter((c) => c.wipLimit && c.wipLimit > 0 && c.tasks.length > c.wipLimit)
   const today0 = new Date(); today0.setHours(0,0,0,0)
-  const vencidos = tasksAll.filter((tk) => tk.dueDate && new Date(tk.dueDate) < today0 && !doneColIds.has(tk.columnId))
+  const vencidos = tasksMetric.filter((tk) => tk.dueDate && new Date(tk.dueDate) < today0 && !doneColIds.has(tk.columnId))
   const limiteParado = Date.now() - 14 * 24 * 60 * 60 * 1000
-  const parados = tasksAll.filter((tk) => !doneColIds.has(tk.columnId) && tk.updatedAt && new Date(tk.updatedAt).getTime() < limiteParado)
+  const parados = tasksMetric.filter((tk) => !doneColIds.has(tk.columnId) && tk.updatedAt && new Date(tk.updatedAt).getTime() < limiteParado)
   const goalsAtrasados = goals.filter((g) => {
     if (!g.dueDate) return false
     if (new Date(g.dueDate) >= today0) return false
-    let q = tasksAll
+    let q = tasksMetric
     if (g.tag) q = q.filter((tk) => tk.labels?.some((l) => l.name === g.tag))
     if (g.epicId) q = q.filter((tk) => tk.epics?.some((e) => e.id === g.epicId))
     if (g.sprintId) q = q.filter((tk) => tk.sprintId === g.sprintId)
@@ -309,7 +312,7 @@ export default function Board() {
   if (parados.length) metricSummary.push(`• ${parados.length} parada(s)`)
   if (goalsAtrasados) metricSummary.push(`🎯 ${goalsAtrasados} atrasado(s)`)
   const goalProgress = (g) => {
-    let q = tasksAll
+    let q = tasksMetric
     if (g.tag) q = q.filter((tk) => tk.labels?.some((l) => l.name === g.tag))
     if (g.epicId) q = q.filter((tk) => tk.epics?.some((e) => e.id === g.epicId))
     if (g.sprintId) q = q.filter((tk) => tk.sprintId === g.sprintId)
@@ -342,17 +345,17 @@ export default function Board() {
   }))
   const visibleCount = filteredCols.reduce((a, c) => a + c.tasks.length, 0)
   const PRIORITY_COLORS = { LOW: '#71717A', MEDIUM: '#4f46e5', HIGH: '#EA580C', URGENT: '#DC2626' }
-  const epicProgressList = [...new Map(tasksAll.flatMap((tk) => tk.epics || []).map((ep) => [ep.id, ep])).values()].map((ep) => {
-    const q = tasksAll.filter((tk) => tk.epics.some((e) => e.id === ep.id))
+  const epicProgressList = [...new Map(tasksMetric.flatMap((tk) => tk.epics || []).map((ep) => [ep.id, ep])).values()].map((ep) => {
+    const q = tasksMetric.filter((tk) => tk.epics.some((e) => e.id === ep.id))
     const tot = q.length; const done = q.filter((tk) => doneColIds.has(tk.columnId)).length
     return { ep, done, tot, pct: tot ? Math.round((done / tot) * 100) : 0 }
   }).sort((a, b) => b.tot - a.tot).slice(0, 8)
-  const unassignedTasks = tasksAll.filter((tk) => !tk.assignee)
+  const unassignedTasks = tasksMetric.filter((tk) => !tk.assignee)
   const unassignedTot = unassignedTasks.length
   const unassignedDone = unassignedTasks.filter((tk) => doneColIds.has(tk.columnId)).length
   const unassignedPct = unassignedTot ? Math.round((unassignedDone / unassignedTot) * 100) : 0
   const assigneeProgressListBase = assigneeOptions.map((name) => {
-    const q = tasksAll.filter((tk) => tk.assignee === name)
+    const q = tasksMetric.filter((tk) => tk.assignee === name)
     const tot = q.length; const done = q.filter((tk) => doneColIds.has(tk.columnId)).length
     return { name, done, tot, pct: tot ? Math.round((done / tot) * 100) : 0 }
   })
@@ -360,9 +363,9 @@ export default function Board() {
   const assigneeProgressList = assigneeProgressListBase.sort((a, b) => b.tot - a.tot).slice(0, 8)
   const activeFilterCount = (searchText.trim() ? 1 : 0) + (priorityFilter !== 'all' ? 1 : 0) + (epicFilter !== 'all' ? 1 : 0) + (tagFilter !== 'all' ? 1 : 0) + (assigneeFilter !== 'all' ? 1 : 0)
   // Pie data
-  const columnPieData = cols.map((c, i) => ({ label: c.name, value: c.tasks.length, color: PIE_COLORS[i % PIE_COLORS.length] })).filter((d) => d.value > 0)
+  const columnPieData = cols.map((c, i) => ({ label: c.name, value: c.tasks.filter((tk) => !tk.isLocal).length, color: PIE_COLORS[i % PIE_COLORS.length] })).filter((d) => d.value > 0)
   const assigneePieData = assigneeProgressList.map((a, i) => ({ label: a.name, value: a.tot, color: a.isUnassigned ? '#9ca3af' : PIE_COLORS[i % PIE_COLORS.length] }))
-  const priorityPieData = ['URGENT','HIGH','MEDIUM','LOW'].map((p) => ({ label: p, value: tasksAll.filter((t) => t.priority === p).length, color: PRIORITY_COLORS[p] })).filter((d) => d.value > 0)
+  const priorityPieData = ['URGENT','HIGH','MEDIUM','LOW'].map((p) => ({ label: p, value: tasksMetric.filter((t) => t.priority === p).length, color: PRIORITY_COLORS[p] })).filter((d) => d.value > 0)
   const epicPieData = epicProgressList.map((e, i) => ({ label: e.ep.name, value: e.tot, color: e.ep.color || PIE_COLORS[i % PIE_COLORS.length] }))
 
   return (
@@ -564,11 +567,16 @@ export default function Board() {
               <div style={{ background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '8px 10px' }}>
                 <div className="muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, textTransform: 'uppercase', marginBottom: 6 }}>{t('Métricas de fluxo')}</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="muted">{t('WIP total')}</span><span style={{ fontWeight: 700 }}>{tasksAll.filter((tk)=>!doneColIds.has(tk.columnId)).length} {t('em aberto')}</span></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="muted">{t('WIP total')}</span><span style={{ fontWeight: 700 }}>{tasksMetric.filter((tk)=>!doneColIds.has(tk.columnId)).length} {t('em aberto')}</span></div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="muted">{t('Vencidas')}</span><span style={{ fontWeight: 700, color: vencidos.length?'var(--danger)':'var(--text)' }}>{vencidos.length}</span></div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="muted">{t('Paradas 14d+')}</span><span style={{ fontWeight: 700, color: parados.length?'#d97706':'var(--text)' }}>{parados.length}</span></div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="muted">{t('Sem responsável')}</span><span style={{ fontWeight: 700 }}>{unassignedTot} ({unassignedPct}%)</span></div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="muted">{t('Concluídas')}</span><span style={{ fontWeight: 700, color: 'var(--accent)' }}>{doneTasks}/{totalTasks} ({pct}%)</span></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="muted">{t('Concluídas')}</span><span style={{ fontWeight: 700, color: 'var(--accent)' }}>{doneTasks}/{tasksMetric.length} ({pct}%)</span></div>
+                  {localTasks > 0 && (
+                    <div className="muted" style={{ fontSize: 10, marginTop: 2 }} title={t('Lembretes locais não sincronizam e não contam em nenhuma métrica')}>
+                      {localTasks} {t('tarefa(s) local(is) fora das métricas')}
+                    </div>
+                  )}
                 </div>
               </div>
               <div style={{ background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '8px 10px' }}>
@@ -1052,7 +1060,7 @@ export default function Board() {
               {members.length===0 && <div className="muted">{t('Nenhum responsável ainda. Adicione acima.')}</div>}
               {members.map((m)=>{
                 const stats = (() => {
-                  const q = tasksAll.filter((tk)=>tk.assignee===m.name)
+                  const q = tasksMetric.filter((tk)=>tk.assignee===m.name)
                   const tot=q.length
                   const done=q.filter((tk)=>doneColIds.has(tk.columnId)).length
                   const pct=tot?Math.round(done/tot*100):0

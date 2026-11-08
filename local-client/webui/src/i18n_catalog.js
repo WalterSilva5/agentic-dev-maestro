@@ -506,4 +506,7 @@ export const CATALOG = {
   "Card que existe só aqui: o sync do board externo não cria, não atualiza e não apaga.": "Card that only exists here: the external board sync does not create, update or delete it.",
   "Tipo da tarefa": "Task type",
   "LOCAL": "LOCAL",
+  "tarefa(s) local(is) fora das métricas": "local task(s) outside the metrics",
+  "Lembretes locais não sincronizam e não contam em nenhuma métrica": "Local reminders do not sync and do not count in any metric",
+  "{n} local(is) fora das métricas": "{n} local(s) outside the metrics",
 }

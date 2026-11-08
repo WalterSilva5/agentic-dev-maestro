@@ -182,3 +182,111 @@ def test_sync_cria_so_as_remotas_e_preserva_as_locais(tmp_path):
     remotas = con.execute("SELECT COUNT(*) FROM tasks WHERE is_local=0").fetchone()[0]
     con.close()
     assert (total, local, remotas) == (3, 1, 2)
+
+
+# --------------------------------------------------------------------------
+# tarefa local não entra em métrica nenhuma
+# --------------------------------------------------------------------------
+
+class _Col:
+    def __init__(self, cid, nome, ordem, done=False):
+        self.id, self.name, self.order, self.is_done = cid, nome, ordem, done
+
+
+class _Label:
+    def __init__(self, nome):
+        self.name = nome
+
+
+class _Task:
+    def __init__(self, tid, coluna, labels=(), local=False):
+        self.id, self.column = tid, coluna
+        self.column_id = coluna.id
+        self.labels = [_Label(n) for n in labels]
+        self.is_local = local
+
+
+def test_dimensoes_ignoram_tarefas_locais():
+    from maestro_local.dimensions import aggregate_dimensions
+
+    remota = _Col(1, "To do", 0)
+    feito = _Col(2, "Done", 1, done=True)
+    tasks = [
+        _Task(1, remota, ["config"]),
+        _Task(2, feito, ["config"]),
+        _Task(3, remota, ["config"], local=True),   # não conta
+    ]
+    d = aggregate_dimensions(tasks, {feito.id})
+    assert d["cards"] == 2          # só as remotas
+    assert d["local"] == 1
+    config = next(m for m in d["modules"] if m["name"] == "config")
+    assert config["total"] == 2
+    assert config["done"] == 1
+    assert d["unlabeled"]["total"] == 0
+
+
+def test_estagios_ignoram_tarefas_locais():
+    from maestro_local.stages import compute_stages
+
+    col = _Col(6, "Dev Box", 5)
+    tasks = [
+        _Task(1, col),
+        _Task(2, col, local=True),
+    ]
+    d = compute_stages(tasks, [col])
+    assert d["total"] == 1
+    assert d["local"] == 1
+    assert d["stages"][0]["reached"] == 1
+    assert sum(g["total"] for g in d["breakdown"]["dev-box"]) == 1
+
+
+def test_api_metricas_ignoram_tarefas_locais(client):
+    pid = client.post("/api/projects", json={"name": "Met", "key": "MET"}).json()["id"]
+    client.post(f"/api/projects/{pid}/columns/template")
+    cols = {c["name"]: c["id"] for c in client.get(f"/api/projects/{pid}/columns").json()}
+
+    client.post("/api/tasks", json={"projectId": pid, "columnId": cols["Done"], "title": "remota ok"})
+    client.post("/api/tasks", json={
+        "projectId": pid, "columnId": cols["To do"], "title": "lembrete", "isLocal": True})
+
+    dims = client.get(f"/api/projects/{pid}/metrics/dimensions").json()
+    assert dims["cards"] == 1
+    assert dims["local"] == 1
+
+    stages = client.get(f"/api/projects/{pid}/metrics/stages").json()
+    assert stages["total"] == 1
+    assert stages["local"] == 1
+    done = next(x for x in stages["stages"] if x["stage"] == "done")
+    assert done["reached"] == 1        # só a remota
+    to_do = next(x for x in stages["stages"] if x["stage"] == "to-do")
+    assert to_do["reached"] == 1       # a local não conta nem em "To do"
+
+
+def test_pdf_ignora_tarefas_locais(tmp_path):
+    from maestro_local.metrics_pdf import collect_metrics
+
+    import maestro_local.db.models as m
+    from maestro_local.db.models import BoardColumn, Project, Task, get_session
+
+    db = str(tmp_path / "pdf.db")
+    init_db(db)
+    m._engine = None
+    m._SessionLocal = None
+    m._active_db_path = db
+    init_db(db)
+
+    s = get_session()
+    p = Project(name="PDF", key="PDF")
+    s.add(p); s.flush()
+    col = BoardColumn(project_id=p.id, name="To do", order=0, is_done=False)
+    s.add(col); s.flush()
+    s.add(Task(project_id=p.id, column_id=col.id, number=1, title="remota"))
+    s.add(Task(project_id=p.id, column_id=col.id, number=2, title="local", is_local=True))
+    s.commit()
+
+    dados = collect_metrics(s, p)
+    s.close()
+    assert dados["total"] == 1
+    assert dados["local"] == 1
+    m._engine = None
+    m._SessionLocal = None

@@ -1564,6 +1564,7 @@ def _goal_progress(goal, s) -> tuple[int, int]:
         Task.project_id == goal.project_id,
         Task.deleted_at == None,  # noqa: E711
         Task.archived_at == None,  # noqa: E711
+        Task.is_local == False,  # noqa: E712  (lembrete local não conta em objetivo)
     )
     if goal.tag:
         q = q.filter(Task.labels.any(Label.name == goal.tag))
@@ -1719,25 +1720,28 @@ class BoardMetricsAccordion(QFrame):
                 Task.deleted_at == None,  # noqa: E711
                 Task.archived_at == None,  # noqa: E711
             ).all()
-            total = len(tasks_all)
-            done = sum(1 for tk in tasks_all if tk.column_id in done_col_ids)
+            # tarefa local é lembrete pessoal: aparece no board, mas não entra em métrica
+            locais = [tk for tk in tasks_all if tk.is_local]
+            tasks_metric = [tk for tk in tasks_all if not tk.is_local]
+            total = len(tasks_metric)
+            done = sum(1 for tk in tasks_metric if tk.column_id in done_col_ids)
             pct = int(done / total * 100) if total else 0
 
             # WIP
             wip_alerts = []
             for col in cols:
                 if col.wip_limit and col.wip_limit > 0:
-                    cnt = sum(1 for tk in tasks_all if tk.column_id == col.id)
+                    cnt = sum(1 for tk in tasks_metric if tk.column_id == col.id)
                     if cnt > col.wip_limit:
                         wip_alerts.append(f"{col.name}: {cnt}/{col.wip_limit}")
 
             # vencidos
             hoje = date.today()
-            vencidos = [tk for tk in tasks_all if tk.due_date and tk.due_date.date() < hoje and tk.column_id not in done_col_ids]
+            vencidos = [tk for tk in tasks_metric if tk.due_date and tk.due_date.date() < hoje and tk.column_id not in done_col_ids]
             # parados (sem atualização há 14d, não concluídos)
             from datetime import timedelta
             limite_parado = datetime.utcnow() - timedelta(days=14)
-            parados = [tk for tk in tasks_all if tk.column_id not in done_col_ids and tk.updated_at and tk.updated_at < limite_parado]
+            parados = [tk for tk in tasks_metric if tk.column_id not in done_col_ids and tk.updated_at and tk.updated_at < limite_parado]
 
             # sprint ativa
             sprint_ativa = s.query(Sprint).filter(Sprint.project_id == self.project_id, Sprint.status == "ATIVA").first()
@@ -1762,6 +1766,8 @@ class BoardMetricsAccordion(QFrame):
                         goals_atrasados += 1
             if goals_atrasados:
                 partes.append(f"🎯 {goals_atrasados} objetivo(s) atrasado(s)")
+            if locais:
+                partes.append("🏠 " + _t("{n} local(is) fora das métricas").format(n=len(locais)))
             self.summary_lbl.setText("  ·  ".join(partes) if partes else _t("Tudo em dia"))
 
             # — linha de progresso geral —
@@ -1795,7 +1801,7 @@ class BoardMetricsAccordion(QFrame):
                 .filter(ActivityLog.entity_type == "task", ActivityLog.action == "moved")
                 .all()
             )
-            estagios = compute_stages(tasks_all, cols, historico_mov)
+            estagios = compute_stages(tasks_metric, cols, historico_mov)
             if estagios["stages"]:
                 est_box = self._section_box("📈 " + _t("Chegaram em cada estágio"), t)
                 nota = QLabel(_t("Chegou = está no estágio ou já passou por ele (ordem das colunas + movimentações)."))
@@ -1917,7 +1923,7 @@ class BoardMetricsAccordion(QFrame):
             elif not (sprint_ativa and sprint_ativa.end_date):
                 prazos_box["layout"].addWidget(self._hint(_t("Nenhum prazo definido."), t))
             # tarefas vencidas já estão em alertas, mas mostra próximas a vencer (7d)
-            proximas = [tk for tk in tasks_all if tk.due_date and 0 <= (tk.due_date.date() - hoje).days <= 7 and tk.column_id not in done_col_ids]
+            proximas = [tk for tk in tasks_metric if tk.due_date and 0 <= (tk.due_date.date() - hoje).days <= 7 and tk.column_id not in done_col_ids]
             if proximas:
                 for tk in proximas[:3]:
                     prazos_box["layout"].addWidget(self._hint(f"{tk.code} vence {tk.due_date.date().strftime('%d/%m')}", t))
@@ -2020,16 +2026,16 @@ class BoardMetricsAccordion(QFrame):
             # Por responsável (inclui Sem responsável para métricas corretas)
             resp_box = self._section_box(_t("Por responsável"), t)
             from collections import Counter
-            assignees = [tk.assignee for tk in tasks_all if tk.assignee]
+            assignees = [tk.assignee for tk in tasks_metric if tk.assignee]
             cnt = Counter(assignees)
             resp_data = []
             for name, tot in cnt.most_common(6):
-                q = [tk for tk in tasks_all if tk.assignee == name]
+                q = [tk for tk in tasks_metric if tk.assignee == name]
                 done_r = sum(1 for tk in q if tk.column_id in done_col_ids)
                 pct_r = int(done_r / tot * 100) if tot else 0
                 resp_data.append((name, done_r, tot, pct_r, False))
             # Sem responsável
-            unassigned = [tk for tk in tasks_all if not tk.assignee]
+            unassigned = [tk for tk in tasks_metric if not tk.assignee]
             if unassigned:
                 tot_u = len(unassigned)
                 done_u = sum(1 for tk in unassigned if tk.column_id in done_col_ids)
@@ -2077,7 +2083,7 @@ class BoardMetricsAccordion(QFrame):
 
             # Distribuição por coluna (com pizza)
             dist_box = self._section_box(_t("Distribuição por coluna"), t)
-            pie_col_data = [(col.name, sum(1 for tk in tasks_all if tk.column_id == col.id), ["#4f46e5","#06b6d4","#f59e0b","#ef4444","#10b981","#8b5cf6"][i % 6]) for i, col in enumerate(cols) if sum(1 for tk in tasks_all if tk.column_id == col.id) > 0]
+            pie_col_data = [(col.name, sum(1 for tk in tasks_metric if tk.column_id == col.id), ["#4f46e5","#06b6d4","#f59e0b","#ef4444","#10b981","#8b5cf6"][i % 6]) for i, col in enumerate(cols) if sum(1 for tk in tasks_metric if tk.column_id == col.id) > 0]
             if pie_col_data:
                 pie_row = QHBoxLayout(); pie_row.setSpacing(8)
                 pie = PieChartWidget(pie_col_data, size=72)
@@ -2094,7 +2100,7 @@ class BoardMetricsAccordion(QFrame):
                 pie_row.addWidget(w_leg, 1)
                 dist_box["layout"].addLayout(pie_row)
             for col in cols:
-                cnt_col = sum(1 for tk in tasks_all if tk.column_id == col.id)
+                cnt_col = sum(1 for tk in tasks_metric if tk.column_id == col.id)
                 over = col.wip_limit and cnt_col > col.wip_limit
                 txt = f"{col.name}: {cnt_col}{f'/{col.wip_limit}' if col.wip_limit else ''}"
                 col_lbl = QLabel(f"• {txt}")
@@ -2111,7 +2117,7 @@ class BoardMetricsAccordion(QFrame):
             # Por prioridade
             pri_box = self._section_box(_t("Por prioridade"), t)
             from collections import Counter as _Counter2
-            pri_counts = _Counter2(tk.priority for tk in tasks_all)
+            pri_counts = _Counter2(tk.priority for tk in tasks_metric)
             pri_order = ["URGENT","HIGH","MEDIUM","LOW"]
             pri_colors = {"URGENT":"#ef4444","HIGH":"#f59e0b","MEDIUM":"#4f46e5","LOW":"#9ca3af"}
             pri_data = [(p, pri_counts[p], pri_colors[p]) for p in pri_order if pri_counts[p] > 0]
@@ -2135,12 +2141,12 @@ class BoardMetricsAccordion(QFrame):
             extra_row.addWidget(pri_box["box"], 1)
             # Métricas de fluxo
             flow_box = self._section_box(_t("Métricas de fluxo"), t)
-            wip_total = sum(1 for tk in tasks_all if tk.column_id not in done_col_ids)
+            wip_total = sum(1 for tk in tasks_metric if tk.column_id not in done_col_ids)
             flow_items = [
                 (_t("WIP total"), f"{wip_total} { _t('em aberto')}", t.text_primary),
                 (_t("Vencidas"), str(len(vencidos)), t.danger if vencidos else t.text_primary),
                 (_t("Paradas 14d+"), str(len(parados)), t.warning if parados else t.text_primary),
-                (_t("Sem responsável"), f"{len(unassigned)} ({int(len(unassigned)/len(tasks_all)*100) if tasks_all else 0}%)", "#9ca3af" if unassigned else t.text_primary),
+                (_t("Sem responsável"), f"{len(unassigned)} ({int(len(unassigned)/len(tasks_metric)*100) if tasks_metric else 0}%)", "#9ca3af" if unassigned else t.text_primary),
                 (_t("Concluídas"), f"{done}/{total} ({pct}%)", t.accent),
             ]
             for label, value, col in flow_items:
@@ -2158,7 +2164,7 @@ class BoardMetricsAccordion(QFrame):
             # Módulos e submódulos (classificação explícita: módulo != sprint != tag)
             from maestro_local.dimensions import aggregate_dimensions
 
-            dims = aggregate_dimensions(tasks_all, done_col_ids)
+            dims = aggregate_dimensions(tasks_metric, done_col_ids)
             hier_box = self._section_box("📊 " + _t("Módulos e submódulos"), t)
             plano = dims.get("plan") or {}
             resumo = QLabel(

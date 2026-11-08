@@ -566,7 +566,10 @@ def _goal_filter_query(s: Session, goal) -> Any:
 
 def _goal_progress(s: Session, goal) -> dict:
     from datetime import date
-    tasks = _goal_filter_query(s, goal).all()
+    tasks = [
+        t for t in _goal_filter_query(s, goal).all()
+        if not t.is_local  # lembrete local não conta em objetivo
+    ]
     done = [t for t in tasks if t.column and t.column.is_done]
     pct = round(len(done) / len(tasks) * 100) if tasks else 0
     days_left = None

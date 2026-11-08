@@ -72,6 +72,8 @@ def collect_metrics(session, project) -> dict:
         )
         .all()
     )
+    locais = sum(1 for t in tasks if getattr(t, "is_local", False))
+    tasks = [t for t in tasks if not getattr(t, "is_local", False)]
     total = len(tasks)
     done = sum(1 for t in tasks if t.column_id in done_ids)
     pct = round(done / total * 100) if total else 0
@@ -182,6 +184,7 @@ def collect_metrics(session, project) -> dict:
     return {
         "projeto": {"key": project.key, "name": project.name, "id": project.id},
         "total": total,
+        "local": locais,
         "done": done,
         "pct": pct,
         "abertas": total - done,
@@ -467,7 +470,8 @@ def build_metrics_pdf(session, project) -> bytes:
     flow.append(Paragraph(f"Métricas do projeto — {project.key} · {project.name}", st["h1"]))
     flow.append(Paragraph(
         f"Gerado em {m['gerado_em'].strftime('%d/%m/%Y %H:%M')} · "
-        f"{m['total']} tarefas no board · progresso {m['pct']}%",
+        f"{m['total']} tarefas no board · progresso {m['pct']}%"
+        + (f" · {m['local']} tarefa(s) local(is) fora das métricas" if m.get("local") else ""),
         st["sub"],
     ))
     flow.append(_kpi_row(m, st))
