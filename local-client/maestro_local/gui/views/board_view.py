@@ -6,6 +6,7 @@ from PySide6.QtCore import QMimeData, QPoint, QPropertyAnimation, QRect, QSize, 
 from PySide6.QtGui import QColor, QDrag, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
+    QCheckBox,
     QComboBox,
     QDialog,
     QDoubleSpinBox,
@@ -31,6 +32,9 @@ from maestro_local.db.models import (
     ActivityLog,
     BoardColumn,
     Comment,
+    Epic,
+    Goal,
+    Label,
     Member,
     Project,
     Sprint,
@@ -1485,6 +1489,310 @@ class ColumnManagerDialog(QDialog):
 
 
 # ────────────────────────────────────────────────────────────
+# BoardMetricsAccordion — acordeão de métricas do projeto
+# ────────────────────────────────────────────────────────────
+
+def _goal_progress(goal, s) -> tuple[int, int]:
+    q = s.query(Task).filter(
+        Task.project_id == goal.project_id,
+        Task.deleted_at == None,  # noqa: E711
+        Task.archived_at == None,  # noqa: E711
+    )
+    if goal.tag:
+        q = q.filter(Task.labels.any(Label.name == goal.tag))
+    if goal.epic_id:
+        q = q.filter(Task.epics.any(Epic.id == goal.epic_id))
+    if goal.sprint_id:
+        q = q.filter(Task.sprint_id == goal.sprint_id)
+    total = q.count()
+    done = q.join(BoardColumn, Task.column_id == BoardColumn.id).filter(
+        BoardColumn.is_done == True).count()  # noqa: E712
+    return done, total
+
+
+class BoardMetricsAccordion(QFrame):
+    """Acordeão no topo do kanban: alertas, prazos e objetivos do projeto."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.project_id = None
+        self._expanded = True
+        t = current_theme()
+        self.setStyleSheet(
+            f"BoardMetricsAccordion {{ background: {t.bg_card}; border: 1px solid {t.border_light}; border-radius: 10px; }}"
+        )
+        root = QVBoxLayout(self)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(0)
+
+        # — header clicável —
+        header_wrap = QFrame()
+        header_wrap.setStyleSheet("QFrame { background: transparent; border: none; }")
+        hlay = QHBoxLayout(header_wrap)
+        hlay.setContentsMargins(10, 8, 10, 8)
+        hlay.setSpacing(8)
+        self.chevron_btn = QPushButton("▾")
+        self.chevron_btn.setFixedSize(24, 24)
+        self.chevron_btn.setCursor(Qt.PointingHandCursor)
+        self.chevron_btn.setFlat(True)
+        self.chevron_btn.setStyleSheet(
+            f"QPushButton {{ background: {t.bg_badge}; border: 1px solid {t.border_light}; border-radius: 6px; color: {t.text_muted}; font-size: 11px; }}"
+            f"QPushButton:hover {{ background: {t.bg_hover}; color: {t.text_primary}; }}"
+        )
+        self.chevron_btn.clicked.connect(self._toggle)
+        hlay.addWidget(self.chevron_btn)
+        self.title_lbl = QLabel(_t("Métricas do projeto"))
+        self.title_lbl.setStyleSheet(f"font-weight: 700; font-size: 13px; color: {t.text_primary}; border: none;")
+        hlay.addWidget(self.title_lbl)
+        self.summary_lbl = QLabel("")
+        self.summary_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 11px; border: none;")
+        hlay.addWidget(self.summary_lbl)
+        hlay.addStretch()
+        root.addWidget(header_wrap)
+        self.header = header_wrap
+        self.chevron = self.chevron_btn
+
+        # — conteúdo —
+        self.content = QWidget()
+        self.content.setStyleSheet("background: transparent;")
+        self.content_layout = QVBoxLayout(self.content)
+        self.content_layout.setContentsMargins(14, 6, 14, 14)
+        self.content_layout.setSpacing(12)
+        root.addWidget(self.content)
+        self._build_empty()
+
+    def _build_empty(self):
+        t = current_theme()
+        lbl = QLabel(_t("Selecione um projeto para ver as métricas."))
+        lbl.setProperty("class", "hint")
+        lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 12px; border: none;")
+        self.content_layout.addWidget(lbl)
+
+    def _toggle(self):
+        self._expanded = not self._expanded
+        self.content.setVisible(self._expanded)
+        self.chevron.setText("▾" if self._expanded else "▸")
+
+    def set_project(self, project_id):
+        self.project_id = project_id
+        self.refresh()
+
+    def refresh(self):
+        # limpa
+        while self.content_layout.count():
+            it = self.content_layout.takeAt(0)
+            w = it.widget()
+            if w:
+                w.deleteLater()
+            elif it.layout():
+                # limpa layouts aninhados
+                while it.layout().count():
+                    c = it.layout().takeAt(0)
+                    if c.widget():
+                        c.widget().deleteLater()
+        t = current_theme()
+        if not self.project_id:
+            self.summary_lbl.setText("")
+            self._build_empty()
+            return
+
+        s = get_session()
+        try:
+            project = s.get(Project, self.project_id)
+            if not project:
+                self.summary_lbl.setText("")
+                return
+
+            # — coleta de dados —
+            cols = s.query(BoardColumn).filter(BoardColumn.project_id == self.project_id).order_by(BoardColumn.order).all()
+            done_col_ids = {c.id for c in cols if c.is_done}
+            tasks_all = s.query(Task).filter(
+                Task.project_id == self.project_id,
+                Task.deleted_at == None,  # noqa: E711
+                Task.archived_at == None,  # noqa: E711
+            ).all()
+            total = len(tasks_all)
+            done = sum(1 for tk in tasks_all if tk.column_id in done_col_ids)
+            pct = int(done / total * 100) if total else 0
+
+            # WIP
+            wip_alerts = []
+            for col in cols:
+                if col.wip_limit and col.wip_limit > 0:
+                    cnt = sum(1 for tk in tasks_all if tk.column_id == col.id)
+                    if cnt > col.wip_limit:
+                        wip_alerts.append(f"{col.name}: {cnt}/{col.wip_limit}")
+
+            # vencidos
+            hoje = date.today()
+            vencidos = [tk for tk in tasks_all if tk.due_date and tk.due_date.date() < hoje and tk.column_id not in done_col_ids]
+            # parados (sem atualização há 14d, não concluídos)
+            from datetime import timedelta
+            limite_parado = datetime.utcnow() - timedelta(days=14)
+            parados = [tk for tk in tasks_all if tk.column_id not in done_col_ids and tk.updated_at and tk.updated_at < limite_parado]
+
+            # sprint ativa
+            sprint_ativa = s.query(Sprint).filter(Sprint.project_id == self.project_id, Sprint.status == "ATIVA").first()
+            goals = s.query(Goal).filter(Goal.project_id == self.project_id).order_by(Goal.due_date.is_(None), Goal.due_date).all()
+
+            # — resumo no header —
+            partes = []
+            if pct < 100:
+                partes.append(f"{pct}%")
+            if wip_alerts:
+                partes.append(f"⚠ WIP {len(wip_alerts)}")
+            if vencidos:
+                partes.append(f"⏰ {len(vencidos)} vencida(s)")
+            if parados:
+                partes.append(f"• {len(parados)} parada(s)")
+            # goals atrasados
+            goals_atrasados = 0
+            for g in goals:
+                if g.due_date and g.due_date.date() < hoje:
+                    d, tot = _goal_progress(g, s)
+                    if d < tot:
+                        goals_atrasados += 1
+            if goals_atrasados:
+                partes.append(f"🎯 {goals_atrasados} objetivo(s) atrasado(s)")
+            self.summary_lbl.setText("  ·  ".join(partes) if partes else _t("Tudo em dia"))
+
+            # — linha de progresso geral —
+            prog_row = QHBoxLayout()
+            prog_row.setSpacing(8)
+            prog_lbl = QLabel(_t("Progresso geral"))
+            prog_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 11px; font-weight: 600; border: none;")
+            prog_row.addWidget(prog_lbl)
+            barra = QProgressBar()
+            barra.setValue(pct)
+            barra.setFormat(f"{pct}%  ({done}/{total})")
+            barra.setTextVisible(True)
+            barra.setFixedHeight(16)
+            barra.setStyleSheet(f"QProgressBar {{ background: {t.bg_badge}; }} QProgressBar::chunk {{ background: {t.success if pct==100 else t.accent}; }}")
+            prog_row.addWidget(barra, 1)
+            if sprint_ativa and sprint_ativa.end_date:
+                dias = (sprint_ativa.end_date.date() - hoje).days
+                cor = t.danger if dias < 0 else (t.warning if dias <= 3 else t.text_muted)
+                sprint_lbl = QLabel(_t("Sprint {name}: {d} dias").format(name=sprint_ativa.name, d=dias) if dias >= 0 else _t("Sprint {name}: atrasada {d}d").format(name=sprint_ativa.name, d=abs(dias)))
+                sprint_lbl.setStyleSheet(f"color: {cor}; font-size: 11px; font-weight: 600; border: none;")
+                prog_row.addWidget(sprint_lbl)
+            w_prog = QWidget()
+            w_prog.setLayout(prog_row)
+            self.content_layout.addWidget(w_prog)
+
+            # — 3 colunas: Alertas | Prazos | Objetivos —
+            cols_row = QHBoxLayout()
+            cols_row.setSpacing(16)
+            cols_row.setAlignment(Qt.AlignTop)
+
+            # Alertas
+            alert_box = self._section_box(_t("Alertas"), t)
+            if not wip_alerts and not vencidos and not parados:
+                alert_box["layout"].addWidget(self._hint(_t("Nenhum alerta — fluxo saudável."), t))
+            else:
+                for a in wip_alerts:
+                    alert_box["layout"].addWidget(self._alert_row(f"WIP: {a}", t.danger, t))
+                for tk in vencidos[:5]:
+                    alert_box["layout"].addWidget(self._alert_row(f"{tk.code} vencida em {tk.due_date.date().strftime('%d/%m')}", t.danger, t))
+                if len(vencidos) > 5:
+                    alert_box["layout"].addWidget(self._hint(_t("+ {n} vencida(s)").format(n=len(vencidos)-5), t))
+                for tk in parados[:4]:
+                    dias = (datetime.utcnow() - tk.updated_at).days if tk.updated_at else 0
+                    alert_box["layout"].addWidget(self._alert_row(f"{tk.code} parada há {dias}d", t.warning, t))
+                if len(parados) > 4:
+                    alert_box["layout"].addWidget(self._hint(_t("+ {n} parada(s)").format(n=len(parados)-4), t))
+            cols_row.addWidget(alert_box["box"], 1)
+
+            # Prazos
+            prazos_box = self._section_box(_t("Prazos"), t)
+            # goals com prazo
+            goals_com_prazo = [g for g in goals if g.due_date]
+            if sprint_ativa and sprint_ativa.end_date:
+                dias = (sprint_ativa.end_date.date() - hoje).days
+                cor = t.danger if dias < 0 else (t.warning if dias <= 7 else t.text_primary)
+                prazos_box["layout"].addWidget(self._alert_row(f"Sprint {sprint_ativa.name}: {sprint_ativa.end_date.date().strftime('%d/%m/%Y')} ({dias}d)" if dias >= 0 else f"Sprint {sprint_ativa.name}: atrasada", cor, t))
+            if goals_com_prazo:
+                for g in goals_com_prazo[:5]:
+                    dias = (g.due_date.date() - hoje).days
+                    cor = t.danger if dias < 0 else (t.warning if dias <= 7 else t.text_primary)
+                    done_g, tot_g = _goal_progress(g, s)
+                    txt = f"{g.name} — {g.due_date.date().strftime('%d/%m')} ({dias}d)  {done_g}/{tot_g}"
+                    prazos_box["layout"].addWidget(self._alert_row(txt, cor, t))
+                if len(goals_com_prazo) > 5:
+                    prazos_box["layout"].addWidget(self._hint(_t("+ {n} prazo(s)").format(n=len(goals_com_prazo)-5), t))
+            elif not (sprint_ativa and sprint_ativa.end_date):
+                prazos_box["layout"].addWidget(self._hint(_t("Nenhum prazo definido."), t))
+            # tarefas vencidas já estão em alertas, mas mostra próximas a vencer (7d)
+            proximas = [tk for tk in tasks_all if tk.due_date and 0 <= (tk.due_date.date() - hoje).days <= 7 and tk.column_id not in done_col_ids]
+            if proximas:
+                for tk in proximas[:3]:
+                    prazos_box["layout"].addWidget(self._hint(f"{tk.code} vence {tk.due_date.date().strftime('%d/%m')}", t))
+            cols_row.addWidget(prazos_box["box"], 1)
+
+            # Objetivos
+            obj_box = self._section_box(_t("Objetivos"), t)
+            if not goals:
+                obj_box["layout"].addWidget(self._hint(_t("Nenhum goal — crie em Goals."), t))
+            else:
+                for g in goals[:4]:
+                    done_g, tot_g = _goal_progress(g, s)
+                    pct_g = int(done_g / tot_g * 100) if tot_g else 0
+                    row = QHBoxLayout()
+                    row.setSpacing(6)
+                    nome = QLabel(g.name)
+                    nome.setStyleSheet(f"color: {t.text_primary}; font-size: 12px; font-weight: 600; border: none;")
+                    nome.setWordWrap(True)
+                    row.addWidget(nome, 1)
+                    if g.due_date:
+                        dias = (g.due_date.date() - hoje).days
+                        cor = t.danger if dias < 0 else (t.warning if dias <= 3 else t.text_muted)
+                        dl = QLabel(f"{dias}d" if dias >= 0 else f"{abs(dias)}d atraso")
+                        dl.setStyleSheet(f"color: {cor}; font-size: 11px; font-weight: 700; border: none;")
+                        row.addWidget(dl)
+                    w = QWidget()
+                    w.setLayout(row)
+                    obj_box["layout"].addWidget(w)
+                    barra = QProgressBar()
+                    barra.setValue(pct_g)
+                    barra.setFormat(f"{pct_g}% ({done_g}/{tot_g})")
+                    barra.setFixedHeight(14)
+                    obj_box["layout"].addWidget(barra)
+                if len(goals) > 4:
+                    obj_box["layout"].addWidget(self._hint(_t("+ {n} objetivo(s)").format(n=len(goals)-4), t))
+            cols_row.addWidget(obj_box["box"], 1)
+
+            w_cols = QWidget()
+            w_cols.setLayout(cols_row)
+            self.content_layout.addWidget(w_cols)
+
+        finally:
+            s.close()
+
+    def _section_box(self, titulo, t):
+        box = QFrame()
+        box.setStyleSheet(f"QFrame {{ background: {t.bg_secondary}; border: 1px solid {t.border_light}; border-radius: 8px; }}")
+        lay = QVBoxLayout(box)
+        lay.setContentsMargins(10, 8, 10, 8)
+        lay.setSpacing(4)
+        ttl = QLabel(titulo)
+        ttl.setStyleSheet(f"color: {t.text_muted}; font-size: 10px; font-weight: 700; letter-spacing: 0.8px; border: none;")
+        lay.addWidget(ttl)
+        return {"box": box, "layout": lay}
+
+    def _alert_row(self, texto, cor, t):
+        lbl = QLabel(f"• {texto}")
+        lbl.setWordWrap(True)
+        lbl.setStyleSheet(f"color: {cor}; font-size: 11px; border: none;")
+        return lbl
+
+    def _hint(self, texto, t):
+        lbl = QLabel(texto)
+        lbl.setWordWrap(True)
+        lbl.setProperty("class", "hint")
+        lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 11px; border: none;")
+        return lbl
+
+
+# ────────────────────────────────────────────────────────────
 # ArchivedDialog
 # ────────────────────────────────────────────────────────────
 
@@ -1693,6 +2001,10 @@ class BoardView(QWidget):
         self.filter_bar.filters_changed.connect(self._apply_filters)
         board_tab_layout.addWidget(self.filter_bar)
 
+        # Metrics accordion (alertas, prazos, objetivos)
+        self.metrics_accordion = BoardMetricsAccordion()
+        board_tab_layout.addWidget(self.metrics_accordion)
+
         # Board scroll area
         self.scroll = QScrollArea()
         self.scroll.setWidgetResizable(True)
@@ -1723,6 +2035,8 @@ class BoardView(QWidget):
 
     def set_project(self, project_id):
         self.project_id = project_id
+        if hasattr(self, "metrics_accordion"):
+            self.metrics_accordion.set_project(project_id)
         # Novo projeto: re-aplica o default (sprint ativa) e volta o filtro.
         self._sprint_filter_initialized = False
         self._sprint_filter = None
@@ -1986,6 +2300,9 @@ class BoardView(QWidget):
 
         self._last_task_hash = self._compute_hash()
         self._apply_filters()
+        # atualiza métricas (alertas/prazos/objetivos) sem recriar colunas
+        if hasattr(self, "metrics_accordion"):
+            self.metrics_accordion.refresh()
 
     def _apply_filters(self):
         search = self.filter_bar.get_search_text()

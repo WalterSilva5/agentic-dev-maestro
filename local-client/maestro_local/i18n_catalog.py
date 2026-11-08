@@ -762,6 +762,17 @@ CATALOG = {
   "Dados exportados para:\n{base}": "Data exported to:\n{base}",
   "Erro na sincronização": "Synchronization error",
   "Configure um vault do Obsidian por projeto para exportar dados como Markdown estruturado.": "Configure an Obsidian vault per project to export data as structured Markdown.",
-  "Gerencie tarefas com um board kanban e use agentes de IA como auxiliares dos desenvolvedores — eles ajudam a implementar, documentar e preparar código para revisão humana via API REST.": "Manage tasks with a kanban board and use AI agents as assistants to developers — they help implement, document and prepare code for human review via REST API."
+  "Gerencie tarefas com um board kanban e use agentes de IA como auxiliares dos desenvolvedores — eles ajudam a implementar, documentar e preparar código para revisão humana via API REST.": "Manage tasks with a kanban board and use AI agents as assistants to developers — they help implement, document and prepare code for human review via REST API.",
+  "Métricas do projeto": "Project metrics",
+  "Selecione um projeto para ver as métricas.": "Select a project to see the metrics.",
+  "Progresso geral": "Overall progress",
+  "Alertas": "Alerts",
+  "Prazos": "Deadlines",
+  "Objetivos": "Goals",
+  "Nenhum alerta — fluxo saudável.": "No alerts — flow is healthy.",
+  "Nenhum prazo definido.": "No deadlines defined.",
+  "Nenhum goal — crie em Goals.": "No goals — create one in Goals.",
+  "Sprint {name}: {d} dias": "Sprint {name}: {d} days",
+  "Sprint {name}: atrasada {d}d": "Sprint {name}: overdue {d}d",
 },
 }
