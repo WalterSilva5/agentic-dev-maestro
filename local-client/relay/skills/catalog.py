@@ -79,6 +79,30 @@ curl -X POST http://127.0.0.1:9777/api/tasks/MP-1/move -H 'Content-Type: applica
   -d '{"columnId":3}'
 ```
 
+### 6b. Portao de evidencia/paridade (quando o move volta 422)
+
+Algumas colunas tem regras de entrada (ver `GET /api/projects/1/gate-rules`).
+Se faltar requisito, o move responde `422` com `{"missing": [...], "message": "..."}`
+— nao e erro de API, e o card que ainda nao pode entrar. Resolva e mova de novo:
+
+```bash
+# ver as regras do projeto
+curl -s http://127.0.0.1:9777/api/projects/1/gate-rules | jq '.'
+# anexar evidencia (ex.: teste executado, link de PR/build)
+curl -X POST http://127.0.0.1:9777/api/tasks/MP-1/evidence \\
+  -H 'Content-Type: application/json' -d '{"kind":"TEST","title":"suite verde","result":"PASS"}'
+# registrar paridade (status FIEL = comportamento igual ao legado)
+curl -X POST http://127.0.0.1:9777/api/tasks/MP-1/parity \\
+  -H 'Content-Type: application/json' -d '{"case_name":"fluxo principal","status":"FIEL"}'
+# comentario exigido por alguma coluna (ex.: CODE_REVIEW p/ Dev Review)
+curl -X POST http://127.0.0.1:9777/api/comments \\
+  -H 'Content-Type: application/json' -d '{"taskId":1,"body":"revisado","type":"CODE_REVIEW"}'
+```
+
+- `missing` diz o que falta: `EVIDENCIA`, `EVIDENCIA_KIND`, `PARITY_FIEL`,
+  `CODE_REVIEW` (ou outro tipo de comentario), nunca `PR` (placeholder)
+- `message` e a explicacao pronta para mostrar ao usuario
+
 ### 7. Adicionar comentario (log de progresso)
 ```bash
 curl -X POST http://127.0.0.1:9777/api/comments -H 'Content-Type: application/json' \\
@@ -312,6 +336,9 @@ curl -X POST http://127.0.0.1:9777/api/tasks/{CODE}/move \\
   -H 'Content-Type: application/json' \\
   -d '{"columnId": COLUMN_ID}'
 ```
+
+Se o move voltar `422 {"missing": [...]}`, e o portao da coluna
+(evidencia/paridade/comentario) — ver `relay-api-agent` §6b, resolva e mova de novo.
 
 ## 4. Implementar e documentar progresso
 
