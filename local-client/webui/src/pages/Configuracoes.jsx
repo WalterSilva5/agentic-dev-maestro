@@ -266,6 +266,31 @@ export default function Configuracoes() {
             <option value="large-v3">large-v3</option>
           </select>
         </div>
+
+        <div className="row" style={{ gap: 10, marginTop: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+          <span className="muted" style={{ fontSize: 11, fontWeight: 700 }}>
+            {t('Contexto do copiloto (board e dailies):')}
+          </span>
+          {[
+            ['cards', t('cards parados')],
+            ['overdue', t('atrasados')],
+            ['dailies', t('dailies')],
+          ].map(([campo, rotulo]) => (
+            <label key={campo} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}>
+              <input
+                type="number" min="1" max="50" style={{ width: 64 }}
+                value={(settings.meetingContext || {})[campo] ?? ''}
+                onChange={(e) => apply({
+                  meetingContext: { ...(settings.meetingContext || {}), [campo]: Number(e.target.value) },
+                })}
+              />
+              {rotulo}
+            </label>
+          ))}
+        </div>
+        <p className="muted" style={{ marginBottom: 0, fontSize: 11 }}>
+          {t('Quanto do projeto entra no contexto da reunião: cards em andamento (mais parados), atrasados e registros recentes da daily.')}
+        </p>
       </div>
 
       {coach && (

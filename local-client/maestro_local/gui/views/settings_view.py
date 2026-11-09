@@ -409,6 +409,31 @@ class SettingsView(QWidget):
         row.addStretch()
         layout.addLayout(row)
 
+        # Quanto do projeto entra no contexto do copiloto de reunião
+        row_ctx = QHBoxLayout()
+        row_ctx.setSpacing(8)
+        row_ctx.addWidget(QLabel(t("Contexto da reunião:")))
+        self.mc_cards = QSpinBox()
+        self.mc_cards.setRange(1, 50)
+        self.mc_cards.setSuffix(t(" cards"))
+        self.mc_cards.setToolTip(t("Cards em andamento enviados ao copiloto (os mais parados primeiro)"))
+        self.mc_cards.valueChanged.connect(self._save_settings)
+        row_ctx.addWidget(self.mc_cards)
+        self.mc_overdue = QSpinBox()
+        self.mc_overdue.setRange(1, 50)
+        self.mc_overdue.setSuffix(t(" atrasados"))
+        self.mc_overdue.setToolTip(t("Cards atrasados enviados ao copiloto"))
+        self.mc_overdue.valueChanged.connect(self._save_settings)
+        row_ctx.addWidget(self.mc_overdue)
+        self.mc_dailies = QSpinBox()
+        self.mc_dailies.setRange(1, 50)
+        self.mc_dailies.setSuffix(t(" dailies"))
+        self.mc_dailies.setToolTip(t("Registros recentes da daily enviados ao copiloto"))
+        self.mc_dailies.valueChanged.connect(self._save_settings)
+        row_ctx.addWidget(self.mc_dailies)
+        row_ctx.addStretch()
+        layout.addLayout(row_ctx)
+
     def _update_whisper_ram_hint(self):
         """Mostra a RAM aproximada do modelo selecionado — ajuda a escolher
         conscientemente o trade-off precisão x memória (fica residente após o
@@ -757,6 +782,11 @@ class SettingsView(QWidget):
         if idx >= 0:
             self.whisper_model.setCurrentIndex(idx)
         self.whisper_lang.setText(cron.get("whisper_language", WHISPER_DEFAULT_LANGUAGE))
+
+        ctx = settings.get("meetings", {}).get("context", {})
+        self.mc_cards.setValue(int(ctx.get("cards", 12)))
+        self.mc_overdue.setValue(int(ctx.get("overdue", 8)))
+        self.mc_dailies.setValue(int(ctx.get("dailies", 5)))
         self._loading = False
 
         self._load_ai_section()
@@ -784,6 +814,13 @@ class SettingsView(QWidget):
             "transcricoes": {
                 "whisper_model": self.whisper_model.currentText(),
                 "whisper_language": self.whisper_lang.text().strip(),
+            },
+            "meetings": {
+                "context": {
+                    "cards": self.mc_cards.value(),
+                    "overdue": self.mc_overdue.value(),
+                    "dailies": self.mc_dailies.value(),
+                },
             },
         }
         save_config(cfg)

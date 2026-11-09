@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getDaily, saveDaily, genDailyReport, getDailyActivity } from '../api'
 import { t } from '../i18n'
+import { isoLocal } from '../dateutil.js'
 
 function fmtWhen(iso) {
   if (!iso) return ''
@@ -10,7 +11,7 @@ function fmtWhen(iso) {
 }
 
 export default function MeuDia() {
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
+  const [date, setDate] = useState(isoLocal())
   const [body, setBody] = useState('')
   const [report, setReport] = useState('')
   const [activity, setActivity] = useState([])

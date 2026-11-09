@@ -250,3 +250,40 @@ def test_compute_sem_sessao_de_outro_workspace(tmp_path):
     m._SessionLocal = None
     assert d["summary"]["doneInWeek"] == 1
     assert d["members"][0]["name"] == "Ana"
+
+
+def test_servico_vem_dos_comentarios_de_review(client, projeto):
+    """Revisões e PRs saem dos comentários — sem o líder digitar."""
+    tid = projeto["ana"]["id"]
+    r = client.post("/api/comments", json={
+        "taskId": tid, "type": "CODE_REVIEW", "author": "Ana",
+        "body": "PR #8910 aprovado; conferi também o #8938.",
+    })
+    assert r.status_code == 200
+    assert r.json()["author"] == "Ana"
+
+    d = client.get(f"/api/projects/{projeto['pid']}/team/weekly").json()
+    ana = next(m for m in d["members"] if m["name"] == "Ana")
+
+    assert ana["reviews"] == 1
+    assert [c["code"] for c in ana["reviewedCards"]] == [projeto["ana"]["code"]]
+    assert set(ana["prs"]) == {"8910", "8938"}
+    assert "Revisou 1 card" in ana["serviceSuggested"]
+    assert "#8910" in ana["serviceSuggested"]
+
+
+def test_comentario_sem_autor_continua_local(client, projeto):
+    r = client.post("/api/comments", json={
+        "taskId": projeto["ana"]["id"], "type": "CODE_REVIEW", "body": "sem autor",
+    })
+    assert r.json()["author"] == "local"
+
+
+def test_markdown_usa_servico_do_board_quando_campo_vazio(client, projeto):
+    client.post("/api/comments", json={
+        "taskId": projeto["ana"]["id"], "type": "CODE_REVIEW", "author": "Ana",
+        "body": "PR #8910 aprovado.",
+    })
+    md = client.get(f"/api/projects/{projeto['pid']}/team/weekly/export").text
+    assert "Serviço/apoio (levantado do board)" in md
+    assert "#8910" in md

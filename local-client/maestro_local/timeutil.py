@@ -7,7 +7,7 @@ em UTC, e o relatório semanal a colocava na semana errada.
 """
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime, time, timezone
 
 
 def local(dt: datetime | None) -> datetime | None:
@@ -23,3 +23,11 @@ def data_local(dt: datetime | None) -> date | None:
     """Data local de um timestamp gravado em UTC."""
     convertido = local(dt)
     return convertido.date() if convertido else None
+
+
+def limites_utc(inicio: date, fim: date) -> tuple[datetime, datetime]:
+    """Intervalo de datas locais -> timestamps naive-UTC (para filtrar no banco)."""
+    fuso = datetime.now().astimezone().tzinfo
+    inicio_dt = datetime.combine(inicio, time.min, tzinfo=fuso).astimezone(timezone.utc)
+    fim_dt = datetime.combine(fim, time.max, tzinfo=fuso).astimezone(timezone.utc)
+    return inicio_dt.replace(tzinfo=None), fim_dt.replace(tzinfo=None)

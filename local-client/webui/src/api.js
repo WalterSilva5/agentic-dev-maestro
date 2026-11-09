@@ -235,3 +235,7 @@ export const teamReportUrl = (projectId, week, anonymized = false) => {
   if (anonymized) p.set('anonymized', '1')
   return `/api/projects/${projectId}/team/weekly/export?${p.toString()}`
 }
+
+// Análise de reunião com o contexto do projeto
+export const analyzeRecording = (id, body = {}) =>
+  api.post(`/recordings/${id}/analyze`, body).then((r) => r.data)

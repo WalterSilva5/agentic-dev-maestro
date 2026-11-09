@@ -5,8 +5,9 @@ import {
 } from '../api'
 import { getActiveProjectId } from '../components/ProjectSelector.jsx'
 import { t, tf } from '../i18n'
+import { isoLocal } from '../dateutil.js'
 
-const iso = (d) => d.toISOString().slice(0, 10)
+const iso = (d) => isoLocal(d)
 const hoje = () => iso(new Date())
 const somarDias = (dataIso, dias) => {
   const d = new Date(`${dataIso}T12:00:00`)
@@ -235,6 +236,22 @@ export default function Time() {
                     <span className="muted" style={{ fontSize: 11 }}>· {tf('{n} revisão(ões)', { n: m.reviews })}</span>
                   )}
                 </div>
+
+                {(m.serviceSuggested || m.reviewedCards?.length > 0) && (
+                  <div style={{ marginTop: 6, padding: '6px 8px', background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 8 }}>
+                    <div className="muted" style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: .5 }}>
+                      {t('Serviço registrado no board')}
+                    </div>
+                    <div style={{ fontSize: 11, marginTop: 2 }}>{m.serviceSuggested || '—'}</div>
+                    <button
+                      className="ghost"
+                      style={{ marginTop: 4, fontSize: 11, padding: '2px 8px' }}
+                      onClick={() => alterar(m.name, 'service', m.serviceSuggested || '')}
+                    >
+                      {t('Usar no campo Serviço/apoio')}
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 6 }}>

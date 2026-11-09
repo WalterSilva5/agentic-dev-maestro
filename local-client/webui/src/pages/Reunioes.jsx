@@ -3,7 +3,9 @@ import Swal from 'sweetalert2'
 import {
   listRecordings, getRecording, updateRecording, deleteRecording,
   archiveRecording, recordingExportUrl, recordingAudioUrl,
+  analyzeRecording, getWorkspaces,
 } from '../api.js'
+import { getActiveProjectId } from '../components/ProjectSelector.jsx'
 import { t, tf } from '../i18n'
 
 // Markdown mínimo (títulos, listas, negrito, código) — sem dependência nova.
@@ -68,6 +70,9 @@ export default function Reunioes() {
   const [msg, setMsg] = useState('')
   const [erro, setErro] = useState('')
   const [preview, setPreview] = useState(false)
+  const [projeto, setProjeto] = useState(null)
+  const [analise, setAnalise] = useState(null)
+  const [analisando, setAnalisando] = useState(false)
 
   const carregar = async () => {
     try {
@@ -106,6 +111,41 @@ export default function Reunioes() {
   }
 
   useEffect(() => { carregar() /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [kind, arquivadas])
+
+  useEffect(() => {
+    ;(async () => {
+      try {
+        const d = await getWorkspaces()
+        const pid = getActiveProjectId(d.active)
+        if (pid) setProjeto({ id: Number(pid) })
+      } catch { /* sem projeto ativo: analisa só a transcrição */ }
+    })()
+  }, [])
+
+  const analisar = async () => {
+    if (!sel) return
+    setAnalisando(true)
+    try {
+      const d = await analyzeRecording(sel, projeto?.id ? { projectId: projeto.id } : {})
+      setAnalise(d)
+    } catch (e) {
+      setErro(textoErro(e))
+    } finally {
+      setAnalisando(false)
+    }
+  }
+
+  const salvarAnalise = async () => {
+    if (!sel) return
+    try {
+      const d = await analyzeRecording(sel, { projectId: projeto?.id, save: true })
+      setAnalise(d)
+      await abrir(sel)
+      setMsg(t('Análise salva na reunião.'))
+    } catch (e) {
+      setErro(textoErro(e))
+    }
+  }
 
   const sujo = useMemo(() => {
     if (!detalhe || !draft) return false
@@ -303,6 +343,63 @@ export default function Reunioes() {
                   : <button className="ghost" onClick={() => arquivar(false)}>{t('Desarquivar')}</button>}
                 <button className="ghost" style={{ color: 'var(--danger)' }} onClick={excluir}>{t('Excluir')}</button>
               </div>
+
+              {/* análise com o contexto do projeto (board, atrasos, dailies) */}
+              <div className="row" style={{ gap: 8, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                <button className="ghost" onClick={analisar} disabled={analisando}>
+                  {analisando ? `⏳ ${t('Analisando...')}` : `🧠 ${t('Analisar com contexto')}`}
+                </button>
+                <span className="muted" style={{ fontSize: 11 }}>
+                  {projeto
+                    ? t('Usa o board, atrasos e dailies do projeto atual.')
+                    : t('Sem projeto ativo: analisa só a transcrição.')}
+                </span>
+              </div>
+
+              {analise && (
+                <div style={{ marginTop: 8, border: '1px solid var(--border-light)', borderRadius: 8, padding: 10, background: 'var(--bg)' }}>
+                  <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700 }}>
+                      {analise.engine === 'llm' ? `🧠 ${t('Análise por IA')}` : `📐 ${t('Análise pelo contexto (sem IA)')}`}
+                      {analise.usedProjectContext ? ` · ${t('com projeto')}` : ` · ${t('só transcrição')}`}
+                    </span>
+                    <div className="row" style={{ gap: 6 }}>
+                      <button className="ghost" onClick={salvarAnalise}>{t('Salvar na reunião')}</button>
+                      <button className="ghost" onClick={() => setAnalise(null)}>{t('Fechar')}</button>
+                    </div>
+                  </div>
+
+                  {[
+                    ['tips', `💡 ${t('Dicas')}`],
+                    ['plan', `🗺 ${t('Plano')}`],
+                    ['decisions', `📌 ${t('Decisões')}`],
+                  ].map(([campo, rotulo]) => (
+                    (analise[campo] || []).length > 0 && (
+                      <div key={campo} style={{ marginTop: 8 }}>
+                        <div className="muted" style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: .5 }}>{rotulo}</div>
+                        <ul style={{ margin: '2px 0 0 16px', padding: 0, fontSize: 12 }}>
+                          {analise[campo].map((item, i) => <li key={i}>{item}</li>)}
+                        </ul>
+                      </div>
+                    )
+                  ))}
+                  {(analise.actionItems || []).length > 0 && (
+                    <div style={{ marginTop: 8 }}>
+                      <div className="muted" style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: .5 }}>✅ {t('Ações')}</div>
+                      <ul style={{ margin: '2px 0 0 16px', padding: 0, fontSize: 12 }}>
+                        {analise.actionItems.map((a, i) => (
+                          <li key={i}>{a.description}{a.assignee ? ` — ${a.assignee}` : ''}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {analise.engine === 'heuristic' && (
+                    <div className="muted" style={{ fontSize: 10, marginTop: 8 }}>
+                      {t('Sem provedor de IA ativo: as dicas vêm só de fatos do board e das dailies.')}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="row" style={{ gap: 4, marginTop: 12, borderBottom: '1px solid var(--border-light)' }}>
                 {[

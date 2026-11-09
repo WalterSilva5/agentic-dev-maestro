@@ -28,8 +28,17 @@ def _dias_desde(quando: datetime | None, hoje: date) -> int | None:
     return max(0, (hoje - dia).days)
 
 
-def project_context(session, project_id: int) -> str:
-    """Markdown compacto: board, atrasos, módulos, entregas e dailies recentes."""
+def project_context(session, project_id: int, limits: dict | None = None) -> str:
+    """Markdown compacto: board, atrasos, módulos, entregas e dailies recentes.
+
+    `limits` sobrescreve as quantidades (cards/overdue/dailies/deliveries);
+    por padrão vêm das configurações (`settings.meetings.context`).
+    """
+    if limits is None:
+        from maestro_local.config import get_meeting_context_limits
+
+        limits = get_meeting_context_limits()
+
     from maestro_local.db.models import (
         BoardColumn,
         Project,
@@ -92,7 +101,7 @@ def project_context(session, project_id: int) -> str:
     if andamento:
         linhas.append("")
         linhas.append("### Em andamento (mais parados primeiro)")
-        for t in andamento[:LIMITE_CARDS]:
+        for t in andamento[: limits['cards']]:
             col = por_id.get(t.column_id)
             parado = _dias_desde(t.updated_at, hoje)
             marca = f" · parado há {parado}d" if parado and parado >= 3 else ""
@@ -106,7 +115,7 @@ def project_context(session, project_id: int) -> str:
     if atrasados:
         linhas.append("")
         linhas.append("### Atrasados")
-        for t in atrasados[:LIMITE_ATRASADOS]:
+        for t in atrasados[: limits['overdue']]:
             linhas.append(
                 f"- {t.code} · {t.title[:70]} — venceu {t.due_date.date().strftime('%d/%m')}"
                 f" · {t.assignee or 'sem dono'}"
@@ -131,7 +140,7 @@ def project_context(session, project_id: int) -> str:
     if entregues:
         linhas.append("")
         linhas.append("### Concluídos nos últimos 7 dias")
-        for t in entregues[:LIMITE_ENTREGAS]:
+        for t in entregues[: limits['deliveries']]:
             linhas.append(f"- {t.code} · {t.title[:70]} — {data_local(t.done_at).strftime('%d/%m')}")
 
     # dailies recentes
@@ -139,7 +148,7 @@ def project_context(session, project_id: int) -> str:
         session.query(ProjectDailyEntry)
         .filter(ProjectDailyEntry.project_id == project_id)
         .order_by(ProjectDailyEntry.date.desc(), ProjectDailyEntry.sort_order)
-        .limit(LIMITE_DAILIES)
+        .limit(limits['dailies'])
         .all()
     )
     if recentes:

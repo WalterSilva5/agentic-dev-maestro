@@ -18,9 +18,29 @@ from datetime import date, datetime, time, timedelta
 
 from maestro_local.dimensions import MODULES
 from maestro_local.stages import primary_group
-from maestro_local.timeutil import data_local
+from maestro_local.timeutil import data_local, limites_utc
 
 ANONIMOS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+# "PR #8910", "PR 8910", "pullrequest/8910" e "#8910" em comentários
+_PRR = r"\bPR\s*#?\s*(\d{2,6})\b|pullrequest/(\d{2,6})|#(\d{4,6})\b"
+import re as _re
+
+_PR_RE = _re.compile(_PRR)
+
+
+def _sugestao_servico(servico: dict, entregues: int) -> str:
+    """Texto pronto para o campo 'Serviço/apoio' (o líder edita se quiser)."""
+    partes = []
+    cards = sorted(servico.get("cards", {}))
+    if servico.get("reviews"):
+        alvo = f" ({', '.join(cards[:6])}{'…' if len(cards) > 6 else ''})" if cards else ""
+        partes.append(f"Revisou {servico['reviews']} card(s){alvo}")
+    if servico.get("prs"):
+        partes.append("PRs citados: " + ", ".join(f"#{p}" for p in sorted(servico["prs"])))
+    if entregues:
+        partes.append(f"Entregou {entregues} card(s)")
+    return " · ".join(partes)
 
 
 def week_bounds(ref: date | None = None) -> tuple[date, date]:
@@ -101,20 +121,37 @@ def compute_weekly(session, project, ref: date | None = None) -> dict:
         .filter(TeamNote.project_id == project.id, TeamNote.week_start == inicio)
         .all()
     }
-    # revisões dadas na semana (comentário do tipo CODE_REVIEW)
-    revisoes = Counter()
-    for c in (
+    # serviço da semana: revisões dadas e PRs citados nos comentários
+    # `created_at` é gravado em UTC: o intervalo da semana (local) vira UTC
+    # antes de filtrar, senão comentário de fim de domingo cai na semana errada
+    de_utc, ate_utc = limites_utc(inicio, fim)
+    comentarios_semana = (
         session.query(Comment)
         .join(Task, Comment.task_id == Task.id)
         .filter(
             Task.project_id == project.id,
-            Comment.type == "CODE_REVIEW",
-            Comment.created_at >= datetime.combine(inicio, time.min),
-            Comment.created_at <= datetime.combine(fim, time.max),
+            Comment.created_at >= de_utc,
+            Comment.created_at <= ate_utc,
         )
         .all()
-    ):
-        revisoes[(c.author or "").strip()] += 1
+    )
+    servico_por_autor: dict[str, dict] = {}
+    for c in comentarios_semana:
+        autor = (c.author or "").strip()
+        dados = servico_por_autor.setdefault(autor, {"reviews": 0, "cards": {}, "prs": set()})
+        if c.type == "CODE_REVIEW":
+            dados["reviews"] += 1
+            tarefa = c.task
+            if tarefa is not None:
+                dados["cards"][tarefa.code] = {
+                    "code": tarefa.code,
+                    "title": tarefa.title or "",
+                    "date": (data_local(c.created_at) or hoje).isoformat(),
+                }
+        for achado in _PR_RE.finditer(c.body or ""):
+            numero = next((g for g in achado.groups() if g), None)
+            if numero:
+                dados["prs"].add(numero)
 
     nomes = sorted({m.name for m in session.query(Member).filter(Member.project_id == project.id).all()}
                    | {t.assignee for t in tasks if t.assignee})
@@ -152,6 +189,7 @@ def compute_weekly(session, project, ref: date | None = None) -> dict:
             if por_coluna.get(t.column_id) and por_coluna[t.column_id].order <= primeira_ordem
         )
         nota = notas.get((nome, inicio))
+        servico = servico_por_autor.get(nome, {"reviews": 0, "cards": {}, "prs": set()})
         membros.append({
             "name": nome,
             "assigned": len(meus),
@@ -165,7 +203,10 @@ def compute_weekly(session, project, ref: date | None = None) -> dict:
             "overdue": sum(
                 1 for t in abertos if t.due_date and t.due_date.date() < hoje
             ),
-            "reviews": revisoes.get(nome, 0),
+            "reviews": servico.get("reviews", 0),
+            "reviewedCards": sorted(servico.get("cards", {}).values(), key=lambda x: x["date"]),
+            "prs": sorted(servico.get("prs", set())),
+            "serviceSuggested": _sugestao_servico(servico, len(entregues)),
             "byColumn": [{"name": n, "count": q} for n, q in carga.most_common()],
             "note": {
                 "highlights": (nota.highlights if nota else "") or "",
@@ -317,6 +358,9 @@ def render_markdown(dados: dict, anonimizado: bool = False) -> str:
             ("Próximo passo", "nextStep"),
         ):
             out += _bloco_texto(titulo_txt, m["note"].get(chave, ""))
+        # o que o board já registra de serviço (revisões/PRs) sem o líder digitar
+        if m.get("serviceSuggested") and not (m["note"].get("service") or "").strip():
+            out += _bloco_texto("Serviço/apoio (levantado do board)", m["serviceSuggested"])
         out.append("")
 
     # ---------- 3. carga ----------

@@ -84,6 +84,32 @@ def set_coach_config(enabled: bool | None = None, interval_min: int | None = Non
     save_config(cfg)
 
 
+_MEETING_CONTEXT_DEFAULTS = {"cards": 12, "overdue": 8, "dailies": 5, "deliveries": 8}
+_MEETING_CONTEXT_MAX = 50
+
+
+def get_meeting_context_limits() -> dict:
+    """Quantos itens do projeto entram no contexto da reunião."""
+    cfg = load_config().get("settings", {}).get("meetings", {}).get("context", {})
+    saida = dict(_MEETING_CONTEXT_DEFAULTS)
+    for chave, padrao in _MEETING_CONTEXT_DEFAULTS.items():
+        try:
+            saida[chave] = max(1, min(_MEETING_CONTEXT_MAX, int(cfg.get(chave, padrao))))
+        except (TypeError, ValueError):
+            saida[chave] = padrao
+    return saida
+
+
+def set_meeting_context_limits(**valores) -> dict:
+    cfg = load_config()
+    ctx = cfg.setdefault("settings", {}).setdefault("meetings", {}).setdefault("context", {})
+    for chave, valor in valores.items():
+        if chave in _MEETING_CONTEXT_DEFAULTS and valor is not None:
+            ctx[chave] = max(1, min(_MEETING_CONTEXT_MAX, int(valor)))
+    save_config(cfg)
+    return get_meeting_context_limits()
+
+
 _CHAT_COMPACT_DEFAULTS = {"enabled": True, "interval_min": 30}
 
 

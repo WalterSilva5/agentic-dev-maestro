@@ -402,10 +402,14 @@ class CommentCreate(BaseModel):
     taskId: int
     body: str
     type: Optional[str] = "COMMENT"
+    # quem escreveu (agente, revisor, pessoa). Sem isso, "local" — e o serviço
+    # por membro no report semanal não consegue atribuir a revisão.
+    author: Optional[str] = None
 
 
 class CommentUpdate(BaseModel):
     body: str
+    author: Optional[str] = None
 
 
 class DocumentCreate(BaseModel):
@@ -2991,7 +2995,12 @@ def create_comment(body: CommentCreate, s: Session = Depends(db)):
     task = s.query(Task).filter(Task.id == body.taskId, Task.deleted_at.is_(None)).first()
     if not task:
         raise HTTPException(404, "Task not found")
-    c = Comment(task_id=body.taskId, body=body.body, type=body.type)
+    c = Comment(
+        task_id=body.taskId,
+        body=body.body,
+        type=body.type,
+        author=(body.author or "local").strip() or "local",
+    )
     s.add(c)
     s.flush()
     _log(s, "comment", c.id, "created", f"Comment on task {task.code}")
@@ -3006,6 +3015,8 @@ def update_comment(comment_id: int, body: CommentUpdate, s: Session = Depends(db
     if not c:
         raise HTTPException(404, "Comment not found")
     c.body = body.body
+    if body.author is not None:
+        c.author = (body.author or "local").strip() or "local"
     s.commit()
     s.refresh(c)
     return _comment_dict(c)
@@ -4198,6 +4209,7 @@ class SettingsUpdate(BaseModel):
     activeProviderId: Optional[str] = None
     aiProviders: Optional[list] = None
     whisperModel: Optional[str] = None
+    meetingContext: Optional[dict] = None
 
 
 def _settings_dict() -> dict:
@@ -4207,6 +4219,8 @@ def _settings_dict() -> dict:
         list_ai_providers,
         load_config,
     )
+    from maestro_local.config import get_meeting_context_limits
+
     cron = load_config().get("settings", {}).get("transcricoes", {})
     active = get_active_ai_provider()
     return {
@@ -4214,6 +4228,8 @@ def _settings_dict() -> dict:
         "aiProviders": list_ai_providers(),
         "activeProviderId": active["id"] if active else None,
         "whisperModel": cron.get("whisper_model", "small"),
+        # quanto do projeto entra no contexto do copiloto de reunião
+        "meetingContext": get_meeting_context_limits(),
     }
 
 
@@ -4241,6 +4257,13 @@ def put_settings(body: SettingsUpdate):
         cfg = load_config()
         cfg.setdefault("settings", {}).setdefault("transcricoes", {})["whisper_model"] = body.whisperModel
         save_config(cfg)
+    if body.meetingContext is not None:
+        from maestro_local.config import set_meeting_context_limits
+
+        campos = ("cards", "overdue", "dailies", "deliveries")
+        set_meeting_context_limits(**{
+            k: body.meetingContext[k] for k in campos if k in body.meetingContext
+        })
     return _settings_dict()
 
 
@@ -5331,6 +5354,11 @@ class ArchiveRecordingBody(BaseModel):
     archived: bool = True
 
 
+class AnalyzeRecordingBody(BaseModel):
+    projectId: Optional[int] = None
+    save: bool = False
+
+
 def _recording_base(r: Recording) -> dict:
     from pathlib import Path
 
@@ -5499,6 +5527,75 @@ def export_recording(rec_id: int, format: str = "md", s: Session = Depends(db)):
         media_type=media,
         headers={"Content-Disposition": f'attachment; filename="{nome}"'},
     )
+
+
+@app.post("/api/recordings/{rec_id}/analyze")
+def analyze_recording(
+    rec_id: int,
+    body: AnalyzeRecordingBody | None = None,
+    projectId: int | None = None,
+    save: bool = False,
+    s: Session = Depends(db),
+):
+    """Analisa a reunião com o contexto do projeto (board, atrasos, dailies).
+
+    Usa IA quando há provedor configurado; sem IA cai no modo heurístico (só
+    fatos do contexto). `save=true` mescla o resultado no estado da reunião.
+    """
+    import json as _json
+
+    from maestro_local.config import get_active_ai_provider
+    from maestro_local.meeting_analysis import analyze_meeting, merge_live_state
+    from maestro_local.meeting_context import project_context
+
+    body = body or AnalyzeRecordingBody()
+    projeto = body.projectId if body.projectId is not None else projectId
+    salvar = bool(body.save or save)
+
+    r = s.get(Recording, rec_id)
+    if not r:
+        raise HTTPException(404, "Recording not found")
+
+    contexto = ""
+    if projeto:
+        if not s.query(Project).filter(Project.id == projeto).first():
+            raise HTTPException(404, "Project not found")
+        contexto = project_context(s, projeto)
+
+    usa_ia = bool(get_active_ai_provider())
+    resultado = analyze_meeting(
+        title=r.title or "",
+        transcript=r.transcript or "",
+        context=contexto,
+        use_ai=usa_ia,
+    )
+
+    salvo = False
+    if salvar:
+        estado = {}
+        try:
+            estado = _json.loads(r.live_state_json) if r.live_state_json else {}
+        except Exception:  # noqa: BLE001
+            estado = {}
+        r.live_state_json = _json.dumps(merge_live_state(estado, resultado), ensure_ascii=False)
+        s.commit()
+        s.refresh(r)
+        salvo = True
+
+    return {
+        "recordingId": r.id,
+        "projectId": projeto,
+        "usedProjectContext": bool(contexto),
+        "aiAvailable": usa_ia,
+        "engine": resultado.get("engine", "heuristic"),
+        "saved": salvo,
+        "tips": resultado.get("tips", []),
+        "plan": resultado.get("plan", []),
+        "actionItems": resultado.get("actionItems", []),
+        "decisions": resultado.get("decisions", []),
+        "questions": resultado.get("questions", []),
+        "sections": _recording_full(r)["sections"] if salvo else None,
+    }
 
 
 @app.get("/api/recordings/{rec_id}/audio")
