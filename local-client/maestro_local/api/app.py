@@ -2768,11 +2768,13 @@ def project_metrics_dimensions(project_id: int, s: Session = Depends(db)):
     if not project:
         raise HTTPException(404, "Project not found")
 
-    done_ids = {
-        c.id for c in s.query(BoardColumn)
-        .filter(BoardColumn.project_id == project_id, BoardColumn.is_done == True)  # noqa: E712
+    colunas = (
+        s.query(BoardColumn)
+        .filter(BoardColumn.project_id == project_id)
+        .order_by(BoardColumn.order)
         .all()
-    }
+    )
+    done_ids = {c.id for c in colunas if c.is_done}
     tasks = (
         s.query(Task)
         .filter(
@@ -2782,7 +2784,7 @@ def project_metrics_dimensions(project_id: int, s: Session = Depends(db)):
         )
         .all()
     )
-    dados = aggregate_dimensions(tasks, done_ids)
+    dados = aggregate_dimensions(tasks, done_ids, colunas)
     return {"projectId": project_id, **dados}
 
 

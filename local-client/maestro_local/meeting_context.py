@@ -122,7 +122,7 @@ def project_context(session, project_id: int, limits: dict | None = None) -> str
             )
 
     # progresso por módulo (plano de entrega)
-    dims = aggregate_dimensions(tasks, done_ids)
+    dims = aggregate_dimensions(tasks, done_ids, cols)
     modulos = [m for m in dims.get("modules", []) if m["total"] > 0][:8]
     if modulos:
         linhas.append("")

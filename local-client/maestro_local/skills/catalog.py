@@ -156,6 +156,10 @@ curl -s http://127.0.0.1:9777/api/projects/1/metrics/dimensions | jq '{
 ```
 
 - `modules[]` — modulo de entrega com `submodules[]` (nome do plano: "E1 · loja")
+  - `developed`/`developedPct` = **dev concluido** (card em Dev Box ou depois)
+  - `done`/`pct` = **aceito** (coluna de conclusao). Use `developed` para
+    progresso do modulo; `done` conta so o que ja passou pelo aceite
+- `developmentColumn` — coluna usada como "dev concluido" (normalmente `Dev Box`)
 - `sprints[]` / `platforms[]` / `process[]` — dimensoes separadas (nao entram no % por modulo)
 - `plan` — `{modules: 17, endpoints: 156}` (plano oficial do SVG de acompanhamento)
 - `local` — tarefas locais excluidas do calculo

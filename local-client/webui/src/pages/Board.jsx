@@ -708,6 +708,7 @@ export default function Board() {
                     {' · '}
                     {dimensions.with_module}/{dimensions.cards} {t('cards com módulo')}
                     {dimensions.unlabeled?.total > 0 && ` · ${dimensions.unlabeled.total} ${t('sem módulo')}`}
+                    {dimensions.developmentColumn && ` · ${t('dev concluído')}: ${dimensions.developmentColumn} ${t('ou depois')}`}
                   </span>
                 )}
                 <span style={{ marginLeft: 'auto', display: 'flex', gap: 10, fontSize: 10 }} className="muted">
@@ -726,30 +727,37 @@ export default function Board() {
                   return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       {mods.map((mod) => {
-                        const cor = mod.pct === 100 ? '#16a34a' : mod.pct > 0 ? '#f59e0b' : '#cbd5e1'
+                        const pctDev = mod.developedPct ?? mod.pct
+                        const cor = pctDev === 100 ? '#16a34a' : pctDev > 0 ? '#f59e0b' : '#cbd5e1'
                         const barW = Math.max(16, Math.round((mod.total / maxBar) * 440))
                         return (
                           <div key={mod.name} style={{ border: '1px solid var(--border-light)', borderRadius: 8, padding: '7px 9px', background: 'var(--card)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                               <span style={{ fontWeight: 700, fontSize: 12 }}>{mod.label} <span className="muted" style={{ fontWeight: 400, fontSize: 11 }}>· {mod.total} {t('cards')}{mod.endpoints ? ` / ${mod.endpoints} ${t('endpoints')}` : ''}</span></span>
-                              <span style={{ fontSize: 11, fontWeight: 700 }}>{mod.done}/{mod.total} — {mod.pct}%</span>
+                              <span style={{ fontSize: 11, fontWeight: 700 }} title={t('Desenvolvimento concluído (Dev Box ou depois)')}>
+                                {mod.developed ?? mod.done}/{mod.total} — {pctDev}%
+                                {mod.done !== mod.developed && (
+                                  <span className="muted" style={{ fontWeight: 500 }}> · {mod.done} {t('aceitos')}</span>
+                                )}
+                              </span>
                             </div>
                             <div style={{ height: 10, background: 'var(--border-light)', borderRadius: 5, overflow: 'hidden', marginTop: 4, maxWidth: barW }}>
-                              <div style={{ width: `${mod.pct}%`, height: '100%', background: cor }} />
+                              <div style={{ width: `${pctDev}%`, height: '100%', background: cor }} />
                             </div>
                             {mod.submodules?.length > 0 && (
                               <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 3, paddingLeft: 10, borderLeft: '2px solid var(--border-light)' }}>
                                 {mod.submodules.map((sub) => {
-                                  const corS = sub.pct === 100 ? '#16a34a' : sub.pct > 0 ? '#f59e0b' : '#cbd5e1'
+                                  const pctS = sub.developedPct ?? sub.pct
+                                  const corS = pctS === 100 ? '#16a34a' : pctS > 0 ? '#f59e0b' : '#cbd5e1'
                                   const barSW = Math.max(10, Math.round((sub.total / maxBar) * 440 * 0.6))
                                   return (
                                     <div key={sub.name} style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10 }}>
                                         <span className="muted">{sub.label} <span style={{ opacity: .7 }}>({sub.name}{sub.endpoints ? ` · ${sub.endpoints} ep` : ''})</span></span>
-                                        <span style={{ fontWeight: 600 }}>{sub.done}/{sub.total} — {sub.pct}%</span>
+                                        <span style={{ fontWeight: 600 }}>{sub.developed ?? sub.done}/{sub.total} — {pctS}%</span>
                                       </div>
                                       <div style={{ height: 6, background: 'var(--border-light)', borderRadius: 3, overflow: 'hidden', maxWidth: barSW }}>
-                                        <div style={{ width: `${sub.pct}%`, height: '100%', background: corS }} />
+                                        <div style={{ width: `${pctS}%`, height: '100%', background: corS }} />
                                       </div>
                                     </div>
                                   )

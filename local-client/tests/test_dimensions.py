@@ -109,8 +109,9 @@ def test_agrega_modulo_com_submodulos_e_ondas():
     ]
 
     # dimensões separadas
-    assert d["sprints"] == [{"name": "sprint-1", "label": "Sprint 1",
-                             "total": 1, "done": 0, "pct": 0}]
+    assert [(x["name"], x["label"], x["total"], x["done"], x["pct"]) for x in d["sprints"]] == [
+        ("sprint-1", "Sprint 1", 1, 0, 0)
+    ]
     assert [p["name"] for p in d["platforms"]] == ["vm"]
     assert [p["name"] for p in d["process"]] == ["fundacao"]
 
@@ -196,3 +197,67 @@ def test_api_dimensions_separa_dimensoes(client):
 
 def test_api_dimensions_404(client):
     assert client.get("/api/projects/9999/metrics/dimensions").status_code == 404
+
+
+# --------------------------------------------------------------------------
+# desenvolvimento concluído (Dev Box ou depois) x aceite (Done)
+# --------------------------------------------------------------------------
+
+class _Col:
+    def __init__(self, cid, nome, ordem, done=False):
+        self.id, self.name, self.order, self.is_done = cid, nome, ordem, done
+
+
+class _T2:
+    """Task fake mínima para os testes de desenvolvimento/aceite."""
+
+    def __init__(self, tid, coluna_id, labels=("config",)):
+        class _L:
+            def __init__(self, nome):
+                self.name = nome
+
+        self.id = tid
+        self.column_id = coluna_id
+        self.labels = [_L(n) for n in labels]
+        self.is_local = False
+
+
+def _tarefa(tid, coluna_id, labels=("config",)):
+    return _T2(tid, coluna_id, labels)
+
+
+COLS_FLUXO = [
+    _Col(1, "To do", 0),
+    _Col(2, "Dev Review", 5),
+    _Col(3, "Dev Box", 6),
+    _Col(4, "In Test", 7),
+    _Col(5, "Done", 8, done=True),
+]
+
+
+def test_dev_box_conta_como_desenvolvimento_concluido():
+    """Card em Dev Box já é dev concluído; não precisa estar em Done."""
+    tasks = [
+        _tarefa(1, 3),   # Dev Box
+        _tarefa(2, 5),   # Done
+        _tarefa(3, 2),   # Dev Review (antes do Dev Box)
+    ]
+    d = aggregate_dimensions(tasks, done_ids={5}, columns=COLS_FLUXO)
+    config = next(m for m in d["modules"] if m["name"] == "config")
+
+    assert d["developmentColumn"] == "Dev Box"
+    assert config["total"] == 3
+    assert config["developed"] == 2       # Dev Box + Done
+    assert config["developedPct"] == 67
+    assert config["done"] == 1            # só o aceito
+    assert config["pct"] == 33
+
+
+def test_sem_dev_box_cai_na_coluna_de_conclusao():
+    cols = [_Col(1, "To do", 0), _Col(2, "Feito", 1, done=True)]
+    tasks = [_tarefa(1, 2), _tarefa(2, 1)]
+    d = aggregate_dimensions(tasks, done_ids={2}, columns=cols)
+    config = next(m for m in d["modules"] if m["name"] == "config")
+    assert d["developmentColumn"] is None
+    assert config["developed"] == 1
+    assert config["developedPct"] == config["pct"] == 50

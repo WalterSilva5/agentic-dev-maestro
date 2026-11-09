@@ -1026,4 +1026,7 @@ CATALOG = {
   "Salvar na reunião": "Save to meeting",
   "Análise salva na reunião.": "Analysis saved to the meeting.",
   "Sem provedor de IA ativo: as dicas vêm só de fatos do board e das dailies.": "No AI provider active: tips come only from board and daily facts.",
+  "dev concluído": "dev complete",
+  "aceitos": "accepted",
+  "Desenvolvimento concluído (Dev Box ou depois)": "Development complete (Dev Box or later)",
 }

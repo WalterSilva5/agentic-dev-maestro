@@ -159,7 +159,7 @@ def collect_metrics(session, project) -> dict:
 
     # dimensões classificadas (módulo != sprint != plataforma != natureza)
     from maestro_local.dimensions import aggregate_dimensions
-    dimensoes = aggregate_dimensions(tasks, done_ids)
+    dimensoes = aggregate_dimensions(tasks, done_ids, cols)
 
     # quem chegou em cada estágio (cumulativo) e o corte por módulo
     from maestro_local.db.models import ActivityLog
@@ -557,12 +557,15 @@ def build_metrics_pdf(session, project) -> bytes:
         ]]
         for x in mods[:24]:
             largura = max(10, 150 * x["total"] / maximo)
-            cor = GREEN if x["pct"] == 100 else (AMBER if x["pct"] > 0 else colors.HexColor("#CBD5E1"))
+            pct_dev = x.get("developedPct", x["pct"])
+            feito_dev = x.get("developed", x["done"])
+            cor = GREEN if pct_dev == 100 else (AMBER if pct_dev > 0 else colors.HexColor("#CBD5E1"))
             ep = f" · {x['endpoints']} ep" if x.get("endpoints") else ""
+            aceitos = "" if x["done"] == feito_dev else f" · {x['done']} aceitos"
             linhas.append([
                 Paragraph(f"<b>{x['label']}</b>", st["body"]),
-                _bar(x["pct"], width=largura, cor=cor),
-                Paragraph(f"{x['done']}/{x['total']} cards{ep} · {x['pct']}%", st["small"]),
+                _bar(pct_dev, width=largura, cor=cor),
+                Paragraph(f"{feito_dev}/{x['total']} dev{ep} · {pct_dev}%{aceitos}", st["small"]),
             ])
             for sub in x.get("submodules", [])[:6]:
                 largura_s = max(8, 110 * sub["total"] / maximo)

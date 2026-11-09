@@ -143,11 +143,30 @@ def _pct(done: int, total: int) -> int:
     return round(done / total * 100) if total else 0
 
 
-def aggregate_dimensions(tasks, done_ids) -> dict:
+def _normalizar(nome: str) -> str:
+    return "".join(ch for ch in (nome or "").lower() if ch.isalnum())
+
+
+def dev_done_column(columns):
+    """Coluna em que o desenvolvimento é considerado concluído (Dev Box).
+
+    No fluxo do time (`Doing → Dev Review → Dev Box → In Test → Done`), o
+    card em Dev Box é "dev concluído, aguardando teste" — é isso que a
+    métrica de módulo deve refletir, e não só o que já passou por Done.
+    """
+    for col in sorted(columns or [], key=lambda c: c.order):
+        if _normalizar(getattr(col, "name", "")) == "devbox":
+            return col
+    return None
+
+
+def aggregate_dimensions(tasks, done_ids, columns=None) -> dict:
     """Agrupa as tarefas por dimensão, usando o plano oficial como referência.
 
     - `modules`: todos os módulos **do plano** (mesmo os ainda sem card, 0/26),
       com as sub-entregas nomeadas (`E1 · loja`) e o nº de endpoints
+    - cada módulo traz **duas leituras**: `developed` (Dev Box ou depois =
+      desenvolvimento concluído) e `done` (coluna de conclusão/aceite)
     - `discontinued`: `nfce` / `carteira-digital` (fora de escopo)
     - `sprints`, `platforms`, `process`, `other`: dimensões independentes
     - `unlabeled`: cards sem nenhuma label de módulo (honestidade da métrica)
@@ -156,6 +175,15 @@ def aggregate_dimensions(tasks, done_ids) -> dict:
     locais = sum(1 for t in tasks if getattr(t, "is_local", False))
     tasks = [t for t in tasks if not getattr(t, "is_local", False)]
     total_cards = len(tasks)
+
+    coluna_dev = dev_done_column(columns)
+    if coluna_dev is not None:
+        desenvolvidos_ids = {
+            c.id for c in columns if c.order >= coluna_dev.order
+        }
+    else:
+        # board sem Dev Box: cai na coluna de conclusão
+        desenvolvidos_ids = set(done_ids)
 
     por_modulo: dict[str, set] = {}
     sub_por_modulo: dict[str, dict[str, set]] = {}
@@ -188,8 +216,17 @@ def aggregate_dimensions(tasks, done_ids) -> dict:
 
     def _item(code: str, ids: set, rotulo: str | None = None) -> dict:
         done = sum(1 for t in tasks if t.id in ids and t.column_id in done_ids)
-        return {"name": code, "label": rotulo or code, "total": len(ids),
-                "done": done, "pct": _pct(done, len(ids))}
+        developed = sum(1 for t in tasks if t.id in ids and t.column_id in desenvolvidos_ids)
+        return {
+            "name": code,
+            "label": rotulo or code,
+            "total": len(ids),
+            # `done` = aceito (coluna de conclusão); `developed` = dev concluído
+            "done": done,
+            "pct": _pct(done, len(ids)),
+            "developed": developed,
+            "developedPct": _pct(developed, len(ids)),
+        }
 
     modulos: list[dict] = []
     usados: set[str] = set()
@@ -262,6 +299,7 @@ def aggregate_dimensions(tasks, done_ids) -> dict:
     return {
         "cards": total_cards,
         "local": locais,
+        "developmentColumn": coluna_dev.name if coluna_dev is not None else None,
         "plan": plan_summary(),
         "modules": modulos,
         "discontinued": descontinuados,

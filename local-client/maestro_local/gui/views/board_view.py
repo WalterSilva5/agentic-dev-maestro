@@ -2173,7 +2173,7 @@ class BoardMetricsAccordion(QFrame):
             # Módulos e submódulos (classificação explícita: módulo != sprint != tag)
             from maestro_local.dimensions import aggregate_dimensions
 
-            dims = aggregate_dimensions(tasks_metric, done_col_ids)
+            dims = aggregate_dimensions(tasks_metric, done_col_ids, cols)
             hier_box = self._section_box("📊 " + _t("Módulos e submódulos"), t)
             plano = dims.get("plan") or {}
             resumo = QLabel(
@@ -2189,18 +2189,22 @@ class BoardMetricsAccordion(QFrame):
             else:
                 max_mod = max(m["total"] for m in dims["modules"]) or 1
                 for mod in dims["modules"]:
-                    cor = t.success if mod["pct"] == 100 else (t.warning if mod["pct"] > 0 else t.text_muted)
+                    pct_dev = mod.get("developedPct", mod["pct"])
+                    feito_dev = mod.get("developed", mod["done"])
+                    cor = t.success if pct_dev == 100 else (t.warning if pct_dev > 0 else t.text_muted)
                     row = QHBoxLayout(); row.setSpacing(6)
                     ep = f" / {mod['endpoints']} {_t('endpoints')}" if mod.get("endpoints") else ""
                     nome = QLabel(f"{mod['label']} · {mod['total']} {_t('cards')}{ep}")
                     nome.setStyleSheet(f"color: {t.text_primary}; font-size: 11px; font-weight: 600; border: none;")
                     row.addWidget(nome, 1)
-                    pct_lbl = QLabel(f"{mod['done']}/{mod['total']} — {mod['pct']}%")
+                    extra = "" if mod["done"] == feito_dev else f" · {mod['done']} {_t('aceitos')}"
+                    pct_lbl = QLabel(f"{feito_dev}/{mod['total']} — {pct_dev}%{extra}")
+                    pct_lbl.setToolTip(_t("Desenvolvimento concluído (Dev Box ou depois)"))
                     pct_lbl.setStyleSheet(f"color: {cor}; font-size: 11px; font-weight: 600; border: none;")
                     row.addWidget(pct_lbl)
                     w = QWidget(); w.setLayout(row)
                     hier_box["layout"].addWidget(w)
-                    bar = QProgressBar(); bar.setValue(mod["pct"]); bar.setFixedHeight(8)
+                    bar = QProgressBar(); bar.setValue(pct_dev); bar.setFixedHeight(8)
                     bar.setMaximumWidth(max(80, int(320 * mod["total"] / max_mod)))
                     hier_box["layout"].addWidget(bar)
 
@@ -2210,7 +2214,7 @@ class BoardMetricsAccordion(QFrame):
                         sub_lbl = QLabel(f"    {sub['label']} ({sub['name']}{ep_sub})")
                         sub_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 10px; border: none;")
                         sub_row.addWidget(sub_lbl, 1)
-                        sub_pct = QLabel(f"{sub['done']}/{sub['total']} — {sub['pct']}%")
+                        sub_pct = QLabel(f"{sub.get('developed', sub['done'])}/{sub['total']} — {sub.get('developedPct', sub['pct'])}%")
                         sub_pct.setStyleSheet(f"color: {t.text_muted}; font-size: 10px; border: none;")
                         sub_row.addWidget(sub_pct)
                         w2 = QWidget(); w2.setLayout(sub_row)
