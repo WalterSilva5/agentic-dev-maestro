@@ -621,4 +621,5 @@ export const CATALOG = {
   "{stage} ou depois · {n} cards": "{stage} or later · {n} cards",
   "Nenhum card neste estágio ou depois.": "No card in this stage or later.",
   "Cada card entra em um grupo só — a soma fecha em 100%.": "Each card lands in a single group — the split adds up to 100%.",
+  "Descreva a pauta e anexe contexto ANTES de gravar — assim o assistente já começa sabendo do que se trata. Com um projeto selecionado, o board, as métricas e as dailies recentes entram automaticamente. Opcional.": "Describe the agenda and attach context BEFORE recording — so the assistant starts informed. With a project selected, the board, metrics and recent dailies are included automatically. Optional.",
 }

@@ -34,7 +34,8 @@ class PreparationCard(SectionCard):
         super().__init__(
             "1", t("Preparar"),
             t("Descreva a pauta e anexe contexto ANTES de gravar — assim o assistente "
-              "já começa sabendo do que se trata. Opcional."),
+              "já começa sabendo do que se trata. Com um projeto selecionado, o board, "
+              "as métricas e as dailies recentes entram automaticamente. Opcional."),
             parent)
         lay = self.body
 

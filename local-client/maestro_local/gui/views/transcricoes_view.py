@@ -1414,9 +1414,11 @@ class TranscricoesView(QWidget):
     def _meeting_context(self) -> str:
         """Contexto enviado ao copiloto.
 
-        Inclui SÓ o que é da própria reunião: preparação, anexos e a tela
-        observada. A reunião é independente do projeto — dados de
-        workspace/projeto não entram no contexto do assistente.
+        Junta a própria reunião (preparação, anexos, tela observada) com o
+        retrato do projeto selecionado — board, atrasos, progresso por módulo
+        e dailies recentes — para as dicas saírem do trabalho real do time.
+        O bloco do projeto é cacheado por 1 min: a extração roda a cada trecho
+        e não faz sentido consultar o banco toda vez.
         """
         parts = []
         prep = self.prep_edit.toPlainText().strip()
@@ -1430,7 +1432,40 @@ class TranscricoesView(QWidget):
         if self._screen_watch_text:
             parts.append(t("## Tela observada agora (ao vivo)") + "\n"
                          + self._screen_watch_text[:3000])
+
+        projeto = None
+        try:
+            projeto = self.proj_combo.currentData()
+        except Exception:  # noqa: BLE001
+            projeto = None
+        if projeto is not None:
+            bloco = self._project_context_cached(int(projeto))
+            if bloco:
+                parts.append(bloco)
         return "\n".join(parts).strip()
+
+    def _project_context_cached(self, project_id: int) -> str:
+        """Contexto do board/dailies com cache curto (1 min)."""
+        import time
+
+        cache = getattr(self, "_proj_ctx_cache", None)
+        agora = time.monotonic()
+        if cache and cache[0] == project_id and agora - cache[1] < 60:
+            return cache[2]
+        texto = ""
+        try:
+            from maestro_local.db.models import get_session
+            from maestro_local.meeting_context import project_context
+
+            s = get_session()
+            try:
+                texto = project_context(s, project_id)
+            finally:
+                s.close()
+        except Exception:  # noqa: BLE001
+            texto = ""
+        self._proj_ctx_cache = (project_id, agora, texto)
+        return texto
 
     # ------------------------- Ações → tarefas -------------------------
     def _collect_action_items(self) -> list[dict]:

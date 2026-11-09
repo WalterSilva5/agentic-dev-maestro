@@ -18,6 +18,7 @@ from datetime import date, datetime, time, timedelta
 
 from maestro_local.dimensions import MODULES
 from maestro_local.stages import primary_group
+from maestro_local.timeutil import data_local
 
 ANONIMOS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
@@ -45,8 +46,8 @@ def _importado(task, quando) -> bool:
         return True
     if not (task.description or "").startswith("Importado do Azure"):
         return False
-    criado = _dt(task.created_at)
-    return bool(criado and criado.date() == quando.date())
+    criado = data_local(_dt(task.created_at))
+    return bool(criado and criado == data_local(quando))
 
 
 def _dt(valor) -> datetime | None:
@@ -127,17 +128,18 @@ def compute_weekly(session, project, ref: date | None = None) -> dict:
         for t in meus:
             col = por_coluna.get(t.column_id)
             quando = _dt(t.done_at)
+            dia = data_local(quando)
             if col and col.is_done and _importado(t, quando):
                 # só incomoda o relatório se a data "cairia" nesta semana
-                if quando and inicio <= quando.date() <= fim:
+                if dia and inicio <= dia <= fim:
                     sem_data += 1
                 continue
-            if quando and inicio <= quando.date() <= fim:
+            if dia and inicio <= dia <= fim:
                 entregues.append({
                     "code": t.code,
                     "title": t.title,
                     "module": _modulo(t),
-                    "date": quando.date().isoformat(),
+                    "date": dia.isoformat(),
                     "inferred": False,
                     "column": col.name if col else "",
                 })

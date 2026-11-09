@@ -73,6 +73,9 @@ Regras:
   refine-o a cada trecho novo em vez de recomeçar. Se houver contexto de projeto, alinhe os passos a ele.
 - "tips": sugestões proativas do copiloto — riscos, pontos esquecidos, boas práticas, dependências,
   ou algo do CONTEXTO do projeto que seja relevante (máx. 5). Não repita o que já é óbvio na transcrição.
+  Quando o CONTEXTO trouxer board/atrasos/dailies, prefira dicas CONCRETAS citando o card, a coluna
+  ou o registro (ex.: "MIG-14096 está em Dev Box há 5 dias sem revisor"; "a daily de ontem apontou
+  bloqueio no cashier"). Se o contexto não tiver o dado, não invente.
 - Não invente fatos; para plan/tips você pode inferir recomendações, deixando claro que são sugestões.
 - Responda em português do Brasil.
 """
