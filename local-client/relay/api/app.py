@@ -2771,8 +2771,18 @@ def project_daily_summary(
     }
 
 
+def _parse_exclude(raw: str | None) -> set[int]:
+    """`?exclude=1,2` -> {1, 2} (ids de coluna fora do cálculo; resto ignorado)."""
+    saidos: set[int] = set()
+    for parte in (raw or "").split(","):
+        parte = parte.strip()
+        if parte.isdigit():
+            saidos.add(int(parte))
+    return saidos
+
+
 @app.get("/api/projects/{project_id}/metrics/dimensions")
-def project_metrics_dimensions(project_id: int, s: Session = Depends(db)):
+def project_metrics_dimensions(project_id: int, exclude: str | None = None, s: Session = Depends(db)):
     """Métricas separadas por dimensão: módulo (com submódulos), sprint,
     plataforma e natureza. Evita misturar label de módulo com sprint/tag."""
     from relay.dimensions import aggregate_dimensions
@@ -2797,12 +2807,15 @@ def project_metrics_dimensions(project_id: int, s: Session = Depends(db)):
         )
         .all()
     )
+    fora = _parse_exclude(exclude)
+    if fora:
+        tasks = [t for t in tasks if t.column_id not in fora]
     dados = aggregate_dimensions(tasks, done_ids, colunas)
-    return {"projectId": project_id, **dados}
+    return {"projectId": project_id, "excluded": sorted(fora), **dados}
 
 
 @app.get("/api/projects/{project_id}/metrics/stages")
-def project_metrics_stages(project_id: int, stage: str | None = None, s: Session = Depends(db)):
+def project_metrics_stages(project_id: int, stage: str | None = None, exclude: str | None = None, s: Session = Depends(db)):
     """Quem **chegou** em cada estágio (cumulativo) e o corte por grupo (soma 100%).
 
     "Chegou" = está na coluna ou já passou por ela (ordem das colunas + histórico
@@ -2829,8 +2842,11 @@ def project_metrics_stages(project_id: int, stage: str | None = None, s: Session
         .filter(ActivityLog.entity_type == "task", ActivityLog.action == "moved")
         .all()
     )
+    fora = _parse_exclude(exclude)
+    if fora:
+        tasks = [t for t in tasks if t.column_id not in fora]
     dados = compute_stages(tasks, columns, historico)
-    resposta = {"projectId": project_id, **dados}
+    resposta = {"projectId": project_id, "excluded": sorted(fora), **dados}
     if stage:
         alvo = next((x for x in dados["stages"] if x["stage"] == stage), None)
         if not alvo:
@@ -2843,7 +2859,7 @@ def project_metrics_stages(project_id: int, stage: str | None = None, s: Session
 
 
 @app.get("/api/projects/{project_id}/metrics/export.pdf")
-def export_project_metrics_pdf(project_id: int, s: Session = Depends(db)):
+def export_project_metrics_pdf(project_id: int, exclude: str | None = None, s: Session = Depends(db)):
     """Relatório de métricas do projeto em PDF (mesmo conteúdo da aba Métricas)."""
     from relay.metrics_pdf import build_metrics_pdf, metrics_pdf_filename
 
@@ -2851,7 +2867,7 @@ def export_project_metrics_pdf(project_id: int, s: Session = Depends(db)):
     if not project:
         raise HTTPException(404, "Project not found")
     try:
-        pdf = build_metrics_pdf(s, project)
+        pdf = build_metrics_pdf(s, project, exclude_ids=_parse_exclude(exclude))
     except Exception as e:  # noqa: BLE001
         raise HTTPException(500, f"failed to build PDF: {e}")
     filename = metrics_pdf_filename(project)

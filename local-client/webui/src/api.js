@@ -108,11 +108,12 @@ export const getDailyActivity = (date) => api.get(`/daily/${date}/activity`).the
 // Dashboard / métricas / atividade
 export const getMetrics = () => api.get('/projects/metrics').then((r) => r.data)
 // Relatório de métricas do projeto em PDF
-export const metricsPdfUrl = (projectId) => `/api/projects/${projectId}/metrics/export.pdf`
-export const getMetricsDimensions = (projectId) =>
-  api.get(`/projects/${projectId}/metrics/dimensions`).then((r) => r.data)
-export const getMetricsStages = (projectId) =>
-  api.get(`/projects/${projectId}/metrics/stages`).then((r) => r.data)
+export const metricsPdfUrl = (projectId, exclude) =>
+  `/api/projects/${projectId}/metrics/export.pdf${exclude?.length ? `?exclude=${exclude.join(',')}` : ''}`
+export const getMetricsDimensions = (projectId, exclude) =>
+  api.get(`/projects/${projectId}/metrics/dimensions`, { params: exclude?.length ? { exclude: exclude.join(',') } : {} }).then((r) => r.data)
+export const getMetricsStages = (projectId, exclude) =>
+  api.get(`/projects/${projectId}/metrics/stages`, { params: exclude?.length ? { exclude: exclude.join(',') } : {} }).then((r) => r.data)
 export const getActivity = (limit = 15) => api.get('/activity', { params: { limit } }).then((r) => r.data)
 
 // Assistente

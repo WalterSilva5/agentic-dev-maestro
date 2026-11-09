@@ -191,6 +191,8 @@ curl -s http://127.0.0.1:9777/api/projects/1/metrics/dimensions | jq '{
 - `developmentColumn` — coluna usada como "dev concluido" (normalmente `Dev Box`)
 - `sprints[]` / `platforms[]` / `process[]` — dimensoes separadas (nao entram no % por modulo)
 - `local` — tarefas locais excluidas do calculo
+- `?exclude=<ids>` — tira colunas do calculo (ex.: `?exclude=3,4` remove backlog;
+  vale para `dimensions`, `stages` e `export.pdf`; resposta traz `excluded`)
 
 ## Quem chegou em cada estagio (cumulativo)
 
@@ -214,6 +216,7 @@ curl -s "http://127.0.0.1:9777/api/projects/1/metrics/stages?stage=dev-box" | jq
   card sem modulo vira `sem-modulo`)
 - `stage=` devolve `selected` com `groups` do estagio
 - "chegou" = ordem das colunas + `activity_log` (`moved`, "Origem -> Destino")
+- `?exclude=<ids>` tira colunas do calculo (web: checkboxes em "Posição no fluxo")
 
 ## Tarefas locais (nao sincronizam com o board externo)
 

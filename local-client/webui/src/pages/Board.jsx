@@ -89,6 +89,14 @@ export default function Board() {
   const [metricsOpen, setMetricsOpen] = useState(true)
   const [dimensions, setDimensions] = useState(null)
   const [stages, setStages] = useState(null)
+  // estágios (colunas) fora do cálculo das métricas — persiste por projeto
+  const [excludedStages, setExcludedStages] = useState(() => {
+    try {
+      const raw = localStorage.getItem(`relay.metrics.excluded.${projectId}`)
+      const arr = JSON.parse(raw || '[]')
+      return Array.isArray(arr) ? arr.map(Number).filter((n) => Number.isFinite(n)) : []
+    } catch { return [] }
+  })
   const [originFilter, setOriginFilter] = useState('all')   // all | local | remote
   const [criarLocal, setCriarLocal] = useState(false)       // quick-add cria tarefa local
   const [selectedStage, setSelectedStage] = useState(null)
@@ -154,15 +162,9 @@ export default function Board() {
     setView('board')
   }, [projectId])
 
-  useEffect(() => {
-    load()
-    loadSprints()
-    loadArchived()
-    loadGoals()
-    loadMembers()
-    loadLinks()
-    getMetricsDimensions(projectId).then(setDimensions).catch(() => setDimensions(null))
-    getMetricsStages(projectId)
+  const loadMetrics = (excluded) => {
+    getMetricsDimensions(projectId, excluded).then(setDimensions).catch(() => setDimensions(null))
+    getMetricsStages(projectId, excluded)
       .then((d) => {
         setStages(d)
         // por padrão abre no "Dev Box" (dev concluído, aguardando teste)
@@ -170,6 +172,29 @@ export default function Board() {
         setSelectedStage((atual) => atual || (devBox ? devBox.stage : d.stages[0]?.stage) || null)
       })
       .catch(() => setStages(null))
+  }
+
+  const toggleStageExcluded = (columnId) => {
+    const ids = (stages?.stages || []).map((x) => x.id)
+    const tem = excludedStages.includes(columnId)
+    const proximo = tem ? excludedStages.filter((id) => id !== columnId) : [...excludedStages, columnId]
+    // nunca esvazia o cálculo por completo
+    if (ids.filter((id) => !proximo.includes(id)).length === 0) return
+    try {
+      localStorage.setItem(`relay.metrics.excluded.${projectId}`, JSON.stringify(proximo))
+    } catch { /* armazenamento indisponível: vale só na sessão */ }
+    setExcludedStages(proximo)
+    loadMetrics(proximo)
+  }
+
+  useEffect(() => {
+    load()
+    loadSprints()
+    loadArchived()
+    loadGoals()
+    loadMembers()
+    loadLinks()
+    loadMetrics(excludedStages)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, sprintFilter])
 
@@ -289,7 +314,7 @@ export default function Board() {
   const tasksAll = cols.flatMap((c) => c.tasks)
   const totalTasks = tasksAll.length
   // tarefa local é lembrete pessoal: aparece no board, mas não entra em métrica
-  const tasksMetric = tasksAll.filter((tk) => !tk.isLocal)
+  const tasksMetric = tasksAll.filter((tk) => !tk.isLocal && !excludedStages.includes(tk.columnId))
   const localTasks = tasksAll.length - tasksMetric.length
   const doneTasks = tasksMetric.filter((tk) => doneColIds.has(tk.columnId)).length
   const pct = tasksMetric.length ? Math.round((doneTasks / tasksMetric.length) * 100) : 0
@@ -445,7 +470,7 @@ export default function Board() {
                 <input type="checkbox" checked={!!board.hideAssignee} onChange={(e) => updateProject(projectId, { hideAssignee: e.target.checked }).then(load)} />
                 {t('Ocultar por responsável')}
               </label>
-              <a href={metricsPdfUrl(projectId)} target="_blank" rel="noreferrer">
+              <a href={metricsPdfUrl(projectId, excludedStages)} target="_blank" rel="noreferrer">
                 <button className="ghost" style={{ padding: '3px 10px', fontSize: 11 }} title={t('Exportar as métricas em PDF')}>
                   ⬇ {t('Exportar PDF')}
                 </button>
@@ -647,6 +672,20 @@ export default function Board() {
                         <option key={x.stage} value={x.stage}>{x.name}</option>
                       ))}
                     </select>
+                    {excludedStages.length > 0 && (
+                      <button
+                        className="ghost"
+                        style={{ padding: '2px 8px', fontSize: 10 }}
+                        title={t('Voltar a incluir todos os estágios no cálculo')}
+                        onClick={() => {
+                          setExcludedStages([])
+                          try { localStorage.removeItem(`relay.metrics.excluded.${projectId}`) } catch { /* noop */ }
+                          loadMetrics([])
+                        }}
+                      >
+                        {tf('{n} fora do cálculo · limpar', { n: excludedStages.length })}
+                      </button>
+                    )}
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 14, marginTop: 10 }}>
@@ -669,6 +708,7 @@ export default function Board() {
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                         {lista.map((x) => {
                           const ativo = x.stage === sel.stage
+                          const fora = excludedStages.includes(x.id)
                           const largura = Math.max(6, Math.round((x.current / maxAtual) * 100))
                           return (
                             <button
@@ -676,12 +716,20 @@ export default function Board() {
                               onClick={() => setSelectedStage(x.stage)}
                               title={`${x.current} ${t('cards agora')} · ${x.reached} ${t('neste estágio ou depois')}`}
                               style={{
-                                display: 'grid', gridTemplateColumns: '110px 1fr 34px', alignItems: 'center', gap: 8,
+                                display: 'grid', gridTemplateColumns: 'auto 110px 1fr 34px', alignItems: 'center', gap: 8,
                                 background: ativo ? 'var(--card)' : 'transparent',
                                 border: `1px solid ${ativo ? 'var(--accent)' : 'transparent'}`,
                                 borderRadius: 6, padding: '2px 6px', cursor: 'pointer', textAlign: 'left',
+                                opacity: fora ? 0.55 : 1,
                               }}
                             >
+                              <input
+                                type="checkbox"
+                                checked={!fora}
+                                title={fora ? t('Incluir no cálculo') : t('Remover do cálculo')}
+                                onChange={() => toggleStageExcluded(x.id)}
+                                onClick={(e) => e.stopPropagation()}
+                              />
                               <span style={{ fontSize: 11, fontWeight: ativo ? 700 : 500, color: x.current ? 'var(--text)' : 'var(--text-muted, #6b7280)' }}>
                                 {x.name}
                               </span>

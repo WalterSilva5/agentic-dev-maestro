@@ -153,6 +153,57 @@ def test_pdf_oculta_por_responsavel_quando_projeto_pede(client, projeto_com_tare
     assert "Por responsável" in texto(r.content)
 
 
+def test_dimensions_exclude_coluna(client, projeto_com_tarefas):
+    """?exclude=<ids> tira as colunas do cálculo (cards, módulos, estágios)."""
+    pid = projeto_com_tarefas
+    cols = {c["name"]: c["id"] for c in client.get(f"/api/projects/{pid}/columns").json()}
+
+    r = client.get(f"/api/projects/{pid}/metrics/dimensions")
+    assert r.json()["cards"] == 4
+
+    r = client.get(f"/api/projects/{pid}/metrics/dimensions", params={"exclude": str(cols["A fazer"])})
+    assert r.status_code == 200
+    d = r.json()
+    assert d["cards"] == 2
+    assert d["excluded"] == [cols["A fazer"]]
+
+    # valor inválido é ignorado, sem quebrar
+    r = client.get(f"/api/projects/{pid}/metrics/dimensions", params={"exclude": "abc,,"})
+    assert r.status_code == 200 and r.json()["cards"] == 4
+
+
+def test_stages_exclude_coluna(client, projeto_com_tarefas):
+    pid = projeto_com_tarefas
+    cols = {c["name"]: c["id"] for c in client.get(f"/api/projects/{pid}/columns").json()}
+
+    r = client.get(f"/api/projects/{pid}/metrics/stages")
+    assert r.json()["total"] == 4
+
+    r = client.get(f"/api/projects/{pid}/metrics/stages", params={"exclude": str(cols["Fazendo"])})
+    assert r.status_code == 200
+    d = r.json()
+    assert d["total"] == 3
+    assert d["excluded"] == [cols["Fazendo"]]
+    fazendo = next(x for x in d["stages"] if x["name"] == "Fazendo")
+    assert fazendo["current"] == 0
+
+
+def test_collect_metrics_exclui_colunas(client, projeto_com_tarefas):
+    from relay.db.models import Project, get_session
+    from relay.metrics_pdf import collect_metrics
+
+    s = get_session()
+    try:
+        p = s.get(Project, projeto_com_tarefas)
+        colunas = {c.name: c.id for c in p.columns}
+        assert collect_metrics(s, p)["total"] == 4
+        m = collect_metrics(s, p, exclude_ids={colunas["A fazer"]})
+        assert m["total"] == 2
+        assert m["excluded"] == [colunas["A fazer"]]
+    finally:
+        s.close()
+
+
 def test_pdf_duas_paginas_no_maximo_para_projeto_pequeno(client, projeto_com_tarefas):
     """Projeto pequeno não deve gerar PDF gigante."""
     r = client.get(f"/api/projects/{projeto_com_tarefas}/metrics/export.pdf")

@@ -45,7 +45,7 @@ PIE_COLORS = ["#4F46E5", "#06B6D4", "#F59E0B", "#EF4444", "#10B981", "#8B5CF6", 
 # ---------------------------------------------------------------------------
 
 
-def collect_metrics(session, project) -> dict:
+def collect_metrics(session, project, exclude_ids: set[int] | None = None) -> dict:
     """Consolida números do projeto: progresso, módulos, pessoas, colunas, daily."""
     from relay.db.models import (
         BoardColumn,
@@ -76,6 +76,10 @@ def collect_metrics(session, project) -> dict:
     todas = list(tasks)
     locais = [t for t in tasks if getattr(t, "is_local", False)]
     tasks = [t for t in tasks if not getattr(t, "is_local", False)]
+    # estágios desmarcados na web ficam fora do cálculo (mas geram alerta)
+    excluidos = set(exclude_ids or ())
+    if excluidos:
+        tasks = [t for t in tasks if t.column_id not in excluidos]
     total = len(tasks)
     done = sum(1 for t in tasks if t.column_id in done_ids)
     pct = round(done / total * 100) if total else 0
@@ -217,6 +221,7 @@ def collect_metrics(session, project) -> dict:
         "projeto": {"key": project.key, "name": project.name, "id": project.id},
         "total": total,
         "local": len(locais),
+        "excluded": sorted(excluidos),
         "done": done,
         "pct": pct,
         "abertas": total - done,
@@ -479,9 +484,9 @@ def _titulo(flow, texto: str, st):
     flow.append(Paragraph(texto, st["h2"]))
 
 
-def build_metrics_pdf(session, project) -> bytes:
+def build_metrics_pdf(session, project, exclude_ids: set[int] | None = None) -> bytes:
     """Monta o PDF com os mesmos gráficos da aba Métricas."""
-    m = collect_metrics(session, project)
+    m = collect_metrics(session, project, exclude_ids=exclude_ids)
     st = _styles()
     buf = io.BytesIO()
 
@@ -504,7 +509,8 @@ def build_metrics_pdf(session, project) -> bytes:
     flow.append(Paragraph(
         f"Gerado em {m['gerado_em'].strftime('%d/%m/%Y %H:%M')} · "
         f"{m['total']} tarefas no board · progresso {m['pct']}%"
-        + (f" · {m['local']} tarefa(s) local(is) fora das métricas" if m.get("local") else ""),
+        + (f" · {m['local']} tarefa(s) local(is) fora das métricas" if m.get("local") else "")
+        + (f" · {len(m.get('excluded', []))} estágio(s) fora do cálculo" if m.get("excluded") else ""),
         st["sub"],
     ))
     flow.append(_kpi_row(m, st))
