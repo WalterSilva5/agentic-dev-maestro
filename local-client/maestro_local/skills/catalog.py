@@ -52,6 +52,8 @@ curl http://127.0.0.1:9777/api/health
 ```bash
 curl http://127.0.0.1:9777/api/projects
 curl -X POST http://127.0.0.1:9777/api/projects -H 'Content-Type: application/json' -d '{"name":"Meu Projeto","key":"MP"}'
+# previsao de entrega do projeto (contagem regressiva nas metricas)
+curl -X PATCH http://127.0.0.1:9777/api/projects/1 -H 'Content-Type: application/json' -d '{"targetDate":"2026-12-31"}'
 ```
 
 ### 3. Ver board
@@ -135,7 +137,7 @@ curl -X PATCH http://127.0.0.1:9777/api/goals/1 -H 'Content-Type: application/js
 ## Responsaveis (membros do projeto)
 
 ```bash
-# Listar (com metricas: total/done/pct/overdue) e adicionar
+# Listar (com metricas: total/developed/developedPct/done/pct/overdue) e adicionar
 curl http://127.0.0.1:9777/api/projects/1/members
 curl -X POST http://127.0.0.1:9777/api/projects/1/members -H 'Content-Type: application/json' -d '{"name":"Walter"}'
 # Atribuir card pelo nome (cria o membro se nao existir)
@@ -155,13 +157,13 @@ curl -s http://127.0.0.1:9777/api/projects/1/metrics/dimensions | jq '{
 }'
 ```
 
-- `modules[]` — modulo de entrega com `submodules[]` (nome do plano: "E1 · loja")
+- `modules[]` — modulo de entrega com `submodules[]` (nomes da taxonomia: "E1 · loja")
   - `developed`/`developedPct` = **dev concluido** (card em Dev Box ou depois)
   - `done`/`pct` = **aceito** (coluna de conclusao). Use `developed` para
     progresso do modulo; `done` conta so o que ja passou pelo aceite
+  - so aparecem grupos com cards; sem metas nem contagens planejadas
 - `developmentColumn` — coluna usada como "dev concluido" (normalmente `Dev Box`)
 - `sprints[]` / `platforms[]` / `process[]` — dimensoes separadas (nao entram no % por modulo)
-- `plan` — `{modules: 17, endpoints: 156}` (plano oficial do SVG de acompanhamento)
 - `local` — tarefas locais excluidas do calculo
 
 ## Quem chegou em cada estagio (cumulativo)
@@ -509,6 +511,19 @@ description: Sprint planning - analyze metrics, prioritize backlog, estimate tas
 # Sprint Planning
 
 Auxiliar no planejamento de sprint usando dados do Maestro.
+
+```bash
+# criar sprint com data de finalizacao (contagem regressiva nas metricas)
+curl -X POST http://127.0.0.1:9777/api/projects/1/sprints \\
+  -H 'Content-Type: application/json' -d '{"name":"Sprint 6","endDate":"2026-11-20"}'
+# editar datas depois de criada
+curl -X PATCH http://127.0.0.1:9777/api/sprints/2 \\
+  -H 'Content-Type: application/json' -d '{"endDate":"2026-11-27"}'
+```
+- data de finalizacao da sprint (`endDate`) e previsao de entrega do projeto
+  (`PATCH /api/projects/1 {"targetDate":"2026-12-31"}`) aparecem nas metricas
+  como contagem regressiva ("X dias para fechar a sprint" /
+  "X dias para finalizar o projeto")
 
 ## 1. Analisar metricas atuais
 
@@ -1968,7 +1983,7 @@ do board ("Responsavel") e as metricas por pessoa.
 
 Base: `http://127.0.0.1:9777/api`
 
-## 1. Listar (com metricas: total/done/pct/overdue)
+## 1. Listar (com metricas: total/developed/developedPct/done/pct/overdue)
 
 ```bash
 curl -s http://127.0.0.1:9777/api/projects/1/members | jq '.'
@@ -1996,7 +2011,8 @@ curl -X PATCH http://127.0.0.1:9777/api/tasks/KEY-1 \\
 
 - `pct` baixo com `total` alto → sobrecarga; redistribuir
 - `overdue` > 0 → cards vencidos em aberto; cobrar desbloqueio
-- Comparar `done` entre membros no fechamento da sprint
+- `developed`/`developedPct` = dev concluido (Dev Box ou depois); `done` = aceito.
+  Comparar `developed` entre membros no dia a dia; `done` no fechamento
 
 ## 5. Report semanal do time (entregas + servico)
 

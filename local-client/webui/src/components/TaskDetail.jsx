@@ -10,6 +10,7 @@ import {
   getMembers,
   createMember,
 } from '../api'
+import { apiError } from '../api'
 import { t, tf } from '../i18n'
 
 const TYPES = ['FEATURE', 'BUG', 'TECH_DEBT', 'IMPROVEMENT', 'CHORE']
@@ -46,7 +47,7 @@ export default function TaskDetail({ code, onClose, onChanged }) {
       await load()
       onChanged?.()
     } catch (e) {
-      setError(e.response?.data?.detail || String(e.message || e))
+      setError(apiError(e))
     }
   }
 

@@ -92,6 +92,7 @@ class ProjectCreate(BaseModel):
     description: Optional[str] = None
     boardUrl: Optional[str] = None
     azureBoardUrl: Optional[str] = None
+    targetDate: Optional[str] = None
 
 
 class TaskCreate(BaseModel):
@@ -698,6 +699,7 @@ def _project_dict(p: Project) -> dict:
         # `azureBoardUrl` fica por compatibilidade com clientes antigos.
         "boardUrl": getattr(p, "azure_board_url", "") or "",
         "azureBoardUrl": getattr(p, "azure_board_url", "") or "",
+        "targetDate": p.target_date.isoformat() if getattr(p, "target_date", None) else None,
         "links": [_link_dict(l) for l in getattr(p, "links", [])],
         "createdAt": p.created_at.isoformat() if p.created_at else None,
     }
@@ -831,7 +833,8 @@ def create_project(body: ProjectCreate, s: Session = Depends(db)):
     if existing:
         raise HTTPException(400, "Project key already exists")
     board_url = (body.boardUrl or body.azureBoardUrl or "").strip()
-    p = Project(name=body.name, key=body.key.upper(), description=body.description, azure_board_url=board_url)
+    p = Project(name=body.name, key=body.key.upper(), description=body.description, azure_board_url=board_url,
+                target_date=_parse_dt(body.targetDate) if body.targetDate else None)
     s.add(p)
     s.flush()
     for col_def in DEFAULT_COLUMNS:
@@ -1019,6 +1022,12 @@ def update_project(project_id: int, body: dict, s: Session = Depends(db)):
         p.azure_board_url = (body["azureBoardUrl"] or "").strip()
     if "azure_board_url" in body:
         p.azure_board_url = (body["azure_board_url"] or "").strip()
+    if "targetDate" in body or "target_date" in body:
+        raw = body.get("targetDate", body.get("target_date"))
+        try:
+            p.target_date = _parse_dt(raw) if raw else None
+        except (ValueError, TypeError):
+            raise HTTPException(400, "targetDate inválida (use AAAA-MM-DD)")
     s.commit()
     return _project_dict(p)
 

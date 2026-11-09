@@ -23,6 +23,7 @@ import {
   updateLink,
   deleteLink,
 } from '../api'
+import { apiError } from '../api'
 import TaskDetail from '../components/TaskDetail.jsx'
 import ProjectDaily from '../components/ProjectDaily.jsx'
 import SprintPlanning from './SprintPlanning.jsx'
@@ -110,7 +111,7 @@ export default function Board() {
 
   const load = () =>
     getBoard(projectId, filterParam)
-      .then(setBoard)
+      .then((b) => { setBoard(b); setError('') })
       .catch((e) => setError(String(e.message || e)))
 
   const loadSprints = () =>
@@ -124,12 +125,12 @@ export default function Board() {
           if (active) setSprintFilter(String(active.id))
         }
       })
-      .catch((e) => setError(e.response?.data?.detail || String(e.message || e)))
+      .catch((e) => setError(apiError(e)))
 
   const loadArchived = () =>
     getArchived(projectId)
       .then(setArchived)
-      .catch((e) => setError(e.response?.data?.detail || String(e.message || e)))
+      .catch((e) => setError(apiError(e)))
 
   const loadGoals = () =>
     getGoals(projectId)
@@ -188,7 +189,7 @@ export default function Board() {
       load()
       loadSprints()
     } catch (e) {
-      setError(e.response?.data?.detail || String(e.message || e))
+      setError(apiError(e))
     }
   }
 
@@ -201,7 +202,7 @@ export default function Board() {
       load()
       loadSprints()
     } catch (e) {
-      setError(e.response?.data?.detail || String(e.message || e))
+      setError(apiError(e))
     }
   }
 
@@ -212,7 +213,7 @@ export default function Board() {
       loadArchived()
       loadSprints()
     } catch (e) {
-      setError(e.response?.data?.detail || String(e.message || e))
+      setError(apiError(e))
     }
   }
 
@@ -223,7 +224,7 @@ export default function Board() {
       loadArchived()
       loadSprints()
     } catch (e) {
-      setError(e.response?.data?.detail || String(e.message || e))
+      setError(apiError(e))
     }
   }
 
@@ -233,7 +234,7 @@ export default function Board() {
       load()
       loadSprints()
     } catch (e) {
-      setError(e.response?.data?.detail || String(e.message || e))
+      setError(apiError(e))
     }
   }
 
@@ -244,13 +245,13 @@ export default function Board() {
       await updateTask(task.code, { assignee: val })
       load()
       loadMembers()
-    } catch (e) { setError(e.response?.data?.detail || String(e.message || e)) }
+    } catch (e) { setError(apiError(e)) }
   }
 
   const handleCreateMember = async () => {
     const name = newMemberName.trim()
     if (!name) return
-    try { await createMember(projectId, { name }); setNewMemberName(''); loadMembers() } catch (e) { setError(e.response?.data?.detail || String(e.message || e)) }
+    try { await createMember(projectId, { name }); setNewMemberName(''); loadMembers() } catch (e) { setError(apiError(e)) }
   }
 
   const handleDeleteMember = async (id) => {
@@ -261,20 +262,20 @@ export default function Board() {
     const title = newLinkTitle.trim()
     const url = newLinkUrl.trim()
     if (!title || !url) return
-    try { await createLink(projectId, { title, url }); setNewLinkTitle(''); setNewLinkUrl(''); loadLinks() } catch (e) { setError(e.response?.data?.detail || String(e.message || e)) }
+    try { await createLink(projectId, { title, url }); setNewLinkTitle(''); setNewLinkUrl(''); loadLinks() } catch (e) { setError(apiError(e)) }
   }
   const handleUpdateLink = async () => {
     if (!editingLink) return
     const title = (editingLink.title || '').trim()
     const url = (editingLink.url || '').trim()
     if (!title || !url) return
-    try { await updateLink(editingLink.id, { title, url }); setEditingLink(null); loadLinks() } catch (e) { setError(e.response?.data?.detail || String(e.message || e)) }
+    try { await updateLink(editingLink.id, { title, url }); setEditingLink(null); loadLinks() } catch (e) { setError(apiError(e)) }
   }
   const handleDeleteLink = async (id) => {
     try { await deleteLink(id); loadLinks() } catch (e) { setError(String(e.message || e)) }
   }
 
-  if (error) return <div className="banner">{error}</div>
+  if (error && !board) return <div className="banner">{error}</div>
   if (!board) return <div className="muted">{t('Carregando...')}</div>
 
   const cols = [...board.columns].sort((a, b) => a.order - b.order)
@@ -282,6 +283,9 @@ export default function Board() {
 
   // — Métricas do projeto (mesmo cálculo do desktop) —
   const doneColIds = new Set(cols.filter((c) => c.isDone).map((c) => c.id))
+  const normName = (n) => (n || '').toLowerCase().replace(/[^a-z0-9]/g, '')
+  const devBoxCol = [...cols].sort((a, b) => a.order - b.order).find((c) => normName(c.name) === 'devbox')
+  const devColIds = devBoxCol ? new Set(cols.filter((c) => c.order >= devBoxCol.order).map((c) => c.id)) : doneColIds
   const tasksAll = cols.flatMap((c) => c.tasks)
   const totalTasks = tasksAll.length
   // tarefa local é lembrete pessoal: aparece no board, mas não entra em métrica
@@ -355,13 +359,16 @@ export default function Board() {
   const unassignedTasks = tasksMetric.filter((tk) => !tk.assignee)
   const unassignedTot = unassignedTasks.length
   const unassignedDone = unassignedTasks.filter((tk) => doneColIds.has(tk.columnId)).length
-  const unassignedPct = unassignedTot ? Math.round((unassignedDone / unassignedTot) * 100) : 0
+  const unassignedDev = unassignedTasks.filter((tk) => devColIds.has(tk.columnId)).length
+  const unassignedPct = unassignedTot ? Math.round((unassignedDev / unassignedTot) * 100) : 0
   const assigneeProgressListBase = assigneeOptions.map((name) => {
     const q = tasksMetric.filter((tk) => tk.assignee === name)
-    const tot = q.length; const done = q.filter((tk) => doneColIds.has(tk.columnId)).length
-    return { name, done, tot, pct: tot ? Math.round((done / tot) * 100) : 0 }
+    const tot = q.length
+    const done = q.filter((tk) => doneColIds.has(tk.columnId)).length
+    const developed = q.filter((tk) => devColIds.has(tk.columnId)).length
+    return { name, done, developed, tot, pct: tot ? Math.round((developed / tot) * 100) : 0 }
   })
-  if (unassignedTot > 0) assigneeProgressListBase.push({ name: 'Sem responsável', done: unassignedDone, tot: unassignedTot, pct: unassignedPct, isUnassigned: true })
+  if (unassignedTot > 0) assigneeProgressListBase.push({ name: 'Sem responsável', done: unassignedDone, developed: unassignedDev, tot: unassignedTot, pct: unassignedPct, isUnassigned: true })
   const assigneeProgressList = assigneeProgressListBase.sort((a, b) => b.tot - a.tot).slice(0, 8)
   const activeFilterCount = (searchText.trim() ? 1 : 0) + (priorityFilter !== 'all' ? 1 : 0) + (epicFilter !== 'all' ? 1 : 0) + (tagFilter !== 'all' ? 1 : 0) + (assigneeFilter !== 'all' ? 1 : 0)
   // Pie data
@@ -372,6 +379,7 @@ export default function Board() {
 
   return (
     <div>
+      {error && <div className="banner">{error}</div>}
       <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
         <h1 className="page-title" style={{ margin: 0 }}>
           {board.key} · {board.name}
@@ -391,6 +399,10 @@ export default function Board() {
               if(v!==undefined) updateProject(projectId, { boardUrl: (v||'').trim() }).then(load)
             }}>{t('Definir link do Board')}</button>
           )}
+          <label className="muted" style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4 }} title={t('Previsão de entrega do projeto')}>
+            {t('Previsão de entrega')}
+            <input type="date" value={(board.targetDate || '').slice(0, 10)} onChange={(e) => updateProject(projectId, { targetDate: e.target.value || null }).then(load)} style={{ fontSize: 11, padding: '3px 6px' }} />
+          </label>
           <Link to="/projetos"><button className="ghost">{t('← Projetos')}</button></Link>
         </div>
       </div>
@@ -446,7 +458,16 @@ export default function Board() {
                 const col = d < 0 ? 'var(--danger)' : d <= 3 ? '#d97706' : 'var(--muted)'
                 return (
                   <span style={{ fontSize: 11, color: col }}>
-                    {d >= 0 ? tf('Sprint {name}: {d} dias', { name: activeSprint.name, d }) : tf('Sprint {name}: atrasada {d}d', { name: activeSprint.name, d: Math.abs(d) })}
+                    {d >= 0 ? tf('{d} dias para fechar a sprint {name}', { name: activeSprint.name, d }) : tf('Sprint {name} atrasada há {d}d', { name: activeSprint.name, d: Math.abs(d) })}
+                  </span>
+                )
+              })()}
+              {board?.targetDate && (() => {
+                const d = daysUntil(board.targetDate)
+                const col = d < 0 ? 'var(--danger)' : d <= 7 ? '#d97706' : 'var(--muted)'
+                return (
+                  <span style={{ fontSize: 11, color: col }}>
+                    {d >= 0 ? tf('{d} dias para finalizar o projeto', { d }) : tf('Projeto atrasado há {d}d', { d: Math.abs(d) })}
                   </span>
                 )
               })()}
@@ -464,10 +485,11 @@ export default function Board() {
               </div>
               <div style={{ background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '8px 10px' }}>
                 <div className="muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, textTransform: 'uppercase', marginBottom: 4 }}>{t('Prazos')}</div>
-                {goals.filter((g)=>g.dueDate).length===0 && !activeSprint?.endDate
+                {goals.filter((g)=>g.dueDate).length===0 && !activeSprint?.endDate && !board?.targetDate
                   ? <div className="muted" style={{ fontSize: 12 }}>{t('Nenhum prazo definido.')}</div>
                   : <>
-                    {activeSprint?.endDate && (<div style={{ fontSize: 12, color: colorForDays(daysUntil(activeSprint.endDate), 7) }}>{'\u2022'} Sprint {activeSprint.name}: {new Date(activeSprint.endDate).toLocaleDateString()}</div>)}
+                    {activeSprint?.endDate && (() => { const d = daysUntil(activeSprint.endDate); return (<div style={{ fontSize: 12, color: colorForDays(d, 7) }}>{'\u2022'} {d >= 0 ? tf('{d} dias para fechar a sprint {name}', { name: activeSprint.name, d }) : tf('Sprint {name} atrasada há {d}d', { name: activeSprint.name, d: Math.abs(d) })} — {new Date(activeSprint.endDate).toLocaleDateString()}</div>) })()}
+                    {board?.targetDate && (() => { const d = daysUntil(board.targetDate); return (<div style={{ fontSize: 12, color: colorForDays(d, 7) }}>{'\u2022'} {d >= 0 ? tf('{d} dias para finalizar o projeto', { d }) : tf('Projeto atrasado há {d}d', { d: Math.abs(d) })} — {new Date(board.targetDate).toLocaleDateString()}</div>) })()}
                     {goals.filter((g)=>g.dueDate).slice(0,4).map((g)=>{ const [d,tot]=goalProgress(g); const days=daysUntil(g.dueDate); const col=colorForDays(days, 7); return (<div key={g.id} style={{ fontSize: 12, color: col }}>{'\u2022'} {g.name} — {new Date(g.dueDate).toLocaleDateString()} ({days}d) {d}/{tot}</div>) })}
                   </>}
               </div>
@@ -521,11 +543,11 @@ export default function Board() {
                 )}
                 {assigneeProgressList.length === 0
                   ? <div className="muted" style={{ fontSize: 12 }}>{t('Nenhum responsável atribuído.')}</div>
-                  : assigneeProgressList.map(({ name, done, tot, pct: p, isUnassigned }) => (
+                  : assigneeProgressList.map(({ name, done, developed, tot, pct: p, isUnassigned }) => (
                     <div key={name} style={{ marginBottom: 6 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6, fontSize: 12, fontWeight: 600 }}>
                         <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: isUnassigned ? '#9ca3af' : 'var(--text)' }}>{name} {isUnassigned && `(${unassignedTot})`}</span>
-                        <span className="muted" style={{ fontSize: 11 }}>{p}% ({done}/{tot})</span>
+                        <span className="muted" style={{ fontSize: 11 }} title={t('Desenvolvimento concluído (Dev Box ou depois)')}>{p}% ({developed ?? done}/{tot}){done !== (developed ?? done) && ` · ${done} ${t('aceitos')}`}</span>
                       </div>
                       <div style={{ height: 6, background: 'var(--border-light)', borderRadius: 4, overflow: 'hidden', marginTop: 2 }}><div style={{ width: `${p}%`, height: '100%', background: isUnassigned ? '#9ca3af' : 'var(--accent)' }} /></div>
                     </div>
@@ -704,7 +726,7 @@ export default function Board() {
                 <span className="muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, textTransform: 'uppercase' }}>📊 {t('Módulos e submódulos')}</span>
                 {dimensions && (
                   <span className="muted" style={{ fontSize: 10 }}>
-                    {dimensions.plan?.modules} {t('módulos')} · {dimensions.plan?.endpoints} {t('endpoints no plano')}
+                    {dimensions.modules.length} {t('módulos')}
                     {' · '}
                     {dimensions.with_module}/{dimensions.cards} {t('cards com módulo')}
                     {dimensions.unlabeled?.total > 0 && ` · ${dimensions.unlabeled.total} ${t('sem módulo')}`}
@@ -733,7 +755,7 @@ export default function Board() {
                         return (
                           <div key={mod.name} style={{ border: '1px solid var(--border-light)', borderRadius: 8, padding: '7px 9px', background: 'var(--card)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-                              <span style={{ fontWeight: 700, fontSize: 12 }}>{mod.label} <span className="muted" style={{ fontWeight: 400, fontSize: 11 }}>· {mod.total} {t('cards')}{mod.endpoints ? ` / ${mod.endpoints} ${t('endpoints')}` : ''}</span></span>
+                              <span style={{ fontWeight: 700, fontSize: 12 }}>{mod.label} <span className="muted" style={{ fontWeight: 400, fontSize: 11 }}>· {mod.total} {t('cards')}</span></span>
                               <span style={{ fontSize: 11, fontWeight: 700 }} title={t('Desenvolvimento concluído (Dev Box ou depois)')}>
                                 {mod.developed ?? mod.done}/{mod.total} — {pctDev}%
                                 {mod.done !== mod.developed && (
@@ -753,7 +775,7 @@ export default function Board() {
                                   return (
                                     <div key={sub.name} style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10 }}>
-                                        <span className="muted">{sub.label} <span style={{ opacity: .7 }}>({sub.name}{sub.endpoints ? ` · ${sub.endpoints} ep` : ''})</span></span>
+                                        <span className="muted">{sub.label} <span style={{ opacity: .7 }}>({sub.name})</span></span>
                                         <span style={{ fontWeight: 600 }}>{sub.developed ?? sub.done}/{sub.total} — {pctS}%</span>
                                       </div>
                                       <div style={{ height: 6, background: 'var(--border-light)', borderRadius: 3, overflow: 'hidden', maxWidth: barSW }}>
@@ -772,16 +794,6 @@ export default function Board() {
                 })()
               )}
             </div>
-
-            {/* Fora de escopo (descontinuados) */}
-            {dimensions?.discontinued?.length > 0 && (
-              <div style={{ background: 'var(--bg)', border: '1px dashed var(--border)', borderRadius: 8, padding: '8px 10px', fontSize: 11 }}>
-                <span className="muted" style={{ fontWeight: 700, textTransform: 'uppercase', fontSize: 10, letterSpacing: .6 }}>{t('Fora de escopo')}: </span>
-                {dimensions.discontinued.map((x) => (
-                  <span key={x.name} style={{ marginRight: 8 }}>{x.label} ({x.total} {t('cards')}{x.endpoints ? ` / ${x.endpoints} ep` : ''}) — {x.reason}</span>
-                ))}
-              </div>
-            )}
 
             {/* Sprints, plataformas e natureza — dimensões separadas do módulo */}
             {dimensions && (dimensions.sprints.length > 0 || dimensions.platforms.length > 0 || dimensions.process.length > 0) && (
@@ -1088,9 +1100,10 @@ export default function Board() {
                   const q = tasksMetric.filter((tk)=>tk.assignee===m.name)
                   const tot=q.length
                   const done=q.filter((tk)=>doneColIds.has(tk.columnId)).length
-                  const pct=tot?Math.round(done/tot*100):0
+                  const developed=q.filter((tk)=>devColIds.has(tk.columnId)).length
+                  const pct=tot?Math.round(developed/tot*100):0
                   const overdue=q.filter((tk)=>tk.dueDate && new Date(tk.dueDate)<today0 && !doneColIds.has(tk.columnId)).length
-                  return {tot, done, pct, overdue}
+                  return {tot, done, developed, pct, overdue}
                 })()
                 return (
                   <div key={m.id} className="card" style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -1100,7 +1113,7 @@ export default function Board() {
                       <button className="ghost" style={{ color: 'var(--danger)', padding: '2px 8px' }} onClick={()=>handleDeleteMember(m.id)}>{t('Excluir')}</button>
                     </div>
                     <div style={{ height: 8, background: 'var(--border-light)', borderRadius: 4, overflow: 'hidden' }}><div style={{ width: `${stats.pct}%`, height: '100%', background: 'var(--accent)' }} /></div>
-                    <div className="muted" style={{ fontSize: 11 }}>{stats.tot} {t('tarefas')} · {stats.done} {t('concluídas')} {stats.overdue?`· ${stats.overdue} ${t('vencida(s)')}`:''} · {stats.pct}%</div>
+                    <div className="muted" style={{ fontSize: 11 }}>{stats.tot} {t('tarefas')} · {stats.developed} {t('dev concluído')} · {stats.done} {t('aceitas')} {stats.overdue?`· ${stats.overdue} ${t('vencida(s)')}`:''} · {stats.pct}%</div>
                   </div>
                 )
               })}

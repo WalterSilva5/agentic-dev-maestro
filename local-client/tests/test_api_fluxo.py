@@ -74,6 +74,79 @@ def test_epic_projeto_inexistente(temp_db):
     assert c.post("/api/epics/9999/tasks/1").status_code in (404,)
 
 
+def test_projeto_target_date_roundtrip(temp_db):
+    """Previsão de entrega do projeto: PATCH grava, board devolve, null limpa."""
+    from datetime import date, timedelta
+    c = _client()
+    pid, _, _, _ = _projeto()
+
+    alvo = (date.today() + timedelta(days=30)).isoformat()
+    r = c.patch(f"/api/projects/{pid}", json={"targetDate": alvo})
+    assert r.status_code == 200, r.text
+    assert r.json()["targetDate"].startswith(alvo)
+
+    r = c.get(f"/api/projects/{pid}/board")
+    assert r.status_code == 200, r.text
+    assert r.json()["targetDate"].startswith(alvo)
+
+    r = c.patch(f"/api/projects/{pid}", json={"targetDate": None})
+    assert r.status_code == 200, r.text
+    assert r.json()["targetDate"] is None
+
+
+def test_projeto_target_date_invalida(temp_db):
+    c = _client()
+    pid, _, _, _ = _projeto()
+    r = c.patch(f"/api/projects/{pid}", json={"targetDate": "31/12/2026"})
+    assert r.status_code == 400
+
+
+def test_sprint_end_date_editavel(temp_db):
+    """Data de finalização da sprint: cria com endDate e edita via PATCH."""
+    c = _client()
+    pid, spid, _, _ = _projeto()
+
+    r = c.patch(f"/api/sprints/{spid}", json={"endDate": "2026-11-20"})
+    assert r.status_code == 200, r.text
+    assert r.json()["endDate"].startswith("2026-11-20")
+
+    r = c.post(f"/api/projects/{pid}/sprints",
+               json={"name": "S2", "startDate": "2026-11-21", "endDate": "2026-11-27"})
+    assert r.status_code == 200, r.text
+    assert r.json()["endDate"].startswith("2026-11-27")
+
+    r = c.get(f"/api/projects/{pid}/sprints")
+    assert r.status_code == 200
+    nomes = {sp["name"]: sp for sp in r.json()}
+    assert nomes["S2"]["endDate"].startswith("2026-11-27")
+
+
+def test_collect_metrics_regressivas(temp_db):
+    """collect_metrics traz as contagens regressivas (sprint + projeto)."""
+    from datetime import date, timedelta
+    from maestro_local.db.models import Project, Sprint
+    from maestro_local.metrics_pdf import collect_metrics, build_metrics_pdf
+    c = _client()
+    pid, spid, _, _ = _projeto()
+
+    fim_sprint = (date.today() + timedelta(days=5)).isoformat()
+    c.patch(f"/api/sprints/{spid}", json={"endDate": fim_sprint})
+    alvo = (date.today() + timedelta(days=40)).isoformat()
+    c.patch(f"/api/projects/{pid}", json={"targetDate": alvo})
+
+    s = get_session()
+    try:
+        p = s.get(Project, pid)
+        m = collect_metrics(s, p)
+        assert m["regressivas"]["sprint"]["days"] == 5
+        assert m["regressivas"]["sprint"]["name"] == "S1"
+        assert m["regressivas"]["projeto"]["days"] == 40
+        pdf = build_metrics_pdf(s, p)
+        assert pdf.startswith(b"%PDF")
+    finally:
+        s.close()
+
+
 def test_goals_crud_e_progresso(temp_db):
     c = _client()
     pid, sprint_id, todo_id, done_id = _projeto()

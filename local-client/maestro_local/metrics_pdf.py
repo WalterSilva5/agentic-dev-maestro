@@ -97,18 +97,25 @@ def collect_metrics(session, project) -> dict:
     # por coluna
     por_coluna = [(c.name, sum(1 for t in tasks if t.column_id == c.id), c.wip_limit, bool(c.is_done)) for c in cols]
 
-    # por pessoa (inclui "sem responsável")
+    # por pessoa (inclui "sem responsável") — dev concluído como progresso
+    from maestro_local.dimensions import dev_done_column as _dev_col
+    _col_dev = _dev_col(cols)
+    dev_ids = {c.id for c in cols if _col_dev is not None and c.order >= _col_dev.order} \
+        or set(done_ids)
     pessoas: dict[str, list] = {}
     for t in tasks:
         pessoas.setdefault(t.assignee or "", []).append(t)
     por_pessoa = []
     for nome, lst in pessoas.items():
         feitas = sum(1 for t in lst if t.column_id in done_ids)
+        dev_feitas = sum(1 for t in lst if t.column_id in dev_ids)
         por_pessoa.append({
             "nome": nome or "Sem responsável",
             "total": len(lst),
             "done": feitas,
             "pct": round(feitas / len(lst) * 100) if lst else 0,
+            "developed": dev_feitas,
+            "developedPct": round(dev_feitas / len(lst) * 100) if lst else 0,
             "sem_dono": not nome,
         })
     por_pessoa.sort(key=lambda x: (-x["total"], x["nome"]))
@@ -161,6 +168,28 @@ def collect_metrics(session, project) -> dict:
     from maestro_local.dimensions import aggregate_dimensions
     dimensoes = aggregate_dimensions(tasks, done_ids, cols)
 
+    # contagens regressivas: sprint ativa e previsão de entrega do projeto
+    from maestro_local.db.models import Sprint as _Sprint
+    sprint_ativa = session.query(_Sprint).filter(
+        _Sprint.project_id == project.id, _Sprint.status == "ATIVA").first()
+    if sprint_ativa is not None and getattr(sprint_ativa, "end_date", None):
+        dias_sprint = (sprint_ativa.end_date.date() - hoje).days
+    else:
+        dias_sprint = None
+    regressivas = {
+        "sprint": (
+            {"name": sprint_ativa.name,
+             "endDate": sprint_ativa.end_date.isoformat(),
+             "days": dias_sprint}
+            if sprint_ativa is not None and dias_sprint is not None else None
+        ),
+        "projeto": (
+            {"endDate": project.target_date.isoformat(),
+             "days": (project.target_date.date() - hoje).days}
+            if getattr(project, "target_date", None) else None
+        ),
+    }
+
     # quem chegou em cada estágio (cumulativo) e o corte por módulo
     from maestro_local.db.models import ActivityLog
     from maestro_local.stages import compute_stages
@@ -201,6 +230,7 @@ def collect_metrics(session, project) -> dict:
         "por_epico": por_epico,
         "por_modulo": por_modulo,
         "dimensoes": dimensoes,
+        "regressivas": regressivas,
         "estagios": estagios,
         "daily": {
             "total": len(daily),
@@ -368,9 +398,8 @@ def _kpi_row(m: dict, st: dict) -> Table:
         celula(m["abertas"], "EM ABERTO"),
         celula(m["vencidas"], "VENCIDAS"),
         celula(m["paradas"], "PARADAS 14d+"),
-        celula(m["daily"]["dias"], "DIAS COM DAILY"),
     ]]
-    t = Table(dados, colWidths=[28 * mm] * 6)
+    t = Table(dados, colWidths=[33.6 * mm] * 5)
     t.setStyle(TableStyle([
         ("BOX", (0, 0), (-1, -1), 0.6, BORDER),
         ("INNERGRID", (0, 0), (-1, -1), 0.4, BORDER),
@@ -483,6 +512,25 @@ def build_metrics_pdf(session, project) -> bytes:
     flow.append(_bar(m["pct"], width=174 * mm, height=9,
                      cor=GREEN if m["pct"] == 100 else ACCENT))
 
+    # ---------- contagens regressivas (sprint + entrega do projeto) ----------
+    reg = m.get("regressivas") or {}
+    linhas_reg = []
+    sp = reg.get("sprint")
+    if sp:
+        d = sp["days"]
+        linhas_reg.append(
+            f"{d} dias para fechar a sprint {sp['name']}" if d >= 0
+            else f"Sprint {sp['name']} atrasada há {abs(d)}d")
+    pj = reg.get("projeto")
+    if pj:
+        d = pj["days"]
+        linhas_reg.append(
+            f"{d} dias para finalizar o projeto" if d >= 0
+            else f"Projeto atrasado há {abs(d)}d")
+    if linhas_reg:
+        flow.append(Spacer(1, 2 * mm))
+        flow.append(Paragraph("⏳ " + " · ".join(linhas_reg), st["body"]))
+
     # ---------- gráficos: coluna | responsável | prioridade ----------
     _titulo(flow, "Visão por coluna, responsável e prioridade", st)
     graficos1 = Table([
@@ -540,10 +588,8 @@ def build_metrics_pdf(session, project) -> bytes:
     if mods:
         _titulo(flow, "Módulos e submódulos", st)
         sem = dims.get("unlabeled", {}).get("total", 0)
-        plano = dims.get("plan") or {}
         flow.append(Paragraph(
-            f"<b>{plano.get('modules', 0)} módulos · {plano.get('endpoints', 0)} endpoints no plano</b>"
-            + f" · {dims.get('with_module', 0)}/{dims.get('cards', 0)} cards com módulo"
+            f"<b>{dims.get('with_module', 0)}/{dims.get('cards', 0)} cards com módulo</b>"
             + (f" · {sem} sem módulo (não entram no progresso por módulo)" if sem else "")
             + " · um card pode ter mais de um módulo · largura da barra proporcional ao tamanho",
             st["small"],
@@ -553,29 +599,27 @@ def build_metrics_pdf(session, project) -> bytes:
         linhas = [[
             Paragraph("<b>Módulo / sub-entrega</b>", st["small"]),
             Paragraph("<b>Progresso</b>", st["small"]),
-            Paragraph("<b>Cards / endpoints</b>", st["small"]),
+            Paragraph("<b>Cards</b>", st["small"]),
         ]]
         for x in mods[:24]:
             largura = max(10, 150 * x["total"] / maximo)
             pct_dev = x.get("developedPct", x["pct"])
             feito_dev = x.get("developed", x["done"])
             cor = GREEN if pct_dev == 100 else (AMBER if pct_dev > 0 else colors.HexColor("#CBD5E1"))
-            ep = f" · {x['endpoints']} ep" if x.get("endpoints") else ""
             aceitos = "" if x["done"] == feito_dev else f" · {x['done']} aceitos"
             linhas.append([
                 Paragraph(f"<b>{x['label']}</b>", st["body"]),
                 _bar(pct_dev, width=largura, cor=cor),
-                Paragraph(f"{feito_dev}/{x['total']} dev{ep} · {pct_dev}%{aceitos}", st["small"]),
+                Paragraph(f"{feito_dev}/{x['total']} dev · {pct_dev}%{aceitos}", st["small"]),
             ])
             for sub in x.get("submodules", [])[:6]:
                 largura_s = max(8, 110 * sub["total"] / maximo)
                 cor_s = GREEN if sub["pct"] == 100 else (AMBER if sub["pct"] > 0 else colors.HexColor("#CBD5E1"))
-                ep_s = f" · {sub['endpoints']} ep" if sub.get("endpoints") else ""
                 linhas.append([
                     Paragraph(f"&nbsp;&nbsp;&nbsp;{sub['label']} <font color='#9CA3AF'>({sub['name']})</font>",
                               st["small"]),
                     _bar(sub["pct"], width=largura_s, height=5, cor=cor_s),
-                    Paragraph(f"{sub['done']}/{sub['total']}{ep_s} · {sub['pct']}%", st["small"]),
+                    Paragraph(f"{sub['done']}/{sub['total']} · {sub['pct']}%", st["small"]),
                 ])
         t = Table(linhas, colWidths=[52 * mm, 78 * mm, 44 * mm], repeatRows=1)
         t.setStyle(TableStyle([
@@ -589,15 +633,6 @@ def build_metrics_pdf(session, project) -> bytes:
         flow.append(t)
         if len(mods) > 24:
             flow.append(Paragraph(f"+ {len(mods) - 24} módulo(s) não exibidos", st["small"]))
-        if dims.get("discontinued"):
-            fora = " · ".join(
-                f"{x['label']} ({x['total']} cards"
-                + (f" / {x['endpoints']} ep" if x.get("endpoints") else "")
-                + f") — {x.get('reason', '')}"
-                for x in dims["discontinued"]
-            )
-            flow.append(Spacer(1, 1.5 * mm))
-            flow.append(Paragraph(f"<b>Fora de escopo:</b> {fora}", st["small"]))
 
     # ---------- sprints / plataformas / natureza (dimensões separadas) ----------
     sprints = dims.get("sprints", [])
@@ -750,12 +785,18 @@ def build_metrics_pdf(session, project) -> bytes:
     ]))
     flow.append(t)
 
-    # ---------- por responsável (barras) ----------
+    # ---------- por responsável (barras: dev concluído; aceitos como detalhe) ----------
     _titulo(flow, "Por responsável", st)
+    _linhas_pessoa = []
+    for p in m["por_pessoa"][:12]:
+        dev_f = p.get("developed", p["done"])
+        dev_p = p.get("developedPct", p["pct"])
+        nome_p = p["nome"] + (f" · {p['done']} aceitos" if p["done"] != dev_f else "")
+        _linhas_pessoa.append((nome_p, dev_f, p["total"], dev_p))
     flow.append(_tabela_barra(
-        [(p["nome"], p["done"], p["total"], p["pct"]) for p in m["por_pessoa"][:12]],
+        _linhas_pessoa,
         st,
-        cor_fn=lambda nome: colors.HexColor("#9CA3AF") if nome == "Sem responsável" else ACCENT,
+        cor_fn=lambda nome: colors.HexColor("#9CA3AF") if nome.startswith("Sem responsável") else ACCENT,
     ))
 
     # ---------- daily ----------

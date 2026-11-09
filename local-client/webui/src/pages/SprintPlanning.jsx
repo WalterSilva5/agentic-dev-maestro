@@ -23,6 +23,8 @@ export default function SprintPlanning({ projectId, onChanged }) {
   const [error, setError] = useState('')
   const [newSprint, setNewSprint] = useState({ name: '', goal: '', capacity: '', startDate: '', endDate: '' })
   const [retros, setRetros] = useState({}) // { [sprintId]: { retro, loading } }
+  const [editingDates, setEditingDates] = useState({}) // { [sprintId]: bool }
+  const [dateDrafts, setDateDrafts] = useState({}) // { [sprintId]: { startDate, endDate } }
 
   const openRetro = async (sp) => {
     setRetros((r) => ({ ...r, [sp.id]: { ...(r[sp.id] || {}), open: true } }))
@@ -113,6 +115,20 @@ export default function SprintPlanning({ projectId, onChanged }) {
   const activate = act((sp) => updateSprint(sp.id, { status: 'ATIVA' }))
   const complete = act((sp) => completeSprint(sp.id, {}))
   const remove = act((sp) => deleteSprint(sp.id))
+  const saveDates = async (sp) => {
+    const draft = dateDrafts[sp.id] || {}
+    try {
+      await updateSprint(sp.id, {
+        startDate: draft.startDate !== undefined ? (draft.startDate || null) : undefined,
+        endDate: draft.endDate !== undefined ? (draft.endDate || null) : undefined,
+      })
+      setDateDrafts((d) => { const n = { ...d }; delete n[sp.id]; return n })
+      setEditingDates((e) => ({ ...e, [sp.id]: false }))
+      refreshAll()
+    } catch (e) {
+      setError(e.response?.data?.detail || String(e.message || e))
+    }
+  }
 
   const tasksOf = (sid) => tasks.filter((tk) => (tk.sprintId ?? null) === sid)
   const committedOf = (sid) => tasksOf(sid).reduce((a, tk) => a + (tk.estimateMd || 0), 0)
@@ -209,10 +225,20 @@ export default function SprintPlanning({ projectId, onChanged }) {
                 <span className="count">{list.length}</span>
               </h3>
               {sp.goal && <div className="muted" style={{ fontSize: 11, marginBottom: 4 }}>{sp.goal}</div>}
-              {(sp.startDate || sp.endDate) && (
+              {(sp.startDate || sp.endDate) && !editingDates[sp.id] && (
                 <div className="muted" style={{ fontSize: 11 }}>
                   {(sp.startDate || '').slice(0, 10)} → {(sp.endDate || '').slice(0, 10)}
                 </div>
+              )}
+              {editingDates[sp.id] ? (
+                <div className="row" style={{ gap: 4, marginBottom: 6 }}>
+                  <input type="date" value={dateDrafts[sp.id]?.startDate ?? (sp.startDate || '').slice(0, 10)} onChange={(e) => setDateDrafts((d) => ({ ...d, [sp.id]: { ...d[sp.id], startDate: e.target.value } }))} style={{ fontSize: 11 }} />
+                  <input type="date" value={dateDrafts[sp.id]?.endDate ?? (sp.endDate || '').slice(0, 10)} onChange={(e) => setDateDrafts((d) => ({ ...d, [sp.id]: { ...d[sp.id], endDate: e.target.value } }))} style={{ fontSize: 11 }} />
+                  <button className="ghost" style={{ fontSize: 11 }} onClick={() => saveDates(sp)}>{t('Salvar')}</button>
+                  <button className="ghost" style={{ fontSize: 11 }} onClick={() => setEditingDates((e) => ({ ...e, [sp.id]: false }))}>{t('Cancelar')}</button>
+                </div>
+              ) : (
+                <button className="ghost" style={{ fontSize: 11, marginBottom: 6 }} onClick={() => setEditingDates((e) => ({ ...e, [sp.id]: true }))}>{t('Editar datas')}</button>
               )}
               {/* Capacidade vs comprometido */}
               <div style={{ fontSize: 11, margin: '4px 0', color: over ? 'var(--danger, #e5484d)' : 'inherit' }}>

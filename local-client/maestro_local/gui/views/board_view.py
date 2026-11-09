@@ -1029,6 +1029,33 @@ class SprintManagerDialog(QDialog):
             goal.setStyleSheet(f"color: {t.text_secondary}; font-size: 12px; border: none;")
             v.addWidget(goal)
 
+        # datas da sprint (editáveis: fim alimenta a contagem regressiva)
+        datas_row = QHBoxLayout()
+        datas_row.setSpacing(6)
+        ini_lbl = QLabel(_t("Início:"))
+        ini_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 11px; border: none;")
+        datas_row.addWidget(ini_lbl)
+        ini_in = QLineEdit(sp.start_date.date().isoformat() if sp.start_date else "")
+        ini_in.setPlaceholderText("AAAA-MM-DD")
+        ini_in.setFixedWidth(110)
+        datas_row.addWidget(ini_in)
+        fim_lbl = QLabel(_t("Fim:"))
+        fim_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 11px; border: none;")
+        datas_row.addWidget(fim_lbl)
+        fim_in = QLineEdit(sp.end_date.date().isoformat() if sp.end_date else "")
+        fim_in.setPlaceholderText("AAAA-MM-DD")
+        fim_in.setFixedWidth(110)
+        datas_row.addWidget(fim_in)
+        salvar = QPushButton(_t("Salvar datas"))
+        salvar.setCursor(Qt.PointingHandCursor)
+        salvar.clicked.connect(
+            lambda _=False, sid=sp.id, a=ini_in, b=fim_in: self._save_dates(sid, a.text(), b.text()))
+        datas_row.addWidget(salvar)
+        datas_row.addStretch()
+        w_datas = QWidget()
+        w_datas.setLayout(datas_row)
+        v.addWidget(w_datas)
+
         cap_txt = ""
         over = sp.capacity is not None and committed > sp.capacity
         if sp.capacity is not None:
@@ -1066,6 +1093,32 @@ class SprintManagerDialog(QDialog):
         btns.addWidget(dele)
         v.addLayout(btns)
         return row
+
+    def _save_dates(self, sprint_id, inicio_txt, fim_txt):
+        from datetime import datetime as _dt
+
+        def _parse(txt):
+            txt = (txt or "").strip()
+            if not txt:
+                return None
+            try:
+                return _dt.fromisoformat(txt)
+            except ValueError:
+                return "invalid"
+
+        s = get_session()
+        try:
+            sp = s.get(Sprint, sprint_id)
+            if sp is None:
+                return
+            ini, fim = _parse(inicio_txt), _parse(fim_txt)
+            if ini == "invalid" or fim == "invalid":
+                return
+            sp.start_date, sp.end_date = ini, fim
+            s.commit()
+        finally:
+            s.close()
+        self._load()
 
     def _retro(self, sprint_id):
         import json as _json
@@ -1320,15 +1373,19 @@ class MembersDialog(QDialog):
         v.addLayout(top)
 
         barra = QProgressBar()
-        barra.setValue(st["pct"])
+        barra.setValue(st.get("developedPct", st["pct"]))
         barra.setTextVisible(True)
-        barra.setFormat(f"{st['pct']}%  ({st['done']}/{st['total']})")
+        dev_n = st.get("developed", st["done"])
+        fmt = f"{st.get('developedPct', st['pct'])}%  ({dev_n}/{st['total']})"
+        if st["done"] != dev_n:
+            fmt += f"  ·  {st['done']} {_t('aceitos')}"
+        barra.setFormat(fmt)
         barra.setFixedHeight(16)
         v.addWidget(barra)
 
         detalhe = QLabel(
-            _t("{total} tarefa(s) · {done} concluída(s)").format(
-                total=st["total"], done=st["done"]))
+            _t("{total} tarefa(s) · {dev} dev · {done} aceita(s)").format(
+                total=st["total"], dev=dev_n, done=st["done"]))
         if st["overdue"]:
             detalhe.setText(detalhe.text() + "  ·  " + _t("{n} vencida(s)").format(n=st["overdue"]))
             detalhe.setStyleSheet(f"color: {t.danger}; font-size: 11px; border: none;")
@@ -1789,9 +1846,24 @@ class BoardMetricsAccordion(QFrame):
             if sprint_ativa and sprint_ativa.end_date:
                 dias = (sprint_ativa.end_date.date() - hoje).days
                 cor = t.danger if dias < 0 else (t.warning if dias <= 3 else t.text_muted)
-                sprint_lbl = QLabel(_t("Sprint {name}: {d} dias").format(name=sprint_ativa.name, d=dias) if dias >= 0 else _t("Sprint {name}: atrasada {d}d").format(name=sprint_ativa.name, d=abs(dias)))
+                if dias >= 0:
+                    txt_sprint = _t("{d} dias para fechar a sprint {name}").format(d=dias, name=sprint_ativa.name)
+                else:
+                    txt_sprint = _t("Sprint {name} atrasada há {d}d").format(name=sprint_ativa.name, d=abs(dias))
+                sprint_lbl = QLabel(txt_sprint)
                 sprint_lbl.setStyleSheet(f"color: {cor}; font-size: 11px; font-weight: 600; border: none;")
                 prog_row.addWidget(sprint_lbl)
+            projeto = s.get(Project, self.project_id)
+            if projeto is not None and projeto.target_date:
+                dias_p = (projeto.target_date.date() - hoje).days
+                cor_p = t.danger if dias_p < 0 else (t.warning if dias_p <= 7 else t.text_muted)
+                if dias_p >= 0:
+                    txt_proj = _t("{d} dias para finalizar o projeto").format(d=dias_p)
+                else:
+                    txt_proj = _t("Projeto atrasado há {d}d").format(d=abs(dias_p))
+                proj_lbl = QLabel(txt_proj)
+                proj_lbl.setStyleSheet(f"color: {cor_p}; font-size: 11px; font-weight: 600; border: none;")
+                prog_row.addWidget(proj_lbl)
             w_prog = QWidget()
             w_prog.setLayout(prog_row)
             self.content_layout.addWidget(w_prog)
@@ -1917,7 +1989,22 @@ class BoardMetricsAccordion(QFrame):
             if sprint_ativa and sprint_ativa.end_date:
                 dias = (sprint_ativa.end_date.date() - hoje).days
                 cor = t.danger if dias < 0 else (t.warning if dias <= 7 else t.text_primary)
-                prazos_box["layout"].addWidget(self._alert_row(f"Sprint {sprint_ativa.name}: {sprint_ativa.end_date.date().strftime('%d/%m/%Y')} ({dias}d)" if dias >= 0 else f"Sprint {sprint_ativa.name}: atrasada", cor, t))
+                if dias >= 0:
+                    txt_sp = _t("{d} dias para fechar a sprint {name}").format(d=dias, name=sprint_ativa.name)
+                else:
+                    txt_sp = _t("Sprint {name} atrasada há {d}d").format(name=sprint_ativa.name, d=abs(dias))
+                prazos_box["layout"].addWidget(self._alert_row(
+                    f"{txt_sp} · {sprint_ativa.end_date.date().strftime('%d/%m/%Y')}", cor, t))
+            projeto_prazo = s.get(Project, self.project_id)
+            if projeto_prazo is not None and projeto_prazo.target_date:
+                dias_p = (projeto_prazo.target_date.date() - hoje).days
+                cor_p = t.danger if dias_p < 0 else (t.warning if dias_p <= 7 else t.text_primary)
+                if dias_p >= 0:
+                    txt_pj = _t("{d} dias para finalizar o projeto").format(d=dias_p)
+                else:
+                    txt_pj = _t("Projeto atrasado há {d}d").format(d=abs(dias_p))
+                prazos_box["layout"].addWidget(self._alert_row(
+                    f"{txt_pj} · {projeto_prazo.target_date.date().strftime('%d/%m/%Y')}", cor_p, t))
             if goals_com_prazo:
                 for g in goals_com_prazo[:5]:
                     dias = (g.due_date.date() - hoje).days
@@ -1927,7 +2014,8 @@ class BoardMetricsAccordion(QFrame):
                     prazos_box["layout"].addWidget(self._alert_row(txt, cor, t))
                 if len(goals_com_prazo) > 5:
                     prazos_box["layout"].addWidget(self._hint(_t("+ {n} prazo(s)").format(n=len(goals_com_prazo)-5), t))
-            elif not (sprint_ativa and sprint_ativa.end_date):
+            elif not (sprint_ativa and sprint_ativa.end_date) and not (
+                    projeto_prazo is not None and projeto_prazo.target_date):
                 prazos_box["layout"].addWidget(self._hint(_t("Nenhum prazo definido."), t))
             # tarefas vencidas já estão em alertas, mas mostra próximas a vencer (7d)
             proximas = [tk for tk in tasks_all if tk.due_date and 0 <= (tk.due_date.date() - hoje).days <= 7 and tk.column_id not in done_col_ids]
@@ -2032,28 +2120,33 @@ class BoardMetricsAccordion(QFrame):
                     mod_box["layout"].addWidget(self._hint(_t("+ {n} épico(s)").format(n=len(epic_data)-6), t))
             mod_row.addWidget(mod_box["box"], 1)
 
-            # Por responsável (inclui Sem responsável para métricas corretas)
+            # Por responsável (dev concluído como progresso; aceitos como detalhe)
             resp_box = self._section_box(_t("Por responsável"), t)
             from collections import Counter
+            from maestro_local.dimensions import dev_done_column as _dev_col
+            _col_dev = _dev_col(cols)
+            _dev_ids = {c.id for c in cols if _col_dev is not None and c.order >= _col_dev.order} or set(done_col_ids)
             assignees = [tk.assignee for tk in tasks_metric if tk.assignee]
             cnt = Counter(assignees)
             resp_data = []
             for name, tot in cnt.most_common(6):
                 q = [tk for tk in tasks_metric if tk.assignee == name]
                 done_r = sum(1 for tk in q if tk.column_id in done_col_ids)
-                pct_r = int(done_r / tot * 100) if tot else 0
-                resp_data.append((name, done_r, tot, pct_r, False))
+                dev_r = sum(1 for tk in q if tk.column_id in _dev_ids)
+                pct_r = int(dev_r / tot * 100) if tot else 0
+                resp_data.append((name, done_r, dev_r, tot, pct_r, False))
             # Sem responsável
             unassigned = [tk for tk in tasks_metric if not tk.assignee]
             if unassigned:
                 tot_u = len(unassigned)
                 done_u = sum(1 for tk in unassigned if tk.column_id in done_col_ids)
-                pct_u = int(done_u / tot_u * 100) if tot_u else 0
-                resp_data.append((_t("Sem responsável"), done_u, tot_u, pct_u, True))
-                resp_data.sort(key=lambda x: x[2], reverse=True)
+                dev_u = sum(1 for tk in unassigned if tk.column_id in _dev_ids)
+                pct_u = int(dev_u / tot_u * 100) if tot_u else 0
+                resp_data.append((_t("Sem responsável"), done_u, dev_u, tot_u, pct_u, True))
+                resp_data.sort(key=lambda x: x[3], reverse=True)
             # Pizza por responsável
             if resp_data:
-                pie_data = [(n, tot, "#9ca3af" if is_u else ["#4f46e5","#06b6d4","#f59e0b","#ef4444","#10b981","#8b5cf6","#ec4899"][i % 7]) for i, (n, _, tot, _, is_u) in enumerate(resp_data[:6])]
+                pie_data = [(n, tot, "#9ca3af" if is_u else ["#4f46e5","#06b6d4","#f59e0b","#ef4444","#10b981","#8b5cf6","#ec4899"][i % 7]) for i, (n, _, _, tot, _, is_u) in enumerate(resp_data[:6])]
                 pie_row = QHBoxLayout(); pie_row.setSpacing(8)
                 pie = PieChartWidget(pie_data, size=72)
                 pie_row.addWidget(pie)
@@ -2073,13 +2166,15 @@ class BoardMetricsAccordion(QFrame):
             if not resp_data:
                 resp_box["layout"].addWidget(self._hint(_t("Nenhum responsável atribuído."), t))
             else:
-                for name, done_r, tot, pct_r, is_u in resp_data[:6]:
+                for name, done_r, dev_r, tot, pct_r, is_u in resp_data[:6]:
                     row = QHBoxLayout(); row.setSpacing(6)
                     nome = QLabel(name)
                     nome.setStyleSheet(f"color: {'#9ca3af' if is_u else t.text_primary}; font-size: 12px; font-weight: 600; border: none;")
                     nome.setWordWrap(True)
                     row.addWidget(nome, 1)
-                    pct_lbl = QLabel(f"{pct_r}% ({done_r}/{tot})")
+                    extra = "" if done_r == dev_r else f" · {done_r} {_t('aceitos')}"
+                    pct_lbl = QLabel(f"{pct_r}% ({dev_r}/{tot}){extra}")
+                    pct_lbl.setToolTip(_t("Desenvolvimento concluído (Dev Box ou depois)"))
                     pct_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 11px; border: none;")
                     row.addWidget(pct_lbl)
                     w = QWidget(); w.setLayout(row)
@@ -2175,10 +2270,8 @@ class BoardMetricsAccordion(QFrame):
 
             dims = aggregate_dimensions(tasks_metric, done_col_ids, cols)
             hier_box = self._section_box("📊 " + _t("Módulos e submódulos"), t)
-            plano = dims.get("plan") or {}
             resumo = QLabel(
-                f"{plano.get('modules', 0)} {_t('módulos')} · {plano.get('endpoints', 0)} {_t('endpoints no plano')}"
-                f"  ·  {dims['with_module']}/{dims['cards']} {_t('cards com módulo')}"
+                f"{dims['with_module']}/{dims['cards']} {_t('cards com módulo')}"
                 + (f"  ·  {dims['unlabeled']['total']} {_t('sem módulo')}" if dims['unlabeled']['total'] else "")
             )
             resumo.setStyleSheet(f"color: {t.text_muted}; font-size: 10px; border: none;")
@@ -2193,8 +2286,7 @@ class BoardMetricsAccordion(QFrame):
                     feito_dev = mod.get("developed", mod["done"])
                     cor = t.success if pct_dev == 100 else (t.warning if pct_dev > 0 else t.text_muted)
                     row = QHBoxLayout(); row.setSpacing(6)
-                    ep = f" / {mod['endpoints']} {_t('endpoints')}" if mod.get("endpoints") else ""
-                    nome = QLabel(f"{mod['label']} · {mod['total']} {_t('cards')}{ep}")
+                    nome = QLabel(f"{mod['label']} · {mod['total']} {_t('cards')}")
                     nome.setStyleSheet(f"color: {t.text_primary}; font-size: 11px; font-weight: 600; border: none;")
                     row.addWidget(nome, 1)
                     extra = "" if mod["done"] == feito_dev else f" · {mod['done']} {_t('aceitos')}"
@@ -2210,8 +2302,7 @@ class BoardMetricsAccordion(QFrame):
 
                     for sub in mod.get("submodules", []):
                         sub_row = QHBoxLayout(); sub_row.setSpacing(6)
-                        ep_sub = f" · {sub['endpoints']} ep" if sub.get("endpoints") else ""
-                        sub_lbl = QLabel(f"    {sub['label']} ({sub['name']}{ep_sub})")
+                        sub_lbl = QLabel(f"    {sub['label']} ({sub['name']})")
                         sub_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 10px; border: none;")
                         sub_row.addWidget(sub_lbl, 1)
                         sub_pct = QLabel(f"{sub.get('developed', sub['done'])}/{sub['total']} — {sub.get('developedPct', sub['pct'])}%")
@@ -2220,20 +2311,6 @@ class BoardMetricsAccordion(QFrame):
                         w2 = QWidget(); w2.setLayout(sub_row)
                         hier_box["layout"].addWidget(w2)
             self.content_layout.addWidget(hier_box["box"])
-
-            if dims.get("discontinued"):
-                fora = "  ·  ".join(
-                    f"{x['label']} ({x['total']} {_t('cards')}"
-                    + (f" / {x['endpoints']} ep" if x.get("endpoints") else "")
-                    + f") — {x.get('reason', '')}"
-                    for x in dims["discontinued"]
-                )
-                fora_box = self._section_box(_t("Fora de escopo"), t)
-                fora_lbl = QLabel(fora)
-                fora_lbl.setWordWrap(True)
-                fora_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 10px; border: none;")
-                fora_box["layout"].addWidget(fora_lbl)
-                self.content_layout.addWidget(fora_box["box"])
 
             # Sprints / plataformas / natureza — dimensões separadas do módulo
             if dims["sprints"] or dims["platforms"] or dims["process"]:
@@ -3213,6 +3290,14 @@ class BoardView(QWidget):
         self.board_link_btn.customContextMenuRequested.connect(lambda _: self._edit_board_link())
         header_row.addWidget(self.board_link_btn)
 
+        self.target_btn = QPushButton("🎯 " + _t("Previsão"))
+        self.target_btn.setProperty("flat", True)
+        self.target_btn.setFixedHeight(28)
+        self.target_btn.setCursor(Qt.PointingHandCursor)
+        self.target_btn.setToolTip(_t("Previsão de entrega do projeto"))
+        self.target_btn.clicked.connect(self._edit_target_date)
+        header_row.addWidget(self.target_btn)
+
         self.refresh_btn = QPushButton(_t("Atualizar"))
         self.refresh_btn.setProperty("flat", True)
         self.refresh_btn.setFixedHeight(28)
@@ -3540,7 +3625,6 @@ class BoardView(QWidget):
             url = (getattr(p, "board_url", "") or "").strip() if p else ""
         finally:
             s.close()
-        t = current_theme()
         if url:
             self.board_link_btn.setText("🔗 Board")
             self.board_link_btn.setToolTip(url)
@@ -3552,6 +3636,59 @@ class BoardView(QWidget):
             self.board_link_btn.setStyleSheet("")
             self.board_link_btn.setProperty("flat", True)
         self.board_link_btn.setVisible(bool(self.project_id))
+
+    def _edit_target_date(self):
+        if not self.project_id:
+            return
+        s = get_session()
+        try:
+            p = s.get(Project, self.project_id)
+            cur = p.target_date.date().isoformat() if p is not None and p.target_date else ""
+        finally:
+            s.close()
+        from PySide6.QtWidgets import QInputDialog
+        txt, ok = QInputDialog.getText(
+            self, _t("Previsão de entrega"),
+            _t("Data de entrega do projeto (AAAA-MM-DD, vazio limpa):"), text=cur)
+        if not ok:
+            return
+        txt = (txt or "").strip()
+        s = get_session()
+        try:
+            p = s.get(Project, self.project_id)
+            if p is not None:
+                if not txt:
+                    p.target_date = None
+                else:
+                    try:
+                        p.target_date = datetime.fromisoformat(txt)
+                    except ValueError:
+                        return
+                s.commit()
+            self._update_target_button()
+        finally:
+            s.close()
+
+    def _update_target_button(self):
+        if not hasattr(self, "target_btn"):
+            return
+        s = get_session()
+        try:
+            p = s.get(Project, self.project_id) if self.project_id else None
+            alvo = p.target_date if p is not None else None
+        finally:
+            s.close()
+        if alvo:
+            from datetime import date as _date
+            dias = (alvo.date() - _date.today()).days
+            txt = f"🎯 {dias}d" if dias >= 0 else f"🎯 {abs(dias)}d atraso"
+            self.target_btn.setText(txt)
+            self.target_btn.setToolTip(
+                _t("Previsão de entrega") + f": {alvo.date().strftime('%d/%m/%Y')}")
+        else:
+            self.target_btn.setText("🎯 " + _t("Previsão"))
+            self.target_btn.setToolTip(_t("Previsão de entrega do projeto"))
+        self.target_btn.setVisible(bool(self.project_id))
 
     def refresh(self):
         if not self.project_id:
@@ -3569,6 +3706,7 @@ class BoardView(QWidget):
                 return
             self.header.setText(project.name)
             self._update_board_link_button()
+            self._update_target_button()
 
             self._auto_archive(s)
 

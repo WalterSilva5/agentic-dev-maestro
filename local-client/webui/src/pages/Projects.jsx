@@ -58,6 +58,22 @@ export default function Projects() {
     } catch (e) { setError(String(e.message || e)) }
   }
 
+  const onSetTarget = async (p) => {
+    const { value: val } = await Swal.fire({
+      title: t('Previsão de entrega do projeto:'),
+      input: 'date',
+      inputValue: (p.targetDate || '').slice(0, 10),
+      showCancelButton: true,
+      confirmButtonText: t('Salvar'),
+      cancelButtonText: t('Cancelar'),
+    })
+    if (val === undefined) return
+    try {
+      await updateProject(p.id, { targetDate: val || null })
+      load()
+    } catch (e) { setError(String(e.message || e)) }
+  }
+
   const onMove = async (p) => {
     if (workspaces.length <= 1) {
       await Swal.fire({ icon: 'info', title: t('Crie outro workspace antes de mover.') })
@@ -121,12 +137,14 @@ export default function Projects() {
             <div className="key">{p.key}</div>
             <div className="pname">{p.name}</div>
             <div className="desc">{p.description || t('Sem descrição')}</div>
+            {p.targetDate && <div className="muted" style={{ fontSize: 11 }}>{t('Previsão de entrega')}: {p.targetDate.slice(0, 10).split('-').reverse().join('/')}</div>}
             <div className="row" style={{ marginTop: 8, gap: 6 }} onClick={(e)=>e.stopPropagation()}>
               {p.boardUrl ? (
                 <a href={p.boardUrl} target="_blank" rel="noreferrer" className="badge-type" style={{ textDecoration: 'none' }} title={p.boardUrl}>🔗 Board ↗</a>
               ) : (
                 <span className="muted" style={{ fontSize: 11 }}>{t('Sem link do board')}</span>
               )}
+              <button className="ghost" style={{ padding: '2px 8px', fontSize: 11 }} onClick={()=>onSetTarget(p)}>{p.targetDate ? t('Editar previsão') : t('Definir previsão')}</button>
               <button className="ghost" style={{ marginLeft: 'auto', padding: '2px 8px', fontSize: 11 }} onClick={()=>onSetBoard(p)}>{p.boardUrl ? t('Editar link') : t('Definir link')}</button>
               <button className="ghost" style={{ padding: '2px 8px', fontSize: 11 }} onClick={()=>onMove(p)} title={t('Mover para outro workspace')}>↗ {t('Mover')}</button>
             </div>

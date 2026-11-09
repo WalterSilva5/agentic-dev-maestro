@@ -71,9 +71,47 @@ def test_metricas_por_responsavel(temp_db):
         assert stats["Walter"]["total"] == 2
         assert stats["Walter"]["done"] == 1
         assert stats["Walter"]["pct"] == 50
+        # sem Dev Box no fluxo: dev concluído cai na coluna de conclusão
+        assert stats["Walter"]["developed"] == 1
+        assert stats["Walter"]["developedPct"] == 50
         assert stats["Walter"]["overdue"] == 1
         assert stats["Outro"]["total"] == 1
         assert stats["Outro"]["done"] == 0
+        assert stats["Outro"]["developed"] == 0
+    finally:
+        s.close()
+
+
+def test_dev_box_conta_como_desenvolvido_por_responsavel(temp_db):
+    """Card em Dev Box é dev concluído do responsável, mesmo sem aceite."""
+    s = get_session()
+    try:
+        p = Project(name="Fluxo", key="FLX")
+        s.add(p)
+        s.flush()
+        cols = {}
+        for nome, ordem, done in [
+            ("To do", 0, False), ("Dev Review", 5, False),
+            ("Dev Box", 6, False), ("Done", 8, True),
+        ]:
+            c = BoardColumn(project_id=p.id, name=nome, order=ordem, is_done=done)
+            s.add(c)
+            s.flush()
+            cols[nome] = c
+        get_or_create_member(s, p.id, "Moises")
+        s.add(Task(project_id=p.id, column_id=cols["Dev Box"].id, number=1,
+                   title="dev pronto", assignee="Moises"))
+        s.add(Task(project_id=p.id, column_id=cols["Done"].id, number=2,
+                   title="aceito", assignee="Moises"))
+        s.add(Task(project_id=p.id, column_id=cols["To do"].id, number=3,
+                   title="a fazer", assignee="Moises"))
+        s.commit()
+        stats = {st["member"].name: st for st in member_stats(s, p.id)}
+        assert stats["Moises"]["total"] == 3
+        assert stats["Moises"]["done"] == 1
+        assert stats["Moises"]["pct"] == 33
+        assert stats["Moises"]["developed"] == 2
+        assert stats["Moises"]["developedPct"] == 67
     finally:
         s.close()
 

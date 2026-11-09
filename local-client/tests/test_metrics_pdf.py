@@ -78,6 +78,10 @@ def test_pdf_tem_conteudo_esperado(client, projeto_com_tarefas):
         # "sem responsável" nunca some das métricas
         nomes = [x["nome"] for x in m["por_pessoa"]]
         assert "ana" in nomes and "bia" in nomes
+        # por pessoa também tem a leitura de dev concluído (sem Dev Box = aceite)
+        ana = next(x for x in m["por_pessoa"] if x["nome"] == "ana")
+        assert ana["developed"] == ana["done"] == 1
+        assert ana["developedPct"] == ana["pct"] == 33
         # prioridades
         assert m["por_prioridade"].get("HIGH") == 1
         # daily agregado

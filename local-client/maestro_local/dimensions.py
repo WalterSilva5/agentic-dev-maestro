@@ -16,25 +16,15 @@ from __future__ import annotations
 
 import re
 
-from maestro_local.module_plan import (
-    DISCONTINUED,
-    MODULE_PLAN,
-    PLAN_ORDER,
-    delivery_endpoints,
-    delivery_label,
-    plan_summary,
-)
+from maestro_local.module_plan import MODULE_PLAN, PLAN_ORDER, delivery_label
 
 # ---------------------------------------------------------------------------
 # Classificação
 # ---------------------------------------------------------------------------
 
-# Módulos canônicos: vêm do plano oficial (10-progresso-entrega.svg).
+# Módulos canônicos: vêm da taxonomia de rótulos exibidos.
 # O rótulo exibido é o próprio nome do módulo, como no plano.
 MODULES: dict[str, str] = {nome: dados["label"] for nome, dados in MODULE_PLAN.items()}
-# módulos descontinuados (fora do escopo de migração)
-for _nome, _dados in DISCONTINUED.items():
-    MODULES.setdefault(_nome, _dados["label"])
 
 # Prefixos de submódulo (`cfg-e1`) -> módulo dono.
 SUBMODULE_PREFIXES: dict[str, str] = {
@@ -161,15 +151,14 @@ def dev_done_column(columns):
 
 
 def aggregate_dimensions(tasks, done_ids, columns=None) -> dict:
-    """Agrupa as tarefas por dimensão, usando o plano oficial como referência.
+    """Agrupa as tarefas por dimensão, usando apenas cartões existentes.
 
-    - `modules`: todos os módulos **do plano** (mesmo os ainda sem card, 0/26),
-      com as sub-entregas nomeadas (`E1 · loja`) e o nº de endpoints
-    - cada módulo traz **duas leituras**: `developed` (Dev Box ou depois =
-      desenvolvimento concluído) e `done` (coluna de conclusão/aceite)
-    - `discontinued`: `nfce` / `carteira-digital` (fora de escopo)
+    - `modules`: somente grupos com cartões, cada um com as sub-entregas
+      observadas; sem metas, contagens planejadas ou total de endpoints
+    - cada módulo traz **duas leituras de cartões**: `developed` (Dev Box ou
+      depois = desenvolvimento concluído) e `done` (coluna de conclusão/aceite)
     - `sprints`, `platforms`, `process`, `other`: dimensões independentes
-    - `unlabeled`: cards sem nenhuma label de módulo (honestidade da métrica)
+    - `unlabeled`: cartões sem nenhuma label de módulo (honestidade da métrica)
     """
     # tarefa local (lembrete pessoal) não entra em métrica nenhuma
     locais = sum(1 for t in tasks if getattr(t, "is_local", False))
@@ -231,20 +220,18 @@ def aggregate_dimensions(tasks, done_ids, columns=None) -> dict:
     modulos: list[dict] = []
     usados: set[str] = set()
 
-    def _monta_modulo(chave: str, rotulo: str, endpoints: int | None,
-                      plano: dict | None, planejado: bool) -> dict:
+    def _monta_modulo(chave: str, rotulo: str, plano: dict | None) -> dict:
         ids = por_modulo.get(chave, set())
         item = _item(chave, ids, rotulo)
-        item["endpoints"] = endpoints
-        item["planned"] = planejado
         subs = []
-        # sub-entregas do plano (mesmo com 0 card), depois as que só existem em label
+        # sub-entregas conhecidas em ordem, depois as que só existem em label
         vistos: set[str] = set()
-        for codigo, rotulo_sub, n_sub in (plano or {}).get("deliveries", []):
-            vistos.add(codigo)
+        for codigo, rotulo_sub in (plano or {}).get("deliveries", []):
             s_ids = sub_por_modulo.get(chave, {}).get(codigo, set())
+            if not s_ids:
+                continue
+            vistos.add(codigo)
             sub = _item(codigo, s_ids, rotulo_sub)
-            sub["endpoints"] = n_sub
             subs.append(sub)
         for codigo, s_ids in sorted(
             sub_por_modulo.get(chave, {}).items(),
@@ -253,36 +240,25 @@ def aggregate_dimensions(tasks, done_ids, columns=None) -> dict:
             if codigo in vistos:
                 continue
             sub = _item(codigo, s_ids, delivery_label(codigo) or codigo)
-            sub["endpoints"] = delivery_endpoints(codigo)
             subs.append(sub)
         item["submodules"] = subs
         item["submodules_total"] = sum(s["total"] for s in subs)
         return item
 
-    # 1) módulos do plano, na ordem do diagrama
+    # 1) módulos conhecidos com cartões, na ordem da taxonomia
     for chave in PLAN_ORDER:
         plano = MODULE_PLAN.get(chave)
-        if not plano:
+        if not plano or chave not in por_modulo:
             continue
         usados.add(chave)
-        modulos.append(_monta_modulo(chave, plano["label"], plano["endpoints"], plano, True))
+        modulos.append(_monta_modulo(chave, plano["label"], plano))
 
-    # 2) módulos descontinuados (só se tiverem card)
-    descontinuados = []
-    for chave, dados in DISCONTINUED.items():
-        if not por_modulo.get(chave):
-            continue
-        usados.add(chave)
-        item = _monta_modulo(chave, dados["label"], dados["endpoints"], None, False)
-        item["reason"] = dados.get("motivo", "descontinuado")
-        descontinuados.append(item)
-
-    # 3) módulos encontrados em label que não estão no plano (não perder dado)
+    # 2) módulos encontrados em label que não estão na taxonomia (não perder dado)
     for chave in sorted(por_modulo):
         if chave in usados:
             continue
         rotulo = MODULES.get(chave, chave)
-        modulos.append(_monta_modulo(chave, rotulo, None, None, False))
+        modulos.append(_monta_modulo(chave, rotulo, None))
 
     def _lista(fonte: dict[str, set], rotulos: dict[str, str] | None = None) -> list[dict]:
         itens = [_item(cod, ids, (rotulos or {}).get(cod)) for cod, ids in fonte.items()]
@@ -300,9 +276,7 @@ def aggregate_dimensions(tasks, done_ids, columns=None) -> dict:
         "cards": total_cards,
         "local": locais,
         "developmentColumn": coluna_dev.name if coluna_dev is not None else None,
-        "plan": plan_summary(),
         "modules": modulos,
-        "discontinued": descontinuados,
         "sprints": sprints_lista,
         "platforms": _lista(plataformas),
         "process": _lista(processos, PROCESS_LABELS_PT),

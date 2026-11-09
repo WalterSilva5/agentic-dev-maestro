@@ -19,6 +19,22 @@ export const getBoard = (projectId, sprintId) =>
     .get(`/projects/${projectId}/board`, { params: sprintId != null ? { sprintId } : {} })
     .then((r) => r.data)
 
+// Normaliza erro da API para string exibível.
+// O 422 do portão de evidência/paridade vem como objeto {missing, message} —
+// renderizar o objeto direto quebra o React (tela branca).
+export const apiError = (e) => {
+  const d = e?.response?.data?.detail
+  if (d && typeof d === 'object') {
+    if (d.message) {
+      const falta = (d.missing || []).filter((m) => !d.message.includes(m))
+      return falta.length ? `${d.message} (falta: ${falta.join(', ')})` : d.message
+    }
+    if (d.missing?.length) return `Falta: ${d.missing.join(', ')}`
+    try { return JSON.stringify(d) } catch { return String(d) }
+  }
+  return (typeof d === 'string' && d) || String(e?.message || e)
+}
+
 // Tarefas
 export const getTask = (code) => api.get(`/tasks/${code}`).then((r) => r.data)
 export const createTask = (body) => api.post('/tasks', body).then((r) => r.data)

@@ -53,6 +53,7 @@ class Project(Base):
     task_seq = Column(Integer, default=0)
     external_docs_path = Column(String(500), default="")
     azure_board_url = Column(String(500), default="")
+    target_date = Column(DateTime)  # previsão de entrega do projeto (contagem regressiva)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     columns = relationship("BoardColumn", back_populates="project", cascade="all,delete-orphan", order_by="BoardColumn.order")
@@ -276,8 +277,23 @@ def get_or_create_member(session, project_id: int, name: str):
 
 
 def member_stats(session, project_id: int) -> list[dict]:
-    """Métricas por responsável: total, concluídos, % e vencidos em aberto."""
+    """Métricas por responsável: total, dev concluído, aceitos, % e vencidos em aberto.
+
+    Duas leituras, como nos módulos: `developed` (Dev Box ou depois = dev
+    concluído) é o progresso do responsável; `done` conta só o aceite
+    (coluna de conclusão).
+    """
     from datetime import datetime
+    cols = session.query(BoardColumn).filter(
+        BoardColumn.project_id == project_id).order_by(BoardColumn.order).all()
+    done_ids = {c.id for c in cols if c.is_done}
+    try:
+        from maestro_local.dimensions import dev_done_column
+        coluna_dev = dev_done_column(cols)
+        dev_ids = {c.id for c in cols if c.order >= coluna_dev.order} \
+            if coluna_dev is not None else set(done_ids)
+    except Exception:  # noqa: BLE001
+        dev_ids = set(done_ids)
     stats = []
     for m in project_members(session, project_id):
         base = session.query(Task).filter(
@@ -287,15 +303,16 @@ def member_stats(session, project_id: int) -> list[dict]:
             Task.archived_at == None,  # noqa: E711
         )
         total = base.count()
-        done_ids = {t.id for t in base.join(
-            BoardColumn, Task.column_id == BoardColumn.id).filter(
-            BoardColumn.is_done == True).all()}  # noqa: E712
-        done = len(done_ids)
-        overdue = sum(1 for t in base.filter(
-            Task.due_date != None,  # noqa: E711
-            Task.due_date < datetime.now()).all() if t.id not in done_ids)
+        all_tasks = base.all()
+        done = sum(1 for t in all_tasks if t.column_id in done_ids)
+        developed = sum(1 for t in all_tasks if t.column_id in dev_ids)
+        overdue = sum(1 for t in all_tasks
+                      if t.due_date is not None and t.due_date < datetime.now()
+                      and t.column_id not in done_ids)
         stats.append({"member": m, "total": total, "done": done,
                       "pct": round(done / total * 100) if total else 0,
+                      "developed": developed,
+                      "developedPct": round(developed / total * 100) if total else 0,
                       "overdue": overdue})
     return stats
 
@@ -701,6 +718,9 @@ def _run_light_migrations(engine):
         if "azure_board_url" not in pcols:
             with engine.begin() as conn:
                 conn.execute(text("ALTER TABLE projects ADD COLUMN azure_board_url VARCHAR(500) DEFAULT ''"))
+        if "target_date" not in pcols:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE projects ADD COLUMN target_date DATETIME"))
 
 
 def init_db(db_path=None):
@@ -761,6 +781,7 @@ def move_project_to_workspace(project_id: int, target_ws_id: str) -> int | None:
             description=proj.description,
             azure_board_url=getattr(proj, "azure_board_url", "") or "",
             external_docs_path=getattr(proj, "external_docs_path", "") or "",
+            target_date=getattr(proj, "target_date", None),
         )
         tgt_s.add(new_proj)
         tgt_s.flush()  # gera id

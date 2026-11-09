@@ -30,7 +30,7 @@ def client(tmp_path):
     ("cashier", "MODULE", "cashier", "cashier"),
     ("config", "MODULE", "config", "config"),
     ("venda", "MODULE", "venda", "venda"),
-    # sub-entregas usam os nomes do plano oficial (10-progresso-entrega.svg)
+    # sub-entregas usam os nomes da taxonomia de rótulos
     ("cfg-e1", "SUBMODULE", "config", "E1 · loja"),
     ("fin-e2", "SUBMODULE", "financeiro", "E2 · adesão e termos"),
     ("tro-e4", "SUBMODULE", "troca", "E4 · fechamento"),
@@ -88,24 +88,18 @@ def test_agrega_modulo_com_submodulos_e_ondas():
     d = aggregate_dimensions(tasks, done_ids={9})
 
     modulos = {m["name"]: m for m in d["modules"]}
-    # o plano completo aparece (17 modulos), mesmo sem card
-    assert len(modulos) == 17
-    assert {"config", "cashier", "tef", "crm"} <= set(modulos)
-    # modulo sem nenhum card aparece zerado, com os endpoints do plano
-    assert modulos["tef"]["total"] == 0
-    assert modulos["tef"]["endpoints"] == 5
+    # só aparecem grupos com cards — sem metas nem grupos zerados
+    assert set(modulos) == {"config", "cashier"}
 
     assert modulos["config"]["total"] == 2
     assert modulos["config"]["done"] == 1
-    assert modulos["config"]["endpoints"] == 26
-    # sub-entregas do plano, em ordem, com nome oficial e endpoints
-    subs_cfg = [(s["name"], s["label"], s["endpoints"]) for s in modulos["config"]["submodules"]]
-    assert subs_cfg[:2] == [("cfg-e1", "E1 · loja", 4), ("cfg-e2", "E2 · monitor e estação", 5)]
-    assert len(subs_cfg) == 4
+    # só as sub-entregas observadas, em ordem, com nome da taxonomia
+    subs_cfg = [(s["name"], s["label"]) for s in modulos["config"]["submodules"]]
+    assert subs_cfg == [("cfg-e1", "E1 · loja"), ("cfg-e2", "E2 · monitor e estação")]
 
     assert modulos["cashier"]["total"] == 2
     assert [s["label"] for s in modulos["cashier"]["submodules"]] == [
-        "O1 · abrir e carregar", "O2 · movimentar", "O3 · fechar e acertar"
+        "O1 · abrir e carregar", "O2 · movimentar"
     ]
 
     # dimensões separadas
@@ -126,41 +120,33 @@ def test_soma_de_modulos_pode_exceder_cards():
     d = aggregate_dimensions(tasks, done_ids=set())
     assert d["with_module"] == 1
     assert sum(m["total"] for m in d["modules"]) == 2
-    # mas o plano tem sempre os 17 módulos
-    assert d["plan"]["modules"] == 17
-    assert d["plan"]["endpoints"] == 156
+    # sem metas planejadas: só os grupos observados
+    assert {m["name"] for m in d["modules"]} == {"config", "cashier"}
+    assert "plan" not in d
 
 
-def test_plano_oficial_de_modulos_e_subentregas():
-    """Nomes/ordem/endpoints vêm do 10-progresso-entrega.svg."""
+def test_taxonomia_de_modulos_e_subentregas():
+    """Nomes/ordem vêm da taxonomia de rótulos (sem metas nem endpoints)."""
     from maestro_local.module_plan import (
         MODULE_PLAN,
         PLAN_ORDER,
-        TOTAL_ENDPOINTS,
-        delivery_endpoints,
         delivery_label,
-        module_of_delivery,
     )
 
-    assert len(MODULE_PLAN) == 17
-    assert TOTAL_ENDPOINTS == 156
-    assert PLAN_ORDER[0] == "auth" and PLAN_ORDER[-1] == "crm"
+    assert PLAN_ORDER[0] == "auth"
     assert delivery_label("cfg-e3") == "E3 · parâmetros e utilitários"
-    assert delivery_endpoints("cfg-e3") == 15
-    assert module_of_delivery("cfg-e3") == "config"
-    assert delivery_endpoints("onda-2") == 11
+    assert delivery_label("onda-2") == "O2 · movimentar"
 
     # 5 módulos com sub-entregas: config, cashier, financeiro, troca, venda
     com_subs = {n for n, m in MODULE_PLAN.items() if m["deliveries"]}
     assert com_subs == {"config", "cashier", "financeiro", "troca", "venda"}
 
 
-def test_descontinuados_ficam_fora_do_plano_mas_sao_visiveis():
+def test_modulo_qualquer_conta_como_modulo():
     tasks = [_T(1, ["nfce"])]
     d = aggregate_dimensions(tasks, done_ids=set())
-    assert [x["name"] for x in d["discontinued"]] == ["nfce"]
-    # nao entram na lista de modulos do plano
-    assert "nfce" not in {m["name"] for m in d["modules"]}
+    assert [x["name"] for x in d["modules"]] == ["nfce"]
+    assert "discontinued" not in d
 
 
 # --------------------------------------------------------------------------
