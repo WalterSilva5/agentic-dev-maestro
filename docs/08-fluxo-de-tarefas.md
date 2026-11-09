@@ -110,7 +110,7 @@ The node color reflects the status (the kanban column where the subtask sits):
 - `DELETE /tasks/:code/dependencies/:depId`.
 - In `POST /tasks/bulk` (decompose), the agent can already send `dependsOn` in each
   subtask → the edges are created along with it. This way the **flow is born ready** in
-  the decompose step of the [Maestro Loop](diagramas/maestro-loop.svg).
+  the decompose step of the [Relay Loop](diagramas/relay-loop.svg).
 
 ## Why this matters
 

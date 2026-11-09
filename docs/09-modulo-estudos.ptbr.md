@@ -4,9 +4,9 @@
 
 ## Contexto
 
-O Maestro hoje resolve tracking de tarefas de desenvolvimento. A ideia é expandir para que tambem funcione como ferramenta de acompanhamento de estudos pessoais — permitindo definir um roadmap de aprendizado, quebrar em topicos/etapas, acompanhar progresso percentual e manter notas de estudo integradas ao fluxo existente.
+O Relay hoje resolve tracking de tarefas de desenvolvimento. A ideia é expandir para que tambem funcione como ferramenta de acompanhamento de estudos pessoais — permitindo definir um roadmap de aprendizado, quebrar em topicos/etapas, acompanhar progresso percentual e manter notas de estudo integradas ao fluxo existente.
 
-O objetivo nao é criar um app separado, mas integrar estudos como um modulo dentro do Maestro, reaproveitando o maximo da infraestrutura existente (projetos, tarefas, kanban, notas diarias, Obsidian).
+O objetivo nao é criar um app separado, mas integrar estudos como um modulo dentro do Relay, reaproveitando o maximo da infraestrutura existente (projetos, tarefas, kanban, notas diarias, Obsidian).
 
 ---
 
@@ -23,7 +23,7 @@ Cada plano tem:
 - **Data inicio / data alvo** (opcional, para prazos pessoais)
 - **Progresso geral** (calculado automaticamente a partir dos topicos)
 - **Recursos** (links, livros, cursos — lista livre)
-- **Projeto vinculado** (opcional — pode vincular a um projeto existente do Maestro para usar o kanban)
+- **Projeto vinculado** (opcional — pode vincular a um projeto existente do Relay para usar o kanban)
 
 ### Topico de Estudo (StudyTopic)
 

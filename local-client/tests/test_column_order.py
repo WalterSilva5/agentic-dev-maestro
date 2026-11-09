@@ -6,15 +6,15 @@ estado do desenvolvimento (aguardando teste), não o primeiro depois do Doing.
 import pytest
 from fastapi.testclient import TestClient
 
-from maestro_local.api.app import app
-from maestro_local.db.models import BoardColumn, Project, init_db, get_session
+from relay.api.app import app
+from relay.db.models import BoardColumn, Project, init_db, get_session
 
 
 @pytest.fixture
 def client(tmp_path):
     db_path = str(tmp_path / "test.db")
     init_db(db_path)
-    import maestro_local.db.models as m
+    import relay.db.models as m
     m._engine = None
     m._SessionLocal = None
     m._active_db_path = db_path
@@ -43,7 +43,7 @@ def test_migracao_corrige_banco_com_ordem_antiga(tmp_path):
     db = str(tmp_path / "antigo.db")
     init_db(db)
 
-    import maestro_local.db.models as m
+    import relay.db.models as m
     m._engine = None
     m._SessionLocal = None
     m._active_db_path = db
@@ -85,7 +85,7 @@ def test_migracao_corrige_banco_com_ordem_antiga(tmp_path):
 
 def test_migracao_e_idempotente(tmp_path):
     db = str(tmp_path / "idem.db")
-    import maestro_local.db.models as m
+    import relay.db.models as m
     m._engine = None
     m._SessionLocal = None
     m._active_db_path = db

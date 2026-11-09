@@ -1,6 +1,6 @@
 > 🇧🇷 [Versão em português](README.ptbr.md)
 
-# Agentic Dev Maestro
+# Relay
 
 Desktop application for project management, work journaling, and study tracking, with an embedded REST API for integration with AI agents.
 
@@ -8,7 +8,7 @@ Desktop application for project management, work journaling, and study tracking,
 
 ## What it is
 
-Maestro is a local tool for developers who want to organize their daily work, manage tasks on a kanban board, track their studies, and integrate AI agents into their development workflow. Everything runs locally — no external server, no account, no internet dependency.
+Relay is a local tool for developers who want to organize their daily work, manage tasks on a kanban board, track their studies, and integrate AI agents into their development workflow. Everything runs locally — no external server, no account, no internet dependency.
 
 ### Key differentiators
 
@@ -16,16 +16,16 @@ Maestro is a local tool for developers who want to organize their daily work, ma
 - **Assistant**: internal AI agent (LangGraph) with a configurable provider (LM Studio, opencode) that acts on the board
 - **Cronista**: records meetings/study sessions, transcribes locally with Whisper, and summarizes with AI (the former wsi-cronista project, now integrated)
 - **Agent API**: AI agents create tasks, move them on the board, log code reviews, and generate reports — all via REST
-- **Ready-made skills**: 12 installable skills that teach agents how to use Maestro
+- **Ready-made skills**: 12 installable skills that teach agents how to use Relay
 - **Isolated workspaces**: each workspace has its own database, letting you separate personal from professional projects
 - **Obsidian sync**: synchronizes daily notes and tasks with your Obsidian vault
 - **Integrated Pomodoro**: timer on the Dashboard for focus sessions
 
 ## Installation with an AI agent
 
-You can ask an AI agent (Claude Code, Cursor, etc.) to install Maestro end-to-end. This section has everything the agent needs: the prerequisites to install and the exact steps. A one-line prompt to kick it off:
+You can ask an AI agent (Claude Code, Cursor, etc.) to install Relay end-to-end. This section has everything the agent needs: the prerequisites to install and the exact steps. A one-line prompt to kick it off:
 
-> Read the "Installation with an AI agent" section of the README at https://github.com/WalterSilva5/agentic-dev-maestro.git, install the prerequisites for my OS, clone the repo, run `local-client/install.sh`, create a desktop shortcut for `local-client/run.sh`, then explain how to use the app.
+> Read the "Installation with an AI agent" section of the README at https://github.com/WalterSilva5/relay.git, install the prerequisites for my OS, clone the repo, run `local-client/install.sh`, create a desktop shortcut for `local-client/run.sh`, then explain how to use the app.
 
 ### Prerequisites the agent must install
 
@@ -66,12 +66,12 @@ winget install Git.Git Python.Python.3.12 OpenJS.NodeJS
 The agent should:
 
 1. Install the prerequisites above for the user's OS.
-2. Clone the repository: `git clone https://github.com/WalterSilva5/agentic-dev-maestro.git`
+2. Clone the repository: `git clone https://github.com/WalterSilva5/relay.git`
 3. Run the installer from `local-client/`: **`./install.sh`** (Linux/macOS) or **`.\install.ps1`** (Windows/PowerShell) — creates a `.venv`, installs the Python deps (`pip install -e .`), validates, and builds the web UI when `npm` is present.
 4. Start it: `./run.sh` (optionally `--port 8888`). The desktop GUI opens and the API + web UI serve at `http://127.0.0.1:9777/`.
 5. *(Optional)* Create a `.desktop` shortcut on the desktop pointing to `local-client/run.sh`.
 6. Open **Settings** and configure an AI provider (base URL, model, API key) to enable the assistant and the meeting copilot.
-7. On the **Skills** tab, install the skills into the user's project directory — they teach the agent how to use the Maestro API to create tasks, document progress, and generate reports.
+7. On the **Skills** tab, install the skills into the user's project directory — they teach the agent how to use the Relay API to create tasks, document progress, and generate reports.
 
 ## Features
 
@@ -179,7 +179,7 @@ cd local-client
 python3 -m venv .venv
 source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -e .
-python -m maestro_local
+python -m relay
 ```
 
 The application opens with:
@@ -202,7 +202,7 @@ same local API/daemon. The Qt GUI stays the default; this is opt-in.
 ```bash
 cd local-client
 pip install -e '.[shell]'   # installs pywebview
-maestro-shell               # or: python -m maestro_local.desktop_shell [--port 9777]
+relay-shell               # or: python -m relay.desktop_shell [--port 9777]
 ```
 
 ## REST API for agents
@@ -228,18 +228,18 @@ The API runs at `http://127.0.0.1:9777/api` without authentication. Main endpoin
 
 | Skill | What it does |
 |---|---|
-| `maestro-run` | Start the application (GUI + API) |
-| `maestro-api-agent` | Teaches the agent to use the REST API |
-| `maestro-task-workflow` | Complete workflow: pick a task, implement, move, document |
-| `maestro-project-setup` | Create a project with default columns and labels |
-| `maestro-sprint-planning` | Plan a sprint with estimates and prioritization |
-| `maestro-code-review-log` | Log code reviews as comments |
-| `maestro-bug-triage` | Bug triage with priority and reproduction |
-| `maestro-daily-standup` | Generate an automatic standup report |
-| `maestro-tech-debt-tracker` | Log and prioritize technical debt |
-| `maestro-documentation-writer` | Generate documentation from code |
-| `maestro-daily-report` | Daily report with notes, activity, and summary (supports partial mode) |
-| `maestro-context-loader` | Load the full workspace context to resume work from where you left off |
+| `relay-run` | Start the application (GUI + API) |
+| `relay-api-agent` | Teaches the agent to use the REST API |
+| `relay-task-workflow` | Complete workflow: pick a task, implement, move, document |
+| `relay-project-setup` | Create a project with default columns and labels |
+| `relay-sprint-planning` | Plan a sprint with estimates and prioritization |
+| `relay-code-review-log` | Log code reviews as comments |
+| `relay-bug-triage` | Bug triage with priority and reproduction |
+| `relay-daily-standup` | Generate an automatic standup report |
+| `relay-tech-debt-tracker` | Log and prioritize technical debt |
+| `relay-documentation-writer` | Generate documentation from code |
+| `relay-daily-report` | Daily report with notes, activity, and summary (supports partial mode) |
+| `relay-context-loader` | Load the full workspace context to resume work from where you left off |
 
 ## Screenshots
 
@@ -258,9 +258,9 @@ The API runs at `http://127.0.0.1:9777/api` without authentication. Main endpoin
 ## Project structure
 
 ```
-agentic-dev-maestro/
+relay/
 ├── local-client/              # Main app (Python/PySide6)
-│   ├── maestro_local/         # Source code
+│   ├── relay/         # Source code
 │   │   ├── gui/views/         # interface screens (Dashboard with tabs)
 │   │   ├── api/               # FastAPI endpoints
 │   │   ├── db/                # SQLAlchemy models + SQLite
@@ -279,10 +279,10 @@ agentic-dev-maestro/
 
 ## Data
 
-Data lives in `~/.maestro-local/`:
+Data lives in `~/.relay/`:
 
 ```
-~/.maestro-local/
+~/.relay/
 ├── config.json                # Settings (workspaces, vault paths, theme)
 └── workspaces/
     ├── default/

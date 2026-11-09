@@ -1,7 +1,7 @@
 """Pausa para os olhos (estilo SafeEyes): ciclo, adiamento e reuniões."""
 from datetime import datetime, timedelta
 
-from maestro_local import eyecare, features
+from relay import eyecare, features
 
 AGORA = datetime(2026, 8, 1, 10, 0, 0)
 
@@ -67,7 +67,7 @@ def test_valores_ficam_dentro_dos_limites(temp_db):
 
 
 def test_configuracao_corrompida_cai_no_padrao(temp_db):
-    from maestro_local.config import load_config, save_config
+    from relay.config import load_config, save_config
     cfg = load_config()
     cfg.setdefault("settings", {})["eyecare"] = {
         "intervalo_min": "abc", "ultima_pausa": "não é data"}
@@ -93,7 +93,7 @@ def test_e_desligavel_nas_funcionalidades(temp_db):
 
 
 def test_janela_conta_regressivamente(qapp, temp_db):
-    from maestro_local.gui.eyecare_break import EyecareBreak
+    from relay.gui.eyecare_break import EyecareBreak
     from PySide6.QtWidgets import QWidget
     host = QWidget()
     br = EyecareBreak(host, duracao_seg=3)
@@ -104,7 +104,7 @@ def test_janela_conta_regressivamente(qapp, temp_db):
 
 def test_pular_conta_como_pausa_feita(qapp, temp_db):
     """Pular reinicia o ciclo em vez de insistir logo em seguida."""
-    from maestro_local.gui.eyecare_break import EyecareBreak
+    from relay.gui.eyecare_break import EyecareBreak
     from PySide6.QtWidgets import QWidget
     host = QWidget()
     br = EyecareBreak(host, duracao_seg=20)
@@ -132,8 +132,8 @@ def test_cancelar_adiamento_nao_mexe_no_ciclo(temp_db):
 
 
 def test_pausa_e_janela_separada(qapp, temp_db):
-    """O pedido: sair de dentro da janela do Maestro."""
-    from maestro_local.gui.eyecare_break import EyecareBreak
+    """O pedido: sair de dentro da janela do Relay."""
+    from relay.gui.eyecare_break import EyecareBreak
     from PySide6.QtCore import Qt
     from PySide6.QtWidgets import QWidget
     host = QWidget()
@@ -146,7 +146,7 @@ def test_todos_os_monitores_sao_cobertos(qapp, temp_db):
     from PySide6.QtGui import QGuiApplication
     from PySide6.QtWidgets import QWidget
 
-    from maestro_local.gui.eyecare_break import EyecareBreak
+    from relay.gui.eyecare_break import EyecareBreak
     host = QWidget()
     br = EyecareBreak(host, duracao_seg=5)
     br.iniciar()
@@ -161,7 +161,7 @@ def test_esc_adia_em_vez_de_so_fechar(qapp, temp_db):
     from PySide6.QtGui import QKeyEvent
     from PySide6.QtWidgets import QWidget
 
-    from maestro_local.gui.eyecare_break import EyecareBreak
+    from relay.gui.eyecare_break import EyecareBreak
     host = QWidget()
     br = EyecareBreak(host, duracao_seg=20)
     adiado = []
@@ -188,7 +188,7 @@ def test_rotacao_sobrevive_ao_reinicio(temp_db):
 
 
 def test_indice_corrompido_nao_quebra_a_pausa(temp_db):
-    from maestro_local.config import load_config, save_config
+    from relay.config import load_config, save_config
     cfg = load_config()
     cfg.setdefault("settings", {}).setdefault("eyecare", {})["dica"] = "xyz"
     save_config(cfg)
@@ -198,7 +198,7 @@ def test_indice_corrompido_nao_quebra_a_pausa(temp_db):
 def test_a_janela_da_pausa_mostra_uma_dica(qapp, temp_db):
     from PySide6.QtWidgets import QWidget
 
-    from maestro_local.gui.eyecare_break import EyecareBreak
+    from relay.gui.eyecare_break import EyecareBreak
     br = EyecareBreak(QWidget(), duracao_seg=5)
     assert br.dica.text() in eyecare.DICAS
 
@@ -208,10 +208,10 @@ def test_dica_longa_nao_fica_cortada(qapp, temp_db):
     from PySide6.QtGui import QGuiApplication
     from PySide6.QtWidgets import QWidget
 
-    from maestro_local.gui.eyecare_break import EyecareBreak
+    from relay.gui.eyecare_break import EyecareBreak
     # começa pela dica mais longa, que é onde o corte aparecia
     mais_longa = max(range(len(eyecare.DICAS)), key=lambda i: len(eyecare.DICAS[i]))
-    from maestro_local.config import load_config, save_config
+    from relay.config import load_config, save_config
     cfg = load_config()
     cfg.setdefault("settings", {}).setdefault("eyecare", {})["dica"] = mais_longa
     save_config(cfg)
@@ -225,7 +225,7 @@ def test_dica_longa_nao_fica_cortada(qapp, temp_db):
 def test_dica_cabe_em_tela_estreita(qapp, temp_db):
     from PySide6.QtWidgets import QWidget
 
-    from maestro_local.gui.eyecare_break import EyecareBreak
+    from relay.gui.eyecare_break import EyecareBreak
 
     class TelaFalsa:
         def geometry(self):
@@ -241,8 +241,8 @@ def test_tela_da_pausa_e_escura_mesmo_no_tema_claro(qapp, temp_db):
     """A pausa não segue o tema: no claro virava uma parede de luz."""
     from PySide6.QtWidgets import QWidget
 
-    from maestro_local.gui import theme
-    from maestro_local.gui.eyecare_break import EyecareBreak
+    from relay.gui import theme
+    from relay.gui.eyecare_break import EyecareBreak
 
     anterior = theme.current_theme()
     try:
@@ -263,13 +263,13 @@ def test_tela_da_pausa_e_escura_mesmo_no_tema_claro(qapp, temp_db):
 def test_coberturas_usam_o_mesmo_fundo_escuro(qapp, temp_db):
     from PySide6.QtWidgets import QWidget
 
-    from maestro_local.gui.eyecare_break import FUNDO, EyecareBreak
+    from relay.gui.eyecare_break import FUNDO, EyecareBreak
     br = EyecareBreak(QWidget(), duracao_seg=5)
     assert br._cor_fundo == FUNDO
 
 
 def _cria_todo(texto: str, prioridade: str = "MEDIUM", done: bool = False) -> None:
-    from maestro_local.db.models import Todo, get_session
+    from relay.db.models import Todo, get_session
     s = get_session()
     try:
         s.add(Todo(text=texto, priority=prioridade, done=done))
@@ -282,7 +282,7 @@ def test_pausa_mostra_as_pendencias_em_aberto(qapp, temp_db):
     """A tela da pausa lista os TODOs — pedido da tela de mensagem periódica."""
     from PySide6.QtWidgets import QWidget
 
-    from maestro_local.gui.eyecare_break import EyecareBreak
+    from relay.gui.eyecare_break import EyecareBreak
 
     _cria_todo("comprar café", "HIGH")
     _cria_todo("já feito", done=True)
@@ -295,7 +295,7 @@ def test_pausa_mostra_as_pendencias_em_aberto(qapp, temp_db):
 def test_pausa_sem_pendencias_nao_mostra_lista(qapp, temp_db):
     from PySide6.QtWidgets import QWidget
 
-    from maestro_local.gui.eyecare_break import EyecareBreak
+    from relay.gui.eyecare_break import EyecareBreak
     br = EyecareBreak(QWidget(), duracao_seg=5)
     assert br.pendencias is None
 
@@ -304,7 +304,7 @@ def test_lista_da_pausa_e_so_leitura(qapp, temp_db):
     """Concluir na pausa convidaria a continuar trabalhando — só leitura."""
     from PySide6.QtWidgets import QCheckBox, QWidget
 
-    from maestro_local.gui.eyecare_break import EyecareBreak
+    from relay.gui.eyecare_break import EyecareBreak
 
     _cria_todo("uma pendência")
     br = EyecareBreak(QWidget(), duracao_seg=5)
@@ -314,7 +314,7 @@ def test_lista_da_pausa_e_so_leitura(qapp, temp_db):
 def test_lista_acompanha_a_largura_da_dica(qapp, temp_db):
     from PySide6.QtWidgets import QWidget
 
-    from maestro_local.gui.eyecare_break import EyecareBreak
+    from relay.gui.eyecare_break import EyecareBreak
 
     _cria_todo("uma pendência")
     br = EyecareBreak(QWidget(), duracao_seg=5)
@@ -348,7 +348,7 @@ def test_hora_de_dormir_desligada(temp_db):
 
 
 def test_hora_de_dormir_corrompida_cai_no_padrao(temp_db):
-    from maestro_local.config import load_config, save_config
+    from relay.config import load_config, save_config
     cfg = load_config()
     cfg.setdefault("settings", {}).setdefault("eyecare", {})["dormir_hora"] = "xx"
     save_config(cfg)
@@ -358,7 +358,7 @@ def test_hora_de_dormir_corrompida_cai_no_padrao(temp_db):
 def test_modo_dormir_usa_fundo_vermelho_e_titulo_grande(qapp, temp_db):
     from PySide6.QtWidgets import QWidget
 
-    from maestro_local.gui.eyecare_break import DORMIR_FUNDO, EyecareBreak
+    from relay.gui.eyecare_break import DORMIR_FUNDO, EyecareBreak
     br = EyecareBreak(QWidget(), duracao_seg=20, dormir=True)
     assert br._cor_fundo == DORMIR_FUNDO
     assert br.titulo.text() == "HORA DE DORMIR"
@@ -371,7 +371,7 @@ def test_modo_dormir_nao_libera_antes_de_5_segundos(qapp, temp_db):
     from PySide6.QtGui import QKeyEvent
     from PySide6.QtWidgets import QWidget
 
-    from maestro_local.gui.eyecare_break import EyecareBreak
+    from relay.gui.eyecare_break import EyecareBreak
     br = EyecareBreak(QWidget(), duracao_seg=20, dormir=True)
     assert not br.btn_pular.isEnabled()
     assert not br.btn_adiar.isEnabled()
@@ -395,7 +395,7 @@ def test_modo_dormir_nao_libera_antes_de_5_segundos(qapp, temp_db):
 def test_modo_dormir_nao_mostra_pendencias(qapp, temp_db):
     from PySide6.QtWidgets import QWidget
 
-    from maestro_local.gui.eyecare_break import EyecareBreak
+    from relay.gui.eyecare_break import EyecareBreak
     _cria_todo("não deve aparecer no modo dormir")
     br = EyecareBreak(QWidget(), duracao_seg=20, dormir=True)
     assert br.pendencias is None
@@ -405,7 +405,7 @@ def test_modo_dormir_nao_mostra_pendencias(qapp, temp_db):
 def test_pausa_normal_nao_tem_bloqueio(qapp, temp_db):
     from PySide6.QtWidgets import QWidget
 
-    from maestro_local.gui.eyecare_break import EyecareBreak
+    from relay.gui.eyecare_break import EyecareBreak
     br = EyecareBreak(QWidget(), duracao_seg=20)
     assert br.btn_pular.isEnabled()
     assert br._bloqueado() is False

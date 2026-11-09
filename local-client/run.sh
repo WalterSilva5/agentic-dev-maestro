@@ -1,5 +1,5 @@
 #!/bin/bash
-# Maestro Local — script de execução
+# Relay Local — script de execução
 # Uso: ./run.sh [--port 8888]
 
 set -e
@@ -20,9 +20,9 @@ fi
 
 source .venv/bin/activate
 
-if ! python -c "import maestro_local" 2>/dev/null; then
+if ! python -c "import relay" 2>/dev/null; then
     echo "Instalando dependencias..."
     pip install -e . --quiet
 fi
 
-exec python -m maestro_local "$@"
+exec python -m relay "$@"

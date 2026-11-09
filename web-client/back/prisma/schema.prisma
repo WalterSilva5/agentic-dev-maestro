@@ -24,7 +24,7 @@ model User {
 
   creditAccount CreditAccount?
 
-  // Agentic Dev Maestro — domínio
+  // Relay — domínio
   memberships    Membership[]
   assignedTasks  Task[]        @relation("TaskAssignee")
   authoredComments Comment[]   @relation("CommentAuthor")
@@ -106,7 +106,7 @@ enum TransactionType {
 }
 
 // ===================================================================
-// Agentic Dev Maestro — domínio (empresas, membros, API keys,
+// Relay — domínio (empresas, membros, API keys,
 // projetos, quadros e tarefas). Ver docs/02-modelo-de-dados.md
 // ===================================================================
 

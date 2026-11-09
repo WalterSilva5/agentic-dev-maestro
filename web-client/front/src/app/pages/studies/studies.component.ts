@@ -4,8 +4,8 @@ import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import Swal from 'sweetalert2';
 
-import { MaestroApiService } from '../../services/maestro-api.service';
-import { StudyPlan, StudyCategory, StudyPlanStatus, StudyStats } from '../../models/maestro.models';
+import { RelayApiService } from '../../services/relay-api.service';
+import { StudyPlan, StudyCategory, StudyPlanStatus, StudyStats } from '../../models/relay.models';
 
 @Component({
   selector: 'app-studies',
@@ -29,7 +29,7 @@ export class StudiesComponent implements OnInit {
   categories: StudyCategory[] = ['LINGUAGEM', 'FRAMEWORK', 'CERTIFICACAO', 'CONCEITO', 'CURSO', 'LIVRO'];
   statuses: StudyPlanStatus[] = ['PLANEJADO', 'EM_ANDAMENTO', 'PAUSADO', 'CONCLUIDO', 'ABANDONADO'];
 
-  constructor(private api: MaestroApiService) {}
+  constructor(private api: RelayApiService) {}
 
   ngOnInit(): void {
     this.load();

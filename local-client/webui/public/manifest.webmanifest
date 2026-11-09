@@ -1,6 +1,6 @@
 {
-  "name": "Agentic Dev Maestro",
-  "short_name": "Maestro",
+  "name": "Relay",
+  "short_name": "Relay",
   "description": "Gestão de tarefas, estudos e agentes de IA — local-first",
   "start_url": "/",
   "scope": "/",

@@ -12,7 +12,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("PYTHONUTF8", "1")
 # atalhos globais (pynput/X Record) não podem subir na suíte: várias janelas
 # na mesma sessão derrubam o processo com segfault
-os.environ.setdefault("MAESTRO_DISABLE_HOTKEYS", "1")
+os.environ.setdefault("RELAY_DISABLE_HOTKEYS", "1")
 
 import pytest  # noqa: E402
 
@@ -31,11 +31,11 @@ def temp_db(tmp_path, monkeypatch):
 
     Também isola `config.json` (usado por SettingsView e outras telas): sem
     isso, qualquer teste que dispare `_save_settings` grava no arquivo REAL do
-    usuário em `~/.maestro-local/config.json` — já aconteceu numa verificação
+    usuário em `~/.relay/config.json` — já aconteceu numa verificação
     manual durante o desenvolvimento (mutou o whisper_model de verdade).
     """
-    from maestro_local.db import models
-    import maestro_local.config as config_module
+    from relay.db import models
+    import relay.config as config_module
 
     db_path = tmp_path / "test.db"
     models.switch_db(str(db_path))
@@ -48,7 +48,7 @@ def temp_db(tmp_path, monkeypatch):
 @pytest.fixture
 def meetings_view(qapp, temp_db, monkeypatch):
     """View de Reuniões pronta, sem provedor de IA (nada dispara a rede)."""
-    from maestro_local.gui.views.transcricoes_view import TranscricoesView
+    from relay.gui.views.transcricoes_view import TranscricoesView
 
     view = TranscricoesView()
     # Sem IA: garante que nenhum teste faça chamada real ao LLM.

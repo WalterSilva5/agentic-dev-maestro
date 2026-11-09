@@ -5,7 +5,7 @@ skinparam shadowing false
 skinparam defaultFontName sans-serif
 
 actor "Agente de IA" as Ag
-participant "API Maestro" as API
+participant "API Relay" as API
 database "MySQL" as DB
 
 == Refino: gera a doc ==

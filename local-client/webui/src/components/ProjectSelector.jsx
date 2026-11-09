@@ -5,7 +5,7 @@ import { getProjects, createProject, getWorkspaces } from '../api';
 import MenuSelect from './MenuSelect.jsx';
 import { t } from '../i18n';
 
-const STORAGE_KEY = 'maestro.activeProjectByWs';
+const STORAGE_KEY = 'relay.activeProjectByWs';
 
 function getActiveProjectId(wsId) {
   try {

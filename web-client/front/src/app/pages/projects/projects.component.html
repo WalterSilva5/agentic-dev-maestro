@@ -34,7 +34,7 @@
               type="text"
               name="name"
               class="input input-bordered w-full bg-dark-bg"
-              placeholder="Ex.: Plataforma Maestro"
+              placeholder="Ex.: Plataforma Relay"
               [(ngModel)]="newName"
               [disabled]="saving"
             />
@@ -46,7 +46,7 @@
               type="text"
               name="key"
               class="input input-bordered w-full bg-dark-bg uppercase"
-              placeholder="MAESTRO"
+              placeholder="RELAY"
               maxlength="20"
               [ngModel]="newKey"
               (ngModelChange)="onKeyInput($event)"

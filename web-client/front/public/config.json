@@ -2,7 +2,7 @@
   "apiUrl": "/api",
   "production": false,
   "app": {
-    "name": "Agentic Dev Maestro",
+    "name": "Relay",
     "version": "1.0.0",
     "versionCode": 1,
     "deepLinkHost": "app.example.com",

@@ -1,8 +1,8 @@
 > 🇧🇷 [Versão em português](README.ptbr.md)
 
-# Maestro Local
+# Relay Local
 
-Desktop client for Agentic Dev Maestro. Organizes tasks, work journal, and studies, with an embedded REST API for integration with AI agents.
+Desktop client for Relay. Organizes tasks, work journal, and studies, with an embedded REST API for integration with AI agents.
 
 ## Installation and running
 
@@ -19,7 +19,7 @@ Desktop client for Agentic Dev Maestro. Organizes tasks, work journal, and studi
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e .
-python -m maestro_local
+python -m relay
 ```
 
 ### Options
@@ -30,16 +30,16 @@ python -m maestro_local
 
 ### Global entry point
 
-After `pip install -e .`, the `maestro` command becomes available in the venv PATH:
+After `pip install -e .`, the `relay` command becomes available in the venv PATH:
 
 ```bash
-maestro              # default port
-maestro --port 8888  # custom port
+relay              # default port
+relay --port 8888  # custom port
 ```
 
 ## What the application does
 
-On startup, Maestro opens:
+On startup, Relay opens:
 1. **Desktop GUI** (PySide6/Qt 6) — graphical interface with a lean menu (9 items) + a Tools hub that groups the extra features (+ Metrics, TODOs, and Labels as Dashboard tabs)
 2. **REST API** (FastAPI/uvicorn) — `http://127.0.0.1:9777/api` in a daemon thread
 
@@ -55,7 +55,7 @@ Main screen for the workday:
 - **Notes of the day**: markdown editor with a pre-configured template, rendered preview, button to insert the default template (Focus of the Day, Tasks, Blockers, Technical Notes)
 - **Generate Report**: generates an automatic report with a list of tasks worked on, activities of the day, and summary
 - **Date picker**: popup calendar to navigate between days (replaced the date combo box)
-- **AI Tip**: next to the generated report, a button with a suggested prompt to ask an AI agent to summarize the day using the `maestro-daily-report` skill
+- **AI Tip**: next to the generated report, a button with a suggested prompt to ask an AI agent to summarize the day using the `relay-daily-report` skill
 - **Activity of the day**: timeline with all the day's actions (tasks created, moved, commented)
 - **Database Backup**: export a copy of the SQLite database
 
@@ -110,7 +110,7 @@ Internal AI assistant that runs with your own provider:
 
 - **OpenAI-compatible providers**: local LM Studio, opencode, or any API in the `/v1/chat/completions` format
 - **Internal tools** (LangGraph ReAct agent): reads the board, lists tasks, requests review (creates a requires-dev task), comments on tasks, creates TODOs, summarizes recent activity, and now also **project metrics**, **pending TODOs** and **knowledge-base search**. The compiled agent is cached per provider.
-- **Centralized LLM layer** (`maestro_local/ai/llm.py`): every AI feature (triage, digest, translator, code review, English practice, live meeting, etc.) goes through a single `invoke_json`/`invoke_text` that reuses the chat model (cached) and uses **structured output** (`with_structured_output`) with a robust JSON fallback for weaker local models
+- **Centralized LLM layer** (`relay/ai/llm.py`): every AI feature (triage, digest, translator, code review, English practice, live meeting, etc.) goes through a single `invoke_json`/`invoke_text` that reuses the chat model (cached) and uses **structured output** (`with_structured_output`) with a robust JSON fallback for weaker local models
 - **Asynchronous execution**: runs in a separate thread, without freezing the interface
 - **Configuration**: active provider defined in Settings → AI Providers (Base URL, API Key, and Model)
 
@@ -136,7 +136,7 @@ Recording, transcription, and summarization of meetings and studies (migrated fr
 
 ### Passwords (in Tools) — KeePass vault
 
-- **Global vault** (one for the whole app, **not per workspace**) stored outside the per-workspace databases at `~/.maestro-local/vault.kdbx` (path configurable)
+- **Global vault** (one for the whole app, **not per workspace**) stored outside the per-workspace databases at `~/.relay/vault.kdbx` (path configurable)
 - Reads and writes the **`.kdbx`** format (KeePass 2.x via `pykeepass`); interoperates with existing KeePass vaults
 - **Unlocked by a master password** (and/or key file); the master password is **never persisted** — kept only in memory and discarded on lock
 - **Entries**: title, username, password, URL, group, notes; search and organization by groups; add/edit/delete
@@ -204,7 +204,7 @@ Analytics dashboard:
 
 Library of skills for AI agents:
 
-- **12 skills** prefixed with `maestro-` organized by category (Setup, Agent, Workflow, Planning, Quality, Logging)
+- **12 skills** prefixed with `relay-` organized by category (Setup, Agent, Workflow, Planning, Quality, Logging)
 - **Install**: one click installs the SKILL.md file into the target project's `.claude/skills/`
 - **Install all**: button to install all skills at once
 - **Preview**: view the skill's content before installing
@@ -216,7 +216,7 @@ Restructured usage guide with 12 sections, including explanations of each screen
 
 ### Settings (Alt+9)
 
-- **Start with the computer** (Linux): a toggle that creates/removes a `~/.config/autostart/agentic-dev-maestro.desktop` so Maestro opens automatically at login (XDG autostart)
+- **Start with the computer** (Linux): a toggle that creates/removes a `~/.config/autostart/relay.desktop` so Relay opens automatically at login (XDG autostart)
 
 General settings screen:
 
@@ -246,12 +246,12 @@ In addition to the desktop GUI, there is a **web** frontend (React + Vite) serve
 - **Build**: `install.sh` builds automatically (if `npm` is available); FastAPI serves `webui/dist/` at the root `/`, keeping `/api/*`
 - **Development** (hot-reload): `cd webui && npm run dev` (port 3000, with `/api → 9777` proxy)
 - **Screens**: Dashboard, My Day, Studies, Projects, Board + task detail (description, checklist, comments, type/priority, move), Assistant (chat), Metrics, TODOs, Labels, and Settings (language, AI providers, Whisper). Workspace selector in the sidebar and light/dark theme. **Transcriptions** and **Skills** remain exclusive to the desktop GUI (audio capture and installation into a local directory)
-- **Run only the web** (without the desktop GUI): `./run-web.sh` (or `python -m maestro_local.webmain`) — starts API + web at `http://127.0.0.1:9777/`
+- **Run only the web** (without the desktop GUI): `./run-web.sh` (or `python -m relay.webmain`) — starts API + web at `http://127.0.0.1:9777/`
 - **Installable PWA**: the web is a Progressive Web App (manifest + service worker in `webui/public/`). In the browser, use "Install app" to open it in its own window; it works offline for the shell (the API still requires the local server)
-- **Native window (recommended for a modern look)**: `maestro-shell` opens the same web UI in a native desktop window (via [pywebview](https://pywebview.flowrl.com/)) instead of a browser tab — a lighter, more modern alternative to the Qt GUI for everything **except Meetings** (still Qt-only; use `maestro` for it). Install with the `shell` extra and run:
+- **Native window (recommended for a modern look)**: `relay-shell` opens the same web UI in a native desktop window (via [pywebview](https://pywebview.flowrl.com/)) instead of a browser tab — a lighter, more modern alternative to the Qt GUI for everything **except Meetings** (still Qt-only; use `relay` for it). Install with the `shell` extra and run:
   ```bash
   pip install -e '.[shell]'
-  maestro-shell              # or: python -m maestro_local.desktop_shell
+  relay-shell              # or: python -m relay.desktop_shell
   ```
   See [`docs/planos/migracao-toolkit-ui.md`](../docs/planos/migracao-toolkit-ui.md) for the migration plan away from Qt.
 
@@ -348,18 +348,18 @@ curl -X POST http://127.0.0.1:9777/api/tasks/MP-1/move \
 
 | Skill | Category | What it does |
 |---|---|---|
-| `maestro-run` | Setup | Start the application (GUI + API) |
-| `maestro-api-agent` | Agent | Teaches the agent to interact with the REST API |
-| `maestro-task-workflow` | Workflow | Complete flow: pick a task, implement, move, document |
-| `maestro-project-setup` | Setup | Create a project with default columns and labels |
-| `maestro-sprint-planning` | Planning | Plan a sprint with estimates and prioritization |
-| `maestro-code-review-log` | Quality | Log code reviews as comments |
-| `maestro-bug-triage` | Quality | Bug triage with priority and reproduction |
-| `maestro-daily-standup` | Logging | Generate an automatic standup report |
-| `maestro-tech-debt-tracker` | Quality | Log and prioritize technical debt |
-| `maestro-documentation-writer` | Logging | Generate documentation from the code |
-| `maestro-daily-report` | Logging | Daily report with notes, activity, and a bullet-list summary (supports partial mode) |
-| `maestro-context-loader` | Agent | Load the complete workspace context to resume work from where you left off |
+| `relay-run` | Setup | Start the application (GUI + API) |
+| `relay-api-agent` | Agent | Teaches the agent to interact with the REST API |
+| `relay-task-workflow` | Workflow | Complete flow: pick a task, implement, move, document |
+| `relay-project-setup` | Setup | Create a project with default columns and labels |
+| `relay-sprint-planning` | Planning | Plan a sprint with estimates and prioritization |
+| `relay-code-review-log` | Quality | Log code reviews as comments |
+| `relay-bug-triage` | Quality | Bug triage with priority and reproduction |
+| `relay-daily-standup` | Logging | Generate an automatic standup report |
+| `relay-tech-debt-tracker` | Quality | Log and prioritize technical debt |
+| `relay-documentation-writer` | Logging | Generate documentation from the code |
+| `relay-daily-report` | Logging | Daily report with notes, activity, and a bullet-list summary (supports partial mode) |
+| `relay-context-loader` | Agent | Load the complete workspace context to resume work from where you left off |
 
 ## Task types
 
@@ -385,7 +385,7 @@ curl -X POST http://127.0.0.1:9777/api/tasks/MP-1/move \
 Local SQLite with isolation per workspace:
 
 ```
-~/.maestro-local/
+~/.relay/
 ├── config.json                     # Workspaces, vaults, theme
 └── workspaces/
     ├── default/maestro.db          # Default workspace
@@ -397,7 +397,7 @@ The database is created automatically on the first run. Each workspace has its o
 ## Code structure
 
 ```
-maestro_local/
+relay/
 ├── __main__.py              # Entry point: init_db -> start_api -> QApplication
 ├── config.py                # Config JSON + workspace management
 ├── db/
@@ -431,7 +431,7 @@ maestro_local/
 ├── transcricoes/
 │   ├── audio.py             # Linux audio capture (parec/PipeWire)
 │   ├── transcriber.py       # faster-whisper in a QThread
-│   ├── summarizer.py        # Summarization via the Maestro provider
+│   ├── summarizer.py        # Summarization via the Relay provider
 │   ├── assistants.py        # Meeting and study assistants
 │   ├── markdown_gen.py      # Markdown generation for the summaries
 │   └── hotkeys.py           # Global shortcuts (pynput)

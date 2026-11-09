@@ -226,7 +226,7 @@ export const CATALOG = {
   "Atividade recente": "Recent activity",
   "Nenhuma atividade.": "No activity.",
   "Nenhum projeto.": "No projects.",
-  "Web UI servida pela própria API do Maestro.": "Web UI served by Maestro's own API.",
+  "Web UI servida pela própria API do Relay.": "Web UI served by Relay's own API.",
   "Nome do projeto": "Project name",
   "Chave (ex: DEMO)": "Key (e.g. DEMO)",
   "+ Criar projeto": "+ Create project",

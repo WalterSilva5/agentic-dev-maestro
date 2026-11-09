@@ -1,6 +1,6 @@
 """Botão "+" de novo projeto junto ao seletor (como no workspace)."""
-from maestro_local.db.models import BoardColumn, Project, get_session
-from maestro_local.gui.main_window import (
+from relay.db.models import BoardColumn, Project, get_session
+from relay.gui.main_window import (
     MainWindow,
     create_project_with_defaults,
     suggest_project_key,
@@ -49,7 +49,7 @@ def test_botao_novo_projeto_no_seletor(qapp, temp_db):
 
 
 def test_novo_projeto_aparece_no_seletor(qapp, temp_db, monkeypatch):
-    from maestro_local import config as config_module
+    from relay import config as config_module
     w = MainWindow()
     monkeypatch.setattr(config_module, "set_active_project_id", lambda pid: None)
     pid = create_project_with_defaults("Proj", "PJ")

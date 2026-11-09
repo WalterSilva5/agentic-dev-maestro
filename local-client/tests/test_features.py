@@ -1,5 +1,5 @@
 """Ligar/desligar funcionalidades para enxugar a interface."""
-from maestro_local import features
+from relay import features
 
 
 def test_tudo_ligado_por_padrao(temp_db):
@@ -52,7 +52,7 @@ def test_grupos_cobrem_todas_as_funcionalidades():
 
 
 def test_menu_respeita_o_que_esta_ligado(qapp, temp_db):
-    from maestro_local.gui.main_window import MainWindow
+    from relay.gui.main_window import MainWindow
     antes = len(MainWindow()._nav_keys)
     for k in ("transcricoes", "chat", "vault"):
         features.definir(k, False)
@@ -63,7 +63,7 @@ def test_menu_respeita_o_que_esta_ligado(qapp, temp_db):
 
 
 def test_hub_lista_so_ferramentas_ligadas(qapp, temp_db):
-    from maestro_local.gui.views.tools_hub_view import ToolsHubView
+    from relay.gui.views.tools_hub_view import ToolsHubView
     for f in features.FUNCIONALIDADES:
         if f.grupo == features.GRUPO_FERRAMENTAS:
             features.definir(f.chave, False)
@@ -76,7 +76,7 @@ def test_hub_lista_so_ferramentas_ligadas(qapp, temp_db):
 
 
 def test_lembrete_de_pendencias_respeita(qapp, temp_db, monkeypatch):
-    from maestro_local.gui.main_window import MainWindow
+    from relay.gui.main_window import MainWindow
     w = MainWindow()
     features.definir("todo_reminder", False)
     chamou = []

@@ -1,8 +1,8 @@
-# Maestro Local — CLAUDE.md
+# Relay Local — CLAUDE.md
 
 ## Visão geral
 
-Cliente desktop local do Agentic Dev Maestro. Organiza tarefas e facilita o ciclo de desenvolvimento com GUI (PySide6/Qt) e API REST embutida (FastAPI) para agentes de IA.
+Cliente desktop local do Relay. Organiza tarefas e facilita o ciclo de desenvolvimento com GUI (PySide6/Qt) e API REST embutida (FastAPI) para agentes de IA.
 
 ## Stack
 
@@ -18,9 +18,9 @@ Cliente desktop local do Agentic Dev Maestro. Organiza tarefas e facilita o cicl
 
 ```
 local-client/
-  maestro_local/
+  relay/
     __main__.py              # Entry point (init_db -> start_api -> QApplication)
-    config.py                # Config JSON (~/.maestro-local/config.json)
+    config.py                # Config JSON (~/.relay/config.json)
     db/models.py             # SQLAlchemy models + get_session/switch_db
     api/
       app.py                 # FastAPI com todos os endpoints
@@ -55,7 +55,7 @@ local-client/
         skills_view.py       # Skills para agentes de IA
         guide_view.py        # Instruções de uso
     skills/
-      catalog.py             # Catálogo de 12 skills com prefixo maestro-
+      catalog.py             # Catálogo de 12 skills com prefixo relay-
 ```
 
 ## Executar
@@ -63,8 +63,8 @@ local-client/
 ```bash
 cd local-client
 source .venv/bin/activate
-python -m maestro_local          # porta padrão 9777
-python -m maestro_local -p 8888  # porta customizada
+python -m relay          # porta padrão 9777
+python -m relay -p 8888  # porta customizada
 ```
 
 ## Arquitetura GUI
@@ -78,9 +78,9 @@ A GUI usa **property-based CSS selectors** para estilização consistente com tr
 Navegação por sidebar com 10 itens (Dashboard, Meu Dia, Estudos, Board, Assistente, Transcrições, Projetos, Skills, Instruções, Configurações). Atalhos `Alt+1` a `Alt+9` + `Alt+0`. **Métricas, TODOs e Labels** deixaram de ser itens de menu e viraram abas dentro do Dashboard. Atalho global `Ctrl+Shift+R` inicia/para a gravação das Transcrições.
 
 ### Workspaces
-- Cada workspace tem banco SQLite isolado em `~/.maestro-local/workspaces/{id}/maestro.db`
+- Cada workspace tem banco SQLite isolado em `~/.relay/workspaces/{id}/maestro.db`
 - `switch_db(path)` troca a engine global do SQLAlchemy
-- Config persistida em `~/.maestro-local/config.json`
+- Config persistida em `~/.relay/config.json`
 
 ### Dashboard
 Hub em abas (`QTabWidget`):
@@ -162,7 +162,7 @@ Sem autenticação. Tarefas identificadas por código (`KEY-NUM`, ex: `DEMO-1`) 
 - `POST /api/memory/reembed` — reprocessar embeddings
 - `GET /api/memory/stats` · `GET /api/memory/kinds`
 - Kinds: `fact|decision|preference|episode|procedure|context`
-- Módulo: `maestro_local/memory.py` · GUI: Ferramentas → Memória agentic
+- Módulo: `relay/memory.py` · GUI: Ferramentas → Memória agentic
 
 ### Outros
 - `POST/GET /api/labels` — labels
@@ -185,21 +185,21 @@ Sem autenticação. Tarefas identificadas por código (`KEY-NUM`, ex: `DEMO-1`) 
 
 ## Skills para agentes
 
-14 skills com prefixo `maestro-` no catálogo (`skills/catalog.py`):
-- `maestro-use` — orquestrador: analisa o momento e escolhe skills (`/maestro-use`)
-- `maestro-run` — iniciar a aplicação
-- `maestro-api-agent` — interagir com a API REST
-- `maestro-task-workflow` — fluxo completo de trabalho (cria tarefa de revisão obrigatória)
-- `maestro-project-setup` — criar projeto com colunas e labels
-- `maestro-sprint-planning` — planejar sprint
-- `maestro-code-review-log` — registrar code reviews
-- `maestro-agentic-memory` — memória agentic (buscar, gravar, ingerir, Q&A)
-- `maestro-bug-triage` — triagem de bugs
-- `maestro-daily-standup` — standup automático
-- `maestro-tech-debt-tracker` — dívida técnica
-- `maestro-documentation-writer` — gerar documentação
-- `maestro-daily-report` — relatório diário (com PATCH append; suporta modo parcial)
-- `maestro-context-loader` — carregar contexto do workspace para retomar trabalho
+14 skills com prefixo `relay-` no catálogo (`skills/catalog.py`):
+- `relay-use` — orquestrador: analisa o momento e escolhe skills (`/relay-use`)
+- `relay-run` — iniciar a aplicação
+- `relay-api-agent` — interagir com a API REST
+- `relay-task-workflow` — fluxo completo de trabalho (cria tarefa de revisão obrigatória)
+- `relay-project-setup` — criar projeto com colunas e labels
+- `relay-sprint-planning` — planejar sprint
+- `relay-code-review-log` — registrar code reviews
+- `relay-agentic-memory` — memória agentic (buscar, gravar, ingerir, Q&A)
+- `relay-bug-triage` — triagem de bugs
+- `relay-daily-standup` — standup automático
+- `relay-tech-debt-tracker` — dívida técnica
+- `relay-documentation-writer` — gerar documentação
+- `relay-daily-report` — relatório diário (com PATCH append; suporta modo parcial)
+- `relay-context-loader` — carregar contexto do workspace para retomar trabalho
 
 ## Módulo de Estudos
 

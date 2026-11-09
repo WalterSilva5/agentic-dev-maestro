@@ -18,7 +18,7 @@
 | **Transcrição ao vivo** | ~300 ms de resposta, 12+ idiomas |
 | **Notas em tempo real** | Resumo formatado e compartilhável |
 
-## 2. O que o Maestro já tem (medido no código)
+## 2. O que o Relay já tem (medido no código)
 
 Boa parte da fundação **já existe** — o pivô é menos "construir do zero" e mais
 "tirar de dentro da tela de Reuniões e reduzir latência".

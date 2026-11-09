@@ -4,10 +4,10 @@ import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import Swal from 'sweetalert2';
 
-import { MaestroApiService } from '../../services/maestro-api.service';
+import { RelayApiService } from '../../services/relay-api.service';
 import { TenantService } from '../../services/tenant.service';
 import { WorkspaceService } from '../../services/workspace.service';
-import { Company } from '../../models/maestro.models';
+import { Company } from '../../models/relay.models';
 
 @Component({
   selector: 'app-companies',
@@ -26,7 +26,7 @@ export class CompaniesComponent implements OnInit {
   saving = false;
 
   constructor(
-    private api: MaestroApiService,
+    private api: RelayApiService,
     protected tenant: TenantService,
     private workspaces: WorkspaceService
   ) {}

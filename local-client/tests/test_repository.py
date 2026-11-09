@@ -1,7 +1,7 @@
 """Repositório de persistência das reuniões."""
 import json
 
-from maestro_local.transcricoes import repository
+from relay.transcricoes import repository
 
 
 def test_save_cria_e_devolve_id(temp_db):
@@ -28,7 +28,7 @@ def test_tags_serializam_e_desserializam(temp_db):
 
 def test_tags_invalidas_viram_lista_vazia(temp_db):
     rec_id = repository.save(None, {})
-    from maestro_local.db.models import Recording, get_session
+    from relay.db.models import Recording, get_session
     s = get_session()
     try:
         s.get(Recording, rec_id).tags = "{isso não é json"

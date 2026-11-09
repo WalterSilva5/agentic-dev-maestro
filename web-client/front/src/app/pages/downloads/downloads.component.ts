@@ -86,7 +86,7 @@ export class DownloadsComponent {
     {
       id: 'skill-uso',
       title: 'Skill de Uso da Plataforma',
-      description: 'Guia completo de uso do Agentic Dev Maestro: primeiros passos, tarefas, kanban, API keys, MCP, webhooks e boas práticas.',
+      description: 'Guia completo de uso do Relay: primeiros passos, tarefas, kanban, API keys, MCP, webhooks e boas práticas.',
       filename: 'skill-uso-plataforma.md',
       path: '/skills/skill-uso-plataforma.md',
       icon: 'document',

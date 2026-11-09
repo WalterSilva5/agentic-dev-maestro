@@ -1,6 +1,6 @@
 > 🇬🇧 [English version](README.md)
 
-# Agentic Dev Maestro
+# Relay
 
 Aplicação desktop de gestão de projetos, diário de trabalho e estudos, com API REST embutida para integração com agentes de IA.
 
@@ -8,7 +8,7 @@ Aplicação desktop de gestão de projetos, diário de trabalho e estudos, com A
 
 ## O que é
 
-O Maestro é uma ferramenta local para desenvolvedores que querem organizar seu trabalho diário, gerenciar tarefas em kanban, acompanhar estudos e integrar agentes de IA no fluxo de desenvolvimento. Tudo roda localmente — sem servidor externo, sem conta, sem dependência de internet.
+O Relay é uma ferramenta local para desenvolvedores que querem organizar seu trabalho diário, gerenciar tarefas em kanban, acompanhar estudos e integrar agentes de IA no fluxo de desenvolvimento. Tudo roda localmente — sem servidor externo, sem conta, sem dependência de internet.
 
 ### Principais diferenciais
 
@@ -16,16 +16,16 @@ O Maestro é uma ferramenta local para desenvolvedores que querem organizar seu 
 - **Assistente**: agente de IA interno (LangGraph) com provedor configurável (LM Studio, opencode) que age sobre o board
 - **Cronista**: grava reuniões/estudos, transcreve local com Whisper e resume com IA (ex-projeto wsi-cronista integrado)
 - **API para agentes**: agentes de IA criam tarefas, movem no board, registram code reviews e geram relatórios — tudo via REST
-- **Skills prontas**: 12 skills instaláveis que ensinam agentes a usar o Maestro
+- **Skills prontas**: 12 skills instaláveis que ensinam agentes a usar o Relay
 - **Workspaces isolados**: cada workspace tem seu próprio banco, permitindo separar projetos pessoais de profissionais
 - **Obsidian sync**: sincroniza notas diárias e tarefas com seu vault do Obsidian
 - **Pomodoro integrado**: timer no Dashboard para sessões de foco
 
 ## Instalação com agente de IA
 
-Você pode pedir a um agente de IA (Claude Code, Cursor, etc.) para instalar o Maestro de ponta a ponta. Esta seção tem tudo que o agente precisa: os pré-requisitos a instalar e os passos exatos. Um prompt de uma linha para começar:
+Você pode pedir a um agente de IA (Claude Code, Cursor, etc.) para instalar o Relay de ponta a ponta. Esta seção tem tudo que o agente precisa: os pré-requisitos a instalar e os passos exatos. Um prompt de uma linha para começar:
 
-> Leia a seção "Instalação com agente de IA" do README em https://github.com/WalterSilva5/agentic-dev-maestro.git, instale os pré-requisitos para o meu SO, clone o repositório, execute o `local-client/install.sh`, crie um atalho na área de trabalho para o `local-client/run.sh` e me explique como usar a aplicação.
+> Leia a seção "Instalação com agente de IA" do README em https://github.com/WalterSilva5/relay.git, instale os pré-requisitos para o meu SO, clone o repositório, execute o `local-client/install.sh`, crie um atalho na área de trabalho para o `local-client/run.sh` e me explique como usar a aplicação.
 
 ### Pré-requisitos que o agente deve instalar
 
@@ -66,12 +66,12 @@ winget install Git.Git Python.Python.3.12 OpenJS.NodeJS
 O agente deve:
 
 1. Instalar os pré-requisitos acima para o SO do usuário.
-2. Clonar o repositório: `git clone https://github.com/WalterSilva5/agentic-dev-maestro.git`
+2. Clonar o repositório: `git clone https://github.com/WalterSilva5/relay.git`
 3. Rodar o instalador dentro de `local-client/`: **`./install.sh`** (Linux/macOS) ou **`.\install.ps1`** (Windows/PowerShell) — cria um `.venv`, instala as dependências Python (`pip install -e .`), valida e builda a web UI quando o `npm` está presente.
 4. Executar: `./run.sh` (opcionalmente `--port 8888`). A GUI desktop abre e a API + web UI ficam em `http://127.0.0.1:9777/`.
 5. *(Opcional)* Criar um atalho `.desktop` na área de trabalho apontando para `local-client/run.sh`.
 6. Abrir **Configurações** e configurar um provedor de IA (base URL, modelo, API key) para habilitar o assistente e o copiloto de reunião.
-7. Na aba **Skills**, instalar as skills no diretório do projeto do usuário — elas ensinam o agente a usar a API do Maestro para criar tarefas, documentar progresso e gerar relatórios.
+7. Na aba **Skills**, instalar as skills no diretório do projeto do usuário — elas ensinam o agente a usar a API do Relay para criar tarefas, documentar progresso e gerar relatórios.
 
 ## Funcionalidades
 
@@ -180,7 +180,7 @@ cd local-client
 python3 -m venv .venv
 source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -e .
-python -m maestro_local
+python -m relay
 ```
 
 A aplicação abre com:
@@ -203,7 +203,7 @@ mesma API/daemon local. A GUI Qt continua sendo o padrão; isto é opt-in.
 ```bash
 cd local-client
 pip install -e '.[shell]'   # instala o pywebview
-maestro-shell               # ou: python -m maestro_local.desktop_shell [--port 9777]
+relay-shell               # ou: python -m relay.desktop_shell [--port 9777]
 ```
 
 ## API REST para agentes
@@ -229,18 +229,18 @@ A API roda em `http://127.0.0.1:9777/api` sem autenticação. Endpoints principa
 
 | Skill | O que faz |
 |---|---|
-| `maestro-run` | Iniciar a aplicação (GUI + API) |
-| `maestro-api-agent` | Ensina o agente a usar a API REST |
-| `maestro-task-workflow` | Fluxo completo: pegar task, implementar, mover, documentar |
-| `maestro-project-setup` | Criar projeto com colunas e labels padrão |
-| `maestro-sprint-planning` | Planejar sprint com estimativas e priorização |
-| `maestro-code-review-log` | Registrar code reviews como comentários |
-| `maestro-bug-triage` | Triagem de bugs com prioridade e reprodução |
-| `maestro-daily-standup` | Gerar relatório de standup automático |
-| `maestro-tech-debt-tracker` | Registrar e priorizar dívida técnica |
-| `maestro-documentation-writer` | Gerar documentação a partir do código |
-| `maestro-daily-report` | Relatório diário com notas, atividade e resumo (suporta modo parcial) |
-| `maestro-context-loader` | Carregar contexto completo do workspace para retomar trabalho de onde parou |
+| `relay-run` | Iniciar a aplicação (GUI + API) |
+| `relay-api-agent` | Ensina o agente a usar a API REST |
+| `relay-task-workflow` | Fluxo completo: pegar task, implementar, mover, documentar |
+| `relay-project-setup` | Criar projeto com colunas e labels padrão |
+| `relay-sprint-planning` | Planejar sprint com estimativas e priorização |
+| `relay-code-review-log` | Registrar code reviews como comentários |
+| `relay-bug-triage` | Triagem de bugs com prioridade e reprodução |
+| `relay-daily-standup` | Gerar relatório de standup automático |
+| `relay-tech-debt-tracker` | Registrar e priorizar dívida técnica |
+| `relay-documentation-writer` | Gerar documentação a partir do código |
+| `relay-daily-report` | Relatório diário com notas, atividade e resumo (suporta modo parcial) |
+| `relay-context-loader` | Carregar contexto completo do workspace para retomar trabalho de onde parou |
 
 ## Screenshots
 
@@ -259,9 +259,9 @@ A API roda em `http://127.0.0.1:9777/api` sem autenticação. Endpoints principa
 ## Estrutura do projeto
 
 ```
-agentic-dev-maestro/
+relay/
 ├── local-client/              # App principal (Python/PySide6)
-│   ├── maestro_local/         # Código fonte
+│   ├── relay/         # Código fonte
 │   │   ├── gui/views/         # telas da interface (Dashboard com abas)
 │   │   ├── api/               # FastAPI endpoints
 │   │   ├── db/                # SQLAlchemy models + SQLite
@@ -280,10 +280,10 @@ agentic-dev-maestro/
 
 ## Dados
 
-Os dados ficam em `~/.maestro-local/`:
+Os dados ficam em `~/.relay/`:
 
 ```
-~/.maestro-local/
+~/.relay/
 ├── config.json                # Configurações (workspaces, vault paths, tema)
 └── workspaces/
     ├── default/

@@ -1,4 +1,4 @@
-// Tipos do domínio Agentic Dev Maestro (espelham as respostas da API).
+// Tipos do domínio Relay (espelham as respostas da API).
 
 export interface Company {
   id: number;

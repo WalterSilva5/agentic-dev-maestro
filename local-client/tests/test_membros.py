@@ -1,5 +1,5 @@
 """Lista de responsáveis do projeto: CRUD, atribuição e métricas."""
-from maestro_local.db.models import (
+from relay.db.models import (
     BoardColumn,
     Member,
     Project,
@@ -117,7 +117,7 @@ def test_dev_box_conta_como_desenvolvido_por_responsavel(temp_db):
 
 
 def test_filtro_inclui_membros_sem_card(qapp, temp_db):
-    from maestro_local.gui.views.board_view import BoardView
+    from relay.gui.views.board_view import BoardView
     pid = _projeto()
     s = get_session()
     try:
@@ -133,7 +133,7 @@ def test_filtro_inclui_membros_sem_card(qapp, temp_db):
 
 
 def test_dialogo_responsaveis_abre(qapp, temp_db):
-    from maestro_local.gui.views.board_view import BoardView, MembersDialog
+    from relay.gui.views.board_view import BoardView, MembersDialog
     pid = _projeto()
     s = get_session()
     try:

@@ -1,13 +1,13 @@
 """Shell de desktop (pywebview) — só a lógica testável sem janela/display real."""
 import sys
 
-from maestro_local import desktop_shell
+from relay import desktop_shell
 
 
 def test_parse_port_default():
     argv = sys.argv
     try:
-        sys.argv = ["maestro-shell"]
+        sys.argv = ["relay-shell"]
         assert desktop_shell._parse_port() == 9777
     finally:
         sys.argv = argv
@@ -16,7 +16,7 @@ def test_parse_port_default():
 def test_parse_port_via_flag():
     argv = sys.argv
     try:
-        sys.argv = ["maestro-shell", "--port", "8888"]
+        sys.argv = ["relay-shell", "--port", "8888"]
         assert desktop_shell._parse_port() == 8888
     finally:
         sys.argv = argv
@@ -25,8 +25,8 @@ def test_parse_port_via_flag():
 def test_parse_port_via_env(monkeypatch):
     argv = sys.argv
     try:
-        sys.argv = ["maestro-shell"]
-        monkeypatch.setenv("MAESTRO_WEB_PORT", "7000")
+        sys.argv = ["relay-shell"]
+        monkeypatch.setenv("RELAY_WEB_PORT", "7000")
         assert desktop_shell._parse_port() == 7000
     finally:
         sys.argv = argv
@@ -57,4 +57,4 @@ def test_main_sem_pywebview_falha_graciosamente(monkeypatch, capsys):
     assert rc == 1
     err = capsys.readouterr().err
     assert "pywebview" in err
-    assert "python -m maestro_local" in err  # orienta o fallback
+    assert "python -m relay" in err  # orienta o fallback

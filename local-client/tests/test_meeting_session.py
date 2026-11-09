@@ -2,7 +2,7 @@
 respostas e merge do estado vindo do agente."""
 from __future__ import annotations
 
-from maestro_local.transcricoes.session import MeetingSession, empty_live_state
+from relay.transcricoes.session import MeetingSession, empty_live_state
 
 
 def _sessao_preenchida() -> MeetingSession:
@@ -111,7 +111,7 @@ def test_remove_context():
 
 
 def test_live_state_from_summary_mapeia_itens():
-    from maestro_local.transcricoes.session import live_state_from_summary
+    from relay.transcricoes.session import live_state_from_summary
     st = live_state_from_summary({
         "decisions": ["Adotar Postgres", "  ", "Deploy sexta"],
         "action_items": [{"description": "Migrar", "assignee": "Ana"}, "Revisar", {"description": ""}],
@@ -126,7 +126,7 @@ def test_live_state_from_summary_mapeia_itens():
 
 
 def test_live_state_from_summary_tolera_lixo():
-    from maestro_local.transcricoes.session import live_state_from_summary
+    from relay.transcricoes.session import live_state_from_summary
     assert live_state_from_summary(None)["decisions"] == []
     assert live_state_from_summary({})["action_items"] == []
     assert live_state_from_summary({"decisions": None})["decisions"] == []

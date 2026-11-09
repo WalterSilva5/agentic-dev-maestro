@@ -1,5 +1,5 @@
 @startuml modelo-dados
-title Maestro — Modelo de dados (entidades e relacionamentos)
+title Relay — Modelo de dados (entidades e relacionamentos)
 skinparam backgroundColor transparent
 skinparam shadowing false
 skinparam defaultFontName sans-serif

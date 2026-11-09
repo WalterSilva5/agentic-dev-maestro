@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Importa os docs de daily do vault para o Daily do projeto no Maestro.
+"""Importa os docs de daily do vault para o Daily do projeto no Relay.
 
 Lê `daily/YYYY-MM/DD-MM-YYYY - Daily - <tema>.md` e cria os registros
 (INTRO / ITEMS / SPRINT / PENDING) por dia no projeto local.
@@ -24,13 +24,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from maestro_local.config import (  # noqa: E402
+from relay.config import (  # noqa: E402
     get_active_workspace_id,
     get_workspace_db_path,
     list_workspaces,
 )
-from maestro_local.daily_doc import parse_daily_markdown  # noqa: E402
-from maestro_local.db.models import (  # noqa: E402
+from relay.daily_doc import parse_daily_markdown  # noqa: E402
+from relay.db.models import (  # noqa: E402
     Project,
     ProjectDailyEntry,
     get_session,
@@ -71,7 +71,7 @@ def main() -> int:
 
     init_db(get_workspace_db_path(ws_id))
     # aponta as sessões para o workspace escolhido (não o ativo)
-    import maestro_local.db.models as _m
+    import relay.db.models as _m
     _m._engine = None
     _m._SessionLocal = None
     _m._active_db_path = get_workspace_db_path(ws_id)

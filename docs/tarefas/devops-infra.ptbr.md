@@ -4,18 +4,18 @@
 
 Base: o template já traz `docker-compose.yml` (MySQL, Redis, API, fronts),
 `Dockerfile` multi-stage, `docker-entrypoint.sh` (migrations + seed) e Nginx.
-Aqui é só **adaptar** para o Maestro. Esforço em homem-dia (hd).
+Aqui é só **adaptar** para o Relay. Esforço em homem-dia (hd).
 
 ---
 
-## D1 — Compose enxuto para o Maestro · 1 hd
+## D1 — Compose enxuto para o Relay · 1 hd
 - [ ] Remover serviços `front-react` e `front-flutter` do compose
 - [ ] Manter: `mysql`, `redis`, `api`, `front` (Angular)
 - [ ] Conferir portas e nomes de serviço; healthchecks ok
 
 ## D2 — Variáveis de ambiente · 0.5 hd
 - [ ] Revisar `back/.env.example`: `DATABASE_URL`, `JWT_*`, `REDIS_*`
-- [ ] Adicionar segredos do Maestro: prefixo de API key, secret de webhook (HMAC)
+- [ ] Adicionar segredos do Relay: prefixo de API key, secret de webhook (HMAC)
 - [ ] Documentar cada variável no `.env.example`
 
 ## D3 — Migrations + seed automáticos · 0.5 hd

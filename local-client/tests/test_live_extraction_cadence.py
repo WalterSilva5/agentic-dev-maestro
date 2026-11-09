@@ -5,7 +5,7 @@ causas tratadas aqui — a verificação depender só do tique da gravação, o
 último trecho falado só entrar depois da transcrição completa, e o texto
 enviado numa extração que falha ser perdido para sempre.
 """
-from maestro_local.transcricoes.constants import LIVE_AI_INTERVAL_MS, LIVE_AI_TIMEOUT
+from relay.transcricoes.constants import LIVE_AI_INTERVAL_MS, LIVE_AI_TIMEOUT
 
 
 def test_timer_periodico_configurado(meetings_view):
@@ -93,7 +93,7 @@ def test_timeout_do_ao_vivo_e_curto():
 
 def test_invoke_json_repassa_o_timeout(monkeypatch):
     """O timeout precisa chegar ao modelo, senão a mudança não vale de nada."""
-    import maestro_local.ai.llm as llm
+    import relay.ai.llm as llm
     recebido = {}
 
     class _FakeModel:

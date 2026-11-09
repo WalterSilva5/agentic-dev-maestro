@@ -1,8 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
-import { MaestroApiService } from '../../services/maestro-api.service';
-import { MetricsResponse } from '../../models/maestro.models';
+import { RelayApiService } from '../../services/relay-api.service';
+import { MetricsResponse } from '../../models/relay.models';
 
 const TYPE_LABELS: Record<string, string> = {
   FEATURE: 'Feature',
@@ -50,7 +50,7 @@ export class MetricsComponent implements OnInit {
   priorityColors = PRIORITY_COLORS;
   typeColors = TYPE_COLORS;
 
-  constructor(private api: MaestroApiService) {}
+  constructor(private api: RelayApiService) {}
 
   ngOnInit() {
     this.load();

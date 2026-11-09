@@ -5,11 +5,11 @@ import { Store } from '@ngrx/store';
 import { take } from 'rxjs/operators';
 import Swal from 'sweetalert2';
 
-import { MaestroApiService } from '../../services/maestro-api.service';
+import { RelayApiService } from '../../services/relay-api.service';
 import { WorkspaceService } from '../../services/workspace.service';
 import { TenantService } from '../../services/tenant.service';
 import { selectAuthState } from '../../state/auth/auth.selectors';
-import { InvitationDetails } from '../../models/maestro.models';
+import { InvitationDetails } from '../../models/relay.models';
 
 // Página de aceite de convite (link enviado por e-mail). Pública: mostra os
 // detalhes; se o usuário não estiver logado, leva ao login/cadastro e volta.
@@ -31,7 +31,7 @@ export class InviteComponent implements OnInit {
   constructor(
     private route: ActivatedRoute,
     private router: Router,
-    private api: MaestroApiService,
+    private api: RelayApiService,
     private workspaces: WorkspaceService,
     private tenant: TenantService,
     private store: Store

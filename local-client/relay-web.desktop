@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Relay (Web)
+Comment=Abre o Relay na versão web (mesmos dados do app desktop)
+Exec=/home/wsi/repositorios/github/relay/local-client/relay-web.sh
+Icon=relay
+Terminal=false
+Categories=Development;

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Relay (abrir tela)
+Comment=Abre o Relay desktop numa tela específica via links relay://
+Exec=/home/wsi/repositorios/github/relay/local-client/relay-open.sh %u
+Icon=relay
+Terminal=false
+Categories=Development;
+MimeType=x-scheme-handler/relay;
+NoDisplay=true

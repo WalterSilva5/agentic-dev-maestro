@@ -8,7 +8,7 @@ import pathlib
 
 import pytest
 
-from maestro_local.skills import catalog
+from relay.skills import catalog
 
 SKILLS_DIR = pathlib.Path.home() / ".config" / "opencode" / "skills"
 PRECISA_GLOBAIS = pytest.mark.skipif(
@@ -46,9 +46,9 @@ def test_toda_skill_tem_frontmatter_e_fences_fechadas():
 @PRECISA_GLOBAIS
 def test_skills_documentam_os_recursos_novos():
     """Os recursos novos precisam estar documentados para os agentes."""
-    api = next(s for s in catalog.SKILLS if s["id"] == "maestro-api-agent")["content"]
+    api = next(s for s in catalog.SKILLS if s["id"] == "relay-api-agent")["content"]
     for trecho in ("metrics/dimensions", "metrics/stages", "isLocal", "/api/recordings"):
-        assert trecho in api, f"maestro-api-agent não documenta {trecho}"
+        assert trecho in api, f"relay-api-agent não documenta {trecho}"
 
-    goals = next(s for s in catalog.SKILLS if s["id"] == "maestro-goals")["content"]
+    goals = next(s for s in catalog.SKILLS if s["id"] == "relay-goals")["content"]
     assert "isLocal" in goals, "goals precisa avisar que tarefa local não conta"

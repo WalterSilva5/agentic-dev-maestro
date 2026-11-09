@@ -59,18 +59,20 @@ The template is MySQL.
 > **Recommendation:** **later.** In the MVP, refetch/polling is enough. Websockets (or
 > Postgres LISTEN/NOTIFY) come in when there is real simultaneous collaboration.
 
-## D8 — Product name ✅ DECIDED: Agentic Dev Maestro
+## D8 — Product name ✅ DECIDED: Relay (revised 2026-11-09)
 
-Name decided: **Agentic Dev Maestro** (repo `agentic-dev-maestro`); short name
-**Maestro**. Rationale in [doc 01](01-conceito-e-escopo.md#nome-decidido).
+Originally decided as **Agentic Dev Maestro** (short name **Maestro**). Renamed
+to **Relay**: shorter, no odd-sounding qualifier, works in PT and EN, and
+describes the product's job (the handoff between humans and agents). Rationale
+in [doc 01](01-conceito-e-escopo.md#nome-decidido).
 
 ---
 
 ## Suggested next steps
 
-1. ✅ Decided: **D1 (Angular)** and **D8 (Agentic Dev Maestro)**.
+1. ✅ Decided: **D1 (Angular)** and **D8 (Relay)**.
 2. Clone the template into the project folder and build the **vertical slice** of
    [Phase 1](05-roadmap.md#fase-1--núcleo-de-tarefas-e-quadro): create and move a
    task via API with an API key, end to end.
-3. Validate the **Maestro Loop** with a real agent (Claude Code) calling the API before
+3. Validate the **Relay Loop** with a real agent (Claude Code) calling the API before
    investing in the rich UI.

@@ -8,8 +8,8 @@ import types
 
 import pytest
 
-from maestro_local.transcricoes import audio as audio_backend
-from maestro_local.transcricoes import repository
+from relay.transcricoes import audio as audio_backend
+from relay.transcricoes import repository
 
 
 @pytest.fixture
@@ -50,7 +50,7 @@ def gravavel(meetings_view, monkeypatch):
     monkeypatch.setattr(audio_backend, "parec_available", lambda: True)
     monkeypatch.setattr(audio_backend, "list_sources", lambda: [src])
     monkeypatch.setattr(audio_backend, "RecordingSession", _Sessao)
-    import maestro_local.transcricoes.transcriber as transcriber
+    import relay.transcricoes.transcriber as transcriber
     monkeypatch.setattr(transcriber, "LiveTranscriber", _LiveFalso)
     v = meetings_view
     v.mic_combo.clear()

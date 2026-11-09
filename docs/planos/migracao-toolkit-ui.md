@@ -32,7 +32,7 @@ where it already works (Python).
 - **Current desktop**: `local-client` in PySide6/Qt6 + embedded **FastAPI** (9777).
 - **Web UI**: **React 18 + Vite** (`local-client/webui/`) with **16 working
   screens**, served by the API itself. A modern front end **already in place**.
-- **Desktop shell**: `maestro_local/desktop_shell.py` (**pywebview**) already
+- **Desktop shell**: `relay/desktop_shell.py` (**pywebview**) already
   opens the web UI in a native window (Plan 10's E1, done).
 - **UI-agnostic layers** recently extracted and reusable by any front via the
   API: `transcricoes/repository.py` (persistence), `transcricoes/agent_service.py`

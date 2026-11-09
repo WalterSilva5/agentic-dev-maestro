@@ -6,7 +6,7 @@ estes testes travam o contrato para o provedor opencode não regredir.
 import json
 import urllib.request
 
-from maestro_local.ai import providers
+from relay.ai import providers
 
 OPENCODE = {
     "id": "opencode",
@@ -51,7 +51,7 @@ def test_reconhece_o_provedor_opencode():
 def test_opencode_ganha_header_de_sessao(temp_db):
     h = providers.headers_extras(OPENCODE)
     assert h.get("x-opencode-session")
-    assert h.get("User-Agent") == "maestro-local/1.0"
+    assert h.get("User-Agent") == "relay-local/1.0"
 
 
 def test_sessao_e_estavel(temp_db):

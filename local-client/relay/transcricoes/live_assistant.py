@@ -1,0 +1,221 @@
+"""Assistente de reunião ao vivo: acompanha, planeja e dá dicas em tempo real.
+
+Roda em QThreads para não travar a GUI. Reusa o provedor de IA ativo via
+build_chat_model. A extração é *incremental*: recebe o que já foi extraído + o
+trecho novo do transcript e devolve o estado mesclado (sem reprocessar tudo).
+Além de ações/decisões/perguntas, o assistente sugere um **plano de ação** e
+**dicas** conforme a reunião avança, usando o CONTEXTO do workspace/projeto
+selecionado quando fornecido.
+"""
+from __future__ import annotations
+
+import json
+import logging
+
+from PySide6.QtCore import QThread, Signal
+from pydantic import BaseModel, Field
+
+from relay.transcricoes.constants import LIVE_AI_TIMEOUT
+
+logger = logging.getLogger("relay.transcricoes.live")
+
+
+class _LiveAction(BaseModel):
+    description: str = ""
+    assignee: str = ""
+
+
+class _LiveQuestion(BaseModel):
+    question: str = ""
+    answer: str = ""       # resposta dada durante a reunião (vazio = ainda em aberto)
+    resolved: bool = False  # True quando foi respondida/resolvida
+
+
+class LiveStateSchema(BaseModel):
+    """Estado incremental da reunião ao vivo (para structured output)."""
+    action_items: list[_LiveAction] = Field(default_factory=list)
+    decisions: list[str] = Field(default_factory=list)
+    questions: list[_LiveQuestion] = Field(default_factory=list)
+    plan: list[str] = Field(default_factory=list)
+    tips: list[str] = Field(default_factory=list)
+
+
+LIVE_EXTRACT_SYSTEM = """Você é um assistente que acompanha uma reunião em tempo real. Você mantém um
+resumo estruturado incremental E ATUA COMO COPILOTO: sugere um plano de ação e dá dicas úteis
+conforme a reunião avança, levando em conta o CONTEXTO do workspace/projeto quando fornecido.
+
+Recebe o CONTEXTO (workspace/projeto atual), o ESTADO ATUAL (JSON já produzido) e um TRECHO NOVO
+da transcrição. Devolva o ESTADO ATUALIZADO, mesclando o trecho novo com o que já existia.
+
+Responda SEMPRE apenas com JSON válido nesta estrutura:
+{
+    "action_items": [{"description": "ação", "assignee": "responsável ou null"}],
+    "decisions": ["decisão tomada"],
+    "questions": [{"question": "pergunta levantada", "answer": "resposta dada na reunião ou vazio", "resolved": true/false}],
+    "plan": ["passo objetivo do plano de ação, em ordem de execução"],
+    "tips": ["dica/observação proativa do assistente"]
+}
+
+Regras:
+- NUNCA remova action_items/decisions que já existiam, a não ser que o trecho novo os torne resolvidos.
+- "questions": acumule as perguntas levantadas na reunião. NÃO remova perguntas que já existiam.
+  Quando uma pergunta for RESPONDIDA durante a reunião, preencha o campo "answer" com a resposta
+  (curta e objetiva) e marque "resolved": true — mantenha o texto original da pergunta. Enquanto
+  não houver resposta, "answer" fica vazio e "resolved": false.
+- RESPOSTAS JÁ DADAS SÃO INFORMAÇÃO CONFIRMADA: uma pergunta com "answer" preenchido (venha do
+  ESTADO ATUAL — pode ter sido respondida manualmente pelo usuário — ou do trecho novo) vale como
+  fato decidido. Use essas respostas para embasar "plan", "tips", "action_items" e "decisions", e
+  NUNCA apague nem contradiga uma resposta existente; só a ajuste se o trecho novo a corrigir
+  explicitamente. Não volte a perguntar o que já foi respondido.
+- O TRECHO pode ser uma transcrição CORRIGIDA pelo usuário: nesse caso revise os itens existentes
+  (ajuste/remova o que ficou errado, acrescente o que faltou), preservando as respostas dadas.
+- "plan": derive um plano de ação prático do que foi discutido/decidido (5 a 8 passos no máximo);
+  refine-o a cada trecho novo em vez de recomeçar. Se houver contexto de projeto, alinhe os passos a ele.
+- "tips": sugestões proativas do copiloto — riscos, pontos esquecidos, boas práticas, dependências,
+  ou algo do CONTEXTO do projeto que seja relevante (máx. 5). Não repita o que já é óbvio na transcrição.
+  Quando o CONTEXTO trouxer board/atrasos/dailies, prefira dicas CONCRETAS citando o card, a coluna
+  ou o registro (ex.: "MIG-14096 está em Dev Box há 5 dias sem revisor"; "a daily de ontem apontou
+  bloqueio no cashier"). Se o contexto não tiver o dado, não invente.
+- Não invente fatos; para plan/tips você pode inferir recomendações, deixando claro que são sugestões.
+- Responda em português do Brasil.
+"""
+
+LIVE_EXTRACT_USER = """CONTEXTO:
+{context}
+
+ESTADO ATUAL:
+{state}
+
+TRECHO NOVO DA TRANSCRIÇÃO:
+{new_text}
+
+Retorne apenas o JSON do estado atualizado."""
+
+LIVE_ASK_SYSTEM = """Você é um copiloto de reunião. Responde perguntas sobre a reunião em andamento
+usando a transcrição fornecida e, se útil, o CONTEXTO do workspace/projeto. Se algo não foi dito na
+reunião, diga isso claramente. Seja direto e responda em português do Brasil."""
+
+LIVE_ASK_USER = """CONTEXTO:
+{context}
+
+TRANSCRIÇÃO ATÉ AGORA:
+{transcript}
+
+PERGUNTA: {question}
+
+Responda de forma objetiva."""
+
+
+EMPTY_STATE = {
+    "action_items": [],
+    "decisions": [],
+    "questions": [],
+    "plan": [],
+    "tips": [],
+}
+
+
+def _clamp_transcript(text: str, max_words: int = 4000) -> str:
+    """Limita o contexto enviado à IA (reunião longa não estoura o modelo)."""
+    words = text.split()
+    if len(words) <= max_words:
+        return text
+    return " ".join(words[-max_words:])
+
+
+class LiveExtractWorker(QThread):
+    """Faz UMA passada incremental e emite o estado mesclado (com plano e dicas)."""
+
+    done = Signal(dict)     # {action_items, decisions, open_questions, plan, tips}
+    failed = Signal(str)
+
+    def __init__(self, state: dict, new_text: str, context: str = "", parent=None):
+        super().__init__(parent)
+        self.state = {**EMPTY_STATE, **(state or {})}
+        self.new_text = new_text
+        self.context = context or "(sem contexto de projeto)"
+
+    def run(self) -> None:
+        from relay.ai.llm import invoke_json
+        try:
+            state_json = json.dumps(self.state, ensure_ascii=False)
+            user = LIVE_EXTRACT_USER.format(
+                context=_clamp_transcript(self.context, 1500),
+                state=state_json,
+                new_text=_clamp_transcript(self.new_text, 1500),
+            )
+            parsed = invoke_json([("system", LIVE_EXTRACT_SYSTEM), ("user", user)],
+                                 schema=LiveStateSchema, temperature=0.2,
+                                 timeout=LIVE_AI_TIMEOUT)
+            if not isinstance(parsed, dict) or "parse_error" in parsed or "raw_response" in parsed:
+                # Falhou o parse: mantém o estado anterior para não perder dados.
+                self.done.emit(self.state)
+                return
+            merged = {
+                key: parsed.get(key, self.state.get(key, []))
+                for key in ("action_items", "decisions", "questions", "plan", "tips")
+            }
+            self.done.emit(merged)
+        except Exception as e:  # noqa: BLE001
+            logger.warning("Live extract falhou: %s", e)
+            self.failed.emit(str(e))
+
+
+VISION_CONTEXT_SYSTEM = """Você lê uma imagem (captura de tela, foto, diagrama, slide ou documento)
+adicionada como CONTEXTO de uma reunião. Descreva objetivamente o conteúdo relevante e TRANSCREVA
+qualquer texto legível (títulos, itens, código, números, tabelas). Não invente. Seja conciso e
+responda em português do Brasil, em texto corrido/tópicos — sem comentários sobre a qualidade da imagem."""
+
+
+class VisionContextWorker(QThread):
+    """Extrai texto/descrição de uma imagem para usar como contexto da reunião."""
+
+    done = Signal(str, str)   # (label, texto extraído)
+    failed = Signal(str, str)  # (label, erro)
+
+    def __init__(self, label: str, image_bytes: bytes, mime: str = "image/png", parent=None):
+        super().__init__(parent)
+        self.label = label
+        self.image_bytes = image_bytes
+        self.mime = mime
+
+    def run(self) -> None:
+        from relay.ai.llm import invoke_vision
+        try:
+            text = invoke_vision(
+                self.image_bytes,
+                "Descreva e transcreva o conteúdo útil desta imagem para servir de contexto à reunião.",
+                mime=self.mime,
+                temperature=0.1,
+            )
+            self.done.emit(self.label, (text or "").strip())
+        except Exception as e:  # noqa: BLE001
+            logger.warning("Vision context falhou (%s): %s", self.label, e)
+            self.failed.emit(self.label, str(e))
+
+
+class LiveAskWorker(QThread):
+    """Responde uma pergunta pontual com base no transcript (e no contexto)."""
+
+    answered = Signal(str)
+    failed = Signal(str)
+
+    def __init__(self, transcript: str, question: str, context: str = "", parent=None):
+        super().__init__(parent)
+        self.transcript = transcript
+        self.question = question
+        self.context = context or "(sem contexto de projeto)"
+
+    def run(self) -> None:
+        from relay.ai.llm import invoke_text
+        try:
+            user = LIVE_ASK_USER.format(
+                context=_clamp_transcript(self.context, 1500),
+                transcript=_clamp_transcript(self.transcript),
+                question=self.question,
+            )
+            text = invoke_text([("system", LIVE_ASK_SYSTEM), ("user", user)], temperature=0.2)
+            self.answered.emit((text or "").strip())
+        except Exception as e:  # noqa: BLE001
+            logger.warning("Live ask falhou: %s", e)
+            self.failed.emit(str(e))

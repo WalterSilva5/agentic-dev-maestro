@@ -4,9 +4,9 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import Swal from 'sweetalert2';
 
-import { MaestroApiService } from '../../services/maestro-api.service';
+import { RelayApiService } from '../../services/relay-api.service';
 import { TenantService } from '../../services/tenant.service';
-import { Board, BoardColumn, Task } from '../../models/maestro.models';
+import { Board, BoardColumn, Task } from '../../models/relay.models';
 
 // Origem de um card sendo arrastado (DnD nativo HTML5).
 interface DragSource {
@@ -37,7 +37,7 @@ export class BoardComponent implements OnInit {
   newTaskTitle: Record<number, string> = {};
 
   constructor(
-    private api: MaestroApiService,
+    private api: RelayApiService,
     protected tenant: TenantService,
     private router: Router,
   ) {}

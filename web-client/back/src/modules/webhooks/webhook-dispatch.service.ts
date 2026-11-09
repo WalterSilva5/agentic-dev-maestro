@@ -48,11 +48,11 @@ export class WebhookDispatchService {
     try {
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
-        'X-Maestro-Event': event
+        'X-Relay-Event': event
       };
       if (secret) {
         const signature = createHmac('sha256', secret).update(body).digest('hex');
-        headers['X-Maestro-Signature'] = `sha256=${signature}`;
+        headers['X-Relay-Signature'] = `sha256=${signature}`;
       }
       await fetch(url, { method: 'POST', headers, body });
     } catch (err) {

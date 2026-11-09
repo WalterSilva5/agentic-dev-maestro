@@ -1,4 +1,4 @@
-# Maestro Local — instalação completa (Windows / PowerShell)
+# Relay Local — instalação completa (Windows / PowerShell)
 # Equivalente ao install.sh: cria venv, instala dependências e valida.
 #
 # Uso (PowerShell):
@@ -9,7 +9,7 @@
 $ErrorActionPreference = "Stop"
 Set-Location -Path $PSScriptRoot
 
-Write-Host "=== Maestro Local — Instalação ===" -ForegroundColor Cyan
+Write-Host "=== Relay Local — Instalação ===" -ForegroundColor Cyan
 Write-Host ""
 
 # --- Python ---
@@ -62,7 +62,7 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host ""
 Write-Host "Validando instalação..."
 $checks = @(
-    @("maestro_local", "import maestro_local"),
+    @("relay", "import relay"),
     @("PySide6",       "from PySide6.QtWidgets import QApplication"),
     @("FastAPI",       "from fastapi import FastAPI")
 )
@@ -103,7 +103,7 @@ Write-Host ""
 Write-Host "Para executar:"
 Write-Host "  .\run.ps1"
 Write-Host "  # ou"
-Write-Host "  .venv\Scripts\python.exe -m maestro_local"
+Write-Host "  .venv\Scripts\python.exe -m relay"
 Write-Host ""
 Write-Host "Nota: a gravação de Reuniões usa o parec/PulseAudio e funciona no Linux." -ForegroundColor Yellow
 Write-Host "No Windows o app roda normalmente (board, IA, importar transcrições do"

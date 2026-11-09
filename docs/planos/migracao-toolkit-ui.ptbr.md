@@ -32,7 +32,7 @@ mantendo o núcleo de captura/IA onde já funciona (Python).
 - **Desktop atual**: `local-client` em PySide6/Qt6 + **FastAPI** embarcado (9777).
 - **Web UI**: **React 18 + Vite** (`local-client/webui/`) com **16 telas
   funcionando**, servida pela própria API. É um front moderno **já pronto**.
-- **Shell de desktop**: `maestro_local/desktop_shell.py` (**pywebview**) já
+- **Shell de desktop**: `relay/desktop_shell.py` (**pywebview**) já
   abre a web UI numa janela nativa (E1 do Plano 10, concluído).
 - **Camadas agnósticas de UI** extraídas recentemente e reutilizáveis por
   qualquer front via API: `transcricoes/repository.py` (persistência),

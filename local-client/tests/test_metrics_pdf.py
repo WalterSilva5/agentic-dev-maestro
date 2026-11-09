@@ -2,15 +2,15 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from maestro_local.api.app import app
-from maestro_local.db.models import init_db
+from relay.api.app import app
+from relay.db.models import init_db
 
 
 @pytest.fixture
 def client(tmp_path):
     db_path = str(tmp_path / "test.db")
     init_db(db_path)
-    import maestro_local.db.models as m
+    import relay.db.models as m
     m._engine = None
     m._SessionLocal = None
     m._active_db_path = db_path
@@ -65,8 +65,8 @@ def test_export_pdf_404_para_projeto_inexistente(client):
 
 
 def test_pdf_tem_conteudo_esperado(client, projeto_com_tarefas):
-    from maestro_local.db.models import get_session, Project
-    from maestro_local.metrics_pdf import build_metrics_pdf, collect_metrics
+    from relay.db.models import get_session, Project
+    from relay.metrics_pdf import build_metrics_pdf, collect_metrics
 
     s = get_session()
     try:
@@ -97,8 +97,8 @@ def test_pdf_tem_conteudo_esperado(client, projeto_com_tarefas):
 def test_pdf_tem_graficos_dos_mesmos_dados_da_ui(client, projeto_com_tarefas):
     """O PDF precisa ter os donuts (Por coluna/Responsável/Prioridade/Módulo),
     não apenas tabelas — é o pedido de paridade com a interface."""
-    from maestro_local.db.models import get_session, Project
-    from maestro_local.metrics_pdf import (
+    from relay.db.models import get_session, Project
+    from relay.metrics_pdf import (
         _dados_colunas,
         _dados_modulos,
         _dados_pessoas,
@@ -142,8 +142,8 @@ def test_pdf_inclui_sem_responsavel_quando_existe(client):
     cols = {c["name"]: c["id"] for c in client.get(f"/api/projects/{pid}/columns").json()}
     client.post("/api/tasks", json={"projectId": pid, "columnId": cols["A fazer"], "title": "sem dono"})
 
-    from maestro_local.db.models import get_session, Project
-    from maestro_local.metrics_pdf import collect_metrics
+    from relay.db.models import get_session, Project
+    from relay.metrics_pdf import collect_metrics
 
     s = get_session()
     try:

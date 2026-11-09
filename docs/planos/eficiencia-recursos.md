@@ -102,7 +102,7 @@ read `resource.getrusage(RUSAGE_SELF).ru_maxrss` right after `processEvents()`.
 Run 3× to check stability.
 
 > **Isolation caveat**: `SettingsView`/`_save_settings` writes to
-> `~/.maestro-local/config.json` — a **real user file**, outside the temp SQLite
+> `~/.relay/config.json` — a **real user file**, outside the temp SQLite
 > DB. A manual verification script during this plan's development interacted
 > with the Whisper model combo and **overwrote that real setting** (caught via
 > the file's mtime, restored to the `small` default). The `temp_db` fixture in

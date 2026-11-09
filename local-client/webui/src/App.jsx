@@ -50,7 +50,7 @@ function Sidebar({ onNavigate, onCollapse }) {
     ['/ferramentas', t('Ferramentas'), '🧰'],
     ['/configuracoes', t('Configurações'), '⚙️'],
     // deep link do app desktop: mesma lista, sem seção própria
-    ['maestro://vault', t('Senhas'), '🔒', t('Cofre KeePass no desktop')],
+    ['relay://vault', t('Senhas'), '🔒', t('Cofre KeePass no desktop')],
   ]
   return (
     <aside className="sidebar">
@@ -58,7 +58,7 @@ function Sidebar({ onNavigate, onCollapse }) {
         <div className="badge">A</div>
         <div>
           <div className="name">Agentic Dev</div>
-          <div className="sub">Maestro · web</div>
+          <div className="sub">Relay · web</div>
         </div>
         <button
           type="button"
@@ -75,8 +75,8 @@ function Sidebar({ onNavigate, onCollapse }) {
       <div className="nav-label">{t('Workspace')}</div>
       <nav className="nav">
         {nav.map(([to, label, ico, hint]) =>
-          to.startsWith('maestro://') ? (
-            // atalho do app desktop (abre o Maestro nativo)
+          to.startsWith('relay://') ? (
+            // atalho do app desktop (abre o Relay nativo)
             <a key={to} href={to} title={hint}>
               <span className="nav-ico">{ico}</span>
               <span>{label}</span>
@@ -109,12 +109,12 @@ function Sidebar({ onNavigate, onCollapse }) {
 export default function App() {
   const [navOpen, setNavOpen] = useState(false)
   const [sidebarVisible, setSidebarVisible] = useState(() => {
-    try { return localStorage.getItem('maestro.sidebarVisible') !== 'false' } catch { return true }
+    try { return localStorage.getItem('relay.sidebarVisible') !== 'false' } catch { return true }
   })
   const toggleSidebar = () => {
     setSidebarVisible((v) => {
       const n = !v
-      try { localStorage.setItem('maestro.sidebarVisible', String(n)) } catch {}
+      try { localStorage.setItem('relay.sidebarVisible', String(n)) } catch {}
       return n
     })
     setNavOpen(false)

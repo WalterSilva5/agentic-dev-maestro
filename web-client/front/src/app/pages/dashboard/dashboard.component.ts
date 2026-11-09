@@ -2,9 +2,9 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 
-import { MaestroApiService } from '../../services/maestro-api.service';
+import { RelayApiService } from '../../services/relay-api.service';
 import { TenantService } from '../../services/tenant.service';
-import { Project, ActivityItem } from '../../models/maestro.models';
+import { Project, ActivityItem } from '../../models/relay.models';
 
 // Resumo por coluna do quadro de um projeto.
 interface ColumnStat {
@@ -38,7 +38,7 @@ export class DashboardComponent implements OnInit {
   activity: ActivityItem[] = [];
 
   constructor(
-    private api: MaestroApiService,
+    private api: RelayApiService,
     protected tenant: TenantService
   ) {}
 

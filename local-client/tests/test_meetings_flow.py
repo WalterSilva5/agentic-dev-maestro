@@ -11,7 +11,7 @@ import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QListWidgetItem
 
-from maestro_local.db.models import Recording, get_session
+from relay.db.models import Recording, get_session
 
 EMPTY = {"action_items": [], "decisions": [], "questions": [], "plan": [], "tips": []}
 
@@ -99,7 +99,7 @@ def test_revisao_envia_estado_atual_ao_agente(meetings_view, monkeypatch):
             return _Sig()
         def start(self): pass
 
-    import maestro_local.transcricoes.live_assistant as la
+    import relay.transcricoes.live_assistant as la
     monkeypatch.setattr(la, "LiveExtractWorker", FakeWorker)
     monkeypatch.setattr(v, "_provider_ready", lambda: True)
 
@@ -208,7 +208,7 @@ def test_edicao_do_usuario_agenda_revisao_programatica_nao(meetings_view):
 @pytest.mark.parametrize("attr", ["ws_combo", "proj_combo", "kind_combo",
                                   "mic_combo", "monitor_combo", "screen_combo"])
 def test_combos_ignoram_a_roda_do_mouse(meetings_view, attr):
-    from maestro_local.gui.no_wheel_combo import NoWheelComboBox
+    from relay.gui.no_wheel_combo import NoWheelComboBox
     assert isinstance(getattr(meetings_view, attr), NoWheelComboBox)
 
 
@@ -234,7 +234,7 @@ def test_texto_ao_vivo_nao_dispara_revisao(meetings_view):
 def test_reabrir_gravacao_antiga_deriva_abas_do_resumo(meetings_view):
     """Gravação analisada antes das abas (só summary_json) mostra itens ao reabrir."""
     import json
-    from maestro_local.transcricoes import repository
+    from relay.transcricoes import repository
     repository.save(None, {
         "title": "Antiga", "transcript": "t",
         "summary_json": json.dumps({
@@ -254,7 +254,7 @@ def test_reabrir_gravacao_antiga_deriva_abas_do_resumo(meetings_view):
 def test_transcrever_video_limpa_estado_e_chama_pipeline(meetings_view, monkeypatch, tmp_path):
     """Transcrever um vídeo cria reunião limpa e dispara a transcrição com o caminho do vídeo."""
     from pathlib import Path
-    from maestro_local.gui.views import transcricoes_view as tv
+    from relay.gui.views import transcricoes_view as tv
 
     v = meetings_view
     video = tmp_path / "exemplo.mp4"

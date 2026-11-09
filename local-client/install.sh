@@ -1,11 +1,11 @@
 #!/bin/bash
-# Maestro Local — instalação completa
+# Relay Local — instalação completa
 # Cria venv, instala dependências e valida a instalação
 
 set -e
 cd "$(dirname "$0")"
 
-echo "=== Maestro Local — Instalação ==="
+echo "=== Relay Local — Instalação ==="
 echo ""
 
 # Python check
@@ -45,10 +45,10 @@ pip install -e . --quiet
 echo ""
 echo "Validando instalação..."
 python -c "
-import maestro_local
+import relay
 from PySide6.QtWidgets import QApplication
 from fastapi import FastAPI
-print('  maestro_local: OK')
+print('  relay: OK')
 print('  PySide6: OK')
 print('  FastAPI: OK')
 "
@@ -71,4 +71,4 @@ echo ""
 echo "Para executar:"
 echo "  ./run.sh"
 echo "  # ou"
-echo "  source .venv/bin/activate && python -m maestro_local"
+echo "  source .venv/bin/activate && python -m relay"

@@ -4,15 +4,15 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from maestro_local.api.app import app
-from maestro_local.daily_doc import (
+from relay.api.app import app
+from relay.daily_doc import (
     format_date_br,
     parse_daily_markdown,
     parse_date_br,
     render_daily_markdown,
     suggested_filename,
 )
-from maestro_local.db.models import init_db
+from relay.db.models import init_db
 
 # Exemplo no formato que o time usa no vault (com todas as seções).
 EXEMPLO = """# Daily - 04/11/2026 — config E3/E4 na VM (tema do dia)
@@ -45,7 +45,7 @@ Ambiente de referência de volta: módulo `config` fechado em 26/26.
 def client(tmp_path):
     db_path = str(tmp_path / "test.db")
     init_db(db_path)
-    import maestro_local.db.models as m
+    import relay.db.models as m
     m._engine = None
     m._SessionLocal = None
     m._active_db_path = db_path

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Maestro — roda apenas a API + web UI (sem a GUI desktop)
+# Relay — roda apenas a API + web UI (sem a GUI desktop)
 # Uso: ./run-web.sh [--port 9777]
 set -e
 cd "$(dirname "$0")"
@@ -22,4 +22,4 @@ if [ ! -f "webui/dist/index.html" ] && command -v npm &>/dev/null; then
     (cd webui && npm install --silent && npm run build --silent)
 fi
 
-exec python -m maestro_local.webmain "$@"
+exec python -m relay.webmain "$@"

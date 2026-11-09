@@ -1,4 +1,4 @@
-# Maestro Local — script de execução (Windows / PowerShell)
+# Relay Local — script de execução (Windows / PowerShell)
 # Equivalente ao run.sh.
 # Uso: .\run.ps1 [--port 8888]
 
@@ -20,10 +20,10 @@ if (-not (Test-Path $venvPython)) {
     exit 1
 }
 
-& $venvPython -c "import maestro_local" 2>$null
+& $venvPython -c "import relay" 2>$null
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Instalando dependencias..."
     & $venvPython -m pip install -e . --quiet
 }
 
-& $venvPython -m maestro_local @args
+& $venvPython -m relay @args

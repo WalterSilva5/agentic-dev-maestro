@@ -7,7 +7,7 @@ set -e
 
 : "${API_URL:=/api}"
 : "${PRODUCTION:=true}"
-: "${APP_NAME:=Agentic Dev Maestro}"
+: "${APP_NAME:=Relay}"
 : "${PRIMARY_COLOR:=#1DB954}"
 : "${STATUS_BAR_COLOR:=#181818}"
 

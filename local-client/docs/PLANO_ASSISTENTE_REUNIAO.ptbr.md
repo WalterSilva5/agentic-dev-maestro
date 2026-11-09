@@ -2,7 +2,7 @@
 
 # Plano — Assistente de Reunião em Tempo Real
 
-Evolução do módulo **Transcrições** (`maestro_local/transcricoes/`) de "grava → para →
+Evolução do módulo **Transcrições** (`relay/transcricoes/`) de "grava → para →
 transcreve → resume" para **acompanhamento ao vivo** durante a reunião, com ponte
 direta para o board. Esforço em homem-dia (hd); staffing/cronograma fica a critério da
 liderança.
@@ -117,7 +117,7 @@ Itens que conversam com o resto do app e potencializam o assistente de reunião:
   independente mesmo sem tempo real.
 - **Digest proativo do assistente** (~3 hd) — resumo automático (manhã/fim do dia)
   com prioridades, vencidas e itens parados; mostrar no Dashboard. Reusa a lógica da
-  skill `maestro-daily-report`.
+  skill `relay-daily-report`.
 - **Busca global de verdade** (~2 hd) — hoje o Ctrl+K só acha tarefas; expandir para
   notas, **transcrições** e comentários via SQLite FTS.
 - **Agenda/calendário por prazo** (~2 hd) — visão de calendário das tarefas por

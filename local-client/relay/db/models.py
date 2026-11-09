@@ -1,0 +1,1235 @@
+import os
+import sys
+from datetime import datetime
+from pathlib import Path
+
+from sqlalchemy import (
+    Date,
+    UniqueConstraint,
+    Boolean,
+    Column,
+    DateTime,
+    Enum,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Table,
+    Text,
+    create_engine,
+)
+from sqlalchemy.orm import DeclarativeBase, Session, relationship, sessionmaker
+
+def _resolve_data_dir() -> Path:
+    """Diretório de dados do Relay (bancos por workspace + config.json).
+
+    Migra automaticamente de `~/.maestro-local` (nome antigo): se o diretório
+    novo não existe e o antigo existe, move tudo uma única vez.
+    """
+    env = os.environ.get("RELAY_DATA_DIR") or os.environ.get("MAESTRO_DATA_DIR")
+    if env:
+        return Path(env)
+    novo = Path.home() / ".relay"
+    antigo = Path.home() / ".maestro-local"
+    if not novo.exists() and antigo.exists() and "pytest" not in sys.modules:
+        try:
+            import shutil
+            shutil.move(str(antigo), str(novo))
+        except OSError:
+            return antigo
+    return novo
+
+
+DATA_DIR = _resolve_data_dir()
+DB_PATH = str(DATA_DIR / "maestro.db")
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+task_labels = Table(
+    "task_labels",
+    Base.metadata,
+    Column("task_id", Integer, ForeignKey("tasks.id", ondelete="CASCADE"), primary_key=True),
+    Column("label_id", Integer, ForeignKey("labels.id", ondelete="CASCADE"), primary_key=True),
+)
+
+task_epics = Table(
+    "task_epics",
+    Base.metadata,
+    Column("task_id", Integer, ForeignKey("tasks.id", ondelete="CASCADE"), primary_key=True),
+    Column("epic_id", Integer, ForeignKey("epics.id", ondelete="CASCADE"), primary_key=True),
+)
+
+
+class Project(Base):
+    __tablename__ = "projects"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(120), nullable=False)
+    key = Column(String(20), nullable=False, unique=True)
+    description = Column(Text)
+    task_seq = Column(Integer, default=0)
+    external_docs_path = Column(String(500), default="")
+    azure_board_url = Column(String(500), default="")
+    target_date = Column(DateTime)  # previsão de entrega do projeto (contagem regressiva)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    columns = relationship("BoardColumn", back_populates="project", cascade="all,delete-orphan", order_by="BoardColumn.order")
+    tasks = relationship("Task", back_populates="project", cascade="all,delete-orphan")
+    members = relationship("Member", back_populates="project", cascade="all,delete-orphan", order_by="Member.name")
+    sprints = relationship("Sprint", back_populates="project", cascade="all,delete-orphan", order_by="Sprint.sort_order")
+    epics = relationship("Epic", back_populates="project", cascade="all,delete-orphan", order_by="Epic.name")
+    goals = relationship("Goal", back_populates="project", cascade="all,delete-orphan", order_by="Goal.due_date")
+    links = relationship("ProjectLink", back_populates="project", cascade="all,delete-orphan", order_by="ProjectLink.sort_order")
+    gate_rules = relationship("GateRule", back_populates="project", cascade="all,delete-orphan")
+    daily_entries = relationship(
+        "ProjectDailyEntry", back_populates="project", cascade="all,delete-orphan",
+        order_by="ProjectDailyEntry.date, ProjectDailyEntry.created_at",
+    )
+
+    @property
+    def board_url(self) -> str:
+        """Link do board na plataforma de origem (Azure DevOps, Jira, ClickUp...).
+
+        A coluna no banco continua `azure_board_url` por compatibilidade com
+        bancos já existentes; este alias mantém o código neutro em relação à
+        plataforma.
+        """
+        return self.azure_board_url or ""
+
+    @board_url.setter
+    def board_url(self, value: str) -> None:
+        self.azure_board_url = (value or "").strip()
+
+
+class ProjectLink(Base):
+    """Atalho de link com título por projeto (ex.: PR, docs, board externo)."""
+
+    __tablename__ = "project_links"
+
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    title = Column(String(120), nullable=False)
+    url = Column(String(500), nullable=False)
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    project = relationship("Project", back_populates="links")
+
+
+class BoardColumn(Base):
+    __tablename__ = "board_columns"
+
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(120), nullable=False)
+    order = Column(Integer, nullable=False, default=0)
+    wip_limit = Column(Integer)
+    is_done = Column(Boolean, default=False)
+
+    project = relationship("Project", back_populates="columns")
+    tasks = relationship("Task", back_populates="column")
+
+
+class Sprint(Base):
+    __tablename__ = "sprints"
+
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(120), nullable=False)
+    goal = Column(Text)
+    status = Column(String(20), default="PLANEJADA")  # PLANEJADA | ATIVA | CONCLUIDA
+    start_date = Column(DateTime)
+    end_date = Column(DateTime)
+    capacity = Column(Float)  # capacidade planejada (mesma unidade de estimate_md: homem-dia)
+    retro_json = Column(Text)  # retrospectiva gerada: {well, badly, actions}
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    project = relationship("Project", back_populates="sprints")
+    tasks = relationship("Task", back_populates="sprint")
+
+
+class Epic(Base):
+    """Agrupador temático de cards (ex.: módulo/onda). Um card pode ter vários."""
+
+    __tablename__ = "epics"
+
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(120), nullable=False)
+    color = Column(String(20))
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    project = relationship("Project", back_populates="epics")
+    tasks = relationship("Task", secondary=task_epics, back_populates="epics")
+
+
+class Goal(Base):
+    """Objetivo de fluxo: entregar as tarefas que casam com os filtros até a data."""
+
+    __tablename__ = "goals"
+
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(200), nullable=False)
+    description = Column(Text)
+    due_date = Column(DateTime)
+    tag = Column(String(60))          # filtra por label/tag
+    epic_id = Column(Integer, ForeignKey("epics.id", ondelete="SET NULL"))
+    sprint_id = Column(Integer, ForeignKey("sprints.id", ondelete="SET NULL"))
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    project = relationship("Project", back_populates="goals")
+    epic = relationship("Epic")
+    sprint = relationship("Sprint")
+
+
+class Task(Base):
+    __tablename__ = "tasks"
+
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    column_id = Column(Integer, ForeignKey("board_columns.id"), nullable=False)
+    number = Column(Integer, nullable=False)
+    title = Column(String(255), nullable=False)
+    description = Column(Text)
+    objective = Column(Text)
+    acceptance = Column(Text)
+    type = Column(String(20), default="FEATURE")
+    priority = Column(String(10), default="MEDIUM")
+    estimate_md = Column(Float)
+    parent_id = Column(Integer, ForeignKey("tasks.id"))
+    sprint_id = Column(Integer, ForeignKey("sprints.id", ondelete="SET NULL"))
+    rank = Column(String(64))
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    deleted_at = Column(DateTime)
+    due_date = Column(DateTime)
+    assignee = Column(String(100))
+    requires_human = Column(Boolean, default=False)
+    done_at = Column(DateTime)      # quando entrou numa coluna "concluído"
+    archived_at = Column(DateTime)  # arquivada: some do board, vai para o board de arquivados
+    # tarefa que existe só aqui: não vem nem volta do board externo (sync ignora)
+    is_local = Column(Boolean, default=False)
+
+    project = relationship("Project", back_populates="tasks")
+    sprint = relationship("Sprint", back_populates="tasks")
+    column = relationship("BoardColumn", back_populates="tasks")
+    parent = relationship("Task", remote_side="Task.id", backref="subtasks")
+    labels = relationship("Label", secondary=task_labels, back_populates="tasks")
+    epics = relationship("Epic", secondary=task_epics, back_populates="tasks")
+    checklist = relationship("TaskChecklist", back_populates="task", cascade="all,delete-orphan", order_by="TaskChecklist.sort_order")
+    comments = relationship("Comment", back_populates="task", cascade="all,delete-orphan", order_by="Comment.created_at")
+    documents = relationship("Document", back_populates="task", cascade="all,delete-orphan")
+    blocking = relationship("TaskDependency", foreign_keys="TaskDependency.blocker_id", back_populates="blocker", cascade="all,delete-orphan")
+    blocked_by = relationship("TaskDependency", foreign_keys="TaskDependency.blocked_id", back_populates="blocked", cascade="all,delete-orphan")
+    evidence = relationship("Evidence", back_populates="task", cascade="all,delete-orphan", order_by="Evidence.created_at")
+    parity_results = relationship("ParityResult", back_populates="task", cascade="all,delete-orphan", order_by="ParityResult.created_at")
+
+    @property
+    def code(self):
+        return f"{self.project.key}-{self.number}" if self.project else f"?-{self.number}"
+
+    @property
+    def status(self):
+        return self.column.name if self.column else ""
+
+
+class Label(Base):
+    __tablename__ = "labels"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(60), nullable=False, unique=True)
+    color = Column(String(20))
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    tasks = relationship("Task", secondary=task_labels, back_populates="labels")
+
+
+class Member(Base):
+    """Responsável do projeto: lista atribuível aos cards (filtro + métricas)."""
+
+    __tablename__ = "members"
+
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String(100), nullable=False)
+    color = Column(String(20))
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    project = relationship("Project", back_populates="members")
+
+
+MEMBER_COLORS = [
+    "#4C6EF5", "#E8590C", "#2F9E44", "#6741D9", "#C2255C", "#0C8599",
+    "#F08C00", "#0CA678", "#E03131", "#66A80F", "#868E96", "#1971C2",
+]
+
+
+def project_members(session, project_id: int) -> list:
+    """Responsáveis do projeto, em ordem alfabética."""
+    return (session.query(Member)
+            .filter(Member.project_id == project_id)
+            .order_by(Member.name).all())
+
+
+def get_or_create_member(session, project_id: int, name: str):
+    """Busca o responsável pelo nome (case-insensitive) ou cria com cor livre."""
+    name = (name or "").strip()
+    if not name:
+        return None
+    existing = (session.query(Member)
+                .filter(Member.project_id == project_id,
+                        Member.name.ilike(name)).first())
+    if existing is not None:
+        return existing
+    usadas = {m.color for m in project_members(session, project_id) if m.color}
+    cor = next((c for c in MEMBER_COLORS if c not in usadas), MEMBER_COLORS[0])
+    m = Member(project_id=project_id, name=name[:100], color=cor)
+    session.add(m)
+    session.flush()
+    return m
+
+
+def member_stats(session, project_id: int) -> list[dict]:
+    """Métricas por responsável: total, dev concluído, aceitos, % e vencidos em aberto.
+
+    Duas leituras, como nos módulos: `developed` (Dev Box ou depois = dev
+    concluído) é o progresso do responsável; `done` conta só o aceite
+    (coluna de conclusão).
+    """
+    from datetime import datetime
+    cols = session.query(BoardColumn).filter(
+        BoardColumn.project_id == project_id).order_by(BoardColumn.order).all()
+    done_ids = {c.id for c in cols if c.is_done}
+    try:
+        from relay.dimensions import dev_done_column
+        coluna_dev = dev_done_column(cols)
+        dev_ids = {c.id for c in cols if c.order >= coluna_dev.order} \
+            if coluna_dev is not None else set(done_ids)
+    except Exception:  # noqa: BLE001
+        dev_ids = set(done_ids)
+    stats = []
+    for m in project_members(session, project_id):
+        base = session.query(Task).filter(
+            Task.project_id == project_id,
+            Task.assignee == m.name,
+            Task.deleted_at == None,  # noqa: E711
+            Task.archived_at == None,  # noqa: E711
+        )
+        total = base.count()
+        all_tasks = base.all()
+        done = sum(1 for t in all_tasks if t.column_id in done_ids)
+        developed = sum(1 for t in all_tasks if t.column_id in dev_ids)
+        overdue = sum(1 for t in all_tasks
+                      if t.due_date is not None and t.due_date < datetime.now()
+                      and t.column_id not in done_ids)
+        stats.append({"member": m, "total": total, "done": done,
+                      "pct": round(done / total * 100) if total else 0,
+                      "developed": developed,
+                      "developedPct": round(developed / total * 100) if total else 0,
+                      "overdue": overdue})
+    return stats
+
+
+class TeamNote(Base):
+    """Anotação de gestão de um membro em uma semana (base do report semanal).
+
+    Os números vêm do board; os campos de texto são a leitura do líder
+    ("como está trabalhando", serviço/apoio, atenção, próximo passo).
+    """
+
+    __tablename__ = "team_notes"
+
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    member_name = Column(String(100), nullable=False)
+    week_start = Column(Date, nullable=False)  # sempre uma segunda-feira
+    highlights = Column(Text, default="")      # como está trabalhando / entregas
+    service = Column(Text, default="")         # serviço: reviews, infra, suporte
+    attention = Column(Text, default="")       # pontos de atenção (fatos)
+    next_step = Column(Text, default="")       # próximo passo combinado
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        UniqueConstraint("project_id", "member_name", "week_start", name="uq_team_note"),
+    )
+
+
+class TaskChecklist(Base):
+    __tablename__ = "task_checklist"
+
+    id = Column(Integer, primary_key=True)
+    task_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
+    title = Column(String(255), nullable=False)
+    checked = Column(Boolean, default=False)
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    task = relationship("Task", back_populates="checklist")
+
+
+class Comment(Base):
+    __tablename__ = "comments"
+
+    id = Column(Integer, primary_key=True)
+    task_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
+    body = Column(Text, nullable=False)
+    type = Column(String(20), default="COMMENT")
+    author = Column(String(100), default="local")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    task = relationship("Task", back_populates="comments")
+
+
+class Document(Base):
+    __tablename__ = "documents"
+
+    id = Column(Integer, primary_key=True)
+    task_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"))
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"))
+    title = Column(String(200), nullable=False)
+    body = Column(Text, default="")
+    type = Column(String(20), default="NOTES")
+    version = Column(Integer, default=1)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    task = relationship("Task", back_populates="documents")
+
+
+class TaskDependency(Base):
+    __tablename__ = "task_dependencies"
+
+    id = Column(Integer, primary_key=True)
+    blocker_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
+    blocked_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    blocker = relationship("Task", foreign_keys=[blocker_id], back_populates="blocking")
+    blocked = relationship("Task", foreign_keys=[blocked_id], back_populates="blocked_by")
+
+
+class Evidence(Base):
+    __tablename__ = "task_evidence"
+
+    id = Column(Integer, primary_key=True)
+    task_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
+    kind = Column(String(24), nullable=False)  # REQUEST_RESPONSE|X_TRACE_ID|SQL|PRINT|PDF|LOG|OTHER
+    title = Column(String(200))
+    url = Column(Text)
+    environment = Column(String(80))
+    executed_at = Column(DateTime)
+    executor = Column(String(100))
+    result = Column(String(20))  # OK|FALHA|PARCIAL
+    notes = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    task = relationship("Task", back_populates="evidence")
+
+
+class ParityResult(Base):
+    __tablename__ = "task_parity"
+
+    id = Column(Integer, primary_key=True)
+    task_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False)
+    case_name = Column(String(200), nullable=False)
+    status = Column(String(20), nullable=False)  # FIEL|DIVERGENCIA|BLOQUEADO|NAO_EXECUTADO
+    expected = Column(Text)
+    actual = Column(Text)
+    notes = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    task = relationship("Task", back_populates="parity_results")
+
+
+class GateRule(Base):
+    __tablename__ = "gate_rules"
+
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    column_id = Column(Integer, ForeignKey("board_columns.id", ondelete="CASCADE"), nullable=False)
+    require_evidence = Column(Boolean, default=False)
+    min_evidence = Column(Integer, default=1)
+    required_evidence_kinds = Column(Text)  # CSV opcional: X_TRACE_ID,SQL
+    require_parity = Column(Boolean, default=False)
+    forbidden_parity = Column(String(60), default="DIVERGENCIA")
+    require_comment_type = Column(String(20))
+    require_pr_merged = Column(Boolean, default=False)
+    message = Column(Text)
+
+    project = relationship("Project", back_populates="gate_rules")
+    column = relationship("BoardColumn")
+
+
+class DailyNote(Base):
+    __tablename__ = "daily_notes"
+
+    id = Column(Integer, primary_key=True)
+    date = Column(String(10), nullable=False, unique=True)
+    body = Column(Text, default="")
+    report = Column(Text, default="")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class ProjectDailyEntry(Base):
+    """Registro diário do projeto: o que foi feito naquele dia.
+
+    Funciona como um diário/comentário do projeto (não da tarefa), usado para
+    daily e para agentes reconstruírem o andamento. Várias entradas por dia são
+    permitidas — cada uma é um comentário com autor, tipo e horário.
+    """
+
+    __tablename__ = "project_daily"
+
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    date = Column(String(10), nullable=False, index=True)   # YYYY-MM-DD (dia do trabalho)
+    kind = Column(String(20), default="WORK")               # WORK|BLOCKER|DECISION|NOTE
+    # Onde o registro aparece no doc do dia (formato do vault):
+    # INTRO (contexto) | ITEMS (itens trabalhados) | SPRINT (estado) | PENDING | OTHER
+    section = Column(String(20), default="ITEMS")
+    title = Column(String(200), default="")                 # tema do item/dia
+    sort_order = Column(Integer, default=0)                 # ordem dentro do dia
+    body = Column(Text, nullable=False, default="")
+    author = Column(String(100))
+    minutes = Column(Integer)                               # tempo dedicado (opcional)
+    task_code = Column(String(40), default="")              # card relacionado (opcional)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    project = relationship("Project", back_populates="daily_entries")
+
+
+class ActivityLog(Base):
+    __tablename__ = "activity_log"
+
+    id = Column(Integer, primary_key=True)
+    entity_type = Column(String(40), nullable=False)
+    entity_id = Column(Integer, nullable=False)
+    action = Column(String(60), nullable=False)
+    detail = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class Todo(Base):
+    __tablename__ = "todos"
+
+    id = Column(Integer, primary_key=True)
+    text = Column(String(500), nullable=False)
+    done = Column(Boolean, default=False, nullable=False)
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    completed_at = Column(DateTime)
+    due_at = Column(DateTime)              # quando o TODO deve ser feito (agendamento)
+    priority = Column(String(10), default="MEDIUM")
+    notes = Column(Text)
+    snoozed_until = Column(DateTime)       # adiar: silencia o lembrete até este momento
+    recurrence = Column(String(10), default="NONE")  # NONE | DAILY | WEEKLY | MONTHLY
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="SET NULL"))
+    tags = Column(String(500), default="")  # separadas por vírgula
+
+    project = relationship("Project")
+
+
+def advance_todo_recurrence(todo, now=None):
+    """Concluir um TODO recorrente reagenda para a próxima ocorrência.
+
+    Retorna True se o TODO foi reagendado (e portanto NÃO deve ser marcado
+    como concluído); False se não é recorrente/sem prazo.
+    """
+    rec = (todo.recurrence or "NONE").upper()
+    if rec == "NONE" or not todo.due_at:
+        return False
+    from datetime import timedelta
+    now = now or datetime.now()
+    due = todo.due_at
+
+    def _next(d):
+        if rec == "DAILY":
+            return d + timedelta(days=1)
+        if rec == "WEEKLY":
+            return d + timedelta(weeks=1)
+        # MONTHLY: mesmo dia no mês seguinte (ajusta p/ fim de mês curto)
+        import calendar
+        month = d.month % 12 + 1
+        year = d.year + (1 if d.month == 12 else 0)
+        day = min(d.day, calendar.monthrange(year, month)[1])
+        return d.replace(year=year, month=month, day=day)
+
+    due = _next(due)
+    while due <= now:  # pula ocorrências já passadas
+        due = _next(due)
+    todo.due_at = due
+    todo.snoozed_until = None
+    todo.done = False
+    todo.completed_at = None
+    return True
+
+
+class Recording(Base):
+    """Sessão de Transcrições: gravação + transcrição + resumo de reunião/estudo."""
+    __tablename__ = "recordings"
+
+    id = Column(Integer, primary_key=True)
+    kind = Column(String(20), default="meeting")  # meeting | study
+    title = Column(String(255), default="")
+    topic = Column(String(255), default="")
+    transcript = Column(Text, default="")
+    summary_json = Column(Text, default="")  # JSON estruturado do assistente
+    # Estado do assistente ao vivo/análise (plano, dicas, ações, decisões,
+    # perguntas) — salvo automaticamente para reabrir a reunião como estava.
+    live_state_json = Column(Text, default="")
+    markdown = Column(Text, default="")
+    duration = Column(Float, default=0.0)
+    language = Column(String(20), default="")
+    audio_path = Column(String(500), default="")
+    tags = Column(Text, default="[]")  # JSON list
+    sort_order = Column(Integer, default=0)  # ordenação manual no histórico
+    archived_at = Column(DateTime)           # arquivamento (None = ativa)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+Index("ix_project_daily_project_date", ProjectDailyEntry.project_id, ProjectDailyEntry.date)
+
+Index("ix_tasks_project_column", Task.project_id, Task.column_id)
+Index("ix_tasks_deleted_at", Task.deleted_at)
+Index("ix_activity_entity", ActivityLog.entity_type, ActivityLog.entity_id)
+
+_engine = None
+_SessionLocal = None
+_active_db_path = None
+
+
+def get_engine(db_path=None):
+    global _engine, _active_db_path
+    if _engine is None:
+        path = db_path or _active_db_path or DB_PATH
+        _active_db_path = path
+        _engine = create_engine(f"sqlite:///{path}", echo=False)
+    return _engine
+
+
+def get_session(db_path=None) -> Session:
+    global _SessionLocal
+    if _SessionLocal is None:
+        _SessionLocal = sessionmaker(bind=get_engine(db_path))
+    return _SessionLocal()
+
+
+def _run_light_migrations(engine):
+    """Migrações aditivas para bancos já existentes (SQLite não altera schema
+    via create_all). Idempotente: só adiciona o que falta."""
+    from sqlalchemy import inspect as _inspect, text
+    insp = _inspect(engine)
+    tables = set(insp.get_table_names())
+    if "tasks" in tables:
+        cols = {c["name"] for c in insp.get_columns("tasks")}
+        adds = []
+        if "sprint_id" not in cols:
+            adds.append("ALTER TABLE tasks ADD COLUMN sprint_id INTEGER REFERENCES sprints(id)")
+        if "done_at" not in cols:
+            adds.append("ALTER TABLE tasks ADD COLUMN done_at DATETIME")
+        if "archived_at" not in cols:
+            adds.append("ALTER TABLE tasks ADD COLUMN archived_at DATETIME")
+        if "is_local" not in cols:
+            adds.append("ALTER TABLE tasks ADD COLUMN is_local BOOLEAN DEFAULT 0")
+        if adds:
+            with engine.begin() as conn:
+                for stmt in adds:
+                    conn.execute(text(stmt))
+    if "sprints" in tables:
+        scols = {c["name"] for c in insp.get_columns("sprints")}
+        if "retro_json" not in scols:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE sprints ADD COLUMN retro_json TEXT"))
+    if "recordings" in tables:
+        rcols = {c["name"] for c in insp.get_columns("recordings")}
+        radds = []
+        if "sort_order" not in rcols:
+            radds.append("ALTER TABLE recordings ADD COLUMN sort_order INTEGER DEFAULT 0")
+        if "archived_at" not in rcols:
+            radds.append("ALTER TABLE recordings ADD COLUMN archived_at DATETIME")
+        if "live_state_json" not in rcols:
+            radds.append("ALTER TABLE recordings ADD COLUMN live_state_json TEXT")
+        if radds:
+            with engine.begin() as conn:
+                for stmt in radds:
+                    conn.execute(text(stmt))
+    if "todos" in tables:
+        tcols = {c["name"] for c in insp.get_columns("todos")}
+        tadds = []
+        if "due_at" not in tcols:
+            tadds.append("ALTER TABLE todos ADD COLUMN due_at DATETIME")
+        if "priority" not in tcols:
+            tadds.append("ALTER TABLE todos ADD COLUMN priority VARCHAR(10) DEFAULT 'MEDIUM'")
+        if "notes" not in tcols:
+            tadds.append("ALTER TABLE todos ADD COLUMN notes TEXT")
+        if "snoozed_until" not in tcols:
+            tadds.append("ALTER TABLE todos ADD COLUMN snoozed_until DATETIME")
+        if "recurrence" not in tcols:
+            tadds.append("ALTER TABLE todos ADD COLUMN recurrence VARCHAR(10) DEFAULT 'NONE'")
+        if "project_id" not in tcols:
+            tadds.append("ALTER TABLE todos ADD COLUMN project_id INTEGER REFERENCES projects(id)")
+        if "tags" not in tcols:
+            tadds.append("ALTER TABLE todos ADD COLUMN tags VARCHAR(500) DEFAULT ''")
+        if tadds:
+            with engine.begin() as conn:
+                for stmt in tadds:
+                    conn.execute(text(stmt))
+    if "board_columns" in tables:
+        # Fluxo corrigido: Dev Review vem ANTES de Dev Box (Dev Box é o último
+        # estado do dev, antes de In Test). Bancos que ainda têm a ordem antiga
+        # são ajustados uma única vez — depois a condição não casa mais.
+        from sqlalchemy import text as _text
+
+        with engine.begin() as conn:
+            antigos = conn.execute(_text(
+                'SELECT a.project_id FROM board_columns a '
+                'JOIN board_columns b ON b.project_id = a.project_id '
+                "WHERE a.name = 'Dev Box' AND b.name = 'Dev Review' "
+                'AND a."order" < b."order"'
+            )).fetchall()
+            for (projeto_id,) in antigos:
+                ordens = dict(conn.execute(_text(
+                    'SELECT name, "order" FROM board_columns '
+                    "WHERE project_id = :p AND name IN ('Dev Box', 'Dev Review')"
+                ), {"p": projeto_id}).fetchall())
+                if len(ordens) != 2:
+                    continue
+                # troca em três passos para não colidir durante o update
+                conn.execute(_text(
+                    'UPDATE board_columns SET "order" = -1 '
+                    "WHERE project_id = :p AND name = 'Dev Box'"
+                ), {"p": projeto_id})
+                conn.execute(_text(
+                    'UPDATE board_columns SET "order" = :o '
+                    "WHERE project_id = :p AND name = 'Dev Review'"
+                ), {"o": ordens["Dev Box"], "p": projeto_id})
+                conn.execute(_text(
+                    'UPDATE board_columns SET "order" = :o '
+                    "WHERE project_id = :p AND name = 'Dev Box'"
+                ), {"o": ordens["Dev Review"], "p": projeto_id})
+
+    if "project_daily" in tables:
+        dcols = {c["name"] for c in insp.get_columns("project_daily")}
+        dadds = []
+        if "section" not in dcols:
+            dadds.append("ALTER TABLE project_daily ADD COLUMN section VARCHAR(20) DEFAULT 'ITEMS'")
+        if "title" not in dcols:
+            dadds.append("ALTER TABLE project_daily ADD COLUMN title VARCHAR(200) DEFAULT ''")
+        if "sort_order" not in dcols:
+            dadds.append("ALTER TABLE project_daily ADD COLUMN sort_order INTEGER DEFAULT 0")
+        if dadds:
+            with engine.begin() as conn:
+                for stmt in dadds:
+                    conn.execute(text(stmt))
+    if "projects" in tables:
+        pcols = {c["name"] for c in insp.get_columns("projects")}
+        if "external_docs_path" not in pcols:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE projects ADD COLUMN external_docs_path VARCHAR(500) DEFAULT ''"))
+        if "azure_board_url" not in pcols:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE projects ADD COLUMN azure_board_url VARCHAR(500) DEFAULT ''"))
+        if "target_date" not in pcols:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE projects ADD COLUMN target_date DATETIME"))
+
+
+def init_db(db_path=None):
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    engine = get_engine(db_path)
+    Base.metadata.create_all(engine)
+    _run_light_migrations(engine)
+
+
+def move_project_to_workspace(project_id: int, target_ws_id: str) -> int | None:
+    """Move um projeto de seu workspace atual para outro (copia profunda e apaga na origem).
+
+    Retorna o novo id no workspace de destino ou None se falhar. Persiste o
+    projeto atual como no workspace (igual ao seletor de workspace).
+    """
+    from relay.config import get_active_workspace_id, get_workspace_db_path, set_active_project_id
+
+    source_ws = get_active_workspace_id()
+    if target_ws_id == source_ws:
+        return None
+    source_db = get_workspace_db_path(source_ws)
+    target_db = get_workspace_db_path(target_ws_id)
+
+    # Garante que o DB de destino existe
+    init_db(target_db)
+
+    # Abre sessões separadas para origem e destino
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    src_engine = create_engine(f"sqlite:///{source_db}", echo=False)
+    SrcSession = sessionmaker(bind=src_engine)
+    src_s = SrcSession()
+
+    tgt_engine = create_engine(f"sqlite:///{target_db}", echo=False)
+    # Garante que o DB de destino tem todas as tabelas (o init_db global não afeta este engine isolado)
+    Base.metadata.create_all(tgt_engine)
+    TgtSession = sessionmaker(bind=tgt_engine)
+    tgt_s = TgtSession()
+
+    try:
+        proj = src_s.query(Project).filter(Project.id == project_id).first()
+        if not proj:
+            return None
+
+        # Garante chave única no destino (igual ao create)
+        base_key = proj.key
+        new_key = base_key
+        n = 2
+        while tgt_s.query(Project).filter(Project.key == new_key).first():
+            new_key = f"{base_key}-{n}"
+            n += 1
+
+        # Cria projeto no destino (copia campos)
+        new_proj = Project(
+            name=proj.name,
+            key=new_key,
+            description=proj.description,
+            azure_board_url=getattr(proj, "azure_board_url", "") or "",
+            external_docs_path=getattr(proj, "external_docs_path", "") or "",
+            target_date=getattr(proj, "target_date", None),
+        )
+        tgt_s.add(new_proj)
+        tgt_s.flush()  # gera id
+
+        # Mapeia ids antigos -> novos para colunas, sprints, epics, members, etc.
+        # BoardColumn
+        col_map = {}
+        for col in src_s.query(BoardColumn).filter(BoardColumn.project_id == proj.id).order_by(BoardColumn.order).all():
+            new_col = BoardColumn(
+                project_id=new_proj.id,
+                name=col.name,
+                order=col.order,
+                wip_limit=col.wip_limit,
+                is_done=col.is_done,
+            )
+            tgt_s.add(new_col)
+            tgt_s.flush()
+            col_map[col.id] = new_col.id
+
+        # Sprint
+        sprint_map = {}
+        for sp in src_s.query(Sprint).filter(Sprint.project_id == proj.id).all():
+            new_sp = Sprint(
+                project_id=new_proj.id,
+                name=sp.name,
+                goal=sp.goal,
+                status=sp.status,
+                start_date=sp.start_date,
+                end_date=sp.end_date,
+                capacity=sp.capacity,
+                retro_json=sp.retro_json,
+                sort_order=sp.sort_order,
+            )
+            tgt_s.add(new_sp)
+            tgt_s.flush()
+            sprint_map[sp.id] = new_sp.id
+
+        # Epic
+        epic_map = {}
+        for ep in src_s.query(Epic).filter(Epic.project_id == proj.id).all():
+            new_ep = Epic(project_id=new_proj.id, name=ep.name, color=ep.color)
+            tgt_s.add(new_ep)
+            tgt_s.flush()
+            epic_map[ep.id] = new_ep.id
+
+        # Member
+        member_map = {}
+        for m in src_s.query(Member).filter(Member.project_id == proj.id).all():
+            new_m = Member(project_id=new_proj.id, name=m.name, color=m.color)
+            tgt_s.add(new_m)
+            tgt_s.flush()
+            member_map[m.id] = new_m.id
+
+        # ProjectLink
+        for link in src_s.query(ProjectLink).filter(ProjectLink.project_id == proj.id).all():
+            new_link = ProjectLink(
+                project_id=new_proj.id,
+                title=link.title,
+                url=link.url,
+                sort_order=link.sort_order,
+            )
+            tgt_s.add(new_link)
+
+        # GateRule (precisa coluna mapeada)
+        for gr in src_s.query(GateRule).filter(GateRule.project_id == proj.id).all():
+            new_col_id = col_map.get(gr.column_id)
+            if not new_col_id:
+                continue
+            new_gr = GateRule(
+                project_id=new_proj.id,
+                column_id=new_col_id,
+                require_evidence=gr.require_evidence,
+                min_evidence=gr.min_evidence,
+                required_evidence_kinds=gr.required_evidence_kinds,
+                require_parity=gr.require_parity,
+                forbidden_parity=gr.forbidden_parity,
+                require_comment_type=gr.require_comment_type,
+                require_pr_merged=gr.require_pr_merged,
+                message=gr.message,
+            )
+            tgt_s.add(new_gr)
+
+        # Goal
+        for g in src_s.query(Goal).filter(Goal.project_id == proj.id).all():
+            new_g = Goal(
+                project_id=new_proj.id,
+                name=g.name,
+                description=g.description,
+                due_date=g.due_date,
+                tag=g.tag,
+                epic_id=epic_map.get(g.epic_id),
+                sprint_id=sprint_map.get(g.sprint_id),
+            )
+            tgt_s.add(new_g)
+
+        # Task + relações (labels, epics, checklist, comments, evidence, parity, dependencies, etc.)
+        # Primeiro, cria todos os Tasks sem parent para mapear ids
+        task_map = {}
+        tasks = src_s.query(Task).filter(Task.project_id == proj.id).order_by(Task.id).all()
+        for t in tasks:
+            new_t = Task(
+                project_id=new_proj.id,
+                column_id=col_map.get(t.column_id),
+                number=t.number,
+                title=t.title,
+                description=t.description,
+                objective=t.objective,
+                acceptance=t.acceptance,
+                type=t.type,
+                priority=t.priority,
+                estimate_md=t.estimate_md,
+                parent_id=None,  # resolve depois
+                sprint_id=sprint_map.get(t.sprint_id),
+                rank=t.rank,
+                created_at=t.created_at,
+                updated_at=t.updated_at,
+                deleted_at=t.deleted_at,
+                due_date=t.due_date,
+                assignee=t.assignee,
+                requires_human=t.requires_human,
+                done_at=t.done_at,
+                archived_at=t.archived_at,
+            )
+            tgt_s.add(new_t)
+            tgt_s.flush()
+            task_map[t.id] = new_t.id
+
+        # Resolve parent_id
+        for t in tasks:
+            if t.parent_id and t.parent_id in task_map:
+                new_t = tgt_s.query(Task).filter(Task.id == task_map[t.id]).first()
+                new_t.parent_id = task_map[t.parent_id]
+
+        # Labels e epics por task
+        for t in tasks:
+            new_t = tgt_s.query(Task).filter(Task.id == task_map[t.id]).first()
+            for lb in t.labels:
+                # Label é global (unique por nome), reaproveita ou cria
+                existing = tgt_s.query(Label).filter(Label.name == lb.name).first()
+                if not existing:
+                    existing = Label(name=lb.name, color=lb.color)
+                    tgt_s.add(existing)
+                    tgt_s.flush()
+                new_t.labels.append(existing)
+            for ep in t.epics:
+                new_ep_id = epic_map.get(ep.id)
+                if new_ep_id:
+                    new_ep = tgt_s.query(Epic).filter(Epic.id == new_ep_id).first()
+                    new_t.epics.append(new_ep)
+
+        tgt_s.flush()
+
+        # TaskChecklist, Comment, Evidence, ParityResult, TaskDependency
+        for t in tasks:
+            new_tid = task_map[t.id]
+            for ch in t.checklist:
+                new_ch = TaskChecklist(task_id=new_tid, title=ch.title, checked=ch.checked, sort_order=ch.sort_order)
+                tgt_s.add(new_ch)
+            for c in t.comments:
+                new_c = Comment(task_id=new_tid, body=c.body, type=c.type, author=c.author, created_at=c.created_at)
+                tgt_s.add(new_c)
+            for ev in getattr(t, "evidence", []) or []:
+                new_ev = Evidence(
+                    task_id=new_tid,
+                    kind=ev.kind,
+                    title=ev.title,
+                    url=ev.url,
+                    environment=ev.environment,
+                    executed_at=ev.executed_at,
+                    executor=ev.executor,
+                    result=ev.result,
+                    notes=ev.notes,
+                    created_at=ev.created_at,
+                )
+                tgt_s.add(new_ev)
+            for pr in getattr(t, "parity_results", []) or []:
+                new_pr = ParityResult(
+                    task_id=new_tid,
+                    case_name=pr.case_name,
+                    status=pr.status,
+                    expected=pr.expected,
+                    actual=pr.actual,
+                    notes=pr.notes,
+                    created_at=pr.created_at,
+                )
+                tgt_s.add(new_pr)
+
+        # TaskDependency (precisa mapear ambos os lados)
+        for t in tasks:
+            for dep in t.blocking:
+                # dep.blocker_id == t.id, dep.blocked_id == other
+                if dep.blocked_id in task_map and dep.blocker_id in task_map:
+                    new_dep = TaskDependency(
+                        blocker_id=task_map[dep.blocker_id],
+                        blocked_id=task_map[dep.blocked_id],
+                    )
+                    tgt_s.add(new_dep)
+
+        # Atualiza task_seq do projeto
+        new_proj.task_seq = proj.task_seq
+
+        tgt_s.commit()
+
+        # Apaga na origem (move, não copia)
+        # Deleta em cascata via Project
+        src_s.delete(proj)
+        src_s.commit()
+
+        # Se o projeto movido era o ativo, limpa o ativo na origem e ativa no destino
+        try:
+            if get_active_project_id() == project_id:
+                set_active_project_id(None)
+        except Exception:
+            pass
+        # Define como ativo no destino (persiste via config, igual ao seletor de workspace)
+        # O destino ainda não é o workspace ativo, então salva no dict diretamente
+        from relay.config import load_config, save_config
+        cfg = load_config()
+        by_ws = cfg.setdefault("active_project_by_ws", {})
+        by_ws[target_ws_id] = int(new_proj.id)
+        save_config(cfg)
+
+        return int(new_proj.id)
+    finally:
+        src_s.close()
+        tgt_s.close()
+        src_engine.dispose()
+        tgt_engine.dispose()
+        # Volta o engine global para o workspace ativo (evita ficar apontando para o último)
+        from relay.config import get_active_workspace_id, get_workspace_db_path
+        from relay.db.models import get_engine, _SessionLocal, _active_db_path
+        import relay.db.models as m
+        m._engine = None
+        m._SessionLocal = None
+        m._active_db_path = get_workspace_db_path(get_active_workspace_id())
+        # Não faz init aqui para não mascarar erros; o próximo get_session vai recriar
+
+
+def switch_db(db_path: str):
+    """Close current engine and switch to a different database file."""
+    global _engine, _SessionLocal, _active_db_path
+    if _engine is not None:
+        _engine.dispose()
+    _engine = None
+    _SessionLocal = None
+    _active_db_path = db_path
+    init_db(db_path)
+
+
+DEFAULT_COLUMNS = [
+    {"name": "A fazer", "order": 0},
+    {"name": "Fazendo", "order": 1},
+    {"name": "Feito", "order": 2, "is_done": True},
+]
+
+
+# ---- Módulo de Estudos ----
+
+class StudyPlan(Base):
+    __tablename__ = "study_plans"
+
+    id = Column(Integer, primary_key=True)
+    title = Column(String(200), nullable=False)
+    description = Column(Text)
+    category = Column(String(40), nullable=False, default="LINGUAGEM")
+    status = Column(String(20), default="PLANEJADO")
+    start_date = Column(DateTime)
+    target_date = Column(DateTime)
+    resources = Column(Text)  # JSON string
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="SET NULL"))
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    topics = relationship("StudyTopic", back_populates="plan", cascade="all,delete-orphan",
+                          order_by="StudyTopic.sort_order")
+    sessions = relationship("StudySession", back_populates="plan", cascade="all,delete-orphan")
+
+
+class StudyTopic(Base):
+    __tablename__ = "study_topics"
+
+    id = Column(Integer, primary_key=True)
+    plan_id = Column(Integer, ForeignKey("study_plans.id", ondelete="CASCADE"), nullable=False)
+    parent_id = Column(Integer, ForeignKey("study_topics.id"))
+    title = Column(String(200), nullable=False)
+    description = Column(Text)
+    sort_order = Column(Integer, default=0)
+    status = Column(String(20), default="PENDENTE")
+    weight = Column(Float, default=1.0)
+    estimate_hours = Column(Float)
+    logged_hours = Column(Float, default=0.0)
+    notes = Column(Text)
+    resources = Column(Text)  # JSON string
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    plan = relationship("StudyPlan", back_populates="topics")
+    parent = relationship("StudyTopic", remote_side="StudyTopic.id", backref="children")
+    sessions = relationship("StudySession", back_populates="topic", cascade="all,delete-orphan")
+
+
+class StudySession(Base):
+    __tablename__ = "study_sessions"
+
+    id = Column(Integer, primary_key=True)
+    plan_id = Column(Integer, ForeignKey("study_plans.id", ondelete="CASCADE"), nullable=False)
+    topic_id = Column(Integer, ForeignKey("study_topics.id", ondelete="CASCADE"), nullable=False)
+    started_at = Column(DateTime, nullable=False)
+    ended_at = Column(DateTime)
+    duration_min = Column(Integer)
+    notes = Column(Text)
+    confidence = Column(Integer)  # 1 a 5
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    plan = relationship("StudyPlan", back_populates="sessions")
+    topic = relationship("StudyTopic", back_populates="sessions")
+
+
+class Snippet(Base):
+    """Trecho de código reutilizável ou prompt de IA (biblioteca do workspace)."""
+    __tablename__ = "snippets"
+
+    id = Column(Integer, primary_key=True)
+    title = Column(String(255), nullable=False)
+    content = Column(Text, default="")
+    kind = Column(String(10), default="SNIPPET")   # SNIPPET | PROMPT
+    language = Column(String(40), default="")      # p/ realce/organização
+    tags = Column(String(500), default="")         # separadas por vírgula
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="SET NULL"))
+    use_count = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class TimeLog(Base):
+    """Registro de tempo trabalhado (opcionalmente ligado a uma tarefa)."""
+    __tablename__ = "time_logs"
+
+    id = Column(Integer, primary_key=True)
+    task_id = Column(Integer, ForeignKey("tasks.id", ondelete="SET NULL"))
+    task_code = Column(String(40), default="")   # snapshot legível (ex.: PROJ-1)
+    seconds = Column(Integer, default=0, nullable=False)
+    note = Column(Text, default="")
+    started_at = Column(DateTime)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class ApiRequest(Base):
+    """Request HTTP salvo (mini-Postman) por workspace/projeto."""
+    __tablename__ = "api_requests"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(255), nullable=False)
+    method = Column(String(10), default="GET")
+    url = Column(Text, default="")
+    headers = Column(Text, default="")   # JSON string {header: valor}
+    body = Column(Text, default="")
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="SET NULL"))
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class ApiCall(Base):
+    """Histórico de execução de um request HTTP."""
+    __tablename__ = "api_calls"
+
+    id = Column(Integer, primary_key=True)
+    request_id = Column(Integer, ForeignKey("api_requests.id", ondelete="SET NULL"))
+    method = Column(String(10), default="GET")
+    url = Column(Text, default="")
+    status = Column(Integer)              # código HTTP (ou 0/None em erro de rede)
+    duration_ms = Column(Integer)
+    ok = Column(Boolean, default=False)
+    error = Column(Text, default="")
+    response_snippet = Column(Text, default="")  # início do corpo da resposta
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class Runbook(Base):
+    """Cartão de comando/runbook de projeto (setup/deploy/comandos frequentes)."""
+    __tablename__ = "runbooks"
+
+    id = Column(Integer, primary_key=True)
+    title = Column(String(255), nullable=False)
+    command = Column(Text, default="")             # comando(s) a executar
+    description = Column(Text, default="")
+    category = Column(String(60), default="")      # setup | deploy | test | ...
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="SET NULL"))
+    use_count = Column(Integer, default=0)
+    sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class MemoryEntry(Base):
+    """Memória agentic do workspace: fatos, decisões, episódios, preferências.
+
+    Escopo = banco SQLite do workspace ativo. Busca híbrida (semântica via
+    embedding + palavras-chave). Pensada para consumo por agentes.
+    """
+    __tablename__ = "memory_entries"
+
+    id = Column(Integer, primary_key=True)
+    # fact | decision | preference | episode | procedure | context
+    kind = Column(String(20), nullable=False, default="fact")
+    title = Column(String(255), nullable=False, default="")
+    content = Column(Text, nullable=False, default="")
+    summary = Column(Text, default="")
+    tags = Column(String(500), default="")  # separadas por vírgula
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="SET NULL"))
+    task_id = Column(Integer, ForeignKey("tasks.id", ondelete="SET NULL"))
+    # manual | task | comment | document | daily | recording | sprint | agent | kb
+    source_type = Column(String(40), default="manual")
+    source_id = Column(Integer)
+    importance = Column(Float, default=0.5)  # 0.0–1.0
+    embedding = Column(Text)  # JSON array de floats (None se indisponível)
+    embedding_model = Column(String(120), default="")
+    access_count = Column(Integer, default=0)
+    last_accessed_at = Column(DateTime)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    deleted_at = Column(DateTime)
+
+
+Index("ix_memory_kind", MemoryEntry.kind)
+Index("ix_memory_project", MemoryEntry.project_id)
+Index("ix_memory_task", MemoryEntry.task_id)
+Index("ix_memory_source", MemoryEntry.source_type, MemoryEntry.source_id)
+Index("ix_memory_deleted", MemoryEntry.deleted_at)

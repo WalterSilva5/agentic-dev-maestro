@@ -1,5 +1,5 @@
 """Aviso de RAM por modelo Whisper nas Configurações (isolado — não toca config.json real)."""
-from maestro_local.gui.views.settings_view import SettingsView
+from relay.gui.views.settings_view import SettingsView
 
 
 def test_hint_reflete_o_modelo_padrao(qapp, temp_db):
@@ -18,7 +18,7 @@ def test_hint_atualiza_ao_trocar_modelo(qapp, temp_db):
 
 def test_nao_toca_o_config_json_real(qapp, temp_db, monkeypatch):
     from pathlib import Path
-    real_config = Path.home() / ".maestro-local" / "config.json"
+    real_config = Path.home() / ".relay" / "config.json"
     before = real_config.read_text() if real_config.exists() else None
 
     v = SettingsView()

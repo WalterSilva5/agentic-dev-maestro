@@ -4,9 +4,9 @@
 
 ## Context
 
-Maestro today handles development task tracking. The idea is to expand it so it also works as a personal study tracking tool — allowing you to define a learning roadmap, break it into topics/stages, track percentage progress and keep study notes integrated into the existing flow.
+Relay today handles development task tracking. The idea is to expand it so it also works as a personal study tracking tool — allowing you to define a learning roadmap, break it into topics/stages, track percentage progress and keep study notes integrated into the existing flow.
 
-The goal is not to create a separate app, but to integrate studies as a module within Maestro, reusing as much of the existing infrastructure as possible (projects, tasks, kanban, daily notes, Obsidian).
+The goal is not to create a separate app, but to integrate studies as a module within Relay, reusing as much of the existing infrastructure as possible (projects, tasks, kanban, daily notes, Obsidian).
 
 ---
 
@@ -23,7 +23,7 @@ Each plan has:
 - **Start date / target date** (optional, for personal deadlines)
 - **Overall progress** (calculated automatically from the topics)
 - **Resources** (links, books, courses — free-form list)
-- **Linked project** (optional — can be linked to an existing Maestro project to use the kanban)
+- **Linked project** (optional — can be linked to an existing Relay project to use the kanban)
 
 ### Study Topic (StudyTopic)
 

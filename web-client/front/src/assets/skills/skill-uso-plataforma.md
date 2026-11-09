@@ -1,17 +1,17 @@
-# Agentic Dev Maestro — Guia de Uso da Plataforma
+# Relay — Guia de Uso da Plataforma
 
 > **Versão:** 1.0  
 > **Propósito:** Skill de referência rápida para usuários e agentes de IA que interagem com a plataforma.
 
 ---
 
-## 1. O que é o Agentic Dev Maestro
+## 1. O que é o Relay
 
-O **Agentic Dev Maestro** (ou apenas **Maestro**) é uma plataforma que transforma briefings brutos
+O **Relay** (ou apenas **Relay**) é uma plataforma que transforma briefings brutos
 em documentação estruturada, decomposição em tarefas, e um quadro kanban com execução por
 **agentes de IA**.
 
-### O "Maestro Loop"
+### O "Relay Loop"
 
 ```
 1. BRIEFING   → alguém joga uma descrição crua de tarefa/projeto
@@ -160,7 +160,7 @@ curl -X POST http://localhost:5000/api/tasks/PROJ-1/move \
 
 ## 7. Servidor MCP
 
-O Maestro expõe um servidor **MCP (Model Context Protocol)** para integração com
+O Relay expõe um servidor **MCP (Model Context Protocol)** para integração com
 agentes de IA (Claude, Cursor, etc.).
 
 ### Tools Disponíveis
@@ -179,12 +179,12 @@ agentes de IA (Claude, Cursor, etc.).
 ```json
 {
   "mcpServers": {
-    "maestro": {
+    "relay": {
       "command": "node",
       "args": ["caminho/para/mcp/index.js"],
       "env": {
-        "MAESTRO_API_URL": "http://localhost:5000/api",
-        "MAESTRO_API_KEY": "sua_api_key_aqui"
+        "RELAY_API_URL": "http://localhost:5000/api",
+        "RELAY_API_KEY": "sua_api_key_aqui"
       }
     }
   }
@@ -313,5 +313,5 @@ curl http://localhost:5000/api/health
 
 ---
 
-*Skill gerada automaticamente pelo Agentic Dev Maestro.*  
+*Skill gerada automaticamente pelo Relay.*  
 *Para atualizações, consulte a aba Downloads na plataforma.*

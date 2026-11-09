@@ -4,9 +4,9 @@ import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import Swal from 'sweetalert2';
 
-import { MaestroApiService } from '../../services/maestro-api.service';
+import { RelayApiService } from '../../services/relay-api.service';
 import { TenantService } from '../../services/tenant.service';
-import { Label } from '../../models/maestro.models';
+import { Label } from '../../models/relay.models';
 
 const COLOR_PALETTE = [
   { name: 'Vermelho', value: '#EF4444' },
@@ -41,7 +41,7 @@ export class LabelsComponent implements OnInit {
   saving = false;
 
   constructor(
-    private api: MaestroApiService,
+    private api: RelayApiService,
     protected tenant: TenantService,
   ) {}
 

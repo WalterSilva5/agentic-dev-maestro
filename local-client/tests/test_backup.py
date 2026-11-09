@@ -4,22 +4,22 @@ import sqlite3
 import pytest
 from fastapi.testclient import TestClient
 
-from maestro_local.api.app import app
-from maestro_local.db.models import init_db
+from relay.api.app import app
+from relay.db.models import init_db
 
 
 @pytest.fixture
 def client(tmp_path, monkeypatch):
     db_path = str(tmp_path / "test.db")
     init_db(db_path)
-    import maestro_local.db.models as m
+    import relay.db.models as m
     m._engine = None
     m._SessionLocal = None
     m._active_db_path = db_path
     init_db(db_path)
 
     pasta = tmp_path / "backups"
-    monkeypatch.setattr("maestro_local.api.app._backup_dir", lambda: pasta)
+    monkeypatch.setattr("relay.api.app._backup_dir", lambda: pasta)
     pasta.mkdir(exist_ok=True)
 
     with TestClient(app) as c:
@@ -39,7 +39,7 @@ def test_backup_cria_copia_consistente_do_banco(client, tmp_path):
     assert len(d["backups"]) == 1
 
     info = d["backups"][0]
-    assert info["file"].startswith("maestro-")
+    assert info["file"].startswith("relay-")
     assert info["file"].endswith(".db")
     assert info["bytes"] > 0
 
@@ -95,9 +95,9 @@ def test_nao_serve_arquivo_fora_da_pasta_de_backup(client, tmp_path):
     assert client.get("/api/backup/..%2Ftest.db").status_code == 404
     assert client.get("/api/backup/qualquer.txt").status_code == 404
     # arquivo existente mas fora da pasta
-    (tmp_path / "fora" / "maestro-x.db").parent.mkdir(exist_ok=True)
-    (tmp_path / "fora" / "maestro-x.db").write_bytes(b"x")
-    assert client.get("/api/backup/maestro-x.db").status_code == 404
+    (tmp_path / "fora" / "relay-x.db").parent.mkdir(exist_ok=True)
+    (tmp_path / "fora" / "relay-x.db").write_bytes(b"x")
+    assert client.get("/api/backup/relay-x.db").status_code == 404
 
 
 def test_backup_de_todos_os_workspaces(client, tmp_path, monkeypatch):
@@ -110,7 +110,7 @@ def test_backup_de_todos_os_workspaces(client, tmp_path, monkeypatch):
         con.execute("CREATE TABLE t (x INTEGER)")
         con.commit()
         con.close()
-    monkeypatch.setattr("maestro_local.config.WORKSPACES_DIR", raiz)
+    monkeypatch.setattr("relay.config.WORKSPACES_DIR", raiz)
 
     r = client.post("/api/backup", params={"all": 1})
     assert r.status_code == 200

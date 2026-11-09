@@ -31,7 +31,7 @@ Uma aplicação **backend + frontend** que vira o sistema de registro desse flux
 
 ## Personas
 
-| Persona | Usa o Maestro para |
+| Persona | Usa o Relay para |
 |---|---|
 | **Dev** | ver suas tarefas, mover no quadro, ler a doc/dicas, comentar, abrir PRs ligados |
 | **Tech Lead** | revisar, aprovar, ajustar decomposição, garantir qualidade técnica |
@@ -46,7 +46,7 @@ Uma aplicação **backend + frontend** que vira o sistema de registro desse flux
 3. **Docs markdown nativas e exportáveis** — preserva o fluxo atual (mandar `.md`
    para o time), mas com estado e versão.
 4. **Esforço em homem-dia, sem alocação** — estimativas em homem-dia; quem aloca
-   pessoas e define cronograma é a liderança. O Maestro não escala equipe.
+   pessoas e define cronograma é a liderança. O Relay não escala equipe.
 5. **Servidor MCP** — qualquer agente (Claude Code, etc.) conversa nativamente com
    os quadros via MCP, além do REST.
 
@@ -71,11 +71,12 @@ Uma aplicação **backend + frontend** que vira o sistema de registro desse flux
 
 ## Nome (decidido)
 
-**Agentic Dev Maestro** — repo `agentic-dev-maestro`.
+**Relay** — repo `relay`.
 
-- **Agentic** — os agentes de IA agem com autonomia (não é automação colada).
-- **Dev** — o domínio é trabalho de desenvolvimento (tarefas, docs, quadro).
-- **Maestro** — orquestra o time misto (humanos + agentes) em torno do trabalho.
+Curto, bilíngue, sem nada para explicar: o produto é o ponto de passagem entre
+humanos e agentes de IA (tarefas, docs e board fluem por ele). No dia a dia o
+nome é só **Relay** (daí "Relay Loop", "API Relay" etc.).
 
-No dia a dia e na documentação, o nome curto é **Maestro** (daí "Maestro Loop",
-"API Maestro" etc.).
+> Revisão de 09/11/2026: o nome original "Agentic Dev Maestro" (ver D8) foi
+> aposentado — o qualificativo soava estranho e o nome cheio era longo demais
+> para o uso diário.

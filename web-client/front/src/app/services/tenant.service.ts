@@ -6,7 +6,7 @@ export interface ActiveCompany {
   role: string;
 }
 
-const KEY = 'maestro.company';
+const KEY = 'relay.company';
 
 // Workspace ativo (multi-tenant) + lista de workspaces do usuário.
 // O ativo é persistido em localStorage; ambos expostos como signals.

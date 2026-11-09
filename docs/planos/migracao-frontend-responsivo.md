@@ -125,7 +125,7 @@ This resolves the immediate symptoms. `FlowLayout` and the breakpoint pattern ar
 ### Execution
 
 - **E1 — pywebview shell** (Phase 3 first, lowest risk): wrap the React web UI already
-  served by the API in a native window (`maestro_local/desktop_shell.py`), with a
+  served by the API in a native window (`relay/desktop_shell.py`), with a
   fallback to the current Qt GUI. Proves the web route without touching meetings.
 - **E2 — Live streaming (Phase 1)**: move capture + Whisper + live state into a service
   in the API process and expose it over WebSocket.

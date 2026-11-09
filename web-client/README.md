@@ -1,8 +1,8 @@
 > 🇧🇷 [Versão em português](README.ptbr.md)
 
-# Web Client — Agentic Dev Maestro
+# Web Client — Relay
 
-Maestro web client. NestJS 8 backend + Angular 20 frontend, running via Docker.
+Relay web client. NestJS 8 backend + Angular 20 frontend, running via Docker.
 
 ## Stack
 

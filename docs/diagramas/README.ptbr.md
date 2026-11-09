@@ -2,7 +2,7 @@
 
 # Diagramas
 
-Fluxogramas do Maestro em **PlantUML** (`.puml` — fonte) + **SVG** (renderizado).
+Fluxogramas do Relay em **PlantUML** (`.puml` — fonte) + **SVG** (renderizado).
 Sempre que editar um `.puml`, regenere os SVGs:
 
 ```bash
@@ -22,13 +22,13 @@ filas), servidor MCP, MySQL e Redis — e como humanos e agentes entram.
 
 Fonte: [`arquitetura.puml`](arquitetura.puml)
 
-## 2. Maestro Loop (fluxo principal)
+## 2. Relay Loop (fluxo principal)
 
 O ciclo do produto: briefing → refino → decompose → quadro → execução → visão.
 
-![Maestro Loop](maestro-loop.svg)
+![Relay Loop](relay-loop.svg)
 
-Fonte: [`maestro-loop.puml`](maestro-loop.puml)
+Fonte: [`relay-loop.puml`](relay-loop.puml)
 
 ## 3. Modelo de dados (ER)
 

@@ -127,7 +127,7 @@ Isso resolve os sintomas imediatos. O `FlowLayout` e o padrão de breakpoint sã
 ### Execução
 
 - **E1 — Shell pywebview** (Fase 3 primeiro, menor risco): empacotar a web UI React
-  já servida pela API numa janela nativa (`maestro_local/desktop_shell.py`), com
+  já servida pela API numa janela nativa (`relay/desktop_shell.py`), com
   fallback para a GUI Qt atual. Prova a rota web sem tocar em reuniões.
 - **E2 — Streaming ao vivo (Fase 1)**: mover captura + Whisper + estado ao vivo para
   um serviço no processo da API e expor por WebSocket.

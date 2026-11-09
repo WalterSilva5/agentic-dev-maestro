@@ -9,8 +9,8 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from maestro_local.api.app import app
-from maestro_local.db.models import init_db
+from relay.api.app import app
+from relay.db.models import init_db
 
 RAIZ = Path(__file__).resolve().parents[1]
 
@@ -19,7 +19,7 @@ RAIZ = Path(__file__).resolve().parents[1]
 def client(tmp_path):
     db_path = str(tmp_path / "test.db")
     init_db(db_path)
-    import maestro_local.db.models as m
+    import relay.db.models as m
     m._engine = None
     m._SessionLocal = None
     m._active_db_path = db_path
@@ -85,7 +85,7 @@ def test_tarefa_local_nao_entra_na_contagem_remota_do_sync(client):
 
 
 # --------------------------------------------------------------------------
-# sync real (subprocess com MAESTRO_DATA_DIR isolado)
+# sync real (subprocess com RELAY_DATA_DIR isolado)
 # --------------------------------------------------------------------------
 
 def _azure_item(wid: int, titulo: str) -> dict:
@@ -104,7 +104,7 @@ def _rodar_sync(data_dir: Path, itens: list[dict], projeto: str = "P") -> subpro
     entrada.write_text(json.dumps(itens))
     env = {
         **os.environ,
-        "MAESTRO_DATA_DIR": str(data_dir),
+        "RELAY_DATA_DIR": str(data_dir),
         "PYTHONPATH": str(RAIZ),
         "QT_QPA_PLATFORM": "offscreen",
     }
@@ -119,7 +119,7 @@ def _rodar_sync(data_dir: Path, itens: list[dict], projeto: str = "P") -> subpro
 
 
 def test_sync_ignora_tarefa_local_com_mesmo_numero(tmp_path):
-    data_dir = tmp_path / "maestro-data"
+    data_dir = tmp_path / "relay-data"
     data_dir.mkdir()
 
     # 1) sync inicial cria a remota 101
@@ -159,7 +159,7 @@ def test_sync_ignora_tarefa_local_com_mesmo_numero(tmp_path):
 
 
 def test_sync_cria_so_as_remotas_e_preserva_as_locais(tmp_path):
-    data_dir = tmp_path / "maestro-data"
+    data_dir = tmp_path / "relay-data"
     data_dir.mkdir()
     assert _rodar_sync(data_dir, [_azure_item(1, "Remota 1")]).returncode == 0
 
@@ -207,7 +207,7 @@ class _Task:
 
 
 def test_dimensoes_ignoram_tarefas_locais():
-    from maestro_local.dimensions import aggregate_dimensions
+    from relay.dimensions import aggregate_dimensions
 
     remota = _Col(1, "To do", 0)
     feito = _Col(2, "Done", 1, done=True)
@@ -226,7 +226,7 @@ def test_dimensoes_ignoram_tarefas_locais():
 
 
 def test_estagios_ignoram_tarefas_locais():
-    from maestro_local.stages import compute_stages
+    from relay.stages import compute_stages
 
     col = _Col(6, "Dev Box", 5)
     tasks = [
@@ -263,10 +263,10 @@ def test_api_metricas_ignoram_tarefas_locais(client):
 
 
 def test_pdf_ignora_tarefas_locais(tmp_path):
-    from maestro_local.metrics_pdf import collect_metrics
+    from relay.metrics_pdf import collect_metrics
 
-    import maestro_local.db.models as m
-    from maestro_local.db.models import BoardColumn, Project, Task, get_session
+    import relay.db.models as m
+    from relay.db.models import BoardColumn, Project, Task, get_session
 
     db = str(tmp_path / "pdf.db")
     init_db(db)
@@ -296,10 +296,10 @@ def test_tarefa_local_gera_alerta_de_prazo(tmp_path):
     """Local não entra no progresso, mas o prazo vencido dela vira alerta."""
     from datetime import datetime, timedelta
 
-    from maestro_local.metrics_pdf import collect_metrics
+    from relay.metrics_pdf import collect_metrics
 
-    import maestro_local.db.models as m
-    from maestro_local.db.models import BoardColumn, Project, Task, get_session
+    import relay.db.models as m
+    from relay.db.models import BoardColumn, Project, Task, get_session
 
     db = str(tmp_path / "alerta.db")
     init_db(db)
@@ -333,7 +333,7 @@ def test_tarefa_local_gera_alerta_de_prazo(tmp_path):
 
 def test_tarefa_local_nao_conta_como_parada_remota():
     """Paradas contam todas (alerta), mas o total de progresso continua remoto."""
-    from maestro_local.stages import compute_stages
+    from relay.stages import compute_stages
 
     col = _Col(6, "Dev Box", 5)
     local = _Task(2, col, local=True)

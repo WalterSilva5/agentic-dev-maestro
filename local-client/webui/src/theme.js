@@ -1,10 +1,10 @@
 export function getTheme() {
-  return localStorage.getItem('maestro-theme') || 'light'
+  return localStorage.getItem('relay-theme') || 'light'
 }
 
 export function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme)
-  localStorage.setItem('maestro-theme', theme)
+  localStorage.setItem('relay-theme', theme)
 }
 
 export function toggleTheme() {

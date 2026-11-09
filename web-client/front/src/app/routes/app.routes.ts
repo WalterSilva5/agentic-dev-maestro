@@ -12,7 +12,7 @@ import { ForgotPasswordComponent } from '../pages/auth/forgot-password/forgot-pa
 import { ResetPasswordComponent } from '../pages/auth/reset-password/reset-password.component';
 import { SettingsComponent } from '../pages/settings/settings.component';
 import { NotFoundComponent } from '../pages/not-found/not-found.component';
-// Agentic Dev Maestro
+// Relay
 import { DashboardComponent } from '../pages/dashboard/dashboard.component';
 import { CompaniesComponent } from '../pages/companies/companies.component';
 import { ProjectsComponent } from '../pages/projects/projects.component';
@@ -44,7 +44,7 @@ export const routes: Routes = [
   { path: RoutesEnum.GOOGLE_CALLBACK, component: GoogleCallbackComponent },
   { path: 'invite/:token', component: InviteComponent },
   { path: RoutesEnum.SETTINGS, component: SettingsComponent, canActivate: [AuthGuard] },
-  // Agentic Dev Maestro
+  // Relay
   { path: RoutesEnum.DASHBOARD, component: DashboardComponent, canActivate: [AuthGuard, workspaceGuard] },
   { path: RoutesEnum.COMPANIES, component: CompaniesComponent, canActivate: [AuthGuard] },
   { path: RoutesEnum.PROJECTS, component: ProjectsComponent, canActivate: [AuthGuard, workspaceGuard] },

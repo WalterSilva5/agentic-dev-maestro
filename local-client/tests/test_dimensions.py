@@ -2,16 +2,16 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from maestro_local.api.app import app
-from maestro_local.db.models import init_db
-from maestro_local.dimensions import aggregate_dimensions, classify_label
+from relay.api.app import app
+from relay.db.models import init_db
+from relay.dimensions import aggregate_dimensions, classify_label
 
 
 @pytest.fixture
 def client(tmp_path):
     db_path = str(tmp_path / "test.db")
     init_db(db_path)
-    import maestro_local.db.models as m
+    import relay.db.models as m
     m._engine = None
     m._SessionLocal = None
     m._active_db_path = db_path
@@ -127,7 +127,7 @@ def test_soma_de_modulos_pode_exceder_cards():
 
 def test_taxonomia_de_modulos_e_subentregas():
     """Nomes/ordem vêm da taxonomia de rótulos (sem metas nem endpoints)."""
-    from maestro_local.module_plan import (
+    from relay.module_plan import (
         MODULE_PLAN,
         PLAN_ORDER,
         delivery_label,

@@ -109,7 +109,7 @@ A cor do nó reflete o status (a coluna do kanban onde a subtarefa está):
 - `DELETE /tasks/:code/dependencies/:depId`.
 - No `POST /tasks/bulk` (decompose), o agente pode já enviar `dependsOn` em cada
   subtarefa → as arestas são criadas junto. Assim o **fluxo nasce pronto** no
-  passo de decompose do [Maestro Loop](diagramas/maestro-loop.svg).
+  passo de decompose do [Relay Loop](diagramas/relay-loop.svg).
 
 ## Por que isso importa
 

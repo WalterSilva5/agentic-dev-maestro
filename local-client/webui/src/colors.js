@@ -1,4 +1,4 @@
-// Paleta única do Maestro (web) — espelha maestro_local/gui/theme.py.
+// Paleta única do Relay (web) — espelha relay/gui/theme.py.
 
 export const TYPE_COLORS = {
   FEATURE: '#2563EB',

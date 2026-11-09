@@ -5,9 +5,9 @@ from datetime import date, datetime, timedelta
 import pytest
 from fastapi.testclient import TestClient
 
-from maestro_local.api.app import app
-from maestro_local.db.models import init_db
-from maestro_local.meeting_analysis import analyze_meeting, merge_live_state
+from relay.api.app import app
+from relay.db.models import init_db
+from relay.meeting_analysis import analyze_meeting, merge_live_state
 
 CONTEXTO = """## Projeto — MIG · Migração
 - Board: 200 cards · 55 concluídos (28%) · 145 em aberto · 66 sem responsável
@@ -56,7 +56,7 @@ def test_analise_usa_ia_quando_disponivel(monkeypatch):
         return {"tips": ["dica da IA"], "plan": ["passo"], "actionItems": [],
                 "decisions": ["decidido"], "questions": []}
 
-    monkeypatch.setattr("maestro_local.meeting_analysis._via_llm", falso)
+    monkeypatch.setattr("relay.meeting_analysis._via_llm", falso)
     d = analyze_meeting(transcript="x", context=CONTEXTO, use_ai=True)
     assert d["engine"] == "llm"
     assert d["tips"] == ["dica da IA"]
@@ -66,7 +66,7 @@ def test_ia_falhando_cai_na_heuristica(monkeypatch):
     def explode(*a, **k):
         raise RuntimeError("sem provedor")
 
-    monkeypatch.setattr("maestro_local.meeting_analysis._via_llm", explode)
+    monkeypatch.setattr("relay.meeting_analysis._via_llm", explode)
     d = analyze_meeting(transcript="x", context=CONTEXTO, use_ai=True)
     assert d["engine"] == "heuristic"
     assert any("MIG-13720" in t for t in d["tips"])
@@ -101,7 +101,7 @@ def test_merge_nao_duplica():
 def client(tmp_path):
     db_path = str(tmp_path / "test.db")
     init_db(db_path)
-    import maestro_local.db.models as m
+    import relay.db.models as m
     m._engine = None
     m._SessionLocal = None
     m._active_db_path = db_path
@@ -117,7 +117,7 @@ def dados(client):
     pid = client.post("/api/projects", json={"name": "Migração", "key": "MIG"}).json()["id"]
     client.post(f"/api/projects/{pid}/columns/template")
     cols = {c["name"]: c["id"] for c in client.get(f"/api/projects/{pid}/columns").json()}
-    from maestro_local.db.models import ProjectDailyEntry, Task, get_session
+    from relay.db.models import ProjectDailyEntry, Task, get_session
 
     s = get_session()
     s.add(Task(project_id=pid, column_id=cols["Dev Box"], number=1,
@@ -128,7 +128,7 @@ def dados(client):
     s.commit()
     s.close()
 
-    from maestro_local.db.models import Recording
+    from relay.db.models import Recording
     s = get_session()
     r = Recording(title="Daily da migração", transcript="Walter: o cache está travado.",
                   live_state_json=json.dumps({"tips": ["dica antiga"], "plan": [], "action_items": [],
@@ -142,7 +142,7 @@ def dados(client):
 
 
 def test_api_analisa_com_contexto_do_projeto(client, dados, monkeypatch):
-    monkeypatch.setattr("maestro_local.config.get_active_ai_provider", lambda: None)
+    monkeypatch.setattr("relay.config.get_active_ai_provider", lambda: None)
 
     r = client.post(f"/api/recordings/{dados['rid']}/analyze", json={"projectId": dados["pid"]})
     assert r.status_code == 200
@@ -156,7 +156,7 @@ def test_api_analisa_com_contexto_do_projeto(client, dados, monkeypatch):
 
 
 def test_api_analisa_e_salva_no_estado(client, dados, monkeypatch):
-    monkeypatch.setattr("maestro_local.config.get_active_ai_provider", lambda: None)
+    monkeypatch.setattr("relay.config.get_active_ai_provider", lambda: None)
 
     r = client.post(f"/api/recordings/{dados['rid']}/analyze",
                     json={"projectId": dados["pid"], "save": True})
@@ -172,7 +172,7 @@ def test_api_analisa_e_salva_no_estado(client, dados, monkeypatch):
 
 
 def test_api_sem_projeto_analisa_a_transcricao(client, dados, monkeypatch):
-    monkeypatch.setattr("maestro_local.config.get_active_ai_provider", lambda: None)
+    monkeypatch.setattr("relay.config.get_active_ai_provider", lambda: None)
     r = client.post(f"/api/recordings/{dados['rid']}/analyze", json={})
     assert r.status_code == 200
     assert r.json()["usedProjectContext"] is False

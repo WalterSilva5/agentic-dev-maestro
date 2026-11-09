@@ -7,7 +7,7 @@ import pytest
 @pytest.fixture
 def projeto_com_dados(temp_db):
     """Projeto com board movimentado, atraso, módulo e dailies."""
-    from maestro_local.db.models import (
+    from relay.db.models import (
         BoardColumn, Label, Project, ProjectDailyEntry, Task, get_session,
     )
 
@@ -57,8 +57,8 @@ def projeto_com_dados(temp_db):
 
 
 def test_contexto_traz_board_atrasos_modulos_e_dailies(projeto_com_dados):
-    from maestro_local.db.models import get_session
-    from maestro_local.meeting_context import project_context
+    from relay.db.models import get_session
+    from relay.meeting_context import project_context
 
     s = get_session()
     texto = project_context(s, projeto_com_dados)
@@ -84,8 +84,8 @@ def test_contexto_traz_board_atrasos_modulos_e_dailies(projeto_com_dados):
 
 
 def test_contexto_ignora_tarefa_local(projeto_com_dados):
-    from maestro_local.db.models import get_session
-    from maestro_local.meeting_context import project_context
+    from relay.db.models import get_session
+    from relay.meeting_context import project_context
 
     s = get_session()
     texto = project_context(s, projeto_com_dados)
@@ -95,8 +95,8 @@ def test_contexto_ignora_tarefa_local(projeto_com_dados):
 
 
 def test_contexto_de_projeto_inexistente_e_vazio(temp_db):
-    from maestro_local.db.models import get_session
-    from maestro_local.meeting_context import project_context
+    from relay.db.models import get_session
+    from relay.meeting_context import project_context
 
     s = get_session()
     assert project_context(s, 9999) == ""
@@ -140,7 +140,7 @@ def test_contexto_do_projeto_usa_cache(meetings_view, projeto_com_dados, monkeyp
     original = view._project_context_cached.__func__ if hasattr(view._project_context_cached, "__func__") else None
 
     # conta idas ao banco por dentro do builder
-    import maestro_local.meeting_context as mc
+    import relay.meeting_context as mc
     contador = {"n": 0}
     real = mc.project_context
 

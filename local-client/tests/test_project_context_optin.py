@@ -4,7 +4,7 @@ Iniciar uma reunião não pergunta mais sobre o projeto e o contexto enviado
 ao copiloto não inclui dados de workspace/projeto — a gravação é salva sem
 vínculo de projeto.
 """
-from maestro_local.db.models import Project, get_session
+from relay.db.models import Project, get_session
 
 
 def _cria_projeto(nome="Projeto X"):

@@ -18,7 +18,7 @@
 | **Live transcription** | ~300 ms response, 12+ languages |
 | **Real-time notes** | Formatted, shareable summary |
 
-## 2. What Maestro already has (measured in the code)
+## 2. What Relay already has (measured in the code)
 
 Much of the foundation **already exists** — the pivot is less "build from
 scratch" and more "lift it out of the Meetings screen and cut latency".

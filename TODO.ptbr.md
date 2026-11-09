@@ -1,6 +1,6 @@
 > 🇬🇧 [English version](TODO.md)
 
-# Próximos passos — Agentic Dev Maestro
+# Próximos passos — Relay
 
 Backlog vivo das próximas tarefas. Itens no topo têm prioridade. Esforço em
 homem-dia (hd) é estimativa; staffing/cronograma fica a critério da liderança.

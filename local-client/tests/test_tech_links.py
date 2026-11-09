@@ -2,7 +2,7 @@
 from PySide6.QtCore import QEvent, QPointF, Qt
 from PySide6.QtGui import QMouseEvent
 
-from maestro_local.gui.views.tech_links_view import (
+from relay.gui.views.tech_links_view import (
     DEFAULT_LINKS,
     TechLinksView,
     _LinkCard,

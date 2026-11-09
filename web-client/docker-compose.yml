@@ -2,7 +2,7 @@ services:
   # ==================== DATABASE ====================
   mysql:
     image: mysql:8.0
-    container_name: maestro_mysql
+    container_name: relay_mysql
     command: --default-authentication-plugin=mysql_native_password
     restart: unless-stopped
     environment:
@@ -25,7 +25,7 @@ services:
   # ==================== REDIS ====================
   redis:
     image: redis:alpine
-    container_name: maestro_redis
+    container_name: relay_redis
     restart: unless-stopped
     ports:
       - "${REDIS_PORT:-6379}:6379"
@@ -44,7 +44,7 @@ services:
     build:
       context: ./back
       dockerfile: Dockerfile
-    container_name: maestro_api
+    container_name: relay_api
     restart: unless-stopped
     depends_on:
       mysql:
@@ -69,7 +69,7 @@ services:
     build:
       context: ./front
       dockerfile: Dockerfile
-    container_name: maestro_front
+    container_name: relay_front
     restart: unless-stopped
     depends_on:
       - api
@@ -79,7 +79,7 @@ services:
       # se a API estiver em outro host/domínio.
       API_URL: ${FRONT_API_URL:-/api}
       PRODUCTION: ${FRONT_PRODUCTION:-true}
-      APP_NAME: ${APP_NAME:-Agentic Dev Maestro}
+      APP_NAME: ${APP_NAME:-Relay}
     ports:
       - "${FRONT_PORT:-4200}:80"
     networks:

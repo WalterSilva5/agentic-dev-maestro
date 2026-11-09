@@ -4,8 +4,8 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import Swal from 'sweetalert2';
 
-import { MaestroApiService } from '../../../services/maestro-api.service';
-import { StudyPlan, StudyTopic, StudyTopicStatus, StudyPlanStatus, StudyCategory } from '../../../models/maestro.models';
+import { RelayApiService } from '../../../services/relay-api.service';
+import { StudyPlan, StudyTopic, StudyTopicStatus, StudyPlanStatus, StudyCategory } from '../../../models/relay.models';
 
 @Component({
   selector: 'app-study-plan',
@@ -40,7 +40,7 @@ export class StudyPlanComponent implements OnInit, OnDestroy {
   statuses: StudyPlanStatus[] = ['PLANEJADO', 'EM_ANDAMENTO', 'PAUSADO', 'CONCLUIDO', 'ABANDONADO'];
 
   constructor(
-    private api: MaestroApiService,
+    private api: RelayApiService,
     private route: ActivatedRoute,
     private router: Router,
   ) {}

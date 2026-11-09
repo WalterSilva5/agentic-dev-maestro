@@ -1,12 +1,12 @@
 {
-  "name": "agentic-dev-maestro-mcp",
+  "name": "relay-mcp",
   "version": "0.1.0",
-  "description": "MCP server wrapping the Agentic Dev Maestro REST API so AI agents can manage boards natively.",
+  "description": "MCP server wrapping the Relay REST API so AI agents can manage boards natively.",
   "type": "module",
   "private": true,
   "license": "UNLICENSED",
   "bin": {
-    "agentic-dev-maestro-mcp": "dist/index.js"
+    "relay-mcp": "dist/index.js"
   },
   "files": [
     "dist"

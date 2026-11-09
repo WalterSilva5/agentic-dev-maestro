@@ -4,9 +4,9 @@ import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import Swal from 'sweetalert2';
 
-import { MaestroApiService } from '../../services/maestro-api.service';
+import { RelayApiService } from '../../services/relay-api.service';
 import { TenantService } from '../../services/tenant.service';
-import { ApiKeyInfo } from '../../models/maestro.models';
+import { ApiKeyInfo } from '../../models/relay.models';
 
 const SCOPES = [
   'projects:read',
@@ -36,7 +36,7 @@ export class ApiKeysComponent implements OnInit {
   selectedScopes: Record<string, boolean> = {};
   creating = false;
 
-  constructor(private api: MaestroApiService, protected tenant: TenantService) {}
+  constructor(private api: RelayApiService, protected tenant: TenantService) {}
 
   get cid(): number | null {
     return this.tenant.companyId;
@@ -125,13 +125,13 @@ export class ApiKeysComponent implements OnInit {
                     font-weight:600; text-align:left; margin-bottom:.75rem;">
           Copie agora, não será exibido novamente.
         </div>
-        <textarea readonly id="maestro-secret"
+        <textarea readonly id="relay-secret"
           style="width:100%; min-height:72px; background:#F3F4F6; color:#111827; border:1px solid #E5E7EB;
                  border-radius:8px; padding:.6rem; font-family:monospace; font-size:.85rem; resize:none;"
           onclick="this.select()">${esc(secret)}</textarea>
       `,
       didOpen: () => {
-        const ta = document.getElementById('maestro-secret') as HTMLTextAreaElement | null;
+        const ta = document.getElementById('relay-secret') as HTMLTextAreaElement | null;
         ta?.select();
       },
       preConfirm: async () => {

@@ -1,6 +1,6 @@
 """Liberação do modelo Whisper quando ocioso (economia de RAM)."""
-from maestro_local.transcricoes import transcriber as tr
-from maestro_local.transcricoes.agent_service import MeetingAgentService
+from relay.transcricoes import transcriber as tr
+from relay.transcricoes.agent_service import MeetingAgentService
 
 
 def test_release_model_sem_modelo_e_noop():

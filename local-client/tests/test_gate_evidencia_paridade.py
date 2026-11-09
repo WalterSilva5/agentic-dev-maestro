@@ -1,15 +1,15 @@
 import pytest
 from fastapi.testclient import TestClient
-from maestro_local.api.app import app
-from maestro_local.db.models import init_db, get_session, Project, BoardColumn, Task
+from relay.api.app import app
+from relay.db.models import init_db, get_session, Project, BoardColumn, Task
 import tempfile, os
 
 @pytest.fixture
 def client(tmp_path):
     db_path = str(tmp_path / "test.db")
     init_db(db_path)
-    from maestro_local.db.models import get_engine, _SessionLocal, _active_db_path, Base
-    import maestro_local.db.models as m
+    from relay.db.models import get_engine, _SessionLocal, _active_db_path, Base
+    import relay.db.models as m
     m._engine = None
     m._SessionLocal = None
     m._active_db_path = db_path

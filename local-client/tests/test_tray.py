@@ -2,7 +2,7 @@
 import pytest
 from PySide6.QtWidgets import QWidget
 
-from maestro_local import eyecare, features
+from relay import eyecare, features
 
 
 class JanelaFalsa(QWidget):
@@ -23,9 +23,9 @@ class JanelaFalsa(QWidget):
 
 @pytest.fixture()
 def tray(qapp, temp_db):
-    from maestro_local.gui.tray import MaestroTray
+    from relay.gui.tray import RelayTray
     janela = JanelaFalsa()
-    return MaestroTray(janela)
+    return RelayTray(janela)
 
 
 def _rotulos(menu):

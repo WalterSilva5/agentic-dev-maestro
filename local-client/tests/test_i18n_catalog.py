@@ -7,7 +7,7 @@ import ast
 from collections import Counter
 from pathlib import Path
 
-CATALOG = Path(__file__).resolve().parents[1] / "maestro_local" / "i18n_catalog.py"
+CATALOG = Path(__file__).resolve().parents[1] / "relay" / "i18n_catalog.py"
 
 
 def _literal_keys() -> list[str]:
@@ -31,6 +31,6 @@ def test_catalogo_sem_chaves_duplicadas():
 
 
 def test_catalogo_carrega_e_traduz():
-    from maestro_local import i18n_catalog
+    from relay import i18n_catalog
     cat = getattr(i18n_catalog, "CATALOG", None) or getattr(i18n_catalog, "EN", None)
     assert isinstance(cat, dict) and cat, "catálogo vazio ou não encontrado"

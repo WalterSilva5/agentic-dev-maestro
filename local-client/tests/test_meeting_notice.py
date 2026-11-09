@@ -8,7 +8,7 @@ import pytest
 
 @pytest.fixture
 def janela(qapp, temp_db, monkeypatch):
-    from maestro_local.gui.main_window import MainWindow
+    from relay.gui.main_window import MainWindow
 
     w = MainWindow()
     # nenhum teste deve disparar notificação real no X/DBus
@@ -79,7 +79,7 @@ def test_reuniao_iniciada_fecha_a_pausa_aberta(janela):
 
 def test_pausa_nao_aparece_durante_reuniao(janela, monkeypatch):
     """`_maybe_show_eyecare` respeita o estado de reunião."""
-    from maestro_local import eyecare
+    from relay import eyecare
 
     monkeypatch.setattr(eyecare, "devida", lambda **k: not k.get("em_reuniao"))
 

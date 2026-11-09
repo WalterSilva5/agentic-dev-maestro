@@ -1,8 +1,8 @@
 """Consulta de TODOs em aberto usada pela tela da pausa para os olhos."""
 from datetime import datetime, timedelta
 
-from maestro_local.db.models import Todo, get_session
-from maestro_local.todos import todos_abertos
+from relay.db.models import Todo, get_session
+from relay.todos import todos_abertos
 
 
 def _todo(texto, prioridade="MEDIUM", due=None, done=False):

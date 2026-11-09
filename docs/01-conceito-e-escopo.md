@@ -31,7 +31,7 @@ A **backend + frontend** application that becomes the system of record for this 
 
 ## Personas
 
-| Persona | Uses Maestro to |
+| Persona | Uses Relay to |
 |---|---|
 | **Dev** | see their tasks, move them on the board, read the docs/tips, comment, open linked PRs |
 | **Tech Lead** | review, approve, adjust decomposition, ensure technical quality |
@@ -46,7 +46,7 @@ A **backend + frontend** application that becomes the system of record for this 
 3. **Native, exportable markdown docs** — preserves the current workflow (sending `.md`
    files to the team), but with state and version.
 4. **Effort in person-days, no allocation** — estimates in person-days; allocating
-   people and setting the schedule is up to leadership. Maestro does not staff the team.
+   people and setting the schedule is up to leadership. Relay does not staff the team.
 5. **MCP server** — any agent (Claude Code, etc.) talks natively to the boards
    via MCP, in addition to REST.
 
@@ -71,11 +71,12 @@ A **backend + frontend** application that becomes the system of record for this 
 
 ## Name (decided)
 
-**Agentic Dev Maestro** — repo `agentic-dev-maestro`.
+**Relay** — repo `relay`.
 
-- **Agentic** — the AI agents act with autonomy (it's not bolted-on automation).
-- **Dev** — the domain is development work (tasks, docs, board).
-- **Maestro** — orchestrates the mixed team (humans + agents) around the work.
+Short, bilingual, nothing to explain: the product is the handoff point between
+humans and AI agents (tasks, docs and board flow through it). Day to day the
+name is just **Relay** (hence "Relay Loop", "Relay API", etc.).
 
-Day to day and in the documentation, the short name is **Maestro** (hence "Maestro Loop",
-"Maestro API", etc.).
+> 2026-11-09 revision: the original name "Agentic Dev Maestro" (see D8) was
+> retired — the qualifier sounded odd and the full name was too long for daily
+> use.

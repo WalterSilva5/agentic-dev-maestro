@@ -1,5 +1,5 @@
 """B3 — indicador do fluxo da reunião (preparar → gravar → transcrever → analisar)."""
-from maestro_local.gui.meetings.flow_indicator import STAGES, FlowIndicator
+from relay.gui.meetings.flow_indicator import STAGES, FlowIndicator
 
 
 def test_estagio_inicial_e_preparar(qapp):

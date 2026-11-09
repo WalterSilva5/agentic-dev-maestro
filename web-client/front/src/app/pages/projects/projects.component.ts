@@ -4,9 +4,9 @@ import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import Swal from 'sweetalert2';
 
-import { MaestroApiService } from '../../services/maestro-api.service';
+import { RelayApiService } from '../../services/relay-api.service';
 import { TenantService } from '../../services/tenant.service';
-import { Project } from '../../models/maestro.models';
+import { Project } from '../../models/relay.models';
 
 @Component({
   selector: 'app-projects',
@@ -26,7 +26,7 @@ export class ProjectsComponent implements OnInit {
   saving = false;
 
   constructor(
-    private api: MaestroApiService,
+    private api: RelayApiService,
     protected tenant: TenantService
   ) {}
 

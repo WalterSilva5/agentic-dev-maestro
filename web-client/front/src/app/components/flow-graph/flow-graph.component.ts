@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, Input, OnChanges } from '@angular/core';
 
-import { TaskFlow } from '../../models/maestro.models';
+import { TaskFlow } from '../../models/relay.models';
 
 interface VNode {
   id: string;

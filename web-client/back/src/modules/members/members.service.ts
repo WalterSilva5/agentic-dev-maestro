@@ -68,7 +68,7 @@ export class MembersService {
     void this.email
       .sendEmail(
         membership.user.email,
-        `Você foi adicionado à empresa ${company?.name ?? ''} no Agentic Dev Maestro`,
+        `Você foi adicionado à empresa ${company?.name ?? ''} no Relay`,
         `<p>Olá ${membership.user.firstName},</p>
          <p>Você agora é membro de <b>${company?.name ?? ''}</b> com o papel <b>${membership.role}</b>.</p>`
       )

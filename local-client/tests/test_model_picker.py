@@ -4,7 +4,7 @@ import urllib.request
 
 import pytest
 
-from maestro_local.ai import providers
+from relay.ai import providers
 
 
 class _Resp:
@@ -23,7 +23,7 @@ class _Resp:
 
 @pytest.fixture()
 def picker(qapp):
-    from maestro_local.gui.model_picker_dialog import ModelPickerDialog
+    from relay.gui.model_picker_dialog import ModelPickerDialog
     return ModelPickerDialog(None, ["gpt-4o", "qwen2.5-coder-7b", "llama-3.1-8b"])
 
 
@@ -100,7 +100,7 @@ def test_copiar_manda_para_a_area_de_transferencia(picker):
 
 
 def test_modelo_ja_configurado_vem_selecionado(qapp):
-    from maestro_local.gui.model_picker_dialog import ModelPickerDialog
+    from relay.gui.model_picker_dialog import ModelPickerDialog
     dlg = ModelPickerDialog(None, ["a", "b", "c"], atual="b")
     assert dlg.selecionado() == "b"
 
@@ -171,14 +171,14 @@ def test_verificar_desabilitado_sem_base_url(picker):
 
 
 def test_verificar_habilitado_com_provedor(qapp):
-    from maestro_local.gui.model_picker_dialog import ModelPickerDialog
+    from relay.gui.model_picker_dialog import ModelPickerDialog
     d = ModelPickerDialog(None, ["a"], provider={"base_url": "http://x/v1"})
     assert d.btn_verificar.isEnabled() is True
 
 
 def test_trocar_de_modelo_limpa_o_resultado_anterior(qapp):
     """Senão o ✓ de um modelo ficaria valendo para outro."""
-    from maestro_local.gui.model_picker_dialog import ModelPickerDialog
+    from relay.gui.model_picker_dialog import ModelPickerDialog
     d = ModelPickerDialog(None, ["a", "b"], provider={"base_url": "http://x/v1"})
     d._on_verificado(True, "a respondeu.")
     assert d.status.text()

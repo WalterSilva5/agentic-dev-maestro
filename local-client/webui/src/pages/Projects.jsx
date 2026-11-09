@@ -110,7 +110,7 @@ export default function Projects() {
   return (
     <div>
       <h1 className="page-title">{t('Projetos')}</h1>
-      <p className="subtitle">{t('Web UI servida pela própria API do Maestro.')}</p>
+      <p className="subtitle">{t('Web UI servida pela própria API do Relay.')}</p>
 
       {error && <div className="banner">{error}</div>}
 

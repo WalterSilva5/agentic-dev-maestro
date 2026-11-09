@@ -2,7 +2,7 @@
 
 # Diagrams
 
-Maestro flowcharts in **PlantUML** (`.puml` — source) + **SVG** (rendered).
+Relay flowcharts in **PlantUML** (`.puml` — source) + **SVG** (rendered).
 Whenever you edit a `.puml`, regenerate the SVGs:
 
 ```bash
@@ -22,13 +22,13 @@ queues), MCP server, MySQL and Redis — and how humans and agents come in.
 
 Source: [`arquitetura.puml`](arquitetura.puml)
 
-## 2. Maestro Loop (main flow)
+## 2. Relay Loop (main flow)
 
 The product cycle: briefing → refinement → decompose → board → execution → overview.
 
-![Maestro Loop](maestro-loop.svg)
+![Relay Loop](relay-loop.svg)
 
-Source: [`maestro-loop.puml`](maestro-loop.puml)
+Source: [`relay-loop.puml`](relay-loop.puml)
 
 ## 3. Data model (ER)
 

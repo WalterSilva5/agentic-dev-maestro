@@ -1,17 +1,17 @@
 ---
 name: gav-azure-sync
-description: Sincroniza manualmente o board do Azure DevOps para o Maestro local — somente leitura no Azure, escrita só local. Use quando o usuário pedir "sincronizar board", "importar do Azure", "trazer tasks do Azure para o Maestro" ou "atualizar board local com o Azure".
+description: Sincroniza manualmente o board do Azure DevOps para o Relay local — somente leitura no Azure, escrita só local. Use quando o usuário pedir "sincronizar board", "importar do Azure", "trazer tasks do Azure para o Relay" ou "atualizar board local com o Azure".
 ---
 
-# GAV — Sincronização Azure → Maestro (somente leitura no Azure)
+# GAV — Sincronização Azure → Relay (somente leitura no Azure)
 
-Sincroniza **manualmente** o board **"VAR 3.0 - Migração GX"** (org `GrupoAvenida`) para o Maestro local. **Nunca escreve no Azure** — só lê via `az boards query/show` e escreve/atualiza no SQLite local (`Task`, `BoardColumn`, `Member`, `Label`, `Epic`).
+Sincroniza **manualmente** o board **"VAR 3.0 - Migração GX"** (org `GrupoAvenida`) para o Relay local. **Nunca escreve no Azure** — só lê via `az boards query/show` e escreve/atualiza no SQLite local (`Task`, `BoardColumn`, `Member`, `Label`, `Epic`).
 
 > Escrita no Azure exige autorização explícita (card + ação + valor). Esta skill é **somente leitura no Azure**.
 
 ## Quando usar
 - "sincronizar board" / "importar do Azure" / "trazer tasks do Azure"
-- "atualizar o Maestro com o Azure" / "espelhar o Azure localmente"
+- "atualizar o Relay com o Azure" / "espelhar o Azure localmente"
 
 ## Regras
 1. **`--project` explícito** em todo `az` (default `VAR 3.0 - Migração GX`).
@@ -29,7 +29,7 @@ az boards query --project "$PROJ" --organization $ORG \
 python3 -c "import json; d=json.load(open('/tmp/azure.json')); print(f'total {len(d)}'); print([(x['id'], x['fields'].get('System.State'), x['fields'].get('System.Title')[:50]) for x in d[:3]])"
 ```
 
-## Passo 2 — Sincronizar para o Maestro local
+## Passo 2 — Sincronizar para o Relay local
 ```bash
 # helper local (cria/atualiza Task por GAVAR-<id>, mapeia estado→coluna, cria Member/Label/Epic se preciso)
 python3 local-client/scripts/sync_azure_to_local.py \
@@ -39,8 +39,8 @@ python3 local-client/scripts/sync_azure_to_local.py \
 
 ## Passo 3 — Conferir
 ```bash
-# no Maestro local
-python3 -c "from maestro_local.db.models import Task, get_session; s=get_session(); print(s.query(Task).filter(Task.code.like('GAVAR-%')).count())"
+# no Relay local
+python3 -c "from relay.db.models import Task, get_session; s=get_session(); print(s.query(Task).filter(Task.code.like('GAVAR-%')).count())"
 ```
 
 ## Observações

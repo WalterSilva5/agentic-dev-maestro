@@ -1,6 +1,6 @@
 """Usabilidade do fluxo: colunas padrão enxutas, filtros de épico/tag e
 abertura de board definindo o projeto ativo."""
-from maestro_local.db.models import (
+from relay.db.models import (
     DEFAULT_COLUMNS,
     BoardColumn,
     Epic,
@@ -9,7 +9,7 @@ from maestro_local.db.models import (
     Task,
     get_session,
 )
-from maestro_local.gui.views.board_view import BoardView
+from relay.gui.views.board_view import BoardView
 
 
 def _projeto_com_card():
@@ -68,8 +68,8 @@ def test_filtro_epico_esconde_quem_nao_casa(qapp, temp_db):
 
 
 def test_abrir_board_define_projeto_ativo(qapp, temp_db):
-    from maestro_local.config import get_active_project_id
-    from maestro_local.gui.main_window import MainWindow
+    from relay.config import get_active_project_id
+    from relay.gui.main_window import MainWindow
     pid = _projeto_com_card()
     w = MainWindow()
     w._open_board(pid)

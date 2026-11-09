@@ -47,7 +47,7 @@ A single view of what needs to be ready. State as of 2026-06-25.
 - [x] Search + filters on `GET /tasks`
 - [x] Dashboard (progress per project + recent activity)
 - [x] Member and API key management in the UI
-- [x] Navigation links (navbar) to the Maestro pages
+- [x] Navigation links (navbar) to the Relay pages
 
 ## 🚪 Gate 5 — Studies Module ✅
 
@@ -71,7 +71,7 @@ A single view of what needs to be ready. State as of 2026-06-25.
 
 ## 🚪 Gate 7 — OpenCode Tools ✅
 
-- [x] 12 custom tools (`.opencode/tools/maestro.ts`)
+- [x] 12 custom tools (`.opencode/tools/relay.ts`)
 - [x] 2 commands: `/review` and `/decompose`
 - [x] Platform usage skill
 - [x] `opencode.jsonc` config

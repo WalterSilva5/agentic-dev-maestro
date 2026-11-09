@@ -4,16 +4,16 @@ from datetime import date, datetime, timedelta
 import pytest
 from fastapi.testclient import TestClient
 
-from maestro_local.api.app import app
-from maestro_local.db.models import init_db
-from maestro_local.team_report import compute_weekly, render_markdown, week_bounds
+from relay.api.app import app
+from relay.db.models import init_db
+from relay.team_report import compute_weekly, render_markdown, week_bounds
 
 
 @pytest.fixture
 def client(tmp_path):
     db_path = str(tmp_path / "test.db")
     init_db(db_path)
-    import maestro_local.db.models as m
+    import relay.db.models as m
     m._engine = None
     m._SessionLocal = None
     m._active_db_path = db_path
@@ -59,7 +59,7 @@ def projeto(client):
         assert client.post(f"/api/tasks/{code}/move", json={"columnId": cols["Done"]}).status_code == 200
 
     # move uma entrega para a semana passada
-    from maestro_local.db.models import Task, get_session
+    from relay.db.models import Task, get_session
     s = get_session()
     t = s.query(Task).filter(Task.number == a2["number"]).first()
     t.done_at = datetime.now() - timedelta(days=10)
@@ -224,11 +224,11 @@ def test_render_sem_membros_nao_quebra():
 
 def test_compute_sem_sessao_de_outro_workspace(tmp_path):
     """compute_weekly não deve depender de estado global de workspace."""
-    from maestro_local.db.models import BoardColumn, Project, Task, get_session
+    from relay.db.models import BoardColumn, Project, Task, get_session
 
     db = str(tmp_path / "x.db")
     init_db(db)
-    import maestro_local.db.models as m
+    import relay.db.models as m
     m._engine = None
     m._SessionLocal = None
     m._active_db_path = db

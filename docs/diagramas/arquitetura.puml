@@ -1,5 +1,5 @@
 @startuml arquitetura
-title Maestro — Arquitetura (visão de componentes)
+title Relay — Arquitetura (visão de componentes)
 skinparam backgroundColor transparent
 skinparam shadowing false
 skinparam defaultFontName sans-serif

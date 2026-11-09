@@ -21,14 +21,14 @@ class _Travado(QThread):
 
 
 def test_stop_all_sem_workers_reporta_sucesso(qapp):
-    from maestro_local.transcricoes.agent_service import MeetingAgentService
+    from relay.transcricoes.agent_service import MeetingAgentService
     svc = MeetingAgentService()
     assert svc.stop_all(msecs=100) is True
 
 
 def test_stop_all_reporta_falha_com_worker_travado(qapp):
     """Quem chama precisa saber que sobrou thread viva — é o que evita o abort."""
-    from maestro_local.transcricoes.agent_service import MeetingAgentService
+    from relay.transcricoes.agent_service import MeetingAgentService
     svc = MeetingAgentService()
     stuck = _Travado()
     stuck.start()
@@ -61,9 +61,9 @@ def test_fechar_com_worker_travado_nao_aborta():
         from PySide6.QtWidgets import QApplication
         from PySide6.QtCore import QThread
         app = QApplication([])
-        from maestro_local.db import models
+        from relay.db import models
         models.switch_db(str(pathlib.Path(tempfile.mkdtemp())/"t.db"))
-        from maestro_local.gui.main_window import MainWindow
+        from relay.gui.main_window import MainWindow
         w = MainWindow(); w._open_key("transcricoes")
         class Travado(QThread):
             def run(self): time.sleep(30)
@@ -82,9 +82,9 @@ def test_fechar_sem_nada_rodando_sai_limpo():
         os.environ["QT_QPA_PLATFORM"] = "offscreen"
         from PySide6.QtWidgets import QApplication
         app = QApplication([])
-        from maestro_local.db import models
+        from relay.db import models
         models.switch_db(str(pathlib.Path(tempfile.mkdtemp())/"t.db"))
-        from maestro_local.gui.main_window import MainWindow
+        from relay.gui.main_window import MainWindow
         w = MainWindow(); w._open_key("transcricoes")
         w.close()
         print("CLOSE_LIMPO")

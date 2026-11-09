@@ -2,7 +2,7 @@
 
 # Plan — Real-Time Meeting Assistant
 
-Evolution of the **Transcriptions** module (`maestro_local/transcricoes/`) from "record → stop →
+Evolution of the **Transcriptions** module (`relay/transcricoes/`) from "record → stop →
 transcribe → summarize" to **live tracking** during the meeting, with a direct
 bridge to the board. Effort in man-days (md); staffing/schedule is left to the
 leadership's discretion.
@@ -117,7 +117,7 @@ Items that connect with the rest of the app and enhance the meeting assistant:
   independent feature even without real time.
 - **Proactive assistant digest** (~3 md) — automatic summary (morning/end of day)
   with priorities, overdue, and stalled items; show it in the Dashboard. Reuses the logic of the
-  `maestro-daily-report` skill.
+  `relay-daily-report` skill.
 - **Real global search** (~2 md) — today Ctrl+K only finds tasks; expand to
   notes, **transcriptions**, and comments via SQLite FTS.
 - **Agenda/calendar by deadline** (~2 md) — calendar view of tasks by

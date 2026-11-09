@@ -1,6 +1,6 @@
 > 🇧🇷 [Versão em português](TODO.ptbr.md)
 
-# Next steps — Agentic Dev Maestro
+# Next steps — Relay
 
 Living backlog of upcoming work. Items at the top have priority. Effort in
 person-days (pd) is an estimate; staffing/scheduling is up to leadership.

@@ -10,7 +10,7 @@ Bull/Redis, Swagger já prontos). Esforço em homem-dia (hd).
 ## Fase 0 — Fundação multi-tenant
 
 ### B0.1 — Setup do projeto a partir do template · 0.5 hd
-- [ ] Copiar `back/` do template para o projeto `maestro`
+- [ ] Copiar `back/` do template para o projeto `relay`
 - [ ] Renomear app/pacote, ajustar `.env.example` (DB, JWT, REDIS)
 - [ ] Subir com Docker (`docker compose up`) e validar `/api/docs` (Swagger)
 

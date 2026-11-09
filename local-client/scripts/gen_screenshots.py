@@ -4,7 +4,7 @@ Uso:
     QT_QPA_PLATFORM=offscreen python -m scripts.gen_screenshots
     (ou)  QT_QPA_PLATFORM=offscreen python scripts/gen_screenshots.py
 
-Usa o workspace "wsi" (projeto demo MST "Maestro App"), semeia dados das
+Usa o workspace "wsi" (projeto demo MST "Relay App"), semeia dados das
 funcionalidades novas (sprints + plano de estudo) de forma idempotente, aplica
 o tema claro e captura cada tela para local-client/docs/screenshots/*-light.png.
 """
@@ -102,8 +102,8 @@ def grab(win, app, name):
 
 
 def main():
-    from maestro_local import config
-    from maestro_local.db import models
+    from relay import config
+    from relay.db import models
 
     original_ws = config.get_active_workspace_id()
     config.set_active_workspace(WS_ID)
@@ -119,13 +119,13 @@ def main():
 
     from PySide6.QtWidgets import QApplication
 
-    from maestro_local.gui.theme import LIGHT, build_stylesheet, set_theme
+    from relay.gui.theme import LIGHT, build_stylesheet, set_theme
 
     app = QApplication.instance() or QApplication([])
     set_theme(LIGHT)
     app.setStyleSheet(build_stylesheet(LIGHT))
 
-    from maestro_local.gui.main_window import MainWindow
+    from relay.gui.main_window import MainWindow
 
     win = MainWindow(api_port=9777)
     win.resize(*SIZE)

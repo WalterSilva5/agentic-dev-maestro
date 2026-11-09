@@ -1,5 +1,5 @@
 """Seleção do dispositivo de áudio padrão (PulseAudio/PipeWire)."""
-from maestro_local.transcricoes import audio
+from relay.transcricoes import audio
 
 
 def _fonte(nome, monitor=False):

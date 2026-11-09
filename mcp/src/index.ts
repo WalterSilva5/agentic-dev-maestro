@@ -6,12 +6,12 @@ import { z } from "zod";
 // ---------------------------------------------------------------------------
 // Configuration (via environment variables)
 // ---------------------------------------------------------------------------
-const API_URL = (process.env.MAESTRO_API_URL ?? "http://localhost:5000/api").replace(/\/$/, "");
-const API_KEY = process.env.MAESTRO_API_KEY;
+const API_URL = (process.env.RELAY_API_URL ?? process.env.MAESTRO_API_URL ?? "http://localhost:5000/api").replace(/\/$/, "");
+const API_KEY = process.env.RELAY_API_KEY ?? process.env.MAESTRO_API_KEY;
 
 if (!API_KEY) {
   console.error(
-    "[agentic-dev-maestro-mcp] FATAL: MAESTRO_API_KEY environment variable is required."
+    "[relay-mcp] FATAL: RELAY_API_KEY environment variable is required."
   );
   process.exit(1);
 }
@@ -43,7 +43,7 @@ async function api(
 
   if (!res.ok) {
     throw new Error(
-      `Maestro API ${method} ${path} failed: ${res.status} ${res.statusText} - ${text}`
+      `Relay API ${method} ${path} failed: ${res.status} ${res.statusText} - ${text}`
     );
   }
 
@@ -82,13 +82,13 @@ function qs(params: Record<string, unknown>): string {
 // MCP server + tools
 // ---------------------------------------------------------------------------
 const server = new McpServer({
-  name: "agentic-dev-maestro",
+  name: "relay",
   version: "0.1.0",
 });
 
 // --- Projects ---------------------------------------------------------------
 server.registerTool(
-  "maestro_list_projects",
+  "relay_list_projects",
   {
     description: "List all projects (boards) on the company server.",
     inputSchema: {},
@@ -97,7 +97,7 @@ server.registerTool(
 );
 
 server.registerTool(
-  "maestro_create_project",
+  "relay_create_project",
   {
     description: "Create a new project (board).",
     inputSchema: {
@@ -111,7 +111,7 @@ server.registerTool(
 );
 
 server.registerTool(
-  "maestro_get_board",
+  "relay_get_board",
   {
     description: "Get the kanban board (columns + tasks) for a project.",
     inputSchema: {
@@ -123,7 +123,7 @@ server.registerTool(
 
 // --- Tasks ------------------------------------------------------------------
 server.registerTool(
-  "maestro_list_tasks",
+  "relay_list_tasks",
   {
     description: "List tasks, optionally filtered by project, status and/or free-text search.",
     inputSchema: {
@@ -137,7 +137,7 @@ server.registerTool(
 );
 
 server.registerTool(
-  "maestro_get_task",
+  "relay_get_task",
   {
     description: "Get a single task by its code (or id).",
     inputSchema: {
@@ -148,7 +148,7 @@ server.registerTool(
 );
 
 server.registerTool(
-  "maestro_create_task",
+  "relay_create_task",
   {
     description: "Create a single task in a project.",
     inputSchema: {
@@ -184,7 +184,7 @@ const itemSchema = z.object({
 });
 
 server.registerTool(
-  "maestro_decompose",
+  "relay_decompose",
   {
     description:
       "Bulk-create a decomposed plan: a set of tasks (items) each with optional subtasks and dependencies. Pass an idempotencyKey to make the operation safely retryable.",
@@ -204,7 +204,7 @@ server.registerTool(
 );
 
 server.registerTool(
-  "maestro_move_task",
+  "relay_move_task",
   {
     description: "Move a task to a different board column.",
     inputSchema: {
@@ -217,7 +217,7 @@ server.registerTool(
 );
 
 server.registerTool(
-  "maestro_get_flow",
+  "relay_get_flow",
   {
     description:
       "Get a task's flow (subtasks + dependency graph), as JSON or as a Mermaid diagram.",
@@ -237,7 +237,7 @@ server.registerTool(
 
 // --- Epics ------------------------------------------------------------------
 server.registerTool(
-  "maestro_list_epics",
+  "relay_list_epics",
   {
     description: "List epics of a project.",
     inputSchema: {
@@ -248,7 +248,7 @@ server.registerTool(
 );
 
 server.registerTool(
-  "maestro_create_epic",
+  "relay_create_epic",
   {
     description: "Create an epic (thematic card group) in a project.",
     inputSchema: {
@@ -262,7 +262,7 @@ server.registerTool(
 );
 
 server.registerTool(
-  "maestro_link_epic",
+  "relay_link_epic",
   {
     description: "Attach a task to an epic, or detach it with unlink=true.",
     inputSchema: {
@@ -277,7 +277,7 @@ server.registerTool(
 
 // --- Goals ------------------------------------------------------------------
 server.registerTool(
-  "maestro_list_goals",
+  "relay_list_goals",
   {
     description: "List goals of a project, each with progress (total/done/pct/daysLeft).",
     inputSchema: {
@@ -288,7 +288,7 @@ server.registerTool(
 );
 
 server.registerTool(
-  "maestro_create_goal",
+  "relay_create_goal",
   {
     description: "Create a goal: deliver cards matching tag/epic/sprint filters by a due date.",
     inputSchema: {
@@ -307,7 +307,7 @@ server.registerTool(
 );
 
 server.registerTool(
-  "maestro_goal_progress",
+  "relay_goal_progress",
   {
     description: "Get a goal with its current progress (total/done/pct/daysLeft).",
     inputSchema: {
@@ -319,7 +319,7 @@ server.registerTool(
 
 // --- Members ----------------------------------------------------------------
 server.registerTool(
-  "maestro_list_members",
+  "relay_list_members",
   {
     description: "List project assignees with per-person metrics (total/done/pct/overdue).",
     inputSchema: {
@@ -330,7 +330,7 @@ server.registerTool(
 );
 
 server.registerTool(
-  "maestro_add_member",
+  "relay_add_member",
   {
     description: "Add an assignee to a project (idempotent by name).",
     inputSchema: {
@@ -343,7 +343,7 @@ server.registerTool(
 );
 
 server.registerTool(
-  "maestro_assign_task",
+  "relay_assign_task",
   {
     description: "Assign a task to an assignee (creates the member if missing).",
     inputSchema: {
@@ -357,7 +357,7 @@ server.registerTool(
 
 // --- Documents --------------------------------------------------------------
 server.registerTool(
-  "maestro_write_doc",
+  "relay_write_doc",
   {
     description: "Create a document, optionally attached to a project or task.",
     inputSchema: {
@@ -373,7 +373,7 @@ server.registerTool(
 
 // --- Comments ---------------------------------------------------------------
 server.registerTool(
-  "maestro_comment",
+  "relay_comment",
   {
     description: "Add a comment to a task.",
     inputSchema: {
@@ -390,10 +390,10 @@ server.registerTool(
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("[agentic-dev-maestro-mcp] connected via stdio. API:", API_URL);
+  console.error("[relay-mcp] connected via stdio. API:", API_URL);
 }
 
 main().catch((err) => {
-  console.error("[agentic-dev-maestro-mcp] fatal:", err);
+  console.error("[relay-mcp] fatal:", err);
   process.exit(1);
 });

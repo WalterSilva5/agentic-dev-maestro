@@ -99,7 +99,7 @@ ler `resource.getrusage(RUSAGE_SELF).ru_maxrss` logo após `processEvents()`.
 Rodar 3× para checar estabilidade.
 
 > **Cuidado de isolamento**: `SettingsView`/`_save_settings` grava em
-> `~/.maestro-local/config.json` — um arquivo **real do usuário**, fora do banco
+> `~/.relay/config.json` — um arquivo **real do usuário**, fora do banco
 > SQLite temporário. Um script de verificação manual durante o desenvolvimento
 > deste plano interagiu com o combo do modelo Whisper e **sobrescreveu essa
 > configuração de verdade** (detectado pelo mtime do arquivo, corrigido de volta

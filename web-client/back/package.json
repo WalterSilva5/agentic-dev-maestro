@@ -1,7 +1,7 @@
 {
-  "name": "agentic-dev-maestro-backend",
+  "name": "relay-backend",
   "version": "0.0.1",
-  "description": "Backend NestJS do Agentic Dev Maestro",
+  "description": "Backend NestJS do Relay",
   "author": "WalterSilva5",
   "private": true,
   "license": "UNLICENSED",

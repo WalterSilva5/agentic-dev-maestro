@@ -4,16 +4,16 @@ import json
 import pytest
 from fastapi.testclient import TestClient
 
-from maestro_local.api.app import app
-from maestro_local.db.models import Recording, init_db
-from maestro_local.meetings_export import sections, to_markdown, to_text
+from relay.api.app import app
+from relay.db.models import Recording, init_db
+from relay.meetings_export import sections, to_markdown, to_text
 
 
 @pytest.fixture
 def client(tmp_path):
     db_path = str(tmp_path / "test.db")
     init_db(db_path)
-    import maestro_local.db.models as m
+    import relay.db.models as m
     m._engine = None
     m._SessionLocal = None
     m._active_db_path = db_path
@@ -27,7 +27,7 @@ def client(tmp_path):
 @pytest.fixture
 def reuniao(client):
     """Cria uma reunião direto no banco (a gravação em si é do desktop)."""
-    from maestro_local.db.models import get_session
+    from relay.db.models import get_session
 
     estado = {
         "plan": ["Alinhar migração", "Fechar pendências"],
@@ -62,7 +62,7 @@ def reuniao(client):
 # --------------------------------------------------------------------------
 
 def test_markdown_monta_a_partir_do_estado_ao_vivo(reuniao):
-    from maestro_local.db.models import get_session
+    from relay.db.models import get_session
 
     s = get_session()
     r = s.get(Recording, reuniao)
@@ -81,7 +81,7 @@ def test_markdown_monta_a_partir_do_estado_ao_vivo(reuniao):
 
 
 def test_texto_puro_sem_marcacao(reuniao):
-    from maestro_local.db.models import get_session
+    from relay.db.models import get_session
 
     s = get_session()
     r = s.get(Recording, reuniao)

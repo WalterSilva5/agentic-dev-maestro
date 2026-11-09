@@ -4,9 +4,9 @@ import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import Swal from 'sweetalert2';
 
-import { MaestroApiService } from '../../services/maestro-api.service';
+import { RelayApiService } from '../../services/relay-api.service';
 import { TenantService } from '../../services/tenant.service';
-import { Member, Invitation } from '../../models/maestro.models';
+import { Member, Invitation } from '../../models/relay.models';
 
 const ROLES = ['OWNER', 'MANAGER', 'TECH_LEAD', 'DEV', 'VIEWER'] as const;
 
@@ -29,7 +29,7 @@ export class MembersComponent implements OnInit {
   newRole = 'DEV';
   adding = false;
 
-  constructor(private api: MaestroApiService, protected tenant: TenantService) {}
+  constructor(private api: RelayApiService, protected tenant: TenantService) {}
 
   get cid(): number | null {
     return this.tenant.companyId;

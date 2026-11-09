@@ -10,7 +10,7 @@ Bull/Redis, Swagger already in place). Effort in man-days (md).
 ## Phase 0 — Multi-tenant foundation
 
 ### B0.1 — Project setup from the template · 0.5 md
-- [ ] Copy the template's `back/` into the `maestro` project
+- [ ] Copy the template's `back/` into the `relay` project
 - [ ] Rename app/package, adjust `.env.example` (DB, JWT, REDIS)
 - [ ] Bring it up with Docker (`docker compose up`) and validate `/api/docs` (Swagger)
 

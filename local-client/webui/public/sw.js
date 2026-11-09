@@ -1,5 +1,5 @@
-// Service worker do Maestro web (PWA). Cacheia o app shell; nunca a API.
-const CACHE = 'maestro-v1'
+// Service worker do Relay web (PWA). Cacheia o app shell; nunca a API.
+const CACHE = 'relay-v1'
 const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icon-192.png', '/icon-512.png']
 
 self.addEventListener('install', (e) => {

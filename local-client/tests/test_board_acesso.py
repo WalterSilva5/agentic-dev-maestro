@@ -1,7 +1,7 @@
 """Board acessível de imediato e menu lateral recolhível."""
-from maestro_local import features
-from maestro_local.db.models import BoardColumn, Project, get_session
-from maestro_local.gui.main_window import MainWindow
+from relay import features
+from relay.db.models import BoardColumn, Project, get_session
+from relay.gui.main_window import MainWindow
 
 
 def _projeto_com_coluna():
@@ -23,13 +23,13 @@ def test_board_desligado_por_padrao_no_desktop(temp_db):
 
 
 def test_nav_minimo_do_desktop(qapp, temp_db):
-    from maestro_local.gui.main_window import MainWindow
+    from relay.gui.main_window import MainWindow
     w = MainWindow()
     assert w._nav_keys == ["transcricoes", "chat", "vault", "guide", "settings"]
 
 
 def test_abrir_board_vai_direto_ao_kanban(qapp, temp_db):
-    from maestro_local.config import set_active_project_id
+    from relay.config import set_active_project_id
     pid = _projeto_com_coluna()
     set_active_project_id(pid)
     w = MainWindow()
@@ -52,7 +52,7 @@ def test_toggle_sidebar_oculta_e_mostra(qapp, temp_db):
 
 
 def test_sidebar_oculta_persiste_entre_sessoes(qapp, temp_db):
-    from maestro_local.config import load_config
+    from relay.config import load_config
     w = MainWindow()
     w._toggle_sidebar(False)
     assert load_config().get("settings", {}).get("sidebar_visible") is False
@@ -67,7 +67,7 @@ def test_botao_menu_tem_destaque(qapp, temp_db):
 
 
 def test_stack_usa_minimo_da_pagina_atual(qapp, temp_db):
-    from maestro_local.gui.main_window import ResponsiveStack
+    from relay.gui.main_window import ResponsiveStack
     w = MainWindow()
     assert isinstance(w.stack, ResponsiveStack)
     w._open_key("dashboard")
@@ -87,7 +87,7 @@ def test_sidebar_expande_em_janela_estreita(qapp, temp_db):
 def test_botao_web_existe_e_abre_navegador(qapp, temp_db, monkeypatch):
     from PySide6.QtCore import QUrl
 
-    from maestro_local.gui.main_window import MainWindow
+    from relay.gui.main_window import MainWindow
     abertos = []
     monkeypatch.setattr(
         "PySide6.QtGui.QDesktopServices.openUrl",
@@ -103,7 +103,7 @@ def test_botao_web_existe_e_abre_navegador(qapp, temp_db, monkeypatch):
 
 
 def test_initial_view_alias(qapp, temp_db):
-    from maestro_local.gui.main_window import MainWindow
+    from relay.gui.main_window import MainWindow
     w = MainWindow(initial_view="reunioes")
     assert w.stack.currentWidget() is w.transcricoes_view
     w2 = MainWindow(initial_view="vault")

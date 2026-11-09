@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 
-import { MaestroApiService } from './maestro-api.service';
+import { RelayApiService } from './relay-api.service';
 import { TenantService, ActiveCompany } from './tenant.service';
 
 // Carrega a lista de workspaces do usuário e mantém o ativo coerente.
@@ -8,7 +8,7 @@ import { TenantService, ActiveCompany } from './tenant.service';
 @Injectable({ providedIn: 'root' })
 export class WorkspaceService {
   constructor(
-    private api: MaestroApiService,
+    private api: RelayApiService,
     private tenant: TenantService
   ) {}
 

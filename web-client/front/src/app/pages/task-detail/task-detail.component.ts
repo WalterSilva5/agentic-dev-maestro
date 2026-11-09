@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import Swal from 'sweetalert2';
 
-import { MaestroApiService } from '../../services/maestro-api.service';
+import { RelayApiService } from '../../services/relay-api.service';
 import { TenantService } from '../../services/tenant.service';
 import {
   ActivityItem,
@@ -14,7 +14,7 @@ import {
   Member,
   Task,
   TaskFlow,
-} from '../../models/maestro.models';
+} from '../../models/relay.models';
 import { FlowGraphComponent } from '../../components/flow-graph/flow-graph.component';
 
 // Aba ativa da página de detalhe.
@@ -86,7 +86,7 @@ export class TaskDetailComponent implements OnInit {
   newChecklistTitle = '';
   addingChecklist = false;
 
-  constructor(private api: MaestroApiService, private tenant: TenantService) {}
+  constructor(private api: RelayApiService, private tenant: TenantService) {}
 
   ngOnInit(): void {
     if (this._code && !this.task) this.load();

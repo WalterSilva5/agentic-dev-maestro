@@ -15,7 +15,7 @@ import { CreditAccountModule } from './modules/credit-account/credit-account.mod
 import { CreditTransactionModule } from './modules/credit-transaction/credit-transaction.module';
 import { HealthModule } from './modules/health/health.module';
 import { UserModule } from './modules/user/user.module';
-// Agentic Dev Maestro — domínio
+// Relay — domínio
 import { AccessModule } from './modules/access/access.module';
 import { ActivityLogModule } from './modules/activity-log/activity-log.module';
 import { ApiKeyModule } from './modules/api-key/api-key.module';
@@ -71,7 +71,7 @@ import { WebhooksModule } from './modules/webhooks/webhooks.module';
     CreditAccountModule,
     CreditTransactionModule,
     HealthModule,
-    // Agentic Dev Maestro
+    // Relay
     ActivityLogModule,
     IdempotencyModule,
     AccessModule,

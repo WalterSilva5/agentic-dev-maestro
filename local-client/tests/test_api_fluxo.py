@@ -1,8 +1,8 @@
 """Endpoints de API para Goals, Epics e Members (apoio de fluxo)."""
 from fastapi.testclient import TestClient
 
-from maestro_local.api.app import app
-from maestro_local.db.models import (
+from relay.api.app import app
+from relay.db.models import (
     BoardColumn,
     Project,
     Sprint,
@@ -124,8 +124,8 @@ def test_sprint_end_date_editavel(temp_db):
 def test_collect_metrics_regressivas(temp_db):
     """collect_metrics traz as contagens regressivas (sprint + projeto)."""
     from datetime import date, timedelta
-    from maestro_local.db.models import Project, Sprint
-    from maestro_local.metrics_pdf import collect_metrics, build_metrics_pdf
+    from relay.db.models import Project, Sprint
+    from relay.metrics_pdf import collect_metrics, build_metrics_pdf
     c = _client()
     pid, spid, _, _ = _projeto()
 

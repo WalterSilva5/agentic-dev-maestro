@@ -3,8 +3,8 @@ from __future__ import annotations
 
 
 def test_remember_and_keyword_search(temp_db, monkeypatch):
-    from maestro_local import memory as mem
-    from maestro_local.db.models import get_session
+    from relay import memory as mem
+    from relay.db.models import get_session
 
     monkeypatch.setattr(mem, "embed_text", lambda *a, **k: (None, ""))
 
@@ -40,8 +40,8 @@ def test_remember_and_keyword_search(temp_db, monkeypatch):
 
 
 def test_semantic_search_with_fake_embeddings(temp_db, monkeypatch):
-    from maestro_local import memory as mem
-    from maestro_local.db.models import get_session
+    from relay import memory as mem
+    from relay.db.models import get_session
 
     # vetores simples: similaridade alta entre "auth jwt" e a memória de auth
     def fake_embed(text, model=None):
@@ -73,8 +73,8 @@ def test_semantic_search_with_fake_embeddings(temp_db, monkeypatch):
 
 
 def test_soft_delete_and_format(temp_db, monkeypatch):
-    from maestro_local import memory as mem
-    from maestro_local.db.models import get_session
+    from relay import memory as mem
+    from relay.db.models import get_session
 
     monkeypatch.setattr(mem, "embed_text", lambda *a, **k: (None, ""))
 
@@ -99,8 +99,8 @@ def test_soft_delete_and_format(temp_db, monkeypatch):
 
 
 def test_ingest_task(temp_db, monkeypatch):
-    from maestro_local import memory as mem
-    from maestro_local.db.models import (
+    from relay import memory as mem
+    from relay.db.models import (
         BoardColumn,
         Project,
         Task,
@@ -141,8 +141,8 @@ def test_ingest_task(temp_db, monkeypatch):
 
 def test_api_memory_endpoints(temp_db, monkeypatch):
     from fastapi.testclient import TestClient
-    from maestro_local import memory as mem
-    from maestro_local.api.app import app
+    from relay import memory as mem
+    from relay.api.app import app
 
     monkeypatch.setattr(mem, "embed_text", lambda *a, **k: (None, ""))
 

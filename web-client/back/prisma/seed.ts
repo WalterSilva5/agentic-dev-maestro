@@ -57,7 +57,7 @@ async function main(): Promise<void> {
     console.log(`Seeded user ${u.email} (${u.role})`);
   }
 
-  // ---- Agentic Dev Maestro: empresa demo + agente + projeto ----
+  // ---- Relay: empresa demo + agente + projeto ----
   const owner = await prisma.user.findUnique({
     where: { email: 'admin@template.com' }
   });
@@ -123,7 +123,7 @@ async function main(): Promise<void> {
       }
     });
 
-    console.log('\n=== Agentic Dev Maestro (seed) ===');
+    console.log('\n=== Relay (seed) ===');
     console.log(`Empresa : ${company.name} (id=${company.id}, slug=${company.slug})`);
     console.log(`Projeto : ${project.name} (id=${project.id}, key=${project.key})`);
     console.log('API key do agente (header x-api-key):');

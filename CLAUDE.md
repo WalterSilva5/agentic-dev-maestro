@@ -1,8 +1,8 @@
-# Agentic Dev Maestro — Guia para Agentes de IA
+# Relay — Guia para Agentes de IA
 
 ## Visão Geral
 
-O **Maestro Local** é uma aplicação desktop que combina gestão de tarefas kanban com ferramentas para agentes de IA. O agente cria, edita, move e comenta tarefas diretamente pelo terminal, enquanto o usuário acompanha pela interface gráfica.
+O **Relay Local** é uma aplicação desktop que combina gestão de tarefas kanban com ferramentas para agentes de IA. O agente cria, edita, move e comenta tarefas diretamente pelo terminal, enquanto o usuário acompanha pela interface gráfica.
 
 - **Produto principal**: `local-client/` — Python desktop (PySide6 + FastAPI + SQLite)
 - **Cliente web**: `web-client/` — NestJS + Angular (Docker, para deploy)
@@ -13,9 +13,9 @@ O **Maestro Local** é uma aplicação desktop que combina gestão de tarefas ka
 ## Estrutura do Repositório
 
 ```
-agentic-dev-maestro/
+relay/
 ├── local-client/          # ← PRODUTO PRINCIPAL
-│   ├── maestro_local/     # Código fonte Python
+│   ├── relay/     # Código fonte Python
 │   │   ├── api/app.py     # FastAPI — todos os endpoints
 │   │   ├── db/models.py   # SQLAlchemy — modelos de dados
 │   │   ├── ai/            # Assistente interno (LangGraph + provedores IA)
@@ -35,7 +35,7 @@ agentic-dev-maestro/
 │   └── docker-compose.yml
 │
 ├── .opencode/             # Ferramentas para agentes
-│   ├── tools/maestro.ts   # 12 tools customizadas
+│   ├── tools/relay.ts   # 12 tools customizadas
 │   ├── commands/          # /review, /decompose
 │   └── skills/            # Skill de uso da plataforma
 │
@@ -56,7 +56,7 @@ cd local-client
 python -m venv .venv
 source .venv/bin/activate
 pip install -e .
-python -m maestro_local          # porta 9777
+python -m relay          # porta 9777
 ```
 
 ### O que ele faz
@@ -97,20 +97,20 @@ Ferramentas customizadas para agentes de IA no terminal.
 
 ### Ferramentas disponíveis
 
-- `maestro_listProjects` — Listar projetos
-- `maestro_board` — Consultar board kanban
-- `maestro_getTask` / `maestro_listTasks` — Detalhes e filtros de tarefas
-- `maestro_createTask` / `maestro_updateTask` / `maestro_deleteTask` — CRUD
-- `maestro_moveTask` — Mover entre colunas
-- `maestro_addSubtask` — Adicionar subtarefa (só título)
-- `maestro_addComment` — Comentário com markdown
-- `maestro_getFlow` — Exportar fluxo em mermaid
-- `maestro_createDocument` — Criar documento (spec, plan, ADR)
-- `maestro_searchMemory` / `maestro_remember` / `maestro_listMemory` / `maestro_ingestMemory` — memória agentic do workspace
+- `relay_listProjects` — Listar projetos
+- `relay_board` — Consultar board kanban
+- `relay_getTask` / `relay_listTasks` — Detalhes e filtros de tarefas
+- `relay_createTask` / `relay_updateTask` / `relay_deleteTask` — CRUD
+- `relay_moveTask` — Mover entre colunas
+- `relay_addSubtask` — Adicionar subtarefa (só título)
+- `relay_addComment` — Comentário com markdown
+- `relay_getFlow` — Exportar fluxo em mermaid
+- `relay_createDocument` — Criar documento (spec, plan, ADR)
+- `relay_searchMemory` / `relay_remember` / `relay_listMemory` / `relay_ingestMemory` — memória agentic do workspace
 
 ### Comandos
 
-- `/maestro-use [foco]` — Orquestra skills: analisa o momento e escolhe o que fazer no Maestro
+- `/relay-use [foco]` — Orquestra skills: analisa o momento e escolhe o que fazer no Relay
 - `/review <task>` — Code review de uma tarefa
 - `/decompose <task>` — Decompor em subtarefas
 
@@ -118,9 +118,9 @@ Ferramentas customizadas para agentes de IA no terminal.
 
 ```bash
 # No opencode:
-"liste os projetos usando maestro_listProjects"
-"crie uma tarefa 'Implementar busca' no projeto MAESTRO"
-"adicione um comentário de code review na MAESTRO-10"
+"liste os projetos usando relay_listProjects"
+"crie uma tarefa 'Implementar busca' no projeto RELAY"
+"adicione um comentário de code review na RELAY-10"
 ```
 
 ---

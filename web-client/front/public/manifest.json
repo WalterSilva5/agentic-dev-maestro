@@ -1,6 +1,6 @@
 {
-  "name": "Agentic Dev Maestro",
-  "short_name": "Maestro",
+  "name": "Relay",
+  "short_name": "Relay",
   "description": "Workspace de tarefas para humanos e agentes de IA — kanban, documentação e execução via API.",
   "start_url": "/",
   "display": "standalone",

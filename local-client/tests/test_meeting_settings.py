@@ -2,8 +2,8 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from maestro_local.api.app import app
-from maestro_local.db.models import init_db
+from relay.api.app import app
+from relay.db.models import init_db
 
 
 @pytest.fixture
@@ -13,13 +13,13 @@ def client(tmp_path, temp_db):
 
 
 def test_padroes_dos_limites(temp_db):
-    from maestro_local.config import get_meeting_context_limits
+    from relay.config import get_meeting_context_limits
 
     assert get_meeting_context_limits() == {"cards": 12, "overdue": 8, "dailies": 5, "deliveries": 8}
 
 
 def test_salva_e_limita_valores(temp_db):
-    from maestro_local.config import get_meeting_context_limits, set_meeting_context_limits
+    from relay.config import get_meeting_context_limits, set_meeting_context_limits
 
     saida = set_meeting_context_limits(cards=3, overdue=2, dailies=1)
     assert saida == {"cards": 3, "overdue": 2, "dailies": 1, "deliveries": 8}
@@ -33,8 +33,8 @@ def test_salva_e_limita_valores(temp_db):
 def test_contexto_respeita_os_limites(temp_db):
     from datetime import datetime, timedelta
 
-    from maestro_local.db.models import BoardColumn, Project, ProjectDailyEntry, Task, get_session
-    from maestro_local.meeting_context import project_context
+    from relay.db.models import BoardColumn, Project, ProjectDailyEntry, Task, get_session
+    from relay.meeting_context import project_context
 
     s = get_session()
     p = Project(name="Limites", key="LIM")

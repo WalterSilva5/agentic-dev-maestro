@@ -8,8 +8,8 @@ diálogos; `_switch_workspace` era o único que não fechava.
 """
 import pytest
 
-import maestro_local.config as config_module
-import maestro_local.gui.workspace_selector as wsel
+import relay.config as config_module
+import relay.gui.workspace_selector as wsel
 
 
 @pytest.fixture

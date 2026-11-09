@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Sincroniza Azure DevOps (somente leitura) -> Maestro local (escrita local).
+"""Sincroniza Azure DevOps (somente leitura) -> Relay local (escrita local).
 
 Uso:
   az boards query ... -o json > /tmp/azure.json 2>/tmp/azure.err
@@ -10,7 +10,7 @@ import argparse, json
 from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from maestro_local.db.models import BoardColumn, Label, Project, Task, get_session, get_or_create_member
+from relay.db.models import BoardColumn, Label, Project, Task, get_session, get_or_create_member
 
 from datetime import datetime
 
@@ -28,8 +28,8 @@ def _data_conclusao(fields: dict):
         except ValueError:
             continue
     return None
-from maestro_local.config import get_active_workspace_id, get_workspace_db_path
-from maestro_local.db.models import init_db
+from relay.config import get_active_workspace_id, get_workspace_db_path
+from relay.db.models import init_db
 
 def main():
     ap = argparse.ArgumentParser()
@@ -43,7 +43,7 @@ def main():
     print(f"Azure: {len(data)} work items lidos de {args.input}")
 
     # garante DB local
-    from maestro_local.config import get_active_workspace_id, get_workspace_db_path
+    from relay.config import get_active_workspace_id, get_workspace_db_path
     init_db(get_workspace_db_path(get_active_workspace_id()))
 
     key = args.local_project_key or "".join(c for c in args.project if c.isalnum())[:8].upper() or "GAVAR"

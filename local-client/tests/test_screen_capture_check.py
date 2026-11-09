@@ -7,7 +7,7 @@ detecção de backend e, quando nada serve, uma mensagem que diz o que instalar.
 import subprocess
 from pathlib import Path
 
-from maestro_local.transcricoes import screen_capture as sc
+from relay.transcricoes import screen_capture as sc
 
 
 def test_x11_usa_o_backend_qt(qapp, monkeypatch):

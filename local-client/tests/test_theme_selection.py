@@ -1,6 +1,6 @@
 """Escolha e persistência de tema (claro / escuro / hacker)."""
-from maestro_local import config
-from maestro_local.gui import theme
+from relay import config
+from relay.gui import theme
 
 
 def test_tres_temas_registrados():

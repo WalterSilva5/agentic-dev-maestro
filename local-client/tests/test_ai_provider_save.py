@@ -7,14 +7,14 @@ not supported", prefixos exatos de "minimax-m2.1".
 """
 import pytest
 
-from maestro_local.config import get_active_ai_provider, save_ai_providers
+from relay.config import get_active_ai_provider, save_ai_providers
 
 
 @pytest.fixture()
 def settings(qapp, temp_db):
     save_ai_providers([{"id": "p1", "name": "t", "base_url": "http://x/v1",
                         "api_key": "", "model": "antigo"}], active_id="p1")
-    from maestro_local.gui.views.settings_view import SettingsView
+    from relay.gui.views.settings_view import SettingsView
     return SettingsView()
 
 
@@ -67,7 +67,7 @@ def test_testar_conexao_usa_o_valor_da_tela(settings, qapp, monkeypatch):
         def start(self):
             pass
 
-    import maestro_local.gui.views.settings_view as sv
+    import relay.gui.views.settings_view as sv
     monkeypatch.setattr(sv, "ConnTestWorker", W)
     settings._test_ai_connection()
     assert capturado["provider"]["model"] == "qwen2.5-coder"
@@ -75,7 +75,7 @@ def test_testar_conexao_usa_o_valor_da_tela(settings, qapp, monkeypatch):
 
 
 def test_escolher_modelo_na_lista_grava_na_hora(settings, qapp, monkeypatch):
-    import maestro_local.gui.views.settings_view as sv
+    import relay.gui.views.settings_view as sv
 
     class DlgFalso:
         escolhido = "llama-3.1-8b"
@@ -87,7 +87,7 @@ def test_escolher_modelo_na_lista_grava_na_hora(settings, qapp, monkeypatch):
             return sv.QDialog.Accepted
 
     monkeypatch.setattr(
-        "maestro_local.gui.model_picker_dialog.ModelPickerDialog", DlgFalso)
+        "relay.gui.model_picker_dialog.ModelPickerDialog", DlgFalso)
     settings._mostrar_modelos(["llama-3.1-8b"])
     qapp.processEvents()
     assert get_active_ai_provider()["model"] == "llama-3.1-8b"

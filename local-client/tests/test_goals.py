@@ -1,5 +1,5 @@
 """Goals: vínculo de épicos e progresso por filtro (tag/épico/sprint)."""
-from maestro_local.db.models import (
+from relay.db.models import (
     BoardColumn,
     Epic,
     Goal,
@@ -9,7 +9,7 @@ from maestro_local.db.models import (
     Task,
     get_session,
 )
-from maestro_local.gui.views.goals_view import _progresso
+from relay.gui.views.goals_view import _progresso
 
 
 def _setup():

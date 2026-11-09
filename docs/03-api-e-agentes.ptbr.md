@@ -26,7 +26,7 @@ permissões daquele papel. A chave também guarda uma lista de `scopes` (ver aba
    reenviar após timeout, não duplica tarefas. *(Sem a chave, reenvios criam lotes
    duplicados — sempre envie uma.)*
 3. **Códigos legíveis** — endpoints de tarefa aceitam tanto `id` numérico quanto o
-   código (`MAESTRO-4`).
+   código (`RELAY-4`).
 4. **Erros descritivos** — mensagens em `messages[]` que um agente consegue
    interpretar (campo faltando, projeto inexistente, ciclo de dependência, etc.).
 5. **Fluxo embutido** — o `dependsOn` do decompose já cria as arestas do grafo da
@@ -92,7 +92,7 @@ GET    /api/projects/:id/board                 # board completo: colunas + taref
 GET    /api/tasks?projectId=&columnId=&assigneeId=&parentId=
 POST   /api/tasks                              # { projectId, title, objective?, acceptance?, columnId?, priority?, estimateMd?, parentId? }
 POST   /api/tasks/bulk                         # decompose: { projectId, items[] }  (Idempotency-Key)
-GET    /api/tasks/:idOrCode                    # aceita "MAESTRO-4"
+GET    /api/tasks/:idOrCode                    # aceita "RELAY-4"
 GET    /api/tasks/:idOrCode/flow               # { task, progress, nodes, edges }; ?format=mermaid → { mermaid }
 POST   /api/tasks/:idOrCode/move               # { columnId } → muda status/coluna
 POST   /api/tasks/:idOrCode/dependencies       # { blockerCode } (valida DAG; rejeita ciclo)
@@ -130,7 +130,7 @@ docs:read    docs:write
 members:read members:write   apikeys:manage
 ```
 
-## Fluxos de agente (o Maestro Loop via API)
+## Fluxos de agente (o Relay Loop via API)
 
 ### A. Briefing → spec + árvore de tarefas (decompose)
 
@@ -169,23 +169,23 @@ curl -X POST http://localhost:5099/api/tasks/bulk -H "x-api-key: $KEY" \
 ### B. Ver o fluxo (objetivo → passos → aceite)
 
 ```bash
-curl "http://localhost:5099/api/tasks/MAESTRO-4/flow" -H "x-api-key: $KEY"
+curl "http://localhost:5099/api/tasks/RELAY-4/flow" -H "x-api-key: $KEY"
 ```
 
 Resposta (resumida):
 
 ```json
 {
-  "task": { "code": "MAESTRO-4", "title": "Adicionar aba 'Projetos' à navbar",
+  "task": { "code": "RELAY-4", "title": "Adicionar aba 'Projetos' à navbar",
             "objective": "...", "acceptance": "..." },
   "progress": { "done": 1, "total": 5 },
   "nodes": [
     { "id": "objetivo", "kind": "entry", "label": "..." },
-    { "id": "t12", "code": "MAESTRO-5", "title": "Definir posição...", "state": "done" },
-    { "id": "t13", "code": "MAESTRO-6", "title": "Link desktop",       "state": "todo" },
-    { "id": "t14", "code": "MAESTRO-7", "title": "Menu mobile",        "state": "todo" },
-    { "id": "t15", "code": "MAESTRO-8", "title": "routerLinkActive",   "state": "blocked" },
-    { "id": "t16", "code": "MAESTRO-9", "title": "Testar",             "state": "blocked" },
+    { "id": "t12", "code": "RELAY-5", "title": "Definir posição...", "state": "done" },
+    { "id": "t13", "code": "RELAY-6", "title": "Link desktop",       "state": "todo" },
+    { "id": "t14", "code": "RELAY-7", "title": "Menu mobile",        "state": "todo" },
+    { "id": "t15", "code": "RELAY-8", "title": "routerLinkActive",   "state": "blocked" },
+    { "id": "t16", "code": "RELAY-9", "title": "Testar",             "state": "blocked" },
     { "id": "aceite", "kind": "exit", "label": "..." }
   ],
   "edges": [ { "from": "objetivo", "to": "t12" }, { "from": "t12", "to": "t13" }, "..." ]
@@ -199,18 +199,18 @@ dependências e da coluna atual. Use `?format=mermaid` para receber `{ "mermaid"
 
 ```bash
 # colunas vêm do board: GET /api/projects/:id/board → columns[].id
-curl -X POST http://localhost:5099/api/tasks/MAESTRO-5/move -H "x-api-key: $KEY" \
+curl -X POST http://localhost:5099/api/tasks/RELAY-5/move -H "x-api-key: $KEY" \
   -H 'Content-Type: application/json' -d '{"columnId":10}'   # → Concluído
 ```
 
-Ao concluir `MAESTRO-5`, seus dependentes (`MAESTRO-6`, `MAESTRO-7`) saem de
+Ao concluir `RELAY-5`, seus dependentes (`RELAY-6`, `RELAY-7`) saem de
 `blocked` para `todo` automaticamente no próximo `flow`.
 
 ## Servidor MCP (envólucro da API)
 
 O pacote `mcp/` expõe a API como **servidor MCP** (stdio), para que agentes como o
 Claude Code conversem nativamente, sem escrever REST na mão. A chave
-(`MAESTRO_API_KEY`) vai na config do servidor MCP; o tenant vem da própria chave.
+(`RELAY_API_KEY`) vai na config do servidor MCP; o tenant vem da própria chave.
 Ferramentas expostas (ex.): criar projeto, escrever doc, decompor em tarefas, listar
 tarefas, mover no quadro, comentar.
 
