@@ -121,6 +121,24 @@ def test_sprint_end_date_editavel(temp_db):
     assert nomes["S2"]["endDate"].startswith("2026-11-27")
 
 
+def test_projeto_hide_assignee_roundtrip(temp_db):
+    """Toggle 'Ocultar por responsável': PATCH grava, board devolve."""
+    c = _client()
+    pid, _, _, _ = _projeto()
+
+    r = c.patch(f"/api/projects/{pid}", json={"hideAssignee": True})
+    assert r.status_code == 200, r.text
+    assert r.json()["hideAssignee"] is True
+
+    r = c.get(f"/api/projects/{pid}/board")
+    assert r.status_code == 200, r.text
+    assert r.json()["hideAssignee"] is True
+
+    r = c.patch(f"/api/projects/{pid}", json={"hideAssignee": False})
+    assert r.status_code == 200, r.text
+    assert r.json()["hideAssignee"] is False
+
+
 def test_collect_metrics_regressivas(temp_db):
     """collect_metrics traz as contagens regressivas (sprint + projeto)."""
     from datetime import date, timedelta

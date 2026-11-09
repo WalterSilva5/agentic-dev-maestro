@@ -54,6 +54,8 @@ curl http://127.0.0.1:9777/api/projects
 curl -X POST http://127.0.0.1:9777/api/projects -H 'Content-Type: application/json' -d '{"name":"Meu Projeto","key":"MP"}'
 # previsao de entrega do projeto (contagem regressiva nas metricas)
 curl -X PATCH http://127.0.0.1:9777/api/projects/1 -H 'Content-Type: application/json' -d '{"targetDate":"2026-12-31"}'
+# ocultar ranking por pessoa nas metricas e no PDF (quantidade nao e complexidade)
+curl -X PATCH http://127.0.0.1:9777/api/projects/1 -H 'Content-Type: application/json' -d '{"hideAssignee":true}'
 ```
 
 ### 3. Ver board

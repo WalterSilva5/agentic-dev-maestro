@@ -700,6 +700,7 @@ def _project_dict(p: Project) -> dict:
         "boardUrl": getattr(p, "azure_board_url", "") or "",
         "azureBoardUrl": getattr(p, "azure_board_url", "") or "",
         "targetDate": p.target_date.isoformat() if getattr(p, "target_date", None) else None,
+        "hideAssignee": bool(getattr(p, "hide_assignee", False)),
         "links": [_link_dict(l) for l in getattr(p, "links", [])],
         "createdAt": p.created_at.isoformat() if p.created_at else None,
     }
@@ -1028,6 +1029,9 @@ def update_project(project_id: int, body: dict, s: Session = Depends(db)):
             p.target_date = _parse_dt(raw) if raw else None
         except (ValueError, TypeError):
             raise HTTPException(400, "targetDate inválida (use AAAA-MM-DD)")
+    if "hideAssignee" in body or "hide_assignee" in body:
+        raw = body.get("hideAssignee", body.get("hide_assignee"))
+        p.hide_assignee = raw is True or str(raw).lower() in ("1", "true", "yes", "sim")
     s.commit()
     return _project_dict(p)
 

@@ -532,16 +532,23 @@ def build_metrics_pdf(session, project) -> bytes:
         flow.append(Paragraph("⏳ " + " · ".join(linhas_reg), st["body"]))
 
     # ---------- gráficos: coluna | responsável | prioridade ----------
-    _titulo(flow, "Visão por coluna, responsável e prioridade", st)
+    # ("Por responsável" some quando o projeto pede — quantidade não é complexidade)
+    sem_pessoa = bool(getattr(project, "hide_assignee", False))
+    _titulo(flow, "Visão por coluna, responsável e prioridade" if not sem_pessoa else "Visão por coluna, prioridade e módulo", st)
+    _linha2 = (
+        [_cartao_grafico("Por módulo (labels)", _dados_modulos(m), st, largura=174 * mm, max_legenda=8)]
+        if sem_pessoa else
+        [
+            _cartao_grafico("Por responsável", _dados_pessoas(m), st, largura=LARG),
+            _cartao_grafico("Por módulo (labels)", _dados_modulos(m), st, largura=LARG, max_legenda=5),
+        ]
+    )
     graficos1 = Table([
         [
             _cartao_grafico("Distribuição por coluna", _dados_colunas(m), st, largura=LARG),
             _cartao_grafico("Por prioridade", _dados_prioridade(m), st, largura=LARG, max_legenda=4),
         ],
-        [
-            _cartao_grafico("Por responsável", _dados_pessoas(m), st, largura=LARG),
-            _cartao_grafico("Por módulo (labels)", _dados_modulos(m), st, largura=LARG, max_legenda=5),
-        ],
+        _linha2,
     ], colWidths=[LARG + 2 * mm] * 2)
     graficos1.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
@@ -786,18 +793,19 @@ def build_metrics_pdf(session, project) -> bytes:
     flow.append(t)
 
     # ---------- por responsável (barras: dev concluído; aceitos como detalhe) ----------
-    _titulo(flow, "Por responsável", st)
-    _linhas_pessoa = []
-    for p in m["por_pessoa"][:12]:
-        dev_f = p.get("developed", p["done"])
-        dev_p = p.get("developedPct", p["pct"])
-        nome_p = p["nome"] + (f" · {p['done']} aceitos" if p["done"] != dev_f else "")
-        _linhas_pessoa.append((nome_p, dev_f, p["total"], dev_p))
-    flow.append(_tabela_barra(
-        _linhas_pessoa,
-        st,
-        cor_fn=lambda nome: colors.HexColor("#9CA3AF") if nome.startswith("Sem responsável") else ACCENT,
-    ))
+    if not sem_pessoa:
+        _titulo(flow, "Por responsável", st)
+        _linhas_pessoa = []
+        for p in m["por_pessoa"][:12]:
+            dev_f = p.get("developed", p["done"])
+            dev_p = p.get("developedPct", p["pct"])
+            nome_p = p["nome"] + (f" · {p['done']} aceitos" if p["done"] != dev_f else "")
+            _linhas_pessoa.append((nome_p, dev_f, p["total"], dev_p))
+        flow.append(_tabela_barra(
+            _linhas_pessoa,
+            st,
+            cor_fn=lambda nome: colors.HexColor("#9CA3AF") if nome.startswith("Sem responsável") else ACCENT,
+        ))
 
     # ---------- daily ----------
     d = m["daily"]

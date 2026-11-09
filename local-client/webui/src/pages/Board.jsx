@@ -441,7 +441,11 @@ export default function Board() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <strong>{t('Métricas do projeto')}</strong>
               <span className="muted" style={{ fontSize: 11 }}>{metricSummary.length ? metricSummary.join('  ·  ') : t('Tudo em dia')}</span>
-              <a href={metricsPdfUrl(projectId)} target="_blank" rel="noreferrer" style={{ marginLeft: 'auto' }}>
+              <label className="muted" style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto', cursor: 'pointer' }} title={t('Oculta ranking por pessoa na tela e no PDF (quantidade não é complexidade)')}>
+                <input type="checkbox" checked={!!board.hideAssignee} onChange={(e) => updateProject(projectId, { hideAssignee: e.target.checked }).then(load)} />
+                {t('Ocultar por responsável')}
+              </label>
+              <a href={metricsPdfUrl(projectId)} target="_blank" rel="noreferrer">
                 <button className="ghost" style={{ padding: '3px 10px', fontSize: 11 }} title={t('Exportar as métricas em PDF')}>
                   ⬇ {t('Exportar PDF')}
                 </button>
@@ -530,6 +534,7 @@ export default function Board() {
                     </div>
                   ))}
               </div>
+              {!board.hideAssignee && (
               <div style={{ background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '8px 10px' }}>
                 <div className="muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, textTransform: 'uppercase', marginBottom: 6 }}>{t('Por responsável')}</div>
                 {assigneePieData.length > 0 && (
@@ -553,6 +558,7 @@ export default function Board() {
                     </div>
                   ))}
               </div>
+              )}
               <div style={{ background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '8px 10px' }}>
                 <div className="muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, textTransform: 'uppercase', marginBottom: 6 }}>{t('Distribuição por coluna')}</div>
                 {columnPieData.length > 0 && (

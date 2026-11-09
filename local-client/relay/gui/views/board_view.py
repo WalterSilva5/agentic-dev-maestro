@@ -2120,70 +2120,73 @@ class BoardMetricsAccordion(QFrame):
                     mod_box["layout"].addWidget(self._hint(_t("+ {n} épico(s)").format(n=len(epic_data)-6), t))
             mod_row.addWidget(mod_box["box"], 1)
 
-            # Por responsável (dev concluído como progresso; aceitos como detalhe)
-            resp_box = self._section_box(_t("Por responsável"), t)
-            from collections import Counter
-            from relay.dimensions import dev_done_column as _dev_col
-            _col_dev = _dev_col(cols)
-            _dev_ids = {c.id for c in cols if _col_dev is not None and c.order >= _col_dev.order} or set(done_col_ids)
-            assignees = [tk.assignee for tk in tasks_metric if tk.assignee]
-            cnt = Counter(assignees)
-            resp_data = []
-            for name, tot in cnt.most_common(6):
-                q = [tk for tk in tasks_metric if tk.assignee == name]
-                done_r = sum(1 for tk in q if tk.column_id in done_col_ids)
-                dev_r = sum(1 for tk in q if tk.column_id in _dev_ids)
-                pct_r = int(dev_r / tot * 100) if tot else 0
-                resp_data.append((name, done_r, dev_r, tot, pct_r, False))
-            # Sem responsável
-            unassigned = [tk for tk in tasks_metric if not tk.assignee]
-            if unassigned:
-                tot_u = len(unassigned)
-                done_u = sum(1 for tk in unassigned if tk.column_id in done_col_ids)
-                dev_u = sum(1 for tk in unassigned if tk.column_id in _dev_ids)
-                pct_u = int(dev_u / tot_u * 100) if tot_u else 0
-                resp_data.append((_t("Sem responsável"), done_u, dev_u, tot_u, pct_u, True))
-                resp_data.sort(key=lambda x: x[3], reverse=True)
-            # Pizza por responsável
-            if resp_data:
-                pie_data = [(n, tot, "#9ca3af" if is_u else ["#4f46e5","#06b6d4","#f59e0b","#ef4444","#10b981","#8b5cf6","#ec4899"][i % 7]) for i, (n, _, _, tot, _, is_u) in enumerate(resp_data[:6])]
-                pie_row = QHBoxLayout(); pie_row.setSpacing(8)
-                pie = PieChartWidget(pie_data, size=72)
-                pie_row.addWidget(pie)
-                leg = QVBoxLayout(); leg.setSpacing(2)
-                for label, value, color in pie_data[:4]:
-                    leg_row = QHBoxLayout(); leg_row.setSpacing(4)
-                    dot = QLabel(); dot.setFixedSize(10, 10); dot.setStyleSheet(f"background: {color}; border-radius: 2px;")
-                    leg_row.addWidget(dot)
-                    leg_lbl = QLabel(f"{label} ({value})"); leg_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 10px; border: none;")
-                    leg_row.addWidget(leg_lbl); leg_row.addStretch()
-                    w = QWidget(); w.setLayout(leg_row); leg.addWidget(w)
-                if len(pie_data) > 4:
-                    leg.addWidget(self._hint(f"+{len(pie_data)-4} { _t('outros')}", t))
-                w_leg = QWidget(); w_leg.setLayout(leg)
-                pie_row.addWidget(w_leg, 1)
-                resp_box["layout"].addLayout(pie_row)
-            if not resp_data:
-                resp_box["layout"].addWidget(self._hint(_t("Nenhum responsável atribuído."), t))
-            else:
-                for name, done_r, dev_r, tot, pct_r, is_u in resp_data[:6]:
-                    row = QHBoxLayout(); row.setSpacing(6)
-                    nome = QLabel(name)
-                    nome.setStyleSheet(f"color: {'#9ca3af' if is_u else t.text_primary}; font-size: 12px; font-weight: 600; border: none;")
-                    nome.setWordWrap(True)
-                    row.addWidget(nome, 1)
-                    extra = "" if done_r == dev_r else f" · {done_r} {_t('aceitos')}"
-                    pct_lbl = QLabel(f"{pct_r}% ({dev_r}/{tot}){extra}")
-                    pct_lbl.setToolTip(_t("Desenvolvimento concluído (Dev Box ou depois)"))
-                    pct_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 11px; border: none;")
-                    row.addWidget(pct_lbl)
-                    w = QWidget(); w.setLayout(row)
-                    resp_box["layout"].addWidget(w)
-                    barra = QProgressBar(); barra.setValue(pct_r); barra.setFixedHeight(8)
-                    if is_u:
-                        barra.setStyleSheet(f"QProgressBar {{ background: {t.bg_badge}; }} QProgressBar::chunk {{ background: #9ca3af; }}")
-                    resp_box["layout"].addWidget(barra)
-            mod_row.addWidget(resp_box["box"], 1)
+            projeto_metrics = s.get(Project, self.project_id)
+            ocultar_pessoa = bool(projeto_metrics and projeto_metrics.hide_assignee)
+            if not ocultar_pessoa:
+                # Por responsável (dev concluído como progresso; aceitos como detalhe)
+                resp_box = self._section_box(_t("Por responsável"), t)
+                from collections import Counter
+                from relay.dimensions import dev_done_column as _dev_col
+                _col_dev = _dev_col(cols)
+                _dev_ids = {c.id for c in cols if _col_dev is not None and c.order >= _col_dev.order} or set(done_col_ids)
+                assignees = [tk.assignee for tk in tasks_metric if tk.assignee]
+                cnt = Counter(assignees)
+                resp_data = []
+                for name, tot in cnt.most_common(6):
+                    q = [tk for tk in tasks_metric if tk.assignee == name]
+                    done_r = sum(1 for tk in q if tk.column_id in done_col_ids)
+                    dev_r = sum(1 for tk in q if tk.column_id in _dev_ids)
+                    pct_r = int(dev_r / tot * 100) if tot else 0
+                    resp_data.append((name, done_r, dev_r, tot, pct_r, False))
+                # Sem responsável
+                unassigned = [tk for tk in tasks_metric if not tk.assignee]
+                if unassigned:
+                    tot_u = len(unassigned)
+                    done_u = sum(1 for tk in unassigned if tk.column_id in done_col_ids)
+                    dev_u = sum(1 for tk in unassigned if tk.column_id in _dev_ids)
+                    pct_u = int(dev_u / tot_u * 100) if tot_u else 0
+                    resp_data.append((_t("Sem responsável"), done_u, dev_u, tot_u, pct_u, True))
+                    resp_data.sort(key=lambda x: x[3], reverse=True)
+                # Pizza por responsável
+                if resp_data:
+                    pie_data = [(n, tot, "#9ca3af" if is_u else ["#4f46e5","#06b6d4","#f59e0b","#ef4444","#10b981","#8b5cf6","#ec4899"][i % 7]) for i, (n, _, _, tot, _, is_u) in enumerate(resp_data[:6])]
+                    pie_row = QHBoxLayout(); pie_row.setSpacing(8)
+                    pie = PieChartWidget(pie_data, size=72)
+                    pie_row.addWidget(pie)
+                    leg = QVBoxLayout(); leg.setSpacing(2)
+                    for label, value, color in pie_data[:4]:
+                        leg_row = QHBoxLayout(); leg_row.setSpacing(4)
+                        dot = QLabel(); dot.setFixedSize(10, 10); dot.setStyleSheet(f"background: {color}; border-radius: 2px;")
+                        leg_row.addWidget(dot)
+                        leg_lbl = QLabel(f"{label} ({value})"); leg_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 10px; border: none;")
+                        leg_row.addWidget(leg_lbl); leg_row.addStretch()
+                        w = QWidget(); w.setLayout(leg_row); leg.addWidget(w)
+                    if len(pie_data) > 4:
+                        leg.addWidget(self._hint(f"+{len(pie_data)-4} { _t('outros')}", t))
+                    w_leg = QWidget(); w_leg.setLayout(leg)
+                    pie_row.addWidget(w_leg, 1)
+                    resp_box["layout"].addLayout(pie_row)
+                if not resp_data:
+                    resp_box["layout"].addWidget(self._hint(_t("Nenhum responsável atribuído."), t))
+                else:
+                    for name, done_r, dev_r, tot, pct_r, is_u in resp_data[:6]:
+                        row = QHBoxLayout(); row.setSpacing(6)
+                        nome = QLabel(name)
+                        nome.setStyleSheet(f"color: {'#9ca3af' if is_u else t.text_primary}; font-size: 12px; font-weight: 600; border: none;")
+                        nome.setWordWrap(True)
+                        row.addWidget(nome, 1)
+                        extra = "" if done_r == dev_r else f" · {done_r} {_t('aceitos')}"
+                        pct_lbl = QLabel(f"{pct_r}% ({dev_r}/{tot}){extra}")
+                        pct_lbl.setToolTip(_t("Desenvolvimento concluído (Dev Box ou depois)"))
+                        pct_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 11px; border: none;")
+                        row.addWidget(pct_lbl)
+                        w = QWidget(); w.setLayout(row)
+                        resp_box["layout"].addWidget(w)
+                        barra = QProgressBar(); barra.setValue(pct_r); barra.setFixedHeight(8)
+                        if is_u:
+                            barra.setStyleSheet(f"QProgressBar {{ background: {t.bg_badge}; }} QProgressBar::chunk {{ background: #9ca3af; }}")
+                        resp_box["layout"].addWidget(barra)
+                mod_row.addWidget(resp_box["box"], 1)
 
             # Distribuição por coluna (com pizza)
             dist_box = self._section_box(_t("Distribuição por coluna"), t)
@@ -3341,6 +3344,13 @@ class BoardView(QWidget):
         metrics_layout.setSpacing(12)
         acoes_metrics = QHBoxLayout()
         acoes_metrics.addStretch()
+        from PySide6.QtWidgets import QCheckBox
+        self.hide_assignee_check = QCheckBox(_t("Ocultar por responsável"))
+        self.hide_assignee_check.setCursor(Qt.PointingHandCursor)
+        self.hide_assignee_check.setToolTip(
+            _t("Oculta ranking por pessoa na tela e no PDF (quantidade não é complexidade)"))
+        self.hide_assignee_check.stateChanged.connect(self._toggle_hide_assignee)
+        acoes_metrics.addWidget(self.hide_assignee_check)
         self.export_metrics_btn = QPushButton("⬇ " + _t("Exportar PDF"))
         self.export_metrics_btn.setProperty("flat", True)
         self.export_metrics_btn.setFixedHeight(28)
@@ -3392,6 +3402,17 @@ class BoardView(QWidget):
         self.project_id = project_id
         if hasattr(self, "metrics_accordion"):
             self.metrics_accordion.set_project(project_id)
+        if hasattr(self, "hide_assignee_check"):
+            self.hide_assignee_check.blockSignals(True)
+            try:
+                s = get_session()
+                try:
+                    p = s.get(Project, project_id) if project_id else None
+                    self.hide_assignee_check.setChecked(bool(p and p.hide_assignee))
+                finally:
+                    s.close()
+            finally:
+                self.hide_assignee_check.blockSignals(False)
         if hasattr(self, "links_widget"):
             self.links_widget.set_project(project_id)
         if hasattr(self, "daily_view"):
@@ -3538,6 +3559,20 @@ class BoardView(QWidget):
                 changed = True
         if changed:
             s.commit()
+
+    def _toggle_hide_assignee(self, _estado):
+        if not self.project_id or not hasattr(self, "hide_assignee_check"):
+            return
+        s = get_session()
+        try:
+            p = s.get(Project, self.project_id)
+            if p is not None:
+                p.hide_assignee = bool(self.hide_assignee_check.isChecked())
+                s.commit()
+        finally:
+            s.close()
+        if hasattr(self, "metrics_accordion"):
+            self.metrics_accordion.refresh()
 
     def _export_metrics_pdf(self):
         """Gera o relatório de métricas do projeto em PDF."""

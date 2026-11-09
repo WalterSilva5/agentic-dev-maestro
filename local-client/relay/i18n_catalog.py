@@ -1038,5 +1038,7 @@ CATALOG = {
   "Previsão": "Target date",
   "Editar datas": "Edit dates",
   "Salvar datas": "Save dates",
+  "Ocultar por responsável": "Hide per-person metrics",
+  "Oculta ranking por pessoa na tela e no PDF (quantidade não é complexidade)": "Hides per-person ranking on screen and in PDF (count is not complexity)",
   "Desenvolvimento concluído (Dev Box ou depois)": "Development complete (Dev Box or later)",
 }
