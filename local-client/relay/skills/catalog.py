@@ -13,7 +13,7 @@ description: Run the Relay Local desktop app (GUI + API)
 # Run Relay Local
 
 ```bash
-cd /home/wsi/repositorios/github/relay
+cd /home/wsi/repositorios/github/relay/local-client
 source .venv/bin/activate
 python -m relay
 ```

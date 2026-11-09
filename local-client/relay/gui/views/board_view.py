@@ -2122,6 +2122,7 @@ class BoardMetricsAccordion(QFrame):
 
             projeto_metrics = s.get(Project, self.project_id)
             ocultar_pessoa = bool(projeto_metrics and projeto_metrics.hide_assignee)
+            unassigned = [tk for tk in tasks_metric if not tk.assignee]
             if not ocultar_pessoa:
                 # Por responsável (dev concluído como progresso; aceitos como detalhe)
                 resp_box = self._section_box(_t("Por responsável"), t)
@@ -2139,7 +2140,6 @@ class BoardMetricsAccordion(QFrame):
                     pct_r = int(dev_r / tot * 100) if tot else 0
                     resp_data.append((name, done_r, dev_r, tot, pct_r, False))
                 # Sem responsável
-                unassigned = [tk for tk in tasks_metric if not tk.assignee]
                 if unassigned:
                     tot_u = len(unassigned)
                     done_u = sum(1 for tk in unassigned if tk.column_id in done_col_ids)

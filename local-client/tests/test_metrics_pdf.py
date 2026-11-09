@@ -131,7 +131,7 @@ def test_pdf_tem_graficos_dos_mesmos_dados_da_ui(client, projeto_com_tarefas):
 
 
 def test_pdf_oculta_por_responsavel_quando_projeto_pede(client, projeto_com_tarefas):
-    """Com hideAssignee, o PDF sai sem 'Por responsável' (tela e export)."""
+    """Default oculto; ao exibir, o PDF traz 'Por responsável' (tela e export)."""
     import io
     from pypdf import PdfReader
 
@@ -139,16 +139,18 @@ def test_pdf_oculta_por_responsavel_quando_projeto_pede(client, projeto_com_tare
         return "\n".join(p.extract_text() or "" for p in PdfReader(io.BytesIO(pdf_bytes)).pages)
 
     pid = projeto_com_tarefas
-    r = client.get(f"/api/projects/{pid}/metrics/export.pdf")
-    assert r.status_code == 200
-    assert "Por responsável" in texto(r.content)
-
-    r = client.patch(f"/api/projects/{pid}", json={"hideAssignee": True})
-    assert r.status_code == 200 and r.json()["hideAssignee"] is True
+    assert client.get(f"/api/projects/{pid}/board").json()["hideAssignee"] is True
 
     r = client.get(f"/api/projects/{pid}/metrics/export.pdf")
     assert r.status_code == 200
     assert "Por responsável" not in texto(r.content)
+
+    r = client.patch(f"/api/projects/{pid}", json={"hideAssignee": False})
+    assert r.status_code == 200 and r.json()["hideAssignee"] is False
+
+    r = client.get(f"/api/projects/{pid}/metrics/export.pdf")
+    assert r.status_code == 200
+    assert "Por responsável" in texto(r.content)
 
 
 def test_pdf_duas_paginas_no_maximo_para_projeto_pequeno(client, projeto_com_tarefas):
