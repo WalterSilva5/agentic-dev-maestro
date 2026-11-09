@@ -21,23 +21,111 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import DeclarativeBase, Session, relationship, sessionmaker
 
+def _tem_bancos(d: Path) -> bool:
+    """Tem algum banco com conteúdo (legado `maestro.db` na raiz ou por workspace)."""
+    try:
+        candidatos = [d / "maestro.db", *d.glob("workspaces/*/maestro.db")]
+        return any(p.is_file() and p.stat().st_size > 0 for p in candidatos)
+    except OSError:
+        return False
+
+
+def _fundir_config(novo: Path, antigo: Path) -> None:
+    """Une o config.json legado ao novo: workspaces por id, chaves ausentes
+    herdadas (novo nunca perde o que já tem)."""
+    import json as _json
+
+    try:
+        dados_novo = _json.loads(novo.read_text()) if novo.exists() else {}
+        dados_antigo = _json.loads(antigo.read_text()) if antigo.exists() else {}
+    except (OSError, ValueError):
+        return
+    if not isinstance(dados_novo, dict):
+        dados_novo = {}
+    if not isinstance(dados_antigo, dict) or not dados_antigo:
+        return
+
+    alterado = False
+    vistos = {w.get("id") for w in dados_novo.get("workspaces", []) if isinstance(w, dict)}
+    for w in dados_antigo.get("workspaces", []):
+        if isinstance(w, dict) and w.get("id") not in vistos:
+            dados_novo.setdefault("workspaces", []).append(w)
+            vistos.add(w.get("id"))
+            alterado = True
+    ids = {w.get("id") for w in dados_novo.get("workspaces", [])}
+    if dados_novo.get("active_workspace") not in ids:
+        if dados_antigo.get("active_workspace") in ids:
+            dados_novo["active_workspace"] = dados_antigo["active_workspace"]
+            alterado = True
+        elif ids:
+            dados_novo["active_workspace"] = sorted(ids)[0]
+            alterado = True
+
+    for chave, valor in dados_antigo.items():
+        if chave not in dados_novo:
+            dados_novo[chave] = valor
+            alterado = True
+        elif chave == "settings" and isinstance(valor, dict) and isinstance(dados_novo[chave], dict):
+            for sk, sv in valor.items():
+                if sk not in dados_novo[chave]:
+                    dados_novo[chave][sk] = sv
+                    alterado = True
+
+    if not alterado:
+        return
+    try:
+        novo.write_text(_json.dumps(dados_novo, indent=2, ensure_ascii=False))
+        antigo.unlink()
+    except OSError:
+        pass
+
+
+def _fundir(origem: Path, destino: Path) -> None:
+    """Move para `destino` tudo que lá ainda não existe (recursivo)."""
+    import shutil as _shutil
+
+    for item in origem.iterdir():
+        alvo = destino / item.name
+        if item.is_dir() and not item.is_symlink():
+            alvo.mkdir(parents=True, exist_ok=True)
+            _fundir(item, alvo)
+            try:
+                item.rmdir()
+            except OSError:
+                pass
+        elif not alvo.exists():
+            try:
+                _shutil.move(str(item), str(alvo))
+            except OSError:
+                pass
+
+
 def _resolve_data_dir() -> Path:
     """Diretório de dados do Relay (bancos por workspace + config.json).
 
-    Migra automaticamente de `~/.maestro-local` (nome antigo): se o diretório
-    novo não existe e o antigo existe, move tudo uma única vez.
+    Migra automaticamente de `~/.maestro-local` (nome antigo): traz o que
+    ainda não existe no novo (mescla recursiva) e remove o antigo se esvaziar.
+    Nunca sobrescreve dados que já estejam no novo.
     """
     env = os.environ.get("RELAY_DATA_DIR") or os.environ.get("MAESTRO_DATA_DIR")
     if env:
         return Path(env)
     novo = Path.home() / ".relay"
     antigo = Path.home() / ".maestro-local"
-    if not novo.exists() and antigo.exists() and "pytest" not in sys.modules:
+    if "pytest" in sys.modules:
+        return novo
+    if antigo.exists() and _tem_bancos(antigo) and not _tem_bancos(novo):
         try:
-            import shutil
-            shutil.move(str(antigo), str(novo))
+            novo.mkdir(parents=True, exist_ok=True)
+            _fundir(antigo, novo)
         except OSError:
-            return antigo
+            return antigo if antigo.exists() else novo
+    _fundir_config(novo / "config.json", antigo / "config.json")
+    if antigo.exists():
+        try:
+            antigo.rmdir()
+        except OSError:
+            pass
     return novo
 
 
