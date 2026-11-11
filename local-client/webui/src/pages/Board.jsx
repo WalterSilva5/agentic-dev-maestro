@@ -555,6 +555,7 @@ export default function Board() {
                 </button>
                 {dailyAdvance?.engine === 'llm' && <span style={{ fontSize: 10, color: 'var(--accent)' }}>✨ {t('gerado por IA')}</span>}
                 {dailyAdvance?.engine === 'heuristic' && <span className="muted" style={{ fontSize: 10 }}>{t('resumo automático')}</span>}
+                {dailyAdvanceLoading && <span className="muted" style={{ fontSize: 10 }}>⏳ {t('Gerando resumo…')}</span>}
                 <button
                   className="ghost"
                   style={{ padding: '2px 8px', fontSize: 11, marginLeft: 'auto' }}
@@ -562,7 +563,7 @@ export default function Board() {
                   disabled={dailyAdvanceLoading}
                   onClick={() => loadDailyAdvance(true)}
                 >
-                  {dailyAdvanceLoading ? '…' : '⟳'}
+                  {dailyAdvanceLoading ? '⏳' : '⟳'}
                 </button>
                 <button className="ghost" style={{ padding: '2px 8px', fontSize: 11 }} onClick={() => setView('daily')}>{t('ver Daily')}</button>
               </div>
@@ -598,7 +599,7 @@ export default function Board() {
               ) : dailyAdvance.engine === 'empty' ? (
                 <div className="muted" style={{ fontSize: 12 }}>{t('Sem docs de daily ontem/hoje neste diretório.')}</div>
               ) : dailyAdvance.engine === 'heuristic' ? (
-                <div style={{ fontSize: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ fontSize: 12, display: 'flex', flexDirection: 'column', gap: 8, opacity: dailyAdvanceLoading ? 0.5 : 1 }}>
                   {[['Ontem', dailyAdvance.yesterday], ['Hoje', dailyAdvance.today]].map(([rotulo, dia]) => (
                     <div key={rotulo}>
                       <div className="muted" style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: .5 }}>{t(rotulo)}</div>
@@ -613,7 +614,7 @@ export default function Board() {
                   ))}
                 </div>
               ) : (
-                <div style={{ fontSize: 12 }}>{dailyAdvance.summary}</div>
+                <div style={{ fontSize: 12, opacity: dailyAdvanceLoading ? 0.5 : 1 }}>{dailyAdvance.summary}</div>
               )}
               </>)}
             </div>
