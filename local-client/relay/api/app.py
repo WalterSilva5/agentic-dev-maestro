@@ -4789,17 +4789,20 @@ def get_digest(days: int = 1, s: Session = Depends(db)):
 def get_coach_tip(s: Session = Depends(db)):
     """Uma dica proativa curta a partir do estado atual do trabalho.
 
-    Retorna {"tip": ""} quando não há provedor de IA configurado.
+    Retorna {"tip": ""} quando não há provedor de IA configurado ou
+    quando a geração falha (ex.: modelo não definido). Nunca 400 —
+    o frontend consome em background e não deve quebrar a página.
     """
     from relay.coach import build_context, generate_tip
     from relay.config import get_active_ai_provider
 
-    if not get_active_ai_provider():
+    provider = get_active_ai_provider()
+    if not provider or not provider.get("model"):
         return {"tip": "", "category": ""}
     try:
         return generate_tip(build_context(s))
-    except Exception as e:  # noqa: BLE001
-        raise HTTPException(status_code=400, detail=str(e))
+    except Exception:  # noqa: BLE001
+        return {"tip": "", "category": ""}
 
 
 class CoachConfigUpdate(BaseModel):
