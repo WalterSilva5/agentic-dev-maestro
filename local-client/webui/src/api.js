@@ -118,6 +118,8 @@ export const getDailyAdvance = (projectId, refresh) =>
   api.get(`/projects/${projectId}/metrics/daily-advance`, { params: refresh ? { refresh: 1 } : {} }).then((r) => r.data)
 export const getDailySummary = (projectId, date, refresh) =>
   api.get(`/projects/${projectId}/metrics/daily-summary`, { params: { date, ...(refresh ? { refresh: 1 } : {}) } }).then((r) => r.data)
+export const saveDailySummary = (projectId, date) =>
+  api.post(`/projects/${projectId}/metrics/daily-summary`, { date }).then((r) => r.data)
 export const getActivity = (limit = 15) => api.get('/activity', { params: { limit } }).then((r) => r.data)
 
 // Assistente

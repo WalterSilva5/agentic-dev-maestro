@@ -41,6 +41,31 @@ _CACHE: dict[tuple, tuple[float, dict]] = {}
 _TTL = 180
 
 
+def _generated_path(raiz: Path, dia: date) -> Path:
+    """Doc padronizado do resumo gerado, junto das dailies."""
+    return raiz / f"generated-daily-{dia.strftime('%d-%m-%Y')}.md"
+
+
+def _render_generated(dia: str, summary: str, fontes: list[str]) -> str:
+    from datetime import datetime as _dt
+    linhas = [
+        f"# Resumo gerado por IA — {dia[8:10]}/{dia[5:7]}/{dia[0:4]}",
+        "",
+        f"> Gerado automaticamente pelo Relay em {_dt.now().strftime('%d/%m/%Y %H:%M')}.",
+        "> Edite à vontade — este arquivo não é lido de volta como fonte.",
+        "",
+        "## Resumo",
+        "",
+        summary,
+        "",
+        "## Fonte",
+        "",
+    ]
+    linhas.extend(f"- {f}" for f in fontes)
+    linhas.append("")
+    return "\n".join(linhas)
+
+
 def _arquivos_do_dia(raiz: Path, dia: date) -> list[Path]:
     """`DD-MM-YYYY - Daily - *.md` dentro de `YYYY-MM/` (ou legado `MM-YYYY/`)."""
     prefixo = dia.strftime("%d-%m-%Y")
@@ -231,12 +256,49 @@ def project_day_summary(session, project_id: int, dia: str, *, refresh: bool = F
             "registros": 0,
             "tipos": {},
             "minutos": 0,
+            "saved": False,
+            "savedFile": None,
         }
     else:
         dados = summarize_day(dia=dia, entries=_entradas_do_dia(raiz, alvo), use_ai=use_ai)
         dados["configured"] = True
+        gerado = _generated_path(raiz, alvo)
+        dados["saved"] = gerado.is_file()
+        dados["savedFile"] = gerado.name if gerado.is_file() else None
     _CACHE[chave] = (time.monotonic(), dados)
     return {"projectId": project_id, "cached": False, **dados}
+
+
+def save_day_summary(session, project_id: int, dia: str, *, use_ai: bool = True) -> dict:
+    """Gera o resumo do dia e persiste em `generated-daily-DD-MM-YYYY.md`.
+
+    Sobrescreve o arquivo se ele já existir (é um artefato gerado).
+    """
+    from relay.db.models import Project
+
+    try:
+        alvo = date.fromisoformat(dia)
+    except ValueError:
+        raise ValueError(f"data inválida (use AAAA-MM-DD): {dia}")
+
+    project = session.query(Project).filter(Project.id == project_id).first()
+    raiz_txt = (getattr(project, "daily_docs_path", "") or "").strip()
+    raiz = Path(raiz_txt)
+    if not raiz_txt or not raiz.is_dir():
+        raise ValueError("diretório de docs de daily não configurado ou não encontrado")
+
+    arquivos = _arquivos_do_dia(raiz, alvo)
+    if not arquivos:
+        raise ValueError(f"sem docs de daily para {dia}")
+    dados = summarize_day(dia=dia, entries=_entradas_do_dia(raiz, alvo), use_ai=use_ai)
+    destino = _generated_path(raiz, alvo)
+    destino.write_text(
+        _render_generated(dia, dados["summary"], [p.name for p in arquivos]),
+        encoding="utf-8",
+    )
+    dados.update({"configured": True, "saved": True, "savedFile": destino.name})
+    _CACHE[(project_id, "dia", dia)] = (time.monotonic(), dados)
+    return {"projectId": project_id, "cached": False, "file": destino.name, **dados}
 
 
 def project_advance(session, project_id: int, *, refresh: bool = False,

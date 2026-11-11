@@ -170,3 +170,35 @@ def test_daily_summary_llm(client, project, tmp_path, monkeypatch):
     d = client.get(f"/api/projects/{project}/metrics/daily-summary", params={"date": "2026-11-10"}).json()
     assert d["engine"] == "llm"
     assert d["summary"] == "Resumo do dia X."
+
+
+def test_salvar_resumo_gera_doc_padronizado(client, project, tmp_path):
+    raiz = tmp_path / "daily"
+    pasta = raiz / "2026-11"
+    pasta.mkdir(parents=True)
+    (pasta / "10-11-2026 - Daily - tema.md").write_text("# Daily\n\n- fechei X\n", encoding="utf-8")
+    client.patch(f"/api/projects/{project}", json={"dailyDocsPath": str(raiz)})
+
+    r = client.post(f"/api/projects/{project}/metrics/daily-summary", json={"date": "2026-11-10"})
+    assert r.status_code == 201, r.text
+    d = r.json()
+    assert d["saved"] is True
+    assert d["file"] == "generated-daily-10-11-2026.md"
+
+    alvo = raiz / "generated-daily-10-11-2026.md"
+    assert alvo.exists()
+    texto = alvo.read_text(encoding="utf-8")
+    assert texto.startswith("# Resumo gerado por IA — 10/11/2026")
+    assert "10-11-2026 - Daily - tema.md" in texto
+
+    # GET passa a indicar que existe resumo salvo
+    g = client.get(f"/api/projects/{project}/metrics/daily-summary", params={"date": "2026-11-10"}).json()
+    assert g["saved"] is True
+    assert g["savedFile"] == "generated-daily-10-11-2026.md"
+
+
+def test_salvar_sem_config_400(client, project):
+    r = client.post(f"/api/projects/{project}/metrics/daily-summary", json={"date": "2026-11-10"})
+    assert r.status_code == 400
+    r = client.post(f"/api/projects/{project}/metrics/daily-summary", json={"date": "10/11/2026"})
+    assert r.status_code == 400

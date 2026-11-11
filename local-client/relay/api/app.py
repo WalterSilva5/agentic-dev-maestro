@@ -2804,6 +2804,23 @@ def project_metrics_daily_summary(project_id: int, date: str, refresh: bool = Fa
         raise HTTPException(400, str(e))
 
 
+class DailySummarySave(BaseModel):
+    date: str  # AAAA-MM-DD
+
+
+@app.post("/api/projects/{project_id}/metrics/daily-summary", status_code=201)
+def project_metrics_daily_summary_save(project_id: int, body: DailySummarySave, s: Session = Depends(db)):
+    """Gera o resumo do dia e persiste em `generated-daily-DD-MM-YYYY.md` junto das dailies."""
+    if not s.query(Project).filter(Project.id == project_id).first():
+        raise HTTPException(404, "Project not found")
+    from relay.daily_advance import save_day_summary
+
+    try:
+        return save_day_summary(s, project_id, body.date)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
 def _parse_exclude(raw: str | None) -> set[int]:
     """`?exclude=1,2` -> {1, 2} (ids de coluna fora do cálculo; resto ignorado)."""
     saidos: set[int] = set()

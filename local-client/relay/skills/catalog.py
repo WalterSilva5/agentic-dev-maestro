@@ -1845,6 +1845,12 @@ Acordeão por dia (resumo das descrições de um dia só):
 curl -s "http://127.0.0.1:9777/api/projects/2/metrics/daily-summary?date=2026-11-10" | jq '{summary, engine}'
 ```
 
+Gerar e persistir o resumo (`generated-daily-DD-MM-YYYY.md` junto das dailies):
+```bash
+curl -s -X POST http://127.0.0.1:9777/api/projects/2/metrics/daily-summary \\
+  -H 'Content-Type: application/json' -d '{"date":"2026-11-10"}' | jq '{file, saved}'
+```
+
 ## Formato do doc de daily (vault)
 
 O time mantém um arquivo por dia em

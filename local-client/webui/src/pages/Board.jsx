@@ -20,6 +20,7 @@ import {
   getMetricsStages,
   getDailyAdvance,
   getDailySummary,
+  saveDailySummary,
   getLinks,
   createLink,
   updateLink,
@@ -188,6 +189,7 @@ export default function Board() {
   const [daySummaries, setDaySummaries] = useState({})
   const [expandedDay, setExpandedDay] = useState(null)
   const [dayLoading, setDayLoading] = useState(null)
+  const [daySaving, setDaySaving] = useState(null)
   const toggleDay = (iso) => {
     if (expandedDay === iso) { setExpandedDay(null); return }
     setExpandedDay(iso)
@@ -197,6 +199,13 @@ export default function Board() {
       .then((d) => setDaySummaries((atual) => ({ ...atual, [iso]: d })))
       .catch(() => setDaySummaries((atual) => ({ ...atual, [iso]: null })))
       .finally(() => setDayLoading(null))
+  }
+  const saveDay = (iso) => {
+    setDaySaving(iso)
+    saveDailySummary(projectId, iso)
+      .then((d) => setDaySummaries((atual) => ({ ...atual, [iso]: d })))
+      .catch(() => {})
+      .finally(() => setDaySaving(null))
   }
 
   const toggleStageExcluded = (columnId) => {
@@ -612,6 +621,18 @@ export default function Board() {
                           <>
                             {det.engine === 'llm' && <div style={{ fontSize: 10, color: 'var(--accent)', marginBottom: 2 }}>✨ {t('gerado por IA')}</div>}
                             {det.summary}
+                            <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <button
+                                className="ghost"
+                                style={{ padding: '2px 8px', fontSize: 11 }}
+                                title={t('Gera de novo e salva em generated-daily-DD-MM-AAAA.md junto das dailies')}
+                                disabled={daySaving === dia.date}
+                                onClick={() => saveDay(dia.date)}
+                              >
+                                {daySaving === dia.date ? '…' : `💾 ${t('Gerar e salvar resumo')}`}
+                              </button>
+                              {det.saved && det.savedFile && <span className="muted" style={{ fontSize: 10 }}>✓ {det.savedFile}</span>}
+                            </div>
                           </>
                         ) : (
                           <span className="muted">{t('Sem docs de daily neste dia.')}</span>
