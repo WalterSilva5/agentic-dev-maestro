@@ -140,7 +140,7 @@ def _limpar_detalhe(linhas: list[str], max_len: int = 650) -> str:
     return corte.rsplit(" ", 1)[0] + "…"
 
 
-def _itens(entries, max_itens: int = 5, max_detalhe: int = 220) -> list[tuple[str, str]]:
+def _itens(entries, max_itens: int = 50, max_detalhe: int = 900) -> list[tuple[str, str]]:
     """[(tópico, detalhe)] — só entra tópico com conteúdo de verdade."""
     vistos: set[str] = set()
     itens: list[tuple[str, str]] = []
@@ -278,15 +278,15 @@ def summarize_advance(*, ontem: str, hoje: str, entries_ontem, entries_hoje,
             pass
     return {
         "summary": _heuristica(f_ontem, f_hoje,
-                               _itens(entries_ontem, max_itens=6, max_detalhe=650),
-                               _itens(entries_hoje, max_itens=6, max_detalhe=650)),
+                               _itens(entries_ontem, max_detalhe=900),
+                               _itens(entries_hoje, max_detalhe=900)),
         "engine": "heuristic",
         "yesterday": {"date": ontem, **f_ontem,
                       "itens": [{"topico": t, "detalhe": d}
-                                for t, d in _itens(entries_ontem, max_itens=6, max_detalhe=650)]},
+                                for t, d in _itens(entries_ontem, max_detalhe=900)]},
         "today": {"date": hoje, **f_hoje,
                   "itens": [{"topico": t, "detalhe": d}
-                            for t, d in _itens(entries_hoje, max_itens=6, max_detalhe=650)]},
+                            for t, d in _itens(entries_hoje, max_detalhe=900)]},
     }
 
 
@@ -328,7 +328,7 @@ def summarize_day(*, dia: str, entries, use_ai: bool = True) -> dict:
                 }
         except Exception:  # noqa: BLE001
             pass
-    itens = _itens(entries, max_itens=6, max_detalhe=650)
+    itens = _itens(entries)
     if itens:
         texto = "Trabalhei em " + " ".join(_sentencas_topicos(itens))
     else:
