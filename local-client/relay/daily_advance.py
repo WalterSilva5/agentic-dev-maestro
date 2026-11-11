@@ -85,7 +85,24 @@ def _limpar_md(texto: str, limite: int) -> str:
 
 
 def _topicos(entries, max_topicos: int = 6, max_len: int = 80) -> list[str]:
-    """Tópicos do dia = cabeçalhos ## / ### dos docs (o que o dia tratou)."""
+    """Tópicos do dia = cabeçalhos ## / ### dos docs (o que o dia tratou).
+
+    Cabeçalhos estruturais (presentes em todo doc) não são tópico e caem fora.
+    """
+    import unicodedata
+
+    def _normalizar(txt: str) -> str:
+        sem_acento = unicodedata.normalize("NFKD", txt).encode("ascii", "ignore").decode()
+        return re.sub(r"\s+", " ", sem_acento.lower()).strip()
+
+    GENERICOS = {
+        "itens trabalhados",
+        "pendencias",
+        "pendencias / proximos passos",
+        "proximos passos",
+        "documentacao",
+    }
+
     topicos: list[str] = []
     for e in entries or []:
         for linha in (e.body or "").splitlines():
@@ -94,7 +111,10 @@ def _topicos(entries, max_topicos: int = 6, max_len: int = 80) -> list[str]:
                 continue
             titulo = re.sub(r"[*_`\[\]()#]", "", m.group(1)).strip()
             titulo = re.sub(r"\s+", " ", titulo)[:max_len]
-            if titulo and titulo not in topicos:
+            norm = _normalizar(titulo)
+            if not titulo or norm in GENERICOS or norm.startswith("perguntas"):
+                continue
+            if titulo not in topicos:
                 topicos.append(titulo)
             if len(topicos) >= max_topicos:
                 return topicos

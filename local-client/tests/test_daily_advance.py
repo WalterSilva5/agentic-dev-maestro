@@ -97,6 +97,16 @@ def test_resume_docs_do_vault(client, project, tmp_path):
     assert client.get(f"/api/projects/{project}/metrics/daily-advance", params={"refresh": 1}).json()["cached"] is False
 
 
+def test_cabecalhos_genericos_nao_viram_topico(client, project, tmp_path):
+    raiz = _vault(tmp_path,
+                  ontem_txt="# Daily\n\n## Itens trabalhados\n\n- fiz X\n\n## Endpoint X\n\n- fechei X\n",
+                  hoje_txt=None)
+    client.patch(f"/api/projects/{project}", json={"dailyDocsPath": str(raiz)})
+    d = client.get(f"/api/projects/{project}/metrics/daily-advance", params={"refresh": 1}).json()
+    assert d["yesterday"]["topicos"] == ["Endpoint X"]
+    assert "Itens trabalhados" not in d["summary"]
+
+
 def test_sem_cabecalho_cai_para_contagem(client, project, tmp_path):
     raiz = _vault(tmp_path, ontem_txt="texto corrido sem secao\n", hoje_txt=None)
     client.patch(f"/api/projects/{project}", json={"dailyDocsPath": str(raiz)})

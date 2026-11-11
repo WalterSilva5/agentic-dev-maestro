@@ -190,6 +190,11 @@ export default function Board() {
   const [expandedDay, setExpandedDay] = useState(null)
   const [dayLoading, setDayLoading] = useState(null)
   const [daySaving, setDaySaving] = useState(null)
+  const [diasVisivel, setDiasVisivel] = useState(() => {
+    try {
+      return localStorage.getItem(`relay.metrics.dias.${projectId}`) !== '0'
+    } catch { return true }
+  })
   const toggleDay = (iso) => {
     if (expandedDay === iso) { setExpandedDay(null); return }
     setExpandedDay(iso)
@@ -583,14 +588,40 @@ export default function Board() {
                 </div>
               ) : dailyAdvance.engine === 'empty' ? (
                 <div className="muted" style={{ fontSize: 12 }}>{t('Sem docs de daily ontem/hoje neste diretório.')}</div>
+              ) : dailyAdvance.engine === 'heuristic' ? (
+                <div style={{ fontSize: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {[['Ontem', dailyAdvance.yesterday], ['Hoje', dailyAdvance.today]].map(([rotulo, dia]) => (
+                    <div key={rotulo}>
+                      <div className="muted" style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: .5 }}>{t(rotulo)}</div>
+                      {dia.topicos?.length ? (
+                        <ul style={{ margin: '2px 0 0', paddingLeft: 16 }}>
+                          {dia.topicos.map((tp, i) => <li key={i}>{tp}</li>)}
+                        </ul>
+                      ) : (
+                        <div className="muted">{dia.registros ? tf('{n} registro(s) sem tópicos', { n: dia.registros }) : t('sem registros')}</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
               ) : (
                 <div style={{ fontSize: 12 }}>{dailyAdvance.summary}</div>
               )}
             </div>
             {dailyAdvance?.configured !== false && dailyAdvance?.yesterday && dailyAdvance?.today && (
             <div style={{ background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '8px 10px' }}>
-              <div className="muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, textTransform: 'uppercase', marginBottom: 4 }}>🗂️ {t('Resumo do dia (IA)')}</div>
-              {[dailyAdvance.today, dailyAdvance.yesterday].map((dia) => {
+              <button
+                className="ghost"
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: 0, fontSize: 10, fontWeight: 700, letterSpacing: .6, textTransform: 'uppercase' }}
+                title={diasVisivel ? t('Ocultar resumo por dia') : t('Mostrar resumo por dia')}
+                onClick={() => setDiasVisivel((v) => {
+                  try { localStorage.setItem(`relay.metrics.dias.${projectId}`, v ? '1' : '0') } catch { /* noop */ }
+                  return !v
+                })}
+              >
+                <span style={{ color: 'var(--muted)' }}>{diasVisivel ? '▾' : '▸'}</span>
+                <span className="muted">🗂️ {t('Resumo do dia (IA)')}</span>
+              </button>
+              {diasVisivel && [dailyAdvance.today, dailyAdvance.yesterday].map((dia) => {
                 const aberto = expandedDay === dia.date
                 const det = daySummaries[dia.date]
                 const fmt = `${dia.date.slice(8, 10)}/${dia.date.slice(5, 7)}`
@@ -617,7 +648,13 @@ export default function Board() {
                         ) : det?.summary ? (
                           <>
                             {det.engine === 'llm' && <div style={{ fontSize: 10, color: 'var(--accent)', marginBottom: 2 }}>✨ {t('gerado por IA')}</div>}
-                            {det.summary}
+                            {det.engine === 'heuristic' && det.topicos?.length ? (
+                              <ul style={{ margin: '2px 0 4px', paddingLeft: 16 }}>
+                                {det.topicos.map((tp, i) => <li key={i}>{tp}</li>)}
+                              </ul>
+                            ) : (
+                              <div style={{ marginBottom: det.engine === 'heuristic' ? 0 : 4 }}>{det.summary}</div>
+                            )}
                             <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
                               <button
                                 className="ghost"
