@@ -121,7 +121,7 @@ def _blocos(entries) -> list[tuple[str, list[str]]]:
     return blocos
 
 
-def _limpar_detalhe(linhas: list[str], max_len: int = 300) -> str:
+def _limpar_detalhe(linhas: list[str], max_len: int = 650) -> str:
     """Primeiro parágrafo da seção. Corta no fim de frase, nunca no meio."""
     partes: list[str] = []
     for s in linhas:
@@ -278,15 +278,15 @@ def summarize_advance(*, ontem: str, hoje: str, entries_ontem, entries_hoje,
             pass
     return {
         "summary": _heuristica(f_ontem, f_hoje,
-                               _itens(entries_ontem, max_itens=3, max_detalhe=450),
-                               _itens(entries_hoje, max_itens=3, max_detalhe=450)),
+                               _itens(entries_ontem, max_itens=6, max_detalhe=650),
+                               _itens(entries_hoje, max_itens=6, max_detalhe=650)),
         "engine": "heuristic",
         "yesterday": {"date": ontem, **f_ontem,
                       "itens": [{"topico": t, "detalhe": d}
-                                for t, d in _itens(entries_ontem, max_itens=3, max_detalhe=450)]},
+                                for t, d in _itens(entries_ontem, max_itens=6, max_detalhe=650)]},
         "today": {"date": hoje, **f_hoje,
                   "itens": [{"topico": t, "detalhe": d}
-                            for t, d in _itens(entries_hoje, max_itens=3, max_detalhe=450)]},
+                            for t, d in _itens(entries_hoje, max_itens=6, max_detalhe=650)]},
     }
 
 
@@ -328,7 +328,7 @@ def summarize_day(*, dia: str, entries, use_ai: bool = True) -> dict:
                 }
         except Exception:  # noqa: BLE001
             pass
-    itens = _itens(entries, max_itens=6, max_detalhe=450)
+    itens = _itens(entries, max_itens=6, max_detalhe=650)
     if itens:
         texto = "Trabalhei em " + " ".join(_sentencas_topicos(itens))
     else:
