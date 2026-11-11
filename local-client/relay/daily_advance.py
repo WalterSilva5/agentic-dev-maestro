@@ -278,15 +278,15 @@ def summarize_advance(*, ontem: str, hoje: str, entries_ontem, entries_hoje,
             pass
     return {
         "summary": _heuristica(f_ontem, f_hoje,
-                               _itens(entries_ontem, max_itens=3),
-                               _itens(entries_hoje, max_itens=3)),
+                               _itens(entries_ontem, max_itens=3, max_detalhe=450),
+                               _itens(entries_hoje, max_itens=3, max_detalhe=450)),
         "engine": "heuristic",
         "yesterday": {"date": ontem, **f_ontem,
                       "itens": [{"topico": t, "detalhe": d}
-                                for t, d in _itens(entries_ontem, max_itens=3)]},
+                                for t, d in _itens(entries_ontem, max_itens=3, max_detalhe=450)]},
         "today": {"date": hoje, **f_hoje,
                   "itens": [{"topico": t, "detalhe": d}
-                            for t, d in _itens(entries_hoje, max_itens=3)]},
+                            for t, d in _itens(entries_hoje, max_itens=3, max_detalhe=450)]},
     }
 
 
@@ -328,7 +328,7 @@ def summarize_day(*, dia: str, entries, use_ai: bool = True) -> dict:
                 }
         except Exception:  # noqa: BLE001
             pass
-    itens = _itens(entries, max_itens=5)
+    itens = _itens(entries, max_itens=6, max_detalhe=450)
     if itens:
         texto = "Trabalhei em " + " ".join(_sentencas_topicos(itens))
     else:

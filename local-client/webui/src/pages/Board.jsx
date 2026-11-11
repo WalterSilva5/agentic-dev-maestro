@@ -195,6 +195,11 @@ export default function Board() {
       return localStorage.getItem(`relay.metrics.dias.${projectId}`) !== '0'
     } catch { return true }
   })
+  const [avancoVisivel, setAvancoVisivel] = useState(() => {
+    try {
+      return localStorage.getItem(`relay.metrics.avanco.${projectId}`) !== '0'
+    } catch { return true }
+  })
   const toggleDay = (iso) => {
     if (expandedDay === iso) { setExpandedDay(null); return }
     setExpandedDay(iso)
@@ -544,7 +549,10 @@ export default function Board() {
             {/* Avanço ontem → hoje (resumo por IA dos docs de daily do vault) */}
             <div style={{ background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '8px 10px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                <span className="muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, textTransform: 'uppercase' }}>📈 {t('Avanço (ontem → hoje)')}</span>
+                <button className="ghost" style={{ padding: 0, fontSize: 10, fontWeight: 700, letterSpacing: .6, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 6 }} title={avancoVisivel ? t('Ocultar avanço') : t('Mostrar avanço')} onClick={() => setAvancoVisivel((v) => { try { localStorage.setItem(`relay.metrics.avanco.${projectId}`, v ? '0' : '1') } catch {} return !v })}>
+                  <span style={{ color: 'var(--muted)' }}>{avancoVisivel ? '▾' : '▸'}</span>
+                  <span className="muted">📈 {t('Avanço (ontem → hoje)')}</span>
+                </button>
                 {dailyAdvance?.engine === 'llm' && <span style={{ fontSize: 10, color: 'var(--accent)' }}>✨ {t('gerado por IA')}</span>}
                 {dailyAdvance?.engine === 'heuristic' && <span className="muted" style={{ fontSize: 10 }}>{t('resumo automático')}</span>}
                 <button
@@ -558,6 +566,7 @@ export default function Board() {
                 </button>
                 <button className="ghost" style={{ padding: '2px 8px', fontSize: 11 }} onClick={() => setView('daily')}>{t('ver Daily')}</button>
               </div>
+              {avancoVisivel && (<>
               {dailyAdvanceLoading && !dailyAdvance ? (
                 <div className="muted" style={{ fontSize: 12 }}>{t('Gerando resumo…')}</div>
               ) : !dailyAdvance ? (
@@ -606,6 +615,7 @@ export default function Board() {
               ) : (
                 <div style={{ fontSize: 12 }}>{dailyAdvance.summary}</div>
               )}
+              </>)}
             </div>
             {dailyAdvance?.configured !== false && dailyAdvance?.yesterday && dailyAdvance?.today && (
             <div style={{ background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '8px 10px' }}>

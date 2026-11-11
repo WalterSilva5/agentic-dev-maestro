@@ -1053,6 +1053,8 @@ CATALOG = {
   "verifique se a pasta existe": "check that the folder exists",
   "Sem docs de daily ontem/hoje neste diretório.": "No daily docs for yesterday/today in this directory.",
   "Resumo do dia (IA)": "Daily summary (AI)",
+  "Ocultar avanço": "Hide progress",
+  "Mostrar avanço": "Show progress",
   "{n} registro(s) sem detalhamento": "{n} record(s) without details",
   "sem registros": "no entries",
   "Gerar e salvar resumo": "Generate and save summary",
