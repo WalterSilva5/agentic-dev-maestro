@@ -88,8 +88,8 @@ def test_resume_docs_do_vault(client, project, tmp_path):
     assert d["engine"] == "heuristic"  # sem provedor no ambiente de teste
     assert d["yesterday"]["topicos"] == ["Endpoint X", "Revisão Y"]
     assert d["today"]["topicos"] == ["Deploy Z"]
-    assert d["summary"] == ("Ontem o foco foi Endpoint X: fechei o endpoint X. "
-                            "Revisão Y: revisei Y. Hoje o dia é sobre Deploy Z: subi Z em HML.")
+    assert d["summary"] == ("Ontem trabalhei em Endpoint X: fechei o endpoint X; "
+                            "Revisão Y: revisei Y. Hoje estou em Deploy Z: subi Z em HML.")
     assert "registro(s)" not in d["summary"]
 
     # segunda chamada usa o cache curto
@@ -106,7 +106,7 @@ def test_cabecalhos_genericos_nao_viram_topico(client, project, tmp_path):
     d = client.get(f"/api/projects/{project}/metrics/daily-advance", params={"refresh": 1}).json()
     assert d["yesterday"]["topicos"] == ["Endpoint X"]
     assert "Itens trabalhados" not in d["summary"]
-    assert d["summary"] == "Ontem o foco foi Endpoint X: fechei X. Hoje: sem registros."
+    assert d["summary"] == "Ontem trabalhei em Endpoint X: fechei X. Hoje: sem registros."
 
 
 def test_sem_cabecalho_cai_para_contagem(client, project, tmp_path):
@@ -167,7 +167,7 @@ def test_daily_summary_por_dia(client, project, tmp_path):
     assert d["configured"] is True
     assert d["engine"] == "heuristic"
     assert d["registros"] == 1
-    assert d["summary"] == "O dia foi sobre Migração Y: fechei Y com testes."
+    assert d["summary"] == "Trabalhei em Migração Y: fechei Y com testes."
 
     vazio = client.get(f"/api/projects/{project}/metrics/daily-summary", params={"date": "2026-11-09"}).json()
     assert vazio["engine"] == "empty"

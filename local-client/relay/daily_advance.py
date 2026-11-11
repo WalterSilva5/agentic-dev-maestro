@@ -162,15 +162,15 @@ def _topicos(entries, max_topicos: int = 6, max_len: int = 80) -> list[str]:
     return [t for t, _ in _itens(entries, max_itens=max_topicos)][:max_topicos]
 
 
-def _sentencas(itens: list[tuple[str, str]]) -> str:
-    """'Tópico: detalhe. Tópico: detalhe.'"""
-    frases = []
+def _frase_topicos(itens: list[tuple[str, str]], max_detalhe: int = 180) -> str:
+    """'Tópico: detalhe; Tópico: detalhe' com detalhe cortado no limite."""
+    partes = []
     for titulo, detalhe in itens:
-        s = f"{titulo}: {detalhe}".rstrip()
-        if not s.endswith((".", "!", "?", "…", ":")):
-            s += "."
-        frases.append(s)
-    return " ".join(frases)
+        d = re.sub(r"\s+", " ", (detalhe or "")).strip().rstrip(".")
+        if len(d) > max_detalhe:
+            d = d[:max_detalhe].rsplit(" ", 1)[0] + "…"
+        partes.append(f"{titulo}: {d}" if d else titulo)
+    return "; ".join(partes)
 
 
 def _entradas_do_dia(raiz: Path, dia: date, limite: int = MAX_BODY) -> list:
@@ -222,17 +222,17 @@ def _fatos(entries) -> dict:
 
 
 def _heuristica(f_ontem: dict, f_hoje: dict, itens_ontem, itens_hoje) -> str:
-    """Resumo em prosa com tópicos + detalhe; sem tópico, conta registros."""
+    """Resumo em primeira pessoa a partir dos tópicos; sem tópico, conta registros."""
 
     def parte(rotulo: str, verbo: str, fatos: dict, itens: list) -> str:
         if itens:
-            return f"{rotulo} {verbo} {_sentencas(itens)}"
+            return f"{rotulo} {verbo} {_frase_topicos(itens, max_detalhe=180)}."
         if fatos["registros"]:
             return f"{rotulo}: {fatos['registros']} registro(s)."
         return f"{rotulo}: sem registros."
 
-    return (parte("Ontem", "o foco foi", f_ontem, itens_ontem) + " "
-            + parte("Hoje", "o dia é sobre", f_hoje, itens_hoje))
+    return (parte("Ontem", "trabalhei em", f_ontem, itens_ontem) + " "
+            + parte("Hoje", "estou em", f_hoje, itens_hoje))
 
 
 def _via_llm(ontem_txt: str, hoje_txt: str, ontem: str, hoje: str) -> str:
@@ -321,7 +321,7 @@ def summarize_day(*, dia: str, entries, use_ai: bool = True) -> dict:
             pass
     itens = _itens(entries, max_itens=5, max_detalhe=220)
     if itens:
-        texto = "O dia foi sobre " + _sentencas(itens)
+        texto = "Trabalhei em " + _frase_topicos(itens, max_detalhe=220) + "."
     else:
         texto = f"{fatos['registros']} registro(s)" if fatos["registros"] else ""
     return {
