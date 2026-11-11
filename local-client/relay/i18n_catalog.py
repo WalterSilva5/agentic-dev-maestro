@@ -1058,8 +1058,6 @@ CATALOG = {
   "Sem docs de daily neste dia.": "No daily docs on this day.",
   "Ocultar resumo por dia": "Hide daily summary",
   "Mostrar resumo por dia": "Show daily summary",
-  "{n} registro(s) sem tópicos": "{n} record(s) without topics",
-  "sem registros": "no entries",
   "Voltar a incluir todos os estágios no cálculo": "Include all stages in the calculation again",
   "{n} fora do cálculo · limpar": "{n} out of calculation · clear",
   "Desenvolvimento concluído (Dev Box ou depois)": "Development complete (Dev Box or later)",

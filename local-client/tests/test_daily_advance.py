@@ -88,7 +88,7 @@ def test_resume_docs_do_vault(client, project, tmp_path):
     assert d["engine"] == "heuristic"  # sem provedor no ambiente de teste
     assert d["yesterday"]["topicos"] == ["Endpoint X", "Revisão Y"]
     assert d["today"]["topicos"] == ["Deploy Z"]
-    assert "Endpoint X" in d["summary"] and "Deploy Z" in d["summary"]
+    assert d["summary"] == "Ontem o foco foi Endpoint X e Revisão Y. Hoje o dia é sobre Deploy Z."
     assert "registro(s)" not in d["summary"]
 
     # segunda chamada usa o cache curto
@@ -99,12 +99,13 @@ def test_resume_docs_do_vault(client, project, tmp_path):
 
 def test_cabecalhos_genericos_nao_viram_topico(client, project, tmp_path):
     raiz = _vault(tmp_path,
-                  ontem_txt="# Daily\n\n## Itens trabalhados\n\n- fiz X\n\n## Endpoint X\n\n- fechei X\n",
+                  ontem_txt="# Daily\n\n## Itens trabalhados\n\n- fiz X\n\n## Docs\n\n- y\n\n## Ontem 01/01 - resumo\n\n- z\n\n## Endpoint X\n\n- fechei X\n",
                   hoje_txt=None)
     client.patch(f"/api/projects/{project}", json={"dailyDocsPath": str(raiz)})
     d = client.get(f"/api/projects/{project}/metrics/daily-advance", params={"refresh": 1}).json()
     assert d["yesterday"]["topicos"] == ["Endpoint X"]
     assert "Itens trabalhados" not in d["summary"]
+    assert d["summary"].startswith("Ontem o foco foi Endpoint X.")
 
 
 def test_sem_cabecalho_cai_para_contagem(client, project, tmp_path):
@@ -158,14 +159,14 @@ def test_daily_summary_por_dia(client, project, tmp_path):
     raiz = tmp_path / "daily"
     pasta = raiz / "2026-11"
     pasta.mkdir(parents=True)
-    (pasta / "10-11-2026 - Daily - tema.md").write_text("# Daily\n\n- fechei X\n- revisei Y\n", encoding="utf-8")
+    (pasta / "10-11-2026 - Daily - tema.md").write_text("# Daily\n\n## Migração Y\n\n- fechei Y\n", encoding="utf-8")
     client.patch(f"/api/projects/{project}", json={"dailyDocsPath": str(raiz)})
 
     d = client.get(f"/api/projects/{project}/metrics/daily-summary", params={"date": "2026-11-10"}).json()
     assert d["configured"] is True
     assert d["engine"] == "heuristic"
     assert d["registros"] == 1
-    assert "registro(s)" in d["summary"]
+    assert d["summary"] == "O dia foi sobre Migração Y."
 
     vazio = client.get(f"/api/projects/{project}/metrics/daily-summary", params={"date": "2026-11-09"}).json()
     assert vazio["engine"] == "empty"

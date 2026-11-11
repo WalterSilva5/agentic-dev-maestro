@@ -103,6 +103,15 @@ def _topicos(entries, max_topicos: int = 6, max_len: int = 80) -> list[str]:
         "documentacao",
     }
 
+    def _ruido(titulo: str, norm: str) -> bool:
+        # estrutural de todo doc, curto demais para ser tema ou recap de outro dia
+        if not titulo or norm in GENERICOS or norm.startswith("perguntas"):
+            return True
+        if len(titulo.split()) < 2:
+            return True
+        primeiro = norm.split(" ", 1)[0]
+        return primeiro in ("ontem", "hoje")
+
     topicos: list[str] = []
     for e in entries or []:
         for linha in (e.body or "").splitlines():
@@ -111,14 +120,21 @@ def _topicos(entries, max_topicos: int = 6, max_len: int = 80) -> list[str]:
                 continue
             titulo = re.sub(r"[*_`\[\]()#]", "", m.group(1)).strip()
             titulo = re.sub(r"\s+", " ", titulo)[:max_len]
-            norm = _normalizar(titulo)
-            if not titulo or norm in GENERICOS or norm.startswith("perguntas"):
+            if _ruido(titulo, _normalizar(titulo)):
                 continue
             if titulo not in topicos:
                 topicos.append(titulo)
             if len(topicos) >= max_topicos:
                 return topicos
     return topicos
+
+
+def _humanizar_lista(itens: list[str]) -> str:
+    """Junta itens em prosa PT-BR: 'a', 'a e b', 'a, b e c'."""
+    itens = [i.strip().rstrip(".") for i in itens if i and i.strip()]
+    if len(itens) == 1:
+        return itens[0]
+    return ", ".join(itens[:-1]) + " e " + itens[-1]
 
 
 def _entradas_do_dia(raiz: Path, dia: date, limite: int = MAX_BODY) -> list:
@@ -170,16 +186,16 @@ def _fatos(entries) -> dict:
 
 
 def _heuristica(f_ontem: dict, f_hoje: dict) -> str:
-    """Resumo factual por tópicos (cabeçalhos dos docs); sem tópico, conta registros."""
+    """Resumo em prosa a partir dos tópicos; sem tópico, conta registros."""
 
-    def parte(rotulo: str, fatos: dict) -> str:
-        if not fatos["registros"]:
-            return f"{rotulo}: sem registros"
+    def parte(rotulo: str, verbo: str, fatos: dict) -> str:
         if fatos.get("topicos"):
-            return f"{rotulo}: " + "; ".join(fatos["topicos"])
-        return f"{rotulo}: {fatos['registros']} registro(s)"
+            return f"{rotulo} {verbo} {_humanizar_lista(fatos['topicos'])}."
+        if fatos["registros"]:
+            return f"{rotulo}: {fatos['registros']} registro(s)."
+        return f"{rotulo}: sem registros."
 
-    return parte("Ontem", f_ontem) + ". " + parte("Hoje", f_hoje) + "."
+    return parte("Ontem", "o foco foi", f_ontem) + " " + parte("Hoje", "o dia é sobre", f_hoje)
 
 
 def _via_llm(ontem_txt: str, hoje_txt: str, ontem: str, hoje: str) -> str:
@@ -265,8 +281,12 @@ def summarize_day(*, dia: str, entries, use_ai: bool = True) -> dict:
         except Exception:  # noqa: BLE001
             pass
     topicos = fatos.get("topicos") or []
+    if topicos:
+        texto = "O dia foi sobre " + _humanizar_lista(topicos) + "."
+    else:
+        texto = f"{fatos['registros']} registro(s)" if fatos["registros"] else ""
     return {
-        "summary": "; ".join(topicos) if topicos else f"{fatos['registros']} registro(s)",
+        "summary": texto,
         "engine": "heuristic",
         "date": dia,
         **fatos,
