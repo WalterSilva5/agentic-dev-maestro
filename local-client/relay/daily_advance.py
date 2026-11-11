@@ -121,8 +121,8 @@ def _blocos(entries) -> list[tuple[str, list[str]]]:
     return blocos
 
 
-def _limpar_detalhe(linhas: list[str], max_len: int = 220) -> str:
-    """Primeiro parágrafo da seção: junta até a primeira linha em branco."""
+def _limpar_detalhe(linhas: list[str], max_len: int = 300) -> str:
+    """Primeiro parágrafo da seção. Corta no fim de frase, nunca no meio."""
     partes: list[str] = []
     for s in linhas:
         if not s.strip():
@@ -130,9 +130,14 @@ def _limpar_detalhe(linhas: list[str], max_len: int = 220) -> str:
         partes.append(re.sub(r"^([-*•]|\d+[.)])\s+", "", s.strip()))
     texto = re.sub(r"[*_`]", "", " ".join(partes)).strip()
     texto = re.sub(r"\s+", " ", texto)
-    if len(texto) > max_len:
-        texto = texto[:max_len].rsplit(" ", 1)[0] + "…"
-    return texto
+    if len(texto) <= max_len:
+        return texto
+    corte = texto[:max_len]
+    for sep in (". ", "! ", "? "):
+        i = corte.rfind(sep)
+        if i > max_len // 2:
+            return corte[: i + 1].rstrip()
+    return corte.rsplit(" ", 1)[0] + "…"
 
 
 def _itens(entries, max_itens: int = 5, max_detalhe: int = 220) -> list[tuple[str, str]]:
@@ -162,15 +167,15 @@ def _topicos(entries, max_topicos: int = 6, max_len: int = 80) -> list[str]:
     return [t for t, _ in _itens(entries, max_itens=max_topicos)][:max_topicos]
 
 
-def _frase_topicos(itens: list[tuple[str, str]], max_detalhe: int = 180) -> str:
-    """'Tópico: detalhe; Tópico: detalhe' com detalhe cortado no limite."""
-    partes = []
+def _sentencas_topicos(itens: list[tuple[str, str]]) -> list[str]:
+    """Uma frase por tópico: ['Tópico: detalhe.', ...]."""
+    frases = []
     for titulo, detalhe in itens:
-        d = re.sub(r"\s+", " ", (detalhe or "")).strip().rstrip(".")
-        if len(d) > max_detalhe:
-            d = d[:max_detalhe].rsplit(" ", 1)[0] + "…"
-        partes.append(f"{titulo}: {d}" if d else titulo)
-    return "; ".join(partes)
+        s = f"{titulo}: {detalhe}".rstrip()
+        if not s.endswith((".", "!", "?", "…", ":")):
+            s += "."
+        frases.append(s)
+    return frases
 
 
 def _entradas_do_dia(raiz: Path, dia: date, limite: int = MAX_BODY) -> list:
@@ -222,11 +227,11 @@ def _fatos(entries) -> dict:
 
 
 def _heuristica(f_ontem: dict, f_hoje: dict, itens_ontem, itens_hoje) -> str:
-    """Resumo em primeira pessoa a partir dos tópicos; sem tópico, conta registros."""
+    """Resumo em primeira pessoa; cada tópico vira uma frase com detalhe."""
 
     def parte(rotulo: str, verbo: str, fatos: dict, itens: list) -> str:
         if itens:
-            return f"{rotulo} {verbo} {_frase_topicos(itens, max_detalhe=180)}."
+            return f"{rotulo} {verbo} " + " ".join(_sentencas_topicos(itens))
         if fatos["registros"]:
             return f"{rotulo}: {fatos['registros']} registro(s)."
         return f"{rotulo}: sem registros."
@@ -273,11 +278,15 @@ def summarize_advance(*, ontem: str, hoje: str, entries_ontem, entries_hoje,
             pass
     return {
         "summary": _heuristica(f_ontem, f_hoje,
-                               _itens(entries_ontem, max_itens=3, max_detalhe=180),
-                               _itens(entries_hoje, max_itens=3, max_detalhe=180)),
+                               _itens(entries_ontem, max_itens=3),
+                               _itens(entries_hoje, max_itens=3)),
         "engine": "heuristic",
-        "yesterday": {"date": ontem, **f_ontem},
-        "today": {"date": hoje, **f_hoje},
+        "yesterday": {"date": ontem, **f_ontem,
+                      "itens": [{"topico": t, "detalhe": d}
+                                for t, d in _itens(entries_ontem, max_itens=3)]},
+        "today": {"date": hoje, **f_hoje,
+                  "itens": [{"topico": t, "detalhe": d}
+                            for t, d in _itens(entries_hoje, max_itens=3)]},
     }
 
 
@@ -319,9 +328,9 @@ def summarize_day(*, dia: str, entries, use_ai: bool = True) -> dict:
                 }
         except Exception:  # noqa: BLE001
             pass
-    itens = _itens(entries, max_itens=5, max_detalhe=220)
+    itens = _itens(entries, max_itens=5)
     if itens:
-        texto = "Trabalhei em " + _frase_topicos(itens, max_detalhe=220) + "."
+        texto = "Trabalhei em " + " ".join(_sentencas_topicos(itens))
     else:
         texto = f"{fatos['registros']} registro(s)" if fatos["registros"] else ""
     return {
@@ -329,6 +338,7 @@ def summarize_day(*, dia: str, entries, use_ai: bool = True) -> dict:
         "engine": "heuristic",
         "date": dia,
         **fatos,
+        "itens": [{"topico": t, "detalhe": d} for t, d in itens],
     }
 
 

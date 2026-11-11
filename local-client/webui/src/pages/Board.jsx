@@ -588,6 +588,21 @@ export default function Board() {
                 </div>
               ) : dailyAdvance.engine === 'empty' ? (
                 <div className="muted" style={{ fontSize: 12 }}>{t('Sem docs de daily ontem/hoje neste diretório.')}</div>
+              ) : dailyAdvance.engine === 'heuristic' ? (
+                <div style={{ fontSize: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {[['Ontem', dailyAdvance.yesterday], ['Hoje', dailyAdvance.today]].map(([rotulo, dia]) => (
+                    <div key={rotulo}>
+                      <div className="muted" style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: .5 }}>{t(rotulo)}</div>
+                      {dia.itens?.length ? (
+                        <ul style={{ margin: '2px 0 0', paddingLeft: 16 }}>
+                          {dia.itens.map((it, i) => <li key={i}><b>{it.topico}</b>: {it.detalhe}</li>)}
+                        </ul>
+                      ) : (
+                        <div className="muted">{dia.registros ? tf('{n} registro(s) sem detalhamento', { n: dia.registros }) : t('sem registros')}</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
               ) : (
                 <div style={{ fontSize: 12 }}>{dailyAdvance.summary}</div>
               )}
@@ -633,7 +648,13 @@ export default function Board() {
                         ) : det?.summary ? (
                           <>
                             {det.engine === 'llm' && <div style={{ fontSize: 10, color: 'var(--accent)', marginBottom: 2 }}>✨ {t('gerado por IA')}</div>}
-                            <div>{det.summary}</div>
+                            {det.engine === 'heuristic' && det.itens?.length ? (
+                              <ul style={{ margin: '2px 0 8px', paddingLeft: 16 }}>
+                                {det.itens.map((it, i) => <li key={i}><b>{it.topico}</b>: {it.detalhe}</li>)}
+                              </ul>
+                            ) : (
+                              <div style={{ marginBottom: 8 }}>{det.summary}</div>
+                            )}
                             <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
                               <button
                                 className="ghost"

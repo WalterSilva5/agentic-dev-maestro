@@ -1053,6 +1053,8 @@ CATALOG = {
   "verifique se a pasta existe": "check that the folder exists",
   "Sem docs de daily ontem/hoje neste diretório.": "No daily docs for yesterday/today in this directory.",
   "Resumo do dia (IA)": "Daily summary (AI)",
+  "{n} registro(s) sem detalhamento": "{n} record(s) without details",
+  "sem registros": "no entries",
   "Gerar e salvar resumo": "Generate and save summary",
   "Gera de novo e salva em generated-daily-DD-MM-AAAA.md junto das dailies": "Regenerates and saves to generated-daily-DD-MM-YYYY.md alongside the dailies",
   "Sem docs de daily neste dia.": "No daily docs on this day.",

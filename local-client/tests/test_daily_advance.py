@@ -88,7 +88,7 @@ def test_resume_docs_do_vault(client, project, tmp_path):
     assert d["engine"] == "heuristic"  # sem provedor no ambiente de teste
     assert d["yesterday"]["topicos"] == ["Endpoint X", "Revisão Y"]
     assert d["today"]["topicos"] == ["Deploy Z"]
-    assert d["summary"] == ("Ontem trabalhei em Endpoint X: fechei o endpoint X; "
+    assert d["summary"] == ("Ontem trabalhei em Endpoint X: fechei o endpoint X. "
                             "Revisão Y: revisei Y. Hoje estou em Deploy Z: subi Z em HML.")
     assert "registro(s)" not in d["summary"]
 
