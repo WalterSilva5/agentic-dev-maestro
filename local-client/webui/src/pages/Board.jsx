@@ -18,6 +18,7 @@ import {
   metricsPdfUrl,
   getMetricsDimensions,
   getMetricsStages,
+  getDailyAdvance,
   getLinks,
   createLink,
   updateLink,
@@ -89,6 +90,8 @@ export default function Board() {
   const [metricsOpen, setMetricsOpen] = useState(true)
   const [dimensions, setDimensions] = useState(null)
   const [stages, setStages] = useState(null)
+  const [dailyAdvance, setDailyAdvance] = useState(null)
+  const [dailyAdvanceLoading, setDailyAdvanceLoading] = useState(false)
   // estágios (colunas) fora do cálculo das métricas — persiste por projeto
   const [excludedStages, setExcludedStages] = useState(() => {
     try {
@@ -174,6 +177,14 @@ export default function Board() {
       .catch(() => setStages(null))
   }
 
+  const loadDailyAdvance = (refresh) => {
+    setDailyAdvanceLoading(true)
+    getDailyAdvance(projectId, refresh)
+      .then(setDailyAdvance)
+      .catch(() => setDailyAdvance(null))
+      .finally(() => setDailyAdvanceLoading(false))
+  }
+
   const toggleStageExcluded = (columnId) => {
     const ids = (stages?.stages || []).map((x) => x.id)
     const tem = excludedStages.includes(columnId)
@@ -195,6 +206,7 @@ export default function Board() {
     loadMembers()
     loadLinks()
     loadMetrics(excludedStages)
+    loadDailyAdvance(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, sprintFilter])
 
@@ -500,6 +512,38 @@ export default function Board() {
                   </span>
                 )
               })()}
+            </div>
+            {/* Avanço ontem → hoje (resumo por IA dos docs de daily) */}
+            <div style={{ background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '8px 10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <span className="muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, textTransform: 'uppercase' }}>📈 {t('Avanço (ontem → hoje)')}</span>
+                {dailyAdvance?.engine === 'llm' && <span style={{ fontSize: 10, color: 'var(--accent)' }}>✨ {t('gerado por IA')}</span>}
+                {dailyAdvance?.engine === 'heuristic' && <span className="muted" style={{ fontSize: 10 }}>{t('resumo automático')}</span>}
+                <button
+                  className="ghost"
+                  style={{ padding: '2px 8px', fontSize: 11, marginLeft: 'auto' }}
+                  title={t('Gerar novamente')}
+                  disabled={dailyAdvanceLoading}
+                  onClick={() => loadDailyAdvance(true)}
+                >
+                  {advanceLoading ? '…' : '⟳'}
+                </button>
+                <button className="ghost" style={{ padding: '2px 8px', fontSize: 11 }} onClick={() => setView('daily')}>{t('ver Daily')}</button>
+              </div>
+              {dailyAdvanceLoading && !dailyAdvance ? (
+                <div className="muted" style={{ fontSize: 12 }}>{t('Gerando resumo…')}</div>
+              ) : !dailyAdvance || dailyAdvance.engine === 'empty' ? (
+                <div className="muted" style={{ fontSize: 12 }}>{t('Sem registros de daily ontem/hoje — registre na aba Daily.')}</div>
+              ) : (
+                <>
+                  <div className="muted" style={{ fontSize: 11, marginBottom: 4 }}>
+                    {dailyAdvance.yesterday.date.slice(8, 10)}/{dailyAdvance.yesterday.date.slice(5, 7)}: {dailyAdvance.yesterday.entries} {t('registros')}
+                    {' · '}
+                    {dailyAdvance.today.date.slice(8, 10)}/{dailyAdvance.today.date.slice(5, 7)}: {dailyAdvance.today.entries} {t('registros')}
+                  </div>
+                  <div style={{ fontSize: 12 }}>{dailyAdvance.summary}</div>
+                </>
+              )}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
               <div style={{ background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '8px 10px' }}>

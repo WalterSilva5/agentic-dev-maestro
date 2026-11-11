@@ -2771,6 +2771,16 @@ def project_daily_summary(
     }
 
 
+@app.get("/api/projects/{project_id}/metrics/daily-advance")
+def project_metrics_daily_advance(project_id: int, refresh: bool = False, s: Session = Depends(db)):
+    """Resumo do avanço ontem → hoje a partir dos docs de daily (IA + fallback)."""
+    if not s.query(Project).filter(Project.id == project_id).first():
+        raise HTTPException(404, "Project not found")
+    from relay.daily_advance import project_advance
+
+    return project_advance(s, project_id, refresh=bool(refresh))
+
+
 def _parse_exclude(raw: str | None) -> set[int]:
     """`?exclude=1,2` -> {1, 2} (ids de coluna fora do cálculo; resto ignorado)."""
     saidos: set[int] = set()

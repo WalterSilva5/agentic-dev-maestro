@@ -1824,6 +1824,14 @@ curl -s "http://127.0.0.1:9777/api/projects/2/daily/summary?dateFrom=2026-11-01&
 #   days: [{date, entries, minutes, authors}, ...] }
 ```
 
+### Avanço ontem → hoje (resumo por IA para o painel de métricas)
+```bash
+curl -s http://127.0.0.1:9777/api/projects/2/metrics/daily-advance | jq '{summary, engine}'
+# { yesterday: {date, entries, tipos, minutos}, today: {...},
+#   summary: "texto 2-4 frases", engine: "llm"|"heuristic"|"empty" }
+# ?refresh=1 ignora o cache curto e gera de novo
+```
+
 ## Formato do doc de daily (vault)
 
 O time mantém um arquivo por dia em
