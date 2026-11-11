@@ -84,6 +84,23 @@ def _limpar_md(texto: str, limite: int) -> str:
     return texto[:limite]
 
 
+def _topicos(entries, max_topicos: int = 6, max_len: int = 80) -> list[str]:
+    """Tópicos do dia = cabeçalhos ## / ### dos docs (o que o dia tratou)."""
+    topicos: list[str] = []
+    for e in entries or []:
+        for linha in (e.body or "").splitlines():
+            m = re.match(r"^#{2,3}\s+(.*\S)", linha.strip())
+            if not m:
+                continue
+            titulo = re.sub(r"[*_`\[\]()#]", "", m.group(1)).strip()
+            titulo = re.sub(r"\s+", " ", titulo)[:max_len]
+            if titulo and titulo not in topicos:
+                topicos.append(titulo)
+            if len(topicos) >= max_topicos:
+                return topicos
+    return topicos
+
+
 def _entradas_do_dia(raiz: Path, dia: date, limite: int = MAX_BODY) -> list:
     """Cada doc do dia vira um "registro" (kind DOC) para o resumo."""
     partes, usado = [], 0
@@ -95,13 +112,13 @@ def _entradas_do_dia(raiz: Path, dia: date, limite: int = MAX_BODY) -> list:
             continue
         if not corpo:
             continue
-        partes.append(f"### {path.name}\n{corpo}")
+        partes.append(corpo)
         usado += len(corpo)
         if usado >= limite:
             break
     if not partes:
         return []
-    return [SimpleNamespace(kind="DOC", body="\n\n".join(partes), author=None,
+    return [SimpleNamespace(kind="DOC", body="\n\n---\n\n".join(partes), author=None,
                             minutes=None, task_code=None)]
 
 
@@ -124,16 +141,24 @@ def _fatos(entries) -> dict:
     for e in entries or []:
         por_tipo[e.kind or "DOC"] = por_tipo.get(e.kind or "DOC", 0) + 1
         minutos += e.minutes or 0
-    return {"registros": len(entries or []), "tipos": por_tipo, "minutos": minutos}
+    return {
+        "registros": len(entries or []),
+        "tipos": por_tipo,
+        "minutos": minutos,
+        "topicos": _topicos(entries),
+    }
 
 
-def _heuristica(ontem_txt: str, hoje_txt: str, f_ontem: dict, f_hoje: dict) -> str:
+def _heuristica(f_ontem: dict, f_hoje: dict) -> str:
+    """Resumo factual por tópicos (cabeçalhos dos docs); sem tópico, conta registros."""
+
     def parte(rotulo: str, fatos: dict) -> str:
         if not fatos["registros"]:
             return f"{rotulo}: sem registros"
-        tipos = ", ".join(f"{v} {k.lower()}" for k, v in sorted(fatos["tipos"].items()))
-        extra = f", {fatos['minutos']}min" if fatos["minutos"] else ""
-        return f"{rotulo}: {fatos['registros']} registro(s) ({tipos}{extra})"
+        if fatos.get("topicos"):
+            return f"{rotulo}: " + "; ".join(fatos["topicos"])
+        return f"{rotulo}: {fatos['registros']} registro(s)"
+
     return parte("Ontem", f_ontem) + ". " + parte("Hoje", f_hoje) + "."
 
 
@@ -174,7 +199,7 @@ def summarize_advance(*, ontem: str, hoje: str, entries_ontem, entries_hoje,
         except Exception:  # noqa: BLE001
             pass
     return {
-        "summary": _heuristica(_texto(entries_ontem), _texto(entries_hoje), f_ontem, f_hoje),
+        "summary": _heuristica(f_ontem, f_hoje),
         "engine": "heuristic",
         "yesterday": {"date": ontem, **f_ontem},
         "today": {"date": hoje, **f_hoje},
@@ -219,9 +244,9 @@ def summarize_day(*, dia: str, entries, use_ai: bool = True) -> dict:
                 }
         except Exception:  # noqa: BLE001
             pass
+    topicos = fatos.get("topicos") or []
     return {
-        "summary": f"{fatos['registros']} registro(s): " + "; ".join(
-            f"{v} {k.lower()}" for k, v in sorted(fatos["tipos"].items())),
+        "summary": "; ".join(topicos) if topicos else f"{fatos['registros']} registro(s)",
         "engine": "heuristic",
         "date": dia,
         **fatos,

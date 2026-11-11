@@ -78,22 +78,31 @@ def test_path_relativo_rejeitado(client, project):
 
 def test_resume_docs_do_vault(client, project, tmp_path):
     raiz = _vault(tmp_path,
-                  ontem_txt="# Daily — ontem\n\n- fechei o endpoint X e abri PR\n",
-                  hoje_txt="# Daily — hoje\n\n- travou no DBA, aguardando\n")
+                  ontem_txt="# Daily — ontem\n\n## Endpoint X\n\n- fechei o endpoint X\n\n## Revisão Y\n\n- revisei Y\n",
+                  hoje_txt="# Daily — hoje\n\n## Deploy Z\n\n- subi Z em HML\n")
     r = client.patch(f"/api/projects/{project}", json={"dailyDocsPath": str(raiz)})
     assert r.status_code == 200 and r.json()["dailyDocsPath"] == str(raiz)
 
     d = client.get(f"/api/projects/{project}/metrics/daily-advance").json()
     assert d["configured"] is True
     assert d["engine"] == "heuristic"  # sem provedor no ambiente de teste
-    assert d["yesterday"]["registros"] == 1
-    assert d["today"]["registros"] == 1
-    assert "Ontem" in d["summary"] and "Hoje" in d["summary"]
+    assert d["yesterday"]["topicos"] == ["Endpoint X", "Revisão Y"]
+    assert d["today"]["topicos"] == ["Deploy Z"]
+    assert "Endpoint X" in d["summary"] and "Deploy Z" in d["summary"]
+    assert "registro(s)" not in d["summary"]
 
     # segunda chamada usa o cache curto
     assert client.get(f"/api/projects/{project}/metrics/daily-advance").json()["cached"] is True
     # refresh ignora o cache
     assert client.get(f"/api/projects/{project}/metrics/daily-advance", params={"refresh": 1}).json()["cached"] is False
+
+
+def test_sem_cabecalho_cai_para_contagem(client, project, tmp_path):
+    raiz = _vault(tmp_path, ontem_txt="texto corrido sem secao\n", hoje_txt=None)
+    client.patch(f"/api/projects/{project}", json={"dailyDocsPath": str(raiz)})
+    d = client.get(f"/api/projects/{project}/metrics/daily-advance", params={"refresh": 1}).json()
+    assert d["yesterday"]["topicos"] == []
+    assert "1 registro(s)" in d["summary"]
 
 
 def test_subdiretorio_legado_mm_yyyy(client, project, tmp_path):

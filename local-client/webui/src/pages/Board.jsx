@@ -584,14 +584,7 @@ export default function Board() {
               ) : dailyAdvance.engine === 'empty' ? (
                 <div className="muted" style={{ fontSize: 12 }}>{t('Sem docs de daily ontem/hoje neste diretório.')}</div>
               ) : (
-                <>
-                  <div className="muted" style={{ fontSize: 11, marginBottom: 4 }}>
-                    {dailyAdvance.yesterday.date.slice(8, 10)}/{dailyAdvance.yesterday.date.slice(5, 7)}: {dailyAdvance.yesterday.registros} {t('registros')}
-                    {' · '}
-                    {dailyAdvance.today.date.slice(8, 10)}/{dailyAdvance.today.date.slice(5, 7)}: {dailyAdvance.today.registros} {t('registros')}
-                  </div>
-                  <div style={{ fontSize: 12 }}>{dailyAdvance.summary}</div>
-                </>
+                <div style={{ fontSize: 12 }}>{dailyAdvance.summary}</div>
               )}
             </div>
             {dailyAdvance?.configured !== false && dailyAdvance?.yesterday && dailyAdvance?.today && (
@@ -611,7 +604,11 @@ export default function Board() {
                       <span style={{ color: 'var(--muted)' }}>{aberto ? '▾' : '▸'}</span>
                       <strong>{dia.date === dailyAdvance.today.date ? t('Hoje') : t('Ontem')}</strong>
                       <span className="muted">{fmt}</span>
-                      <span className="muted" style={{ marginLeft: 'auto' }}>{dia.registros} {t('registros')}</span>
+                      {(dia.topicos?.length > 0) && (
+                        <span className="muted" style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 400 }}>
+                          {dia.topicos.slice(0, 2).join(' · ')}{dia.topicos.length > 2 ? ' …' : ''}
+                        </span>
+                      )}
                     </button>
                     {aberto && (
                       <div style={{ fontSize: 12, padding: '2px 2px 8px 18px' }}>

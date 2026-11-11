@@ -1048,7 +1048,6 @@ CATALOG = {
   "Gerar novamente": "Regenerate",
   "Gerando resumo…": "Generating summary…",
   "ver Daily": "view Daily",
-  "registros": "entries",
   "Aponte o diretório raiz dos docs de daily (vault) para ativar o resumo.": "Point the daily docs root directory (vault) to enable the summary.",
   "Atual": "Current",
   "verifique se a pasta existe": "check that the folder exists",
