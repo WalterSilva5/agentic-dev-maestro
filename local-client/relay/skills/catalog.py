@@ -1827,10 +1827,18 @@ curl -s "http://127.0.0.1:9777/api/projects/2/daily/summary?dateFrom=2026-11-01&
 ### Avanço ontem → hoje (resumo por IA para o painel de métricas)
 ```bash
 curl -s http://127.0.0.1:9777/api/projects/2/metrics/daily-advance | jq '{summary, engine}'
-# { yesterday: {date, entries, tipos, minutos}, today: {...},
-#   summary: "texto 2-4 frases", engine: "llm"|"heuristic"|"empty" }
+# { yesterday: {date, registros}, today: {...},
+#   summary: "texto 2-4 frases", engine: "llm"|"heuristic"|"empty",
+#   configured: true, cached: false }
 # ?refresh=1 ignora o cache curto e gera de novo
 ```
+
+Fonte: o diretório raiz de docs configurado no projeto (`PATCH
+/api/projects/2 {"dailyDocsPath": "/abs/path/ate/daily"}` — use
+`{"dailyDocsPath": null}` para limpar). Padrão lido:
+`YYYY-MM/DD-MM-YYYY - Daily - <tema>.md` (aceita legado `MM-YYYY/`).
+Sem diretório configurado (ou ilegível) o recurso fica indisponível
+(`configured: false`).
 
 ## Formato do doc de daily (vault)
 

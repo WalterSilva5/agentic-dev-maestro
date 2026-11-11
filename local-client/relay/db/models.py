@@ -164,6 +164,7 @@ class Project(Base):
     azure_board_url = Column(String(500), default="")
     target_date = Column(DateTime)  # previsão de entrega do projeto (contagem regressiva)
     hide_assignee = Column(Boolean, default=True)  # oculta "Por responsável" (métricas e PDF)
+    daily_docs_path = Column(String(500), default="")  # raiz dos docs de daily no vault (avanço ontem→hoje)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     columns = relationship("BoardColumn", back_populates="project", cascade="all,delete-orphan", order_by="BoardColumn.order")
@@ -835,6 +836,9 @@ def _run_light_migrations(engine):
             with engine.begin() as conn:
                 conn.execute(text("ALTER TABLE projects ADD COLUMN hide_assignee BOOLEAN DEFAULT 1"))
                 conn.execute(text("UPDATE projects SET hide_assignee = 1 WHERE hide_assignee IS NULL"))
+        if "daily_docs_path" not in pcols:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE projects ADD COLUMN daily_docs_path VARCHAR(500) DEFAULT ''"))
 
 
 def init_db(db_path=None):
@@ -897,6 +901,7 @@ def move_project_to_workspace(project_id: int, target_ws_id: str) -> int | None:
             external_docs_path=getattr(proj, "external_docs_path", "") or "",
             target_date=getattr(proj, "target_date", None),
             hide_assignee=bool(getattr(proj, "hide_assignee", False)),
+            daily_docs_path=getattr(proj, "daily_docs_path", "") or "",
         )
         tgt_s.add(new_proj)
         tgt_s.flush()  # gera id

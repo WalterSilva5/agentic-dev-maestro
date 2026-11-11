@@ -1,27 +1,32 @@
-"""Resumo do avanço (ontem → hoje) a partir dos docs de daily do projeto.
+"""Resumo do avanço (ontem → hoje) a partir dos docs de daily do vault.
 
-O painel de métricas mostra o que andou: pega os registros de daily de ontem
-e de hoje e resume com IA (texto curto, 2-4 frases). Sem provedor de IA — ou
-se a chamada falhar — cai num modo **heurístico** que só relata fatos (nunca
-inventa): quantos registros, tipos e minutos por dia.
+Fonte: o diretório raiz de dailies configurado no projeto (`daily_docs_path`),
+no padrão `YYYY-MM/DD-MM-YYYY - Daily - <tema>.md` (aceita também `MM-YYYY/`).
+Sem diretório configurado (ou ilegível), o recurso fica indisponível.
+
+O resumo em si usa IA (texto curto, 2-4 frases) com fallback **heurístico**
+que só relata fatos — nunca inventa.
 """
 from __future__ import annotations
 
+import re
 import time
 from datetime import date, timedelta
+from pathlib import Path
+from types import SimpleNamespace
 
 MAX_BODY = 6000
 
-_SYSTEM = """Você resume o avanço de um projeto a partir dos registros de daily
-de ONTEM e de HOJE. Responda em português do Brasil, 2 a 4 frases curtas,
+_SYSTEM = """Você resume o avanço de um projeto a partir dos docs de daily de
+ONTEM e de HOJE. Responda em português do Brasil, 2 a 4 frases curtas,
 direto ao ponto: o que avançou ontem, o que está em curso hoje e, se houver,
-bloqueios ou decisões. Não invente nada além dos registros; se um dia estiver
+bloqueios ou decisões. Não invente nada além dos documentos; se um dia estiver
 vazio, diga isso em meia frase e siga."""
 
-_USER = """Registros de ONTEM ({ontem}):
+_USER = """Docs de daily de ONTEM ({ontem}):
 {corpo_ontem}
 
-Registros de HOJE ({hoje}):
+Docs de daily de HOJE ({hoje}):
 {corpo_hoje}
 
 Resuma o avanço (texto puro, sem markdown, sem lista):"""
@@ -31,13 +36,52 @@ _CACHE: dict[tuple, tuple[float, dict]] = {}
 _TTL = 180
 
 
+def _arquivos_do_dia(raiz: Path, dia: date) -> list[Path]:
+    """`DD-MM-YYYY - Daily - *.md` dentro de `YYYY-MM/` (ou legado `MM-YYYY/`)."""
+    prefixo = dia.strftime("%d-%m-%Y")
+    achados: list[Path] = []
+    for sub in (dia.strftime("%Y-%m"), dia.strftime("%m-%Y")):
+        pasta = raiz / sub
+        if not pasta.is_dir():
+            continue
+        achados.extend(sorted(p for p in pasta.glob(f"{prefixo}*.md") if p.is_file()))
+    return achados
+
+
+def _limpar_md(texto: str, limite: int) -> str:
+    texto = re.sub(r"[ \t]+", " ", texto or "")
+    texto = re.sub(r"\n{3,}", "\n\n", texto).strip()
+    return texto[:limite]
+
+
+def _entradas_do_dia(raiz: Path, dia: date, limite: int = MAX_BODY) -> list:
+    """Cada doc do dia vira um "registro" (kind DOC) para o resumo."""
+    partes, usado = [], 0
+    for path in _arquivos_do_dia(raiz, dia):
+        try:
+            corpo = _limpar_md(path.read_text(encoding="utf-8", errors="replace"),
+                               limite - usado)
+        except OSError:
+            continue
+        if not corpo:
+            continue
+        partes.append(f"### {path.name}\n{corpo}")
+        usado += len(corpo)
+        if usado >= limite:
+            break
+    if not partes:
+        return []
+    return [SimpleNamespace(kind="DOC", body="\n\n".join(partes), author=None,
+                            minutes=None, task_code=None)]
+
+
 def _texto(entries, limite: int = MAX_BODY) -> str:
     blocos = []
     for e in entries or []:
-        cabeca = f"[{e.kind or 'WORK'}]"
-        if e.author:
+        cabeca = f"[{e.kind or 'DOC'}]"
+        if getattr(e, "author", None):
             cabeca += f" {e.author}"
-        if e.task_code:
+        if getattr(e, "task_code", None):
             cabeca += f" ({e.task_code})"
         corpo = " ".join((e.body or "").split())
         blocos.append(f"{cabeca} {corpo}".strip())
@@ -48,7 +92,7 @@ def _fatos(entries) -> dict:
     por_tipo: dict[str, int] = {}
     minutos = 0
     for e in entries or []:
-        por_tipo[e.kind or "WORK"] = por_tipo.get(e.kind or "WORK", 0) + 1
+        por_tipo[e.kind or "DOC"] = por_tipo.get(e.kind or "DOC", 0) + 1
         minutos += e.minutes or 0
     return {"registros": len(entries or []), "tipos": por_tipo, "minutos": minutos}
 
@@ -109,8 +153,8 @@ def summarize_advance(*, ontem: str, hoje: str, entries_ontem, entries_hoje,
 
 def project_advance(session, project_id: int, *, refresh: bool = False,
                     use_ai: bool = True) -> dict:
-    """Busca os dailies de ontem/hoje e resume (com cache curto)."""
-    from relay.db.models import ProjectDailyEntry
+    """Lê os docs de ontem/hoje no diretório configurado e resume (com cache curto)."""
+    from relay.db.models import Project
 
     hoje = date.today()
     ontem = hoje - timedelta(days=1)
@@ -121,18 +165,26 @@ def project_advance(session, project_id: int, *, refresh: bool = False,
         if time.monotonic() - ts < _TTL:
             return {"projectId": project_id, "cached": True, **dados}
 
-    ent = (
-        session.query(ProjectDailyEntry)
-        .filter(ProjectDailyEntry.project_id == project_id,
-                ProjectDailyEntry.date.in_([s_ontem, s_hoje]))
-        .order_by(ProjectDailyEntry.date, ProjectDailyEntry.sort_order)
-        .all()
-    )
-    dados = summarize_advance(
-        ontem=s_ontem, hoje=s_hoje,
-        entries_ontem=[e for e in ent if e.date == s_ontem],
-        entries_hoje=[e for e in ent if e.date == s_hoje],
-        use_ai=use_ai,
-    )
+    project = session.query(Project).filter(Project.id == project_id).first()
+    raiz_txt = (getattr(project, "daily_docs_path", "") or "").strip()
+    raiz = Path(raiz_txt)
+    dados: dict
+    if not raiz_txt or not raiz.is_dir():
+        dados = {
+            "summary": "",
+            "engine": "empty",
+            "configured": False,
+            "reason": "not_configured" if not raiz_txt else "not_found",
+            "yesterday": {"date": s_ontem, "registros": 0, "tipos": {}, "minutos": 0},
+            "today": {"date": s_hoje, "registros": 0, "tipos": {}, "minutos": 0},
+        }
+    else:
+        dados = summarize_advance(
+            ontem=s_ontem, hoje=s_hoje,
+            entries_ontem=_entradas_do_dia(raiz, ontem),
+            entries_hoje=_entradas_do_dia(raiz, hoje),
+            use_ai=use_ai,
+        )
+        dados["configured"] = True
     _CACHE[chave] = (time.monotonic(), dados)
     return {"projectId": project_id, "cached": False, **dados}

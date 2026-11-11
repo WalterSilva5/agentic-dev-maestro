@@ -701,6 +701,7 @@ def _project_dict(p: Project) -> dict:
         "azureBoardUrl": getattr(p, "azure_board_url", "") or "",
         "targetDate": p.target_date.isoformat() if getattr(p, "target_date", None) else None,
         "hideAssignee": bool(getattr(p, "hide_assignee", False)),
+        "dailyDocsPath": getattr(p, "daily_docs_path", "") or "",
         "links": [_link_dict(l) for l in getattr(p, "links", [])],
         "createdAt": p.created_at.isoformat() if p.created_at else None,
     }
@@ -1032,6 +1033,15 @@ def update_project(project_id: int, body: dict, s: Session = Depends(db)):
     if "hideAssignee" in body or "hide_assignee" in body:
         raw = body.get("hideAssignee", body.get("hide_assignee"))
         p.hide_assignee = raw is True or str(raw).lower() in ("1", "true", "yes", "sim")
+    if "dailyDocsPath" in body or "daily_docs_path" in body:
+        from pathlib import Path as _Path
+        raw = (body.get("dailyDocsPath", body.get("daily_docs_path")) or "").strip()
+        if raw:
+            abs_raw = str(_Path(raw).expanduser())
+            if not abs_raw.startswith("/"):
+                raise HTTPException(400, "dailyDocsPath deve ser absoluto")
+            raw = abs_raw
+        p.daily_docs_path = raw
     s.commit()
     return _project_dict(p)
 

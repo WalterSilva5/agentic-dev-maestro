@@ -513,7 +513,7 @@ export default function Board() {
                 )
               })()}
             </div>
-            {/* Avanço ontem → hoje (resumo por IA dos docs de daily) */}
+            {/* Avanço ontem → hoje (resumo por IA dos docs de daily do vault) */}
             <div style={{ background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '8px 10px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                 <span className="muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, textTransform: 'uppercase' }}>📈 {t('Avanço (ontem → hoje)')}</span>
@@ -526,20 +526,46 @@ export default function Board() {
                   disabled={dailyAdvanceLoading}
                   onClick={() => loadDailyAdvance(true)}
                 >
-                  {advanceLoading ? '…' : '⟳'}
+                  {dailyAdvanceLoading ? '…' : '⟳'}
                 </button>
                 <button className="ghost" style={{ padding: '2px 8px', fontSize: 11 }} onClick={() => setView('daily')}>{t('ver Daily')}</button>
               </div>
               {dailyAdvanceLoading && !dailyAdvance ? (
                 <div className="muted" style={{ fontSize: 12 }}>{t('Gerando resumo…')}</div>
-              ) : !dailyAdvance || dailyAdvance.engine === 'empty' ? (
-                <div className="muted" style={{ fontSize: 12 }}>{t('Sem registros de daily ontem/hoje — registre na aba Daily.')}</div>
+              ) : !dailyAdvance ? (
+                <div className="muted" style={{ fontSize: 12 }}>{t('Gerando resumo…')}</div>
+              ) : dailyAdvance.configured === false ? (
+                <div>
+                  <div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>{t('Aponte o diretório raiz dos docs de daily (vault) para ativar o resumo.')}</div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <input
+                      placeholder="/home/usuario/.../daily"
+                      defaultValue={board?.dailyDocsPath || ''}
+                      id="daily-docs-path-input"
+                      style={{ flex: 1, fontSize: 11, padding: '4px 8px' }}
+                    />
+                    <button
+                      className="ghost"
+                      style={{ padding: '2px 10px', fontSize: 11 }}
+                      onClick={() => {
+                        const el = document.getElementById('daily-docs-path-input')
+                        const v = (el?.value || '').trim()
+                        updateProject(projectId, { dailyDocsPath: v || null }).then(() => { load(); loadDailyAdvance(true) })
+                      }}
+                    >
+                      {t('Salvar')}
+                    </button>
+                  </div>
+                  {board?.dailyDocsPath && <div className="muted" style={{ fontSize: 10, marginTop: 4 }}>{t('Atual')}: {board.dailyDocsPath} — {t('verifique se a pasta existe')}</div>}
+                </div>
+              ) : dailyAdvance.engine === 'empty' ? (
+                <div className="muted" style={{ fontSize: 12 }}>{t('Sem docs de daily ontem/hoje neste diretório.')}</div>
               ) : (
                 <>
                   <div className="muted" style={{ fontSize: 11, marginBottom: 4 }}>
-                    {dailyAdvance.yesterday.date.slice(8, 10)}/{dailyAdvance.yesterday.date.slice(5, 7)}: {dailyAdvance.yesterday.entries} {t('registros')}
+                    {dailyAdvance.yesterday.date.slice(8, 10)}/{dailyAdvance.yesterday.date.slice(5, 7)}: {dailyAdvance.yesterday.registros} {t('registros')}
                     {' · '}
-                    {dailyAdvance.today.date.slice(8, 10)}/{dailyAdvance.today.date.slice(5, 7)}: {dailyAdvance.today.entries} {t('registros')}
+                    {dailyAdvance.today.date.slice(8, 10)}/{dailyAdvance.today.date.slice(5, 7)}: {dailyAdvance.today.registros} {t('registros')}
                   </div>
                   <div style={{ fontSize: 12 }}>{dailyAdvance.summary}</div>
                 </>
