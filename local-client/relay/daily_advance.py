@@ -84,57 +84,93 @@ def _limpar_md(texto: str, limite: int) -> str:
     return texto[:limite]
 
 
-def _topicos(entries, max_topicos: int = 6, max_len: int = 80) -> list[str]:
-    """Tópicos do dia = cabeçalhos ## / ### dos docs (o que o dia tratou).
-
-    Cabeçalhos estruturais (presentes em todo doc) não são tópico e caem fora.
-    """
+def _normalizar(txt: str) -> str:
     import unicodedata
 
-    def _normalizar(txt: str) -> str:
-        sem_acento = unicodedata.normalize("NFKD", txt).encode("ascii", "ignore").decode()
-        return re.sub(r"\s+", " ", sem_acento.lower()).strip()
+    sem_acento = unicodedata.normalize("NFKD", txt or "").encode("ascii", "ignore").decode()
+    return re.sub(r"\s+", " ", sem_acento.lower()).strip()
 
-    GENERICOS = {
-        "itens trabalhados",
-        "pendencias",
-        "pendencias / proximos passos",
-        "proximos passos",
-        "documentacao",
-    }
 
-    def _ruido(titulo: str, norm: str) -> bool:
-        # estrutural de todo doc, curto demais para ser tema ou recap de outro dia
-        if not titulo or norm in GENERICOS or norm.startswith("perguntas"):
-            return True
-        if len(titulo.split()) < 2:
-            return True
-        primeiro = norm.split(" ", 1)[0]
-        return primeiro in ("ontem", "hoje")
+_GENERICOS = {
+    "itens trabalhados",
+    "pendencias",
+    "pendencias / proximos passos",
+    "proximos passos",
+    "documentacao",
+}
 
-    topicos: list[str] = []
+
+def _blocos(entries) -> list[tuple[str, list[str]]]:
+    """Seções ## / ### com suas linhas de conteúdo: [(titulo, [linhas])]."""
+    blocos: list[tuple[str, list[str]]] = []
     for e in entries or []:
-        for linha in (e.body or "").splitlines():
-            m = re.match(r"^#{2,3}\s+(.*\S)", linha.strip())
-            if not m:
-                continue
-            titulo = re.sub(r"[*_`\[\]()#]", "", m.group(1)).strip()
-            titulo = re.sub(r"\s+", " ", titulo)[:max_len]
-            if _ruido(titulo, _normalizar(titulo)):
-                continue
-            if titulo not in topicos:
-                topicos.append(titulo)
-            if len(topicos) >= max_topicos:
-                return topicos
-    return topicos
+        titulo, linhas = None, []
+        for raw in (e.body or "").splitlines():
+            s = raw.strip()
+            m = re.match(r"^#{2,3}\s+(.*\S)", s)
+            if m:
+                if titulo is not None:
+                    blocos.append((titulo, linhas))
+                titulo = re.sub(r"[*_`\[\]()#]", "", m.group(1)).strip()
+                titulo = re.sub(r"\s+", " ", titulo)[:80]
+                linhas = []
+            elif titulo is not None and s and not s.startswith("#"):
+                linhas.append(s)
+        if titulo is not None:
+            blocos.append((titulo, linhas))
+    return blocos
 
 
-def _humanizar_lista(itens: list[str]) -> str:
-    """Junta itens em prosa PT-BR: 'a', 'a e b', 'a, b e c'."""
-    itens = [i.strip().rstrip(".") for i in itens if i and i.strip()]
-    if len(itens) == 1:
-        return itens[0]
-    return ", ".join(itens[:-1]) + " e " + itens[-1]
+def _limpar_detalhe(linhas: list[str], max_len: int = 220) -> str:
+    """Primeiro parágrafo da seção: junta até a primeira linha em branco."""
+    partes: list[str] = []
+    for s in linhas:
+        if not s.strip():
+            break
+        partes.append(re.sub(r"^([-*•]|\d+[.)])\s+", "", s.strip()))
+    texto = re.sub(r"[*_`]", "", " ".join(partes)).strip()
+    texto = re.sub(r"\s+", " ", texto)
+    if len(texto) > max_len:
+        texto = texto[:max_len].rsplit(" ", 1)[0] + "…"
+    return texto
+
+
+def _itens(entries, max_itens: int = 5, max_detalhe: int = 220) -> list[tuple[str, str]]:
+    """[(tópico, detalhe)] — só entra tópico com conteúdo de verdade."""
+    vistos: set[str] = set()
+    itens: list[tuple[str, str]] = []
+    for titulo, linhas in _blocos(entries):
+        norm = _normalizar(titulo)
+        if not titulo or norm in _GENERICOS or norm.startswith("perguntas"):
+            continue
+        if len(titulo.split()) < 2:
+            continue
+        if norm.split(" ", 1)[0] in ("ontem", "hoje"):
+            continue
+        detalhe = _limpar_detalhe(linhas, max_detalhe)
+        if not detalhe or titulo in vistos:
+            continue
+        vistos.add(titulo)
+        itens.append((titulo, detalhe))
+        if len(itens) >= max_itens:
+            break
+    return itens
+
+
+def _topicos(entries, max_topicos: int = 6, max_len: int = 80) -> list[str]:
+    """Tópicos do dia = cabeçalhos ## / ### dos docs (o que o dia tratou)."""
+    return [t for t, _ in _itens(entries, max_itens=max_topicos)][:max_topicos]
+
+
+def _sentencas(itens: list[tuple[str, str]]) -> str:
+    """'Tópico: detalhe. Tópico: detalhe.'"""
+    frases = []
+    for titulo, detalhe in itens:
+        s = f"{titulo}: {detalhe}".rstrip()
+        if not s.endswith((".", "!", "?", "…", ":")):
+            s += "."
+        frases.append(s)
+    return " ".join(frases)
 
 
 def _entradas_do_dia(raiz: Path, dia: date, limite: int = MAX_BODY) -> list:
@@ -185,17 +221,18 @@ def _fatos(entries) -> dict:
     }
 
 
-def _heuristica(f_ontem: dict, f_hoje: dict) -> str:
-    """Resumo em prosa a partir dos tópicos; sem tópico, conta registros."""
+def _heuristica(f_ontem: dict, f_hoje: dict, itens_ontem, itens_hoje) -> str:
+    """Resumo em prosa com tópicos + detalhe; sem tópico, conta registros."""
 
-    def parte(rotulo: str, verbo: str, fatos: dict) -> str:
-        if fatos.get("topicos"):
-            return f"{rotulo} {verbo} {_humanizar_lista(fatos['topicos'])}."
+    def parte(rotulo: str, verbo: str, fatos: dict, itens: list) -> str:
+        if itens:
+            return f"{rotulo} {verbo} {_sentencas(itens)}"
         if fatos["registros"]:
             return f"{rotulo}: {fatos['registros']} registro(s)."
         return f"{rotulo}: sem registros."
 
-    return parte("Ontem", "o foco foi", f_ontem) + " " + parte("Hoje", "o dia é sobre", f_hoje)
+    return (parte("Ontem", "o foco foi", f_ontem, itens_ontem) + " "
+            + parte("Hoje", "o dia é sobre", f_hoje, itens_hoje))
 
 
 def _via_llm(ontem_txt: str, hoje_txt: str, ontem: str, hoje: str) -> str:
@@ -235,7 +272,9 @@ def summarize_advance(*, ontem: str, hoje: str, entries_ontem, entries_hoje,
         except Exception:  # noqa: BLE001
             pass
     return {
-        "summary": _heuristica(f_ontem, f_hoje),
+        "summary": _heuristica(f_ontem, f_hoje,
+                               _itens(entries_ontem, max_itens=3, max_detalhe=180),
+                               _itens(entries_hoje, max_itens=3, max_detalhe=180)),
         "engine": "heuristic",
         "yesterday": {"date": ontem, **f_ontem},
         "today": {"date": hoje, **f_hoje},
@@ -280,9 +319,9 @@ def summarize_day(*, dia: str, entries, use_ai: bool = True) -> dict:
                 }
         except Exception:  # noqa: BLE001
             pass
-    topicos = fatos.get("topicos") or []
-    if topicos:
-        texto = "O dia foi sobre " + _humanizar_lista(topicos) + "."
+    itens = _itens(entries, max_itens=5, max_detalhe=220)
+    if itens:
+        texto = "O dia foi sobre " + _sentencas(itens)
     else:
         texto = f"{fatos['registros']} registro(s)" if fatos["registros"] else ""
     return {
