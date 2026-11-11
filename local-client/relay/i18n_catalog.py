@@ -1053,6 +1053,8 @@ CATALOG = {
   "Atual": "Current",
   "verifique se a pasta existe": "check that the folder exists",
   "Sem docs de daily ontem/hoje neste diretório.": "No daily docs for yesterday/today in this directory.",
+  "Resumo do dia (IA)": "Daily summary (AI)",
+  "Sem docs de daily neste dia.": "No daily docs on this day.",
   "Voltar a incluir todos os estágios no cálculo": "Include all stages in the calculation again",
   "{n} fora do cálculo · limpar": "{n} out of calculation · clear",
   "Desenvolvimento concluído (Dev Box ou depois)": "Development complete (Dev Box or later)",

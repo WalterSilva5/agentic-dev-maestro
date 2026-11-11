@@ -1840,6 +1840,11 @@ Fonte: o diretório raiz de docs configurado no projeto (`PATCH
 Sem diretório configurado (ou ilegível) o recurso fica indisponível
 (`configured: false`).
 
+Acordeão por dia (resumo das descrições de um dia só):
+```bash
+curl -s "http://127.0.0.1:9777/api/projects/2/metrics/daily-summary?date=2026-11-10" | jq '{summary, engine}'
+```
+
 ## Formato do doc de daily (vault)
 
 O time mantém um arquivo por dia em

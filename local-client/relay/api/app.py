@@ -2791,6 +2791,19 @@ def project_metrics_daily_advance(project_id: int, refresh: bool = False, s: Ses
     return project_advance(s, project_id, refresh=bool(refresh))
 
 
+@app.get("/api/projects/{project_id}/metrics/daily-summary")
+def project_metrics_daily_summary(project_id: int, date: str, refresh: bool = False, s: Session = Depends(db)):
+    """Resumo de um dia (AAAA-MM-DD) dos docs de daily do vault — alimenta o acordeão por dia."""
+    if not s.query(Project).filter(Project.id == project_id).first():
+        raise HTTPException(404, "Project not found")
+    from relay.daily_advance import project_day_summary
+
+    try:
+        return project_day_summary(s, project_id, date, refresh=bool(refresh))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
 def _parse_exclude(raw: str | None) -> set[int]:
     """`?exclude=1,2` -> {1, 2} (ids de coluna fora do cálculo; resto ignorado)."""
     saidos: set[int] = set()

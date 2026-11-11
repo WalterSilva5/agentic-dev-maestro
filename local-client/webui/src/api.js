@@ -116,6 +116,8 @@ export const getMetricsStages = (projectId, exclude) =>
   api.get(`/projects/${projectId}/metrics/stages`, { params: exclude?.length ? { exclude: exclude.join(',') } : {} }).then((r) => r.data)
 export const getDailyAdvance = (projectId, refresh) =>
   api.get(`/projects/${projectId}/metrics/daily-advance`, { params: refresh ? { refresh: 1 } : {} }).then((r) => r.data)
+export const getDailySummary = (projectId, date, refresh) =>
+  api.get(`/projects/${projectId}/metrics/daily-summary`, { params: { date, ...(refresh ? { refresh: 1 } : {}) } }).then((r) => r.data)
 export const getActivity = (limit = 15) => api.get('/activity', { params: { limit } }).then((r) => r.data)
 
 // Assistente

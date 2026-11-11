@@ -125,3 +125,48 @@ def test_llm_quando_provedor_responde(client, project, tmp_path, monkeypatch):
 
 def test_projeto_inexistente_404(client):
     assert client.get("/api/projects/9999/metrics/daily-advance").status_code == 404
+    assert client.get("/api/projects/9999/metrics/daily-summary", params={"date": "2026-11-10"}).status_code == 404
+
+
+def test_daily_summary_data_invalida_400(client, project):
+    assert client.get(f"/api/projects/{project}/metrics/daily-summary").status_code == 422
+    assert client.get(f"/api/projects/{project}/metrics/daily-summary", params={"date": "10/11/2026"}).status_code == 400
+
+
+def test_daily_summary_por_dia(client, project, tmp_path):
+    from datetime import date as _d
+
+    raiz = tmp_path / "daily"
+    pasta = raiz / "2026-11"
+    pasta.mkdir(parents=True)
+    (pasta / "10-11-2026 - Daily - tema.md").write_text("# Daily\n\n- fechei X\n- revisei Y\n", encoding="utf-8")
+    client.patch(f"/api/projects/{project}", json={"dailyDocsPath": str(raiz)})
+
+    d = client.get(f"/api/projects/{project}/metrics/daily-summary", params={"date": "2026-11-10"}).json()
+    assert d["configured"] is True
+    assert d["engine"] == "heuristic"
+    assert d["registros"] == 1
+    assert "registro(s)" in d["summary"]
+
+    vazio = client.get(f"/api/projects/{project}/metrics/daily-summary", params={"date": "2026-11-09"}).json()
+    assert vazio["engine"] == "empty"
+    assert vazio["summary"] == ""
+
+    sem_cfg = client.post("/api/projects", json={"name": "Sem Dir", "key": "SDIR"}).json()["id"]
+    d2 = client.get(f"/api/projects/{sem_cfg}/metrics/daily-summary", params={"date": "2026-11-10"}).json()
+    assert d2["configured"] is False
+
+
+def test_daily_summary_llm(client, project, tmp_path, monkeypatch):
+    import relay.daily_advance as da
+
+    raiz = tmp_path / "daily"
+    pasta = raiz / "2026-11"
+    pasta.mkdir(parents=True)
+    (pasta / "10-11-2026 - Daily - tema.md").write_text("# Daily\n\n- fiz X\n", encoding="utf-8")
+    client.patch(f"/api/projects/{project}", json={"dailyDocsPath": str(raiz)})
+    monkeypatch.setattr("relay.ai.llm.invoke_text", lambda *a, **k: "Resumo do dia X.")
+    da._CACHE.clear()
+    d = client.get(f"/api/projects/{project}/metrics/daily-summary", params={"date": "2026-11-10"}).json()
+    assert d["engine"] == "llm"
+    assert d["summary"] == "Resumo do dia X."

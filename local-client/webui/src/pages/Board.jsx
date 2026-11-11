@@ -19,6 +19,7 @@ import {
   getMetricsDimensions,
   getMetricsStages,
   getDailyAdvance,
+  getDailySummary,
   getLinks,
   createLink,
   updateLink,
@@ -183,6 +184,19 @@ export default function Board() {
       .then(setDailyAdvance)
       .catch(() => setDailyAdvance(null))
       .finally(() => setDailyAdvanceLoading(false))
+  }
+  const [daySummaries, setDaySummaries] = useState({})
+  const [expandedDay, setExpandedDay] = useState(null)
+  const [dayLoading, setDayLoading] = useState(null)
+  const toggleDay = (iso) => {
+    if (expandedDay === iso) { setExpandedDay(null); return }
+    setExpandedDay(iso)
+    if (daySummaries[iso] || !iso) return
+    setDayLoading(iso)
+    getDailySummary(projectId, iso)
+      .then((d) => setDaySummaries((atual) => ({ ...atual, [iso]: d })))
+      .catch(() => setDaySummaries((atual) => ({ ...atual, [iso]: null })))
+      .finally(() => setDayLoading(null))
   }
 
   const toggleStageExcluded = (columnId) => {
@@ -571,6 +585,44 @@ export default function Board() {
                 </>
               )}
             </div>
+            {dailyAdvance?.configured !== false && dailyAdvance?.yesterday && dailyAdvance?.today && (
+            <div style={{ background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '8px 10px' }}>
+              <div className="muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, textTransform: 'uppercase', marginBottom: 4 }}>🗂️ {t('Resumo do dia (IA)')}</div>
+              {[dailyAdvance.today, dailyAdvance.yesterday].map((dia) => {
+                const aberto = expandedDay === dia.date
+                const det = daySummaries[dia.date]
+                const fmt = `${dia.date.slice(8, 10)}/${dia.date.slice(5, 7)}`
+                return (
+                  <div key={dia.date} style={{ borderTop: '1px solid var(--border-light)' }}>
+                    <button
+                      className="ghost"
+                      style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 6, padding: '4px 2px', fontSize: 12 }}
+                      onClick={() => toggleDay(dia.date)}
+                    >
+                      <span style={{ color: 'var(--muted)' }}>{aberto ? '▾' : '▸'}</span>
+                      <strong>{dia.date === dailyAdvance.today.date ? t('Hoje') : t('Ontem')}</strong>
+                      <span className="muted">{fmt}</span>
+                      <span className="muted" style={{ marginLeft: 'auto' }}>{dia.registros} {t('registros')}</span>
+                    </button>
+                    {aberto && (
+                      <div style={{ fontSize: 12, padding: '2px 2px 8px 18px' }}>
+                        {dayLoading === dia.date ? (
+                          <span className="muted">{t('Gerando resumo…')}</span>
+                        ) : det?.summary ? (
+                          <>
+                            {det.engine === 'llm' && <div style={{ fontSize: 10, color: 'var(--accent)', marginBottom: 2 }}>✨ {t('gerado por IA')}</div>}
+                            {det.summary}
+                          </>
+                        ) : (
+                          <span className="muted">{t('Sem docs de daily neste dia.')}</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+            )}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
               <div style={{ background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '8px 10px' }}>
                 <div className="muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, textTransform: 'uppercase', marginBottom: 4 }}>{t('Alertas')}</div>

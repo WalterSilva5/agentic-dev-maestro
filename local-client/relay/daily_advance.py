@@ -31,6 +31,11 @@ Docs de daily de HOJE ({hoje}):
 
 Resuma o avanço (texto puro, sem markdown, sem lista):"""
 
+_SYSTEM_DIA = """Você resume um doc de daily de um projeto. Responda em português
+do Brasil, 2 a 3 frases curtas, direto ao ponto: o que foi feito, o que está
+em curso e, se houver, bloqueios ou decisões. Não invente nada além do
+documento."""
+
 # cache curto: ler as métricas de novo não deve chamar a IA toda hora
 _CACHE: dict[tuple, tuple[float, dict]] = {}
 _TTL = 180
@@ -149,6 +154,89 @@ def summarize_advance(*, ontem: str, hoje: str, entries_ontem, entries_hoje,
         "yesterday": {"date": ontem, **f_ontem},
         "today": {"date": hoje, **f_hoje},
     }
+
+
+_USER_DIA = """Doc(s) de daily de {dia}:
+{corpo}
+
+Resuma as descrições em 2-3 frases (texto puro, sem markdown, sem lista):"""
+
+
+def summarize_day(*, dia: str, entries, use_ai: bool = True) -> dict:
+    """Resumo de um único dia (usado pelo acordeão por dia)."""
+    fatos = _fatos(entries)
+    corpo = _texto(entries)
+    if not fatos["registros"]:
+        return {
+            "summary": "",
+            "engine": "empty",
+            "date": dia,
+            "registros": 0,
+            "tipos": {},
+            "minutos": 0,
+        }
+    if use_ai:
+        try:
+            from relay.ai.llm import invoke_text
+
+            texto = invoke_text(
+                [("system", _SYSTEM_DIA), ("user", _USER_DIA.format(dia=dia, corpo=corpo))],
+                temperature=0.3,
+                timeout=60,
+            )
+            texto = " ".join(str(texto or "").split())
+            if texto:
+                return {
+                    "summary": texto,
+                    "engine": "llm",
+                    "date": dia,
+                    **fatos,
+                }
+        except Exception:  # noqa: BLE001
+            pass
+    return {
+        "summary": f"{fatos['registros']} registro(s): " + "; ".join(
+            f"{v} {k.lower()}" for k, v in sorted(fatos["tipos"].items())),
+        "engine": "heuristic",
+        "date": dia,
+        **fatos,
+    }
+
+
+def project_day_summary(session, project_id: int, dia: str, *, refresh: bool = False,
+                        use_ai: bool = True) -> dict:
+    """Resumo dos docs de um dia (YYYY-MM-DD) do diretório configurado."""
+    from relay.db.models import Project
+
+    try:
+        alvo = date.fromisoformat(dia)
+    except ValueError:
+        raise ValueError(f"data inválida (use AAAA-MM-DD): {dia}")
+    chave = (project_id, "dia", dia)
+    if not refresh and chave in _CACHE:
+        ts, dados = _CACHE[chave]
+        if time.monotonic() - ts < _TTL:
+            return {"projectId": project_id, "cached": True, **dados}
+
+    project = session.query(Project).filter(Project.id == project_id).first()
+    raiz_txt = (getattr(project, "daily_docs_path", "") or "").strip()
+    raiz = Path(raiz_txt)
+    if not raiz_txt or not raiz.is_dir():
+        dados = {
+            "summary": "",
+            "engine": "empty",
+            "configured": False,
+            "reason": "not_configured" if not raiz_txt else "not_found",
+            "date": dia,
+            "registros": 0,
+            "tipos": {},
+            "minutos": 0,
+        }
+    else:
+        dados = summarize_day(dia=dia, entries=_entradas_do_dia(raiz, alvo), use_ai=use_ai)
+        dados["configured"] = True
+    _CACHE[chave] = (time.monotonic(), dados)
+    return {"projectId": project_id, "cached": False, **dados}
 
 
 def project_advance(session, project_id: int, *, refresh: bool = False,
