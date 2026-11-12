@@ -42,6 +42,14 @@ def _limpa_cache():
     da._CACHE.clear()
 
 
+@pytest.fixture(autouse=True)
+def _sem_ia(monkeypatch):
+    """Isola da config real do usuário: nenhum teste chama a IA de verdade."""
+    monkeypatch.setattr("relay.ai.llm.get_chat_model",
+                        lambda *a, **k: (_ for _ in ()).throw(
+                            Exception("ProviderNotConfigured")))
+
+
 def _vault(tmp_path, ontem_txt=None, hoje_txt=None):
     """Monta um diretório no padrão do vault com docs de ontem/hoje."""
     from datetime import date as _d, timedelta as _td

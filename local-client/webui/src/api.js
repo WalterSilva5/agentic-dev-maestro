@@ -131,6 +131,11 @@ export const assistantChat = (messages) => api.post('/assistant/chat', { message
 export const getSettings = () => api.get('/settings').then((r) => r.data)
 export const updateSettings = (body) => api.put('/settings', body).then((r) => r.data)
 
+// Provedores de IA (mesma checagem do desktop)
+export const testAiConnection = (body) => api.post('/ai/test-connection', body).then((r) => r.data)
+export const listAiModels = (body) => api.post('/ai/models', body).then((r) => r.data)
+export const verifyAiModel = (body) => api.post('/ai/verify-model', body).then((r) => r.data)
+
 // Biblioteca — snippets & prompts
 export const getSnippets = (params = {}) => api.get('/snippets', { params }).then((r) => r.data)
 export const createSnippet = (body) => api.post('/snippets', body).then((r) => r.data)

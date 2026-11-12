@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
+import Swal from 'sweetalert2'
 import {
   getCoachConfig, getSettings, putCoachConfig, updateSettings,
   createBackup, listBackups, backupDownloadUrl,
+  testAiConnection, listAiModels, verifyAiModel,
 } from '../api'
 import { getTheme, toggleTheme } from '../theme'
 import { t } from '../i18n'
@@ -12,6 +14,11 @@ export default function Configuracoes() {
   const [saved, setSaved] = useState('')
   const [selectedProviderId, setSelectedProviderId] = useState('')
   const [coach, setCoach] = useState(null)
+  // testes de provedor de IA (mesma checagem do desktop)
+  const [testando, setTestando] = useState(false)
+  const [listando, setListando] = useState(false)
+  const [verificando, setVerificando] = useState(false)
+  const [modelos, setModelos] = useState([])
   // aparência
   const [tema, setTema] = useState(getTheme())
   // backup do banco (quem copia é a API; a tela só dispara e mostra)
@@ -79,6 +86,74 @@ export default function Configuracoes() {
   const flash = (msg) => {
     setSaved(msg)
     setTimeout(() => setSaved(''), 2000)
+  }
+
+  // — Provedores de IA: testar / listar modelos / verificar modelo (paridade desktop) —
+  const _corpoTeste = () => ({ providerId: selectedProviderId })
+  const _informe = (ok, msg) => {
+    Swal.fire({
+      icon: ok ? 'success' : 'error',
+      title: ok ? t('Conectado') : t('Falhou'),
+      text: msg,
+      timer: ok ? 2500 : undefined,
+      showConfirmButton: !ok,
+    })
+  }
+
+  const onTestConnection = async () => {
+    setTestando(true)
+    try {
+      const r = await testAiConnection(_corpoTeste())
+      _informe(r.ok, r.message)
+    } catch (e) {
+      _informe(false, e?.response?.data?.detail || e?.message || String(e))
+    } finally {
+      setTestando(false)
+    }
+  }
+
+  const onListModels = async () => {
+    setListando(true)
+    try {
+      const r = await listAiModels(_corpoTeste())
+      if (r.ok && r.models?.length) {
+        setModelos(r.models)
+        const { value: escolhido } = await Swal.fire({
+          title: t('Modelos disponíveis'),
+          input: 'select',
+          inputOptions: Object.fromEntries(r.models.map((m) => [m, m])),
+          inputPlaceholder: t('Selecione o modelo'),
+          showCancelButton: true,
+          confirmButtonText: t('Usar'),
+          cancelButtonText: t('Cancelar'),
+        })
+        if (escolhido) {
+          editProvider(selectedProviderId, 'model', escolhido)
+          const vr = await verifyAiModel({ providerId: selectedProviderId, model: escolhido })
+          _informe(vr.ok, vr.message)
+        }
+      } else if (r.ok) {
+        _informe(false, t('Conectado, mas nenhum modelo retornado.'))
+      } else {
+        _informe(false, r.message)
+      }
+    } catch (e) {
+      _informe(false, e?.response?.data?.detail || e?.message || String(e))
+    } finally {
+      setListando(false)
+    }
+  }
+
+  const onVerifyModel = async () => {
+    setVerificando(true)
+    try {
+      const r = await verifyAiModel(_corpoTeste())
+      _informe(r.ok, r.message)
+    } catch (e) {
+      _informe(false, e?.response?.data?.detail || e?.message || String(e))
+    } finally {
+      setVerificando(false)
+    }
   }
 
   const apply = async (patch, okMsg) => {
@@ -235,6 +310,21 @@ export default function Configuracoes() {
                 onChange={(e) => editProvider(current.id, 'model', e.target.value)}
               />
             </div>
+
+            <div className="row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              <button onClick={onTestConnection} disabled={testando}>
+                {testando ? '⏳' : `🔌 ${t('Testar conexão')}`}
+              </button>
+              <button className="ghost" onClick={onListModels} disabled={listando}>
+                {listando ? '⏳' : `📋 ${t('Listar modelos')}`}
+              </button>
+              <button className="ghost" onClick={onVerifyModel} disabled={verificando}>
+                {verificando ? '⏳' : `✅ ${t('Verificar modelo')}`}
+              </button>
+            </div>
+            <p className="muted" style={{ marginBottom: 0, fontSize: 11 }}>
+              {t('Testar conexão chama /models. Verificar modelo faz uma chamada real mínima (custa 1 token). O modelo listado pode ser selecionado na lista.')}
+            </p>
           </>
         )}
 

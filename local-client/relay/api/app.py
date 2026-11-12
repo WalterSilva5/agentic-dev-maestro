@@ -4319,6 +4319,67 @@ def get_settings():
     return _settings_dict()
 
 
+class ProviderTestBody(BaseModel):
+    providerId: Optional[str] = None   # usa o id salvo; se ausente, usa o corpo
+    base_url: Optional[str] = None
+    api_key: Optional[str] = None
+    model: Optional[str] = None
+
+
+def _provider_para_teste(body: ProviderTestBody) -> dict:
+    """Resolve o provedor a testar: salvo por id ou corpo ad-hoc (frontend)."""
+    from relay.config import list_ai_providers
+    if body.providerId:
+        p = next((x for x in list_ai_providers() if x.get("id") == body.providerId), None)
+        if p is None:
+            raise HTTPException(404, f"Provider '{body.providerId}' not found")
+        return p
+    if not body.base_url:
+        raise HTTPException(400, "providerId ou base_url é obrigatório")
+    return {"id": "adhoc", "name": "adhoc", "base_url": body.base_url,
+            "api_key": body.api_key or "", "model": body.model or ""}
+
+
+@app.post("/api/ai/test-connection")
+def ai_test_connection(body: ProviderTestBody):
+    """Testa a comunicação com o provedor de IA (mesma checagem do desktop)."""
+    from relay.ai.providers import test_connection
+
+    try:
+        p = _provider_para_teste(body)
+    except HTTPException:
+        raise
+    ok, msg = test_connection(p)
+    return {"ok": ok, "message": msg}
+
+
+@app.post("/api/ai/models")
+def ai_list_models(body: ProviderTestBody):
+    """Lista os modelos do provedor de IA (mesma lista do desktop)."""
+    from relay.ai.providers import listar_modelos
+
+    try:
+        p = _provider_para_teste(body)
+    except HTTPException:
+        raise
+    ok, msg, modelos = listar_modelos(p)
+    return {"ok": ok, "message": msg, "models": modelos}
+
+
+@app.post("/api/ai/verify-model")
+def ai_verify_model(body: ProviderTestBody):
+    """Chamada real mínima ao modelo (mesma verificação do desktop)."""
+    from relay.ai.providers import verificar_modelo
+
+    try:
+        p = _provider_para_teste(body)
+    except HTTPException:
+        raise
+    modelo = body.model or p.get("model", "")
+    ok, msg = verificar_modelo(p, modelo)
+    return {"ok": ok, "message": msg}
+
+
 @app.put("/api/settings")
 def put_settings(body: SettingsUpdate):
     from relay.config import (
