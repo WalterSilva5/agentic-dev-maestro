@@ -72,10 +72,24 @@ def collect_metrics(session, project, exclude_ids: set[int] | None = None) -> di
         )
         .all()
     )
+    # Arquivadas concluídas (Done há 3+ dias) continuam concluídas: contam no
+    # progresso geral, módulos e por pessoa — sem elas o % desanda em
+    # projetos com histórico longo (o Done some da métrica). Arquivadas fora
+    # de Done (ex.: migradas para outra coluna) não contam.
+    arquivadas_done = (
+        session.query(Task)
+        .filter(
+            Task.project_id == project.id,
+            Task.deleted_at == None,  # noqa: E711
+            Task.archived_at != None,  # noqa: E711
+            Task.column_id.in_(done_ids),
+        )
+        .all()
+    )
     # tarefa local não entra em progresso/módulo, mas GERA ALERTA de prazo
-    todas = list(tasks)
-    locais = [t for t in tasks if getattr(t, "is_local", False)]
-    tasks = [t for t in tasks if not getattr(t, "is_local", False)]
+    todas = list(tasks) + list(arquivadas_done)
+    locais = [t for t in todas if getattr(t, "is_local", False)]
+    tasks = [t for t in todas if not getattr(t, "is_local", False)]
     # estágios desmarcados na web ficam fora do cálculo (mas geram alerta)
     excluidos = set(exclude_ids or ())
     if excluidos:

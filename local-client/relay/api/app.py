@@ -979,8 +979,12 @@ def project_board(project_id: int, sprintId: Optional[str] = None, s: Session = 
     _auto_archive(s, project_id)
 
     def _keep(t: Task) -> bool:
-        if t.deleted_at is not None or t.archived_at is not None:
+        if t.deleted_at is not None:
             return False
+        # Arquivadas em coluna de conclusão voltam ao board (contador do Done):
+        # sem elas o progresso do projeto desanda — o % some com o histórico.
+        if t.archived_at is not None:
+            return bool(t.column and t.column.is_done)
         if sprintId is None or sprintId == "":
             return True
         if sprintId == "backlog":
@@ -990,6 +994,8 @@ def project_board(project_id: int, sprintId: Optional[str] = None, s: Session = 
     columns = []
     for c in p.columns:
         col = _column_dict(c, include_tasks=False)
+        # arquivadas-done só interessam na coluna de conclusão; evita
+        # renderizá-las duas vezes quando a coluna também tem ativos
         col["tasks"] = [_task_brief(t) for t in c.tasks if _keep(t)]
         columns.append(col)
     return {**_project_dict(p), "columns": columns}
