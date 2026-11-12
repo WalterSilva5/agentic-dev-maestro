@@ -17,11 +17,15 @@ from types import SimpleNamespace
 
 MAX_BODY = 6000
 
-_SYSTEM = """Você resume o avanço de um projeto a partir dos docs de daily de
-ONTEM e de HOJE. Responda em português do Brasil, 2 a 4 frases curtas,
-direto ao ponto: o que avançou ontem, o que está em curso hoje e, se houver,
-bloqueios ou decisões. Não invente nada além dos documentos; se um dia estiver
-vazio, diga isso em meia frase e siga."""
+_SYSTEM = """Você prepara o texto que o desenvolvedor vai FALAR na daily de hoje.
+Recebe os docs de daily de ONTEM e de HOJE. Devolva o relato completo em
+primeira pessoa ("trabalhei", "estou"), cobrindo CADA tópico/seção de cada
+documento, um parágrafo ou frase por tópico, com os detalhes que importam
+para explicar em reunião: o que foi feito, como, por quê, números de
+testes/casos, o que falta e bloqueios. Não resuma para 2 frases: mantenha os
+detalhes do documento — a pessoa vai falar cada item. Não invente nada além
+dos documentos; se um dia estiver vazio, diga isso em meia frase e siga.
+Texto puro, sem markdown, sem listas."""
 
 _USER = """Docs de daily de ONTEM ({ontem}):
 {corpo_ontem}
@@ -29,12 +33,16 @@ _USER = """Docs de daily de ONTEM ({ontem}):
 Docs de daily de HOJE ({hoje}):
 {corpo_hoje}
 
-Resuma o avanço (texto puro, sem markdown, sem lista):"""
+Relate em primeira pessoa o que foi feito (texto puro, sem markdown, sem
+lista), cobrindo todos os tópicos de cada documento com seus detalhes:"""
 
-_SYSTEM_DIA = """Você resume um doc de daily de um projeto. Responda em português
-do Brasil, 2 a 3 frases curtas, direto ao ponto: o que foi feito, o que está
-em curso e, se houver, bloqueios ou decisões. Não invente nada além do
-documento."""
+_SYSTEM_DIA = """Você prepara o texto que o desenvolvedor vai FALAR na daily.
+Recebe o doc de daily de um dia. Devolva o relato completo em primeira pessoa
+("trabalhei", "estou"), cobrindo CADA tópico/seção do documento, um parágrafo
+ou frase por tópico, com os detalhes que importam para explicar em reunião:
+o que foi feito, como, por quê, números de testes/casos, o que falta e
+bloqueios. Não resuma para 2 frases: mantenha os detalhes do documento.
+Não invente nada além do documento. Texto puro, sem markdown, sem listas."""
 
 # cache curto: ler as métricas de novo não deve chamar a IA toda hora
 _CACHE: dict[tuple, tuple[float, dict]] = {}
@@ -248,7 +256,7 @@ def _via_llm(ontem_txt: str, hoje_txt: str, ontem: str, hoje: str) -> str:
          ("user", _USER.format(ontem=ontem, corpo_ontem=ontem_txt or "(sem registros)",
                                hoje=hoje, corpo_hoje=hoje_txt or "(sem registros)"))],
         temperature=0.3,
-        timeout=60,
+        timeout=180,
     )
     return " ".join(str(texto or "").split())
 
@@ -293,7 +301,8 @@ def summarize_advance(*, ontem: str, hoje: str, entries_ontem, entries_hoje,
 _USER_DIA = """Doc(s) de daily de {dia}:
 {corpo}
 
-Resuma as descrições em 2-3 frases (texto puro, sem markdown, sem lista):"""
+Relate em primeira pessoa o que foi feito (texto puro, sem markdown, sem
+lista), cobrindo todos os tópicos do documento com seus detalhes:"""
 
 
 def summarize_day(*, dia: str, entries, use_ai: bool = True) -> dict:
@@ -316,7 +325,7 @@ def summarize_day(*, dia: str, entries, use_ai: bool = True) -> dict:
             texto = invoke_text(
                 [("system", _SYSTEM_DIA), ("user", _USER_DIA.format(dia=dia, corpo=corpo))],
                 temperature=0.3,
-                timeout=60,
+                timeout=180,
             )
             texto = " ".join(str(texto or "").split())
             if texto:
