@@ -614,7 +614,23 @@ export default function Board() {
                   ))}
                 </div>
               ) : (
-                <div style={{ fontSize: 12, opacity: dailyAdvanceLoading ? 0.5 : 1 }}>{dailyAdvance.summary}</div>
+                <div style={{ fontSize: 12, display: 'flex', flexDirection: 'column', gap: 5, opacity: dailyAdvanceLoading ? 0.5 : 1 }}>
+                  {dailyAdvance.summary.split('\n').filter((l) => l.trim()).map((linha, i) => {
+                    const m = linha.match(/^((?:Ontem|Hoje):\s*)?([^:]{3,90}):\s*(.*)$/s)
+                    const rotuloDia = linha.match(/^(Ontem|Hoje):\s*$/)
+                    if (rotuloDia) return <div key={i} className="muted" style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: .5, marginTop: i ? 4 : 0 }}>{t(rotuloDia[1])}</div>
+                    if (m) {
+                      const [, prefixo, topico, detalhe] = m
+                      return (
+                        <div key={i}>
+                          {prefixo && <span className="muted">{t(prefixo.replace(':', ''))} — </span>}
+                          <b>{topico.trim()}</b>: {detalhe.trim()}
+                        </div>
+                      )
+                    }
+                    return <div key={i}>{linha}</div>
+                  })}
+                </div>
               )}
               </>)}
             </div>
@@ -664,7 +680,15 @@ export default function Board() {
                                 {det.itens.map((it, i) => <li key={i}><b>{it.topico}</b>: {it.detalhe}</li>)}
                               </ul>
                             ) : (
-                              <div style={{ marginBottom: 8 }}>{det.summary}</div>
+                              <div style={{ marginBottom: 8, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                                {det.summary.split('\n').filter((l) => l.trim()).map((linha, i) => {
+                                  const m = linha.match(/^(Ontem|Hoje):\s*$/)
+                                  if (m) return <div key={i} className="muted" style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: .5 }}>{t(m[1])}</div>
+                                  const mm = linha.match(/^([^:]{3,90}):\s*(.*)$/s)
+                                  if (mm) return <div key={i}><b>{mm[1].trim()}</b>: {mm[2].trim()}</div>
+                                  return <div key={i}>{linha}</div>
+                                })}
+                              </div>
                             )}
                             <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
                               <button

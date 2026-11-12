@@ -18,14 +18,27 @@ from types import SimpleNamespace
 MAX_BODY = 6000
 
 _SYSTEM = """Você prepara o texto que o desenvolvedor vai FALAR na daily de hoje.
-Recebe os docs de daily de ONTEM e de HOJE. Devolva o relato completo em
-primeira pessoa ("trabalhei", "estou"), cobrindo CADA tópico/seção de cada
-documento, um parágrafo ou frase por tópico, com os detalhes que importam
-para explicar em reunião: o que foi feito, como, por quê, números de
-testes/casos, o que falta e bloqueios. Não resuma para 2 frases: mantenha os
-detalhes do documento — a pessoa vai falar cada item. Não invente nada além
-dos documentos; se um dia estiver vazio, diga isso em meia frase e siga.
-Texto puro, sem markdown, sem listas."""
+Recebe os docs de daily de ONTEM e de HOJE. Devolva o relato em primeira
+pessoa ("trabalhei", "estou"), cobrindo CADA tópico/seção de cada documento,
+com os detalhes que importam para explicar em reunião: o que foi feito,
+como, por quê, números de testes/casos, o que falta e bloqueios.
+
+FORMATO OBRIGATÓRIO — texto puro (sem markdown, sem asteriscos, sem hashes),
+organizado por tópico, um bloco por linha:
+- Uma linha por tópico/seção do documento.
+- Cada linha começa com o nome do tópico seguido de dois pontos e o relato
+  do tópico (o que foi feito, como, por quê, números).
+- Separe os dias com uma linha "Ontem:" e uma linha "Hoje:" quando os dois
+  documentos tiverem conteúdo.
+- Não invente nada além dos documentos; se um dia estiver vazio, escreva
+  "Hoje: sem registros de daily." e siga.
+
+Exemplo do formato:
+Ontem: Logs — rastreabilidade: toda linha do seam agora leva trace-id,
+origem e gx, um grep pelo trace conta a história do request.
+Ontem: Horário da estação: o app enviava a hora sem zero antes das 10h,
+corrigi o parser para aceitar 1 ou 2 dígitos, teste RED para GREEN.
+Hoje: sem registros de daily."""
 
 _USER = """Docs de daily de ONTEM ({ontem}):
 {corpo_ontem}
@@ -37,12 +50,23 @@ Relate em primeira pessoa o que foi feito (texto puro, sem markdown, sem
 lista), cobrindo todos os tópicos de cada documento com seus detalhes:"""
 
 _SYSTEM_DIA = """Você prepara o texto que o desenvolvedor vai FALAR na daily.
-Recebe o doc de daily de um dia. Devolva o relato completo em primeira pessoa
-("trabalhei", "estou"), cobrindo CADA tópico/seção do documento, um parágrafo
-ou frase por tópico, com os detalhes que importam para explicar em reunião:
-o que foi feito, como, por quê, números de testes/casos, o que falta e
-bloqueios. Não resuma para 2 frases: mantenha os detalhes do documento.
-Não invente nada além do documento. Texto puro, sem markdown, sem listas."""
+Recebe o doc de daily de um dia. Devolva o relato em primeira pessoa
+("trabalhei", "estou"), cobrindo CADA tópico/seção do documento, com os
+detalhes que importam para explicar em reunião: o que foi feito, como,
+por quê, números de testes/casos, o que falta e bloqueios.
+
+FORMATO OBRIGATÓRIO — texto puro (sem markdown, sem asteriscos, sem hashes),
+um bloco por linha:
+- Uma linha por tópico/seção do documento.
+- Cada linha começa com o nome do tópico seguido de dois pontos e o relato
+  do tópico.
+- Não invente nada além do documento.
+
+Exemplo do formato:
+Logs — rastreabilidade: toda linha do seam agora leva trace-id, origem e
+gx, um grep pelo trace conta a história do request.
+Horário da estação: o app enviava a hora sem zero antes das 10h, corrigi
+o parser para aceitar 1 ou 2 dígitos, teste RED para GREEN."""
 
 # cache curto: ler as métricas de novo não deve chamar a IA toda hora
 _CACHE: dict[tuple, tuple[float, dict]] = {}
