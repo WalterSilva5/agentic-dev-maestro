@@ -23,13 +23,13 @@ pessoa ("trabalhei", "estou"), cobrindo CADA tópico/seção de cada documento,
 com os detalhes que importam para explicar em reunião: o que foi feito,
 como, por quê, números de testes/casos, o que falta e bloqueios.
 
-FORMATO OBRIGATÓRIO — texto puro (sem markdown, sem asteriscos, sem hashes),
-organizado por tópico, um bloco por linha:
-- Uma linha por tópico/seção do documento.
-- Cada linha começa com o nome do tópico seguido de dois pontos e o relato
-  do tópico (o que foi feito, como, por quê, números).
-- Separe os dias com uma linha "Ontem:" e uma linha "Hoje:" quando os dois
-  documentos tiverem conteúdo.
+FORMATO OBRIGATÓRIO — texto puro (sem markdown, sem asteriscos, sem hashes):
+- Quebre a linha após CADA tópico (use \\n literal ao final de cada bloco).
+- Uma linha por tópico/seção do documento, no formato
+  "Nome do tópico: relato do tópico (o que foi feito, como, por quê, números)."
+- Separe os dias com uma linha só com "Ontem:" e uma linha só com "Hoje:"
+  quando os dois documentos tiverem conteúdo.
+- NUNCA junte dois tópicos na mesma linha.
 - Não invente nada além dos documentos; se um dia estiver vazio, escreva
   "Hoje: sem registros de daily." e siga.
 
@@ -55,11 +55,11 @@ Recebe o doc de daily de um dia. Devolva o relato em primeira pessoa
 detalhes que importam para explicar em reunião: o que foi feito, como,
 por quê, números de testes/casos, o que falta e bloqueios.
 
-FORMATO OBRIGATÓRIO — texto puro (sem markdown, sem asteriscos, sem hashes),
-um bloco por linha:
-- Uma linha por tópico/seção do documento.
-- Cada linha começa com o nome do tópico seguido de dois pontos e o relato
-  do tópico.
+FORMATO OBRIGATÓRIO — texto puro (sem markdown, sem asteriscos, sem hashes):
+- Quebre a linha após CADA tópico (use \\n literal ao final de cada bloco).
+- Uma linha por tópico/seção do documento, no formato
+  "Nome do tópico: relato do tópico (o que foi feito, como, por quê, números)."
+- NUNCA junte dois tópicos na mesma linha.
 - Não invente nada além do documento.
 
 Exemplo do formato:
@@ -282,7 +282,12 @@ def _via_llm(ontem_txt: str, hoje_txt: str, ontem: str, hoje: str) -> str:
         temperature=0.3,
         timeout=180,
     )
-    return " ".join(str(texto or "").split())
+    texto = str(texto or "")
+    # quebras de linha separam os tópicos: normaliza espaços DENTRO de cada
+    # linha e mantém as linhas (o front renderiza um bloco por linha)
+    linhas = [" ".join(l.split()) for l in texto.split("\n")]
+    linhas = [l for l in linhas if l]
+    return "\n".join(linhas)
 
 
 def summarize_advance(*, ontem: str, hoje: str, entries_ontem, entries_hoje,
@@ -351,7 +356,9 @@ def summarize_day(*, dia: str, entries, use_ai: bool = True) -> dict:
                 temperature=0.3,
                 timeout=180,
             )
-            texto = " ".join(str(texto or "").split())
+            texto = str(texto or "")
+            linhas = [" ".join(l.split()) for l in texto.split("\n")]
+            texto = "\n".join([l for l in linhas if l])
             if texto:
                 return {
                     "summary": texto,
