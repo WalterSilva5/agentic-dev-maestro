@@ -71,6 +71,7 @@ const PIE_COLORS = ['#4f46e5','#06b6d4','#f59e0b','#ef4444','#10b981','#8b5cf6',
 export default function Board() {
   const { projectId } = useParams()
   const [board, setBoard] = useState(null)
+  const [boardFull, setBoardFull] = useState(null) // projeto inteiro, sem filtro de sprint (escopo das métricas)
   const [error, setError] = useState('')
   const [newTitles, setNewTitles] = useState({})
   const [openCode, setOpenCode] = useState(null)
@@ -122,10 +123,20 @@ export default function Board() {
 
   const filterParam = sprintFilter === 'all' ? null : sprintFilter
 
-  const load = () =>
+  const load = () => {
     getBoard(projectId, filterParam)
       .then((b) => { setBoard(b); setError('') })
       .catch((e) => setError(String(e.message || e)))
+    // Métricas e mutações precisam do escopo cheio junto.
+    loadFull()
+  }
+
+  // Board sem filtro de sprint: a aba Métricas é do projeto inteiro, igual
+  // à API, ao PDF e ao desktop — nunca segue o filtro de sprint do kanban.
+  const loadFull = () =>
+    getBoard(projectId, null)
+      .then((b) => setBoardFull(b))
+      .catch(() => {})
 
   const loadSprints = () =>
     getSprints(projectId)
@@ -243,6 +254,8 @@ export default function Board() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, sprintFilter])
 
+  // Escopo das métricas é o projeto inteiro: load() atualiza boardFull junto.
+
   const addTask = async (columnId) => {
     const title = (newTitles[columnId] || '').trim()
     if (!title) return
@@ -352,26 +365,28 @@ export default function Board() {
   const activeSprint = sprints.find((s) => s.status === 'ATIVA')
 
   // — Métricas do projeto (mesmo cálculo do desktop) —
-  const doneColIds = new Set(cols.filter((c) => c.isDone).map((c) => c.id))
+  // SEMPRE no escopo do projeto inteiro (boardFull, sem filtro de sprint):
+  // o kanban filtra por sprint, mas a métrica é do projeto — igual à API/PDF.
+  const mCols = boardFull ? [...boardFull.columns].sort((a, b) => a.order - b.order) : cols
+  const doneColIds = new Set(mCols.filter((c) => c.isDone).map((c) => c.id))
   const normName = (n) => (n || '').toLowerCase().replace(/[^a-z0-9]/g, '')
-  const devBoxCol = [...cols].sort((a, b) => a.order - b.order).find((c) => normName(c.name) === 'devbox')
-  const devColIds = devBoxCol ? new Set(cols.filter((c) => c.order >= devBoxCol.order).map((c) => c.id)) : doneColIds
-  const tasksAll = cols.flatMap((c) => c.tasks)
-  const totalTasks = tasksAll.length
+  const devBoxCol = [...mCols].sort((a, b) => a.order - b.order).find((c) => normName(c.name) === 'devbox')
+  const devColIds = devBoxCol ? new Set(mCols.filter((c) => c.order >= devBoxCol.order).map((c) => c.id)) : doneColIds
+  const mTasksAll = mCols.flatMap((c) => c.tasks)
   // tarefa local é lembrete pessoal: aparece no board, mas não entra em métrica
-  const tasksMetric = tasksAll.filter((tk) => !tk.isLocal && !excludedStages.includes(tk.columnId))
-  const localTasks = tasksAll.length - tasksMetric.length
+  const tasksMetric = mTasksAll.filter((tk) => !tk.isLocal && !excludedStages.includes(tk.columnId))
+  const localTasks = mTasksAll.filter((tk) => tk.isLocal).length
   const doneTasks = tasksMetric.filter((tk) => doneColIds.has(tk.columnId)).length
   const pct = tasksMetric.length ? Math.round((doneTasks / tasksMetric.length) * 100) : 0
   const developedTasks = tasksMetric.filter((tk) => devColIds.has(tk.columnId)).length
   const devPct = tasksMetric.length ? Math.round((developedTasks / tasksMetric.length) * 100) : 0
   const devColName = devBoxCol ? devBoxCol.name : null
-  const wipAlerts = cols.filter((c) => c.wipLimit && c.wipLimit > 0 && c.tasks.length > c.wipLimit)
+  const wipAlerts = mCols.filter((c) => c.wipLimit && c.wipLimit > 0 && c.tasks.length > c.wipLimit)
   const today0 = new Date(); today0.setHours(0,0,0,0)
   // alertas de prazo/fluxo contam TODAS as tarefas (a local é lembrete de entrega)
-  const vencidos = tasksAll.filter((tk) => tk.dueDate && new Date(tk.dueDate) < today0 && !doneColIds.has(tk.columnId))
+  const vencidos = mTasksAll.filter((tk) => tk.dueDate && new Date(tk.dueDate) < today0 && !doneColIds.has(tk.columnId))
   const limiteParado = Date.now() - 14 * 24 * 60 * 60 * 1000
-  const parados = tasksAll.filter((tk) => !doneColIds.has(tk.columnId) && tk.updatedAt && new Date(tk.updatedAt).getTime() < limiteParado)
+  const parados = mTasksAll.filter((tk) => !doneColIds.has(tk.columnId) && tk.updatedAt && new Date(tk.updatedAt).getTime() < limiteParado)
   const alertasLocais = new Set([...vencidos, ...parados].filter((tk) => tk.isLocal).map((tk) => tk.id)).size
   const goalsAtrasados = goals.filter((g) => {
     if (!g.dueDate) return false
@@ -402,7 +417,9 @@ export default function Board() {
   const daysUntil = (d) => Math.round((new Date(d) - today0) / 86400000)
   const colorForDays = (d, warn=7) => d < 0 ? 'var(--danger)' : d <= warn ? '#d97706' : 'var(--text)'
 
-  // Filtros derivados (client-side)
+  // Filtros derivados (client-side) — escopo do kanban (respeita sprint)
+  const tasksAll = cols.flatMap((c) => c.tasks)
+  const totalTasks = tasksAll.length
   const epicOptions = [...new Set(tasksAll.flatMap((tk) => (tk.epics || []).map((e) => e.name)))].sort()
   const tagOptions = [...new Set(tasksAll.flatMap((tk) => (tk.labels || []).map((l) => l.name)))].sort()
   const assigneeOptions = [...new Set([...tasksAll.map((tk) => tk.assignee).filter(Boolean), ...members.map((m) => m.name)])].sort()
@@ -435,7 +452,8 @@ export default function Board() {
   const unassignedDone = unassignedTasks.filter((tk) => doneColIds.has(tk.columnId)).length
   const unassignedDev = unassignedTasks.filter((tk) => devColIds.has(tk.columnId)).length
   const unassignedPct = unassignedTot ? Math.round((unassignedDev / unassignedTot) * 100) : 0
-  const assigneeProgressListBase = assigneeOptions.map((name) => {
+  const mAssigneeOptions = [...new Set([...mTasksAll.map((tk) => tk.assignee).filter(Boolean), ...members.map((m) => m.name)])].sort()
+  const assigneeProgressListBase = mAssigneeOptions.map((name) => {
     const q = tasksMetric.filter((tk) => tk.assignee === name)
     const tot = q.length
     const done = q.filter((tk) => doneColIds.has(tk.columnId)).length
@@ -446,7 +464,7 @@ export default function Board() {
   const assigneeProgressList = assigneeProgressListBase.sort((a, b) => b.tot - a.tot).slice(0, 8)
   const activeFilterCount = (searchText.trim() ? 1 : 0) + (priorityFilter !== 'all' ? 1 : 0) + (epicFilter !== 'all' ? 1 : 0) + (tagFilter !== 'all' ? 1 : 0) + (assigneeFilter !== 'all' ? 1 : 0)
   // Pie data
-  const columnPieData = cols.map((c, i) => ({ label: c.name, value: c.tasks.filter((tk) => !tk.isLocal).length, color: PIE_COLORS[i % PIE_COLORS.length] })).filter((d) => d.value > 0)
+  const columnPieData = mCols.map((c, i) => ({ label: c.name, value: c.tasks.filter((tk) => !tk.isLocal).length, color: PIE_COLORS[i % PIE_COLORS.length] })).filter((d) => d.value > 0)
   const assigneePieData = assigneeProgressList.map((a, i) => ({ label: a.name, value: a.tot, color: a.isUnassigned ? '#9ca3af' : PIE_COLORS[i % PIE_COLORS.length] }))
   const priorityPieData = ['URGENT','HIGH','MEDIUM','LOW'].map((p) => ({ label: p, value: tasksMetric.filter((t) => t.priority === p).length, color: PRIORITY_COLORS[p] })).filter((d) => d.value > 0)
   const epicPieData = epicProgressList.map((e, i) => ({ label: e.ep.name, value: e.tot, color: e.ep.color || PIE_COLORS[i % PIE_COLORS.length] }))
@@ -515,6 +533,7 @@ export default function Board() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <strong>{t('Métricas do projeto')}</strong>
               <span className="muted" style={{ fontSize: 11 }}>{metricSummary.length ? metricSummary.join('  ·  ') : t('Tudo em dia')}</span>
+              <span className="muted" style={{ fontSize: 10 }} title={t('A aba Board pode filtrar por sprint; a métrica cobre o projeto inteiro, igual ao PDF')}>· {t('escopo: projeto inteiro')}</span>
               <label className="muted" style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto', cursor: 'pointer' }} title={t('Oculta ranking por pessoa na tela e no PDF (quantidade não é complexidade)')}>
                 <input type="checkbox" checked={!!board.hideAssignee} onChange={(e) => updateProject(projectId, { hideAssignee: e.target.checked }).then(load)} />
                 {t('Ocultar por responsável')}
@@ -825,7 +844,7 @@ export default function Board() {
                     </div>
                   </div>
                 )}
-                {cols.map((c) => {
+                {mCols.map((c) => {
                   const pctCol = c.tasks.length ? Math.round((c.tasks.filter((tk) => doneColIds.has(tk.columnId)).length / c.tasks.length) * 100) : 0
                   const over = c.wipLimit && c.tasks.length > c.wipLimit
                   return (
