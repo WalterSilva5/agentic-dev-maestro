@@ -97,6 +97,13 @@ def collect_metrics(session, project, exclude_ids: set[int] | None = None) -> di
     total = len(tasks)
     done = sum(1 for t in tasks if t.column_id in done_ids)
     pct = round(done / total * 100) if total else 0
+    # dois status de primeiro nível: desenvolvimento concluído (Dev Box ou
+    # depois) x totalmente entregue (coluna de conclusão/aceite)
+    from relay.dimensions import dev_done_column as _dev_col_fn
+    _col_dev_top = _dev_col_fn(cols)
+    dev_ids_top = {c.id for c in cols if _col_dev_top is not None and c.order >= _col_dev_top.order} or set(done_ids)
+    developed = sum(1 for t in tasks if t.column_id in dev_ids_top)
+    developed_pct = round(developed / total * 100) if total else 0
 
     hoje = date.today()
     vencidas = [t for t in todas if t.due_date and t.due_date.date() < hoje and t.column_id not in done_ids]
@@ -238,6 +245,9 @@ def collect_metrics(session, project, exclude_ids: set[int] | None = None) -> di
         "excluded": sorted(excluidos),
         "done": done,
         "pct": pct,
+        "developed": developed,
+        "developedPct": developed_pct,
+        "developmentColumn": _col_dev_top.name if _col_dev_top is not None else None,
         "abertas": total - done,
         "vencidas": len(vencidas),
         "paradas": len(paradas),
@@ -412,13 +422,15 @@ def _kpi_row(m: dict, st: dict) -> Table:
         return [Paragraph(str(valor), st["kpi_val"]), Paragraph(rotulo, st["kpi_lbl"])]
 
     dados = [[
-        celula(f"{m['pct']}%", "PROGRESSO"),
-        celula(f"{m['done']}/{m['total']}", "CONCLUÍDAS"),
+        celula(f"{m.get('developedPct', m['pct'])}%", "DESENVOLVIMENTO CONCLUÍDO"),
+        celula(f"{m.get('developed', m['done'])}/{m['total']}", "DEV CONCLUÍDOS"),
+        celula(f"{m['pct']}%", "TOTALMENTE ENTREGUE"),
+        celula(f"{m['done']}/{m['total']}", "ENTREGUES"),
         celula(m["abertas"], "EM ABERTO"),
         celula(m["vencidas"], "VENCIDAS"),
         celula(m["paradas"], "PARADAS 14d+"),
     ]]
-    t = Table(dados, colWidths=[33.6 * mm] * 5)
+    t = Table(dados, colWidths=[168 * mm / 7] * 7)
     t.setStyle(TableStyle([
         ("BOX", (0, 0), (-1, -1), 0.6, BORDER),
         ("INNERGRID", (0, 0), (-1, -1), 0.4, BORDER),
@@ -522,13 +534,26 @@ def build_metrics_pdf(session, project, exclude_ids: set[int] | None = None) -> 
     flow.append(Paragraph(f"Métricas do projeto — {project.key} · {project.name}", st["h1"]))
     flow.append(Paragraph(
         f"Gerado em {m['gerado_em'].strftime('%d/%m/%Y %H:%M')} · "
-        f"{m['total']} tarefas no board · progresso {m['pct']}%"
+        f"{m['total']} tarefas no board · dev concluído {m.get('developedPct', m['pct'])}% · entregue {m['pct']}%"
         + (f" · {m['local']} tarefa(s) local(is) fora das métricas" if m.get("local") else "")
         + (f" · {len(m.get('excluded', []))} estágio(s) fora do cálculo" if m.get("excluded") else ""),
         st["sub"],
     ))
     flow.append(_kpi_row(m, st))
     flow.append(Spacer(1, 3 * mm))
+    dev_pct = m.get("developedPct", m["pct"])
+    flow.append(Paragraph(
+        f"Desenvolvimento concluído ({m.get('developmentColumn') or 'Dev Box'} ou depois): "
+        f"{m.get('developed', m['done'])}/{m['total']} · {dev_pct}%",
+        st["small"],
+    ))
+    flow.append(_bar(dev_pct, width=174 * mm, height=9,
+                     cor=GREEN if dev_pct == 100 else ACCENT))
+    flow.append(Spacer(1, 2 * mm))
+    flow.append(Paragraph(
+        f"Totalmente entregue (aceite): {m['done']}/{m['total']} · {m['pct']}%",
+        st["small"],
+    ))
     flow.append(_bar(m["pct"], width=174 * mm, height=9,
                      cor=GREEN if m["pct"] == 100 else ACCENT))
 

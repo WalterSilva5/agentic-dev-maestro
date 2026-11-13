@@ -2863,10 +2863,34 @@ def project_metrics_dimensions(project_id: int, exclude: str | None = None, s: S
         )
         .all()
     )
+    # arquivadas em Done voltam ao cálculo (paridade com board e PDF)
+    if done_ids:
+        tasks = list(tasks) + (
+            s.query(Task)
+            .filter(
+                Task.project_id == project_id,
+                Task.deleted_at == None,  # noqa: E711
+                Task.archived_at != None,  # noqa: E711
+                Task.column_id.in_(done_ids),
+            )
+            .all()
+        )
     fora = _parse_exclude(exclude)
     if fora:
         tasks = [t for t in tasks if t.column_id not in fora]
     dados = aggregate_dimensions(tasks, done_ids, colunas)
+    # totais de primeiro nível: desenvolvimento concluído x totalmente entregue
+    from relay.dimensions import dev_done_column as _dev_col_api
+    _cd = _dev_col_api(colunas)
+    _dev_ids = {c.id for c in colunas if _cd is not None and c.order >= _cd.order} or set(done_ids)
+    _nl = [t for t in tasks if not getattr(t, "is_local", False)]
+    _done_n = sum(1 for t in _nl if t.column_id in done_ids)
+    _dev_n = sum(1 for t in _nl if t.column_id in _dev_ids)
+    _tot_n = len(_nl)
+    dados["done"] = _done_n
+    dados["pct"] = round(_done_n / _tot_n * 100) if _tot_n else 0
+    dados["developed"] = _dev_n
+    dados["developedPct"] = round(_dev_n / _tot_n * 100) if _tot_n else 0
     return {"projectId": project_id, "excluded": sorted(fora), **dados}
 
 
@@ -2884,6 +2908,7 @@ def project_metrics_stages(project_id: int, stage: str | None = None, exclude: s
         raise HTTPException(404, "Project not found")
 
     columns = s.query(BoardColumn).filter(BoardColumn.project_id == project_id).all()
+    _done_ids_st = {c.id for c in columns if c.is_done}
     tasks = (
         s.query(Task)
         .filter(
@@ -2893,6 +2918,18 @@ def project_metrics_stages(project_id: int, stage: str | None = None, exclude: s
         )
         .all()
     )
+    # arquivadas em Done voltam ao cálculo (paridade com board e PDF)
+    if _done_ids_st:
+        tasks = list(tasks) + (
+            s.query(Task)
+            .filter(
+                Task.project_id == project_id,
+                Task.deleted_at == None,  # noqa: E711
+                Task.archived_at != None,  # noqa: E711
+                Task.column_id.in_(_done_ids_st),
+            )
+            .all()
+        )
     historico = (
         s.query(ActivityLog.entity_id, ActivityLog.detail)
         .filter(ActivityLog.entity_type == "task", ActivityLog.action == "moved")

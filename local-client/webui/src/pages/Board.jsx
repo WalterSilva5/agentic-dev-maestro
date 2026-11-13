@@ -363,6 +363,9 @@ export default function Board() {
   const localTasks = tasksAll.length - tasksMetric.length
   const doneTasks = tasksMetric.filter((tk) => doneColIds.has(tk.columnId)).length
   const pct = tasksMetric.length ? Math.round((doneTasks / tasksMetric.length) * 100) : 0
+  const developedTasks = tasksMetric.filter((tk) => devColIds.has(tk.columnId)).length
+  const devPct = tasksMetric.length ? Math.round((developedTasks / tasksMetric.length) * 100) : 0
+  const devColName = devBoxCol ? devBoxCol.name : null
   const wipAlerts = cols.filter((c) => c.wipLimit && c.wipLimit > 0 && c.tasks.length > c.wipLimit)
   const today0 = new Date(); today0.setHours(0,0,0,0)
   // alertas de prazo/fluxo contam TODAS as tarefas (a local é lembrete de entrega)
@@ -382,7 +385,8 @@ export default function Board() {
     return done < tot
   }).length
   const metricSummary = []
-  if (pct < 100) metricSummary.push(`${pct}%`)
+  if (devPct < 100) metricSummary.push(`${t('dev')} ${devPct}%`)
+  if (pct < 100) metricSummary.push(`${t('entregue')} ${pct}%`)
   if (wipAlerts.length) metricSummary.push(`⚠ WIP ${wipAlerts.length}`)
   if (vencidos.length) metricSummary.push(`⏰ ${vencidos.length} vencida(s)`)
   if (parados.length) metricSummary.push(`• ${parados.length} parada(s)`)
@@ -521,12 +525,25 @@ export default function Board() {
                 </button>
               </a>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span className="muted" style={{ fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap' }}>{t('Progresso geral')}</span>
-              <div style={{ flex: 1, height: 14, background: 'var(--border-light)', borderRadius: 6, overflow: 'hidden', display: 'flex' }}>
-                <div style={{ width: `${pct}%`, background: pct === 100 ? 'var(--accent)' : 'var(--accent)', transition: 'width .3s' }} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }} title={devColName ? tf('Cards em {col} ou depois', { col: devColName }) : t('Cards com desenvolvimento concluído')}>
+                <span className="muted" style={{ fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap', minWidth: 150 }}>{t('Desenvolvimento concluído')}</span>
+                <div style={{ flex: 1, height: 14, background: 'var(--border-light)', borderRadius: 6, overflow: 'hidden', display: 'flex' }}>
+                  <div style={{ width: `${devPct}%`, background: devPct === 100 ? '#16a34a' : '#4f46e5', transition: 'width .3s' }} />
+                </div>
+                <span style={{ fontSize: 12, fontWeight: 600, minWidth: 90, textAlign: 'right' }}>{devPct}% ({developedTasks}/{tasksMetric.length})</span>
               </div>
-              <span style={{ fontSize: 12, fontWeight: 600, minWidth: 80, textAlign: 'right' }}>{pct}% ({doneTasks}/{totalTasks})</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }} title={t('Cards na coluna de conclusão (aceite)')}>
+                <span className="muted" style={{ fontSize: 11, fontWeight: 600, whiteSpace: 'nowrap', minWidth: 150 }}>{t('Totalmente entregue')}</span>
+                <div style={{ flex: 1, height: 14, background: 'var(--border-light)', borderRadius: 6, overflow: 'hidden', display: 'flex' }}>
+                  <div style={{ width: `${pct}%`, background: pct === 100 ? '#16a34a' : '#f59e0b', transition: 'width .3s' }} />
+                </div>
+                <span style={{ fontSize: 12, fontWeight: 600, minWidth: 90, textAlign: 'right' }}>{pct}% ({doneTasks}/{tasksMetric.length})</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 10, minWidth: 150 }} />
+                <span className="muted" style={{ fontSize: 10 }}>{t('Desmarcar estágios em “Posição no fluxo” tira os cards do cálculo dos dois percentuais.')}</span>
+                <span style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
               {activeSprint?.endDate && (() => {
                 const d = daysUntil(activeSprint.endDate)
                 const col = d < 0 ? 'var(--danger)' : d <= 3 ? '#d97706' : 'var(--muted)'
@@ -545,6 +562,8 @@ export default function Board() {
                   </span>
                 )
               })()}
+                </span>
+              </div>
             </div>
             {/* Avanço ontem → hoje (resumo por IA dos docs de daily do vault) */}
             <div style={{ background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '8px 10px' }}>
@@ -838,7 +857,8 @@ export default function Board() {
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="muted">{t('Vencidas')}</span><span style={{ fontWeight: 700, color: vencidos.length?'var(--danger)':'var(--text)' }}>{vencidos.length}</span></div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="muted">{t('Paradas 14d+')}</span><span style={{ fontWeight: 700, color: parados.length?'#d97706':'var(--text)' }}>{parados.length}</span></div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="muted">{t('Sem responsável')}</span><span style={{ fontWeight: 700 }}>{unassignedTot} ({unassignedPct}%)</span></div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="muted">{t('Concluídas')}</span><span style={{ fontWeight: 700, color: 'var(--accent)' }}>{doneTasks}/{tasksMetric.length} ({pct}%)</span></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="muted">{t('Desenvolvimento concluído')}</span><span style={{ fontWeight: 700, color: '#4f46e5' }}>{developedTasks}/{tasksMetric.length} ({devPct}%)</span></div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span className="muted">{t('Totalmente entregue')}</span><span style={{ fontWeight: 700, color: 'var(--accent)' }}>{doneTasks}/{tasksMetric.length} ({pct}%)</span></div>
                   {localTasks > 0 && (
                     <div className="muted" style={{ fontSize: 10, marginTop: 2 }} title={t('Lembretes locais não entram no progresso, mas contam no alerta de prazo')}>
                       {localTasks} {t('local(is) fora do progresso')}
@@ -857,8 +877,16 @@ export default function Board() {
             {/* Hierárquico por módulos — barra proporcional */}
             <div style={{ background: 'var(--bg)', border: '1px solid var(--border-light)', borderRadius: 8, padding: '10px', marginTop: 4 }}>
               <div className="muted" style={{ fontSize: 10, fontWeight: 700, letterSpacing: .6, textTransform: 'uppercase', marginBottom: 6 }}>📊 {t('Progresso geral')}</div>
-              <div style={{ height: 14, background: 'var(--border-light)', borderRadius: 7, overflow: 'hidden', display: 'flex' }}><div style={{ width: `${pct}%`, background: pct===100?'#16a34a':'#f59e0b' }} /></div>
-              <div className="muted" style={{ fontSize: 10, marginTop: 4 }}>{doneTasks}/{totalTasks} · {pct}%</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <span style={{ fontSize: 11, minWidth: 150 }}>{t('Desenvolvimento concluído')}</span>
+                <div style={{ flex: 1, height: 14, background: 'var(--border-light)', borderRadius: 7, overflow: 'hidden', display: 'flex' }}><div style={{ width: `${devPct}%`, background: devPct===100?'#16a34a':'#4f46e5' }} /></div>
+                <span className="muted" style={{ fontSize: 11, minWidth: 90, textAlign: 'right' }}>{developedTasks}/{tasksMetric.length} · {devPct}%</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 11, minWidth: 150 }}>{t('Totalmente entregue')}</span>
+                <div style={{ height: 14, flex: 1, background: 'var(--border-light)', borderRadius: 7, overflow: 'hidden', display: 'flex' }}><div style={{ width: `${pct}%`, background: pct===100?'#16a34a':'#f59e0b' }} /></div>
+                <span className="muted" style={{ fontSize: 11, minWidth: 90, textAlign: 'right' }}>{doneTasks}/{tasksMetric.length} · {pct}%</span>
+              </div>
             </div>
             {/* Posição no fluxo + corte por módulo (sem "funil" artificial) */}
             {stages && stages.stages.length > 0 && (() => {

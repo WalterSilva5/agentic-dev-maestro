@@ -1783,6 +1783,13 @@ class BoardMetricsAccordion(QFrame):
             total = len(tasks_metric)
             done = sum(1 for tk in tasks_metric if tk.column_id in done_col_ids)
             pct = int(done / total * 100) if total else 0
+            # dois status de primeiro nível: dev concluído x totalmente entregue
+            from relay.dimensions import dev_done_column as _dev_col_desk
+            _cd = _dev_col_desk(cols)
+            _dev_ids = {c.id for c in cols if _cd is not None and c.order >= _cd.order} or set(done_col_ids)
+            developed = sum(1 for tk in tasks_metric if tk.column_id in _dev_ids)
+            dev_pct = int(developed / total * 100) if total else 0
+            dev_col_nome = _cd.name if _cd is not None else None
 
             # WIP
             wip_alerts = []
@@ -1830,19 +1837,31 @@ class BoardMetricsAccordion(QFrame):
                 partes.append(_t("{n} alerta(s) de tarefa local").format(n=alertas_locais))
             self.summary_lbl.setText("  ·  ".join(partes) if partes else _t("Tudo em dia"))
 
-            # — linha de progresso geral —
+            # — linha de progresso geral (dois status) —
             prog_row = QHBoxLayout()
             prog_row.setSpacing(8)
-            prog_lbl = QLabel(_t("Progresso geral"))
+            prog_lbl = QLabel(_t("Desenvolvimento concluído"))
+            prog_lbl.setToolTip(_t("Cards em {col} ou depois").format(col=dev_col_nome) if dev_col_nome else "")
             prog_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 11px; font-weight: 600; border: none;")
             prog_row.addWidget(prog_lbl)
             barra = QProgressBar()
-            barra.setValue(pct)
-            barra.setFormat(f"{pct}%  ({done}/{total})")
+            barra.setValue(dev_pct)
+            barra.setFormat(f"{dev_pct}%  ({developed}/{total})")
             barra.setTextVisible(True)
             barra.setFixedHeight(16)
-            barra.setStyleSheet(f"QProgressBar {{ background: {t.bg_badge}; }} QProgressBar::chunk {{ background: {t.success if pct==100 else t.accent}; }}")
+            barra.setStyleSheet(f"QProgressBar {{ background: {t.bg_badge}; }} QProgressBar::chunk {{ background: {t.accent if dev_pct==100 else '#4f46e5'}; }}")
             prog_row.addWidget(barra, 1)
+            entr_lbl = QLabel(_t("Totalmente entregue"))
+            entr_lbl.setToolTip(_t("Cards na coluna de conclusão (aceite)"))
+            entr_lbl.setStyleSheet(f"color: {t.text_muted}; font-size: 11px; font-weight: 600; border: none;")
+            prog_row.addWidget(entr_lbl)
+            barra2 = QProgressBar()
+            barra2.setValue(pct)
+            barra2.setFormat(f"{pct}%  ({done}/{total})")
+            barra2.setTextVisible(True)
+            barra2.setFixedHeight(16)
+            barra2.setStyleSheet(f"QProgressBar {{ background: {t.bg_badge}; }} QProgressBar::chunk {{ background: {t.success if pct==100 else t.accent}; }}")
+            prog_row.addWidget(barra2, 1)
             if sprint_ativa and sprint_ativa.end_date:
                 dias = (sprint_ativa.end_date.date() - hoje).days
                 cor = t.danger if dias < 0 else (t.warning if dias <= 3 else t.text_muted)

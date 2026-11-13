@@ -1065,4 +1065,6 @@ CATALOG = {
   "Voltar a incluir todos os estágios no cálculo": "Include all stages in the calculation again",
   "{n} fora do cálculo · limpar": "{n} out of calculation · clear",
   "Desenvolvimento concluído (Dev Box ou depois)": "Development complete (Dev Box or later)",
+  "Desenvolvimento concluído": "Development complete",
+  "Totalmente entregue": "Fully delivered",
 }
